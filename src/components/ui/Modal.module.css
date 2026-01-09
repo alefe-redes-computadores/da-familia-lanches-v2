@@ -1,0 +1,77 @@
+/* components/ui/Modal.module.css */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6); /* Escurece mais o fundo */
+  backdrop-filter: blur(4px); /* Efeito de desfoque */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* Força ficar ACIMA de tudo (header, drawer, etc) */
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+  width: 90%;
+  max-width: 420px;
+  background-color: #ffffff; /* Branco forçado */
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh; /* Evita que estoure a tela no celular */
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+  position: relative;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #ffca28; /* Amarelo da marca */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.title {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #111;
+}
+
+.close {
+  border: none;
+  background: rgba(255, 255, 255, 0.4);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.content {
+  padding: 20px;
+  overflow-y: auto; /* Permite rolar se o conteúdo for grande */
+  color: #333;
+}
+
+/* Animações suaves */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

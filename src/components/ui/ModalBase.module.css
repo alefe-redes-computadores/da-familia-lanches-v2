@@ -1,0 +1,83 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 9999; /* Garante que fica acima de tudo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.6); /* Escurece o fundo */
+  backdrop-filter: blur(4px); /* Efeito Blur */
+  cursor: pointer;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+  position: relative; /* Importante para ficar acima do backdrop */
+  width: min(92vw, 420px);
+  max-height: 85vh;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+  z-index: 10000; /* Acima do backdrop */
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #ffca28; /* Amarelo DFL */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.title {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #111;
+}
+
+.close {
+  border: none;
+  background: rgba(255, 255, 255, 0.4);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+  color: #000;
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.body {
+  padding: 0; /* Remove padding padrão para flexibilidade */
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Animações */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

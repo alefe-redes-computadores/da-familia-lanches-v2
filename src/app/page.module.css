@@ -1,0 +1,18 @@
+.main {
+  width: 100%;
+  min-height: 100vh;
+  padding: 88px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+  .main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 104px 24px 32px;
+    gap: 18px;
+  }
+}

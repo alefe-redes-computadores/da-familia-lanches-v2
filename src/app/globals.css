@@ -1,0 +1,33 @@
+:root {
+  --bg: #f4f4f4;
+  --card: #ffffff;
+  --txt: #1f1f1f;
+
+  --dfl-yellow: #ffca28;
+  --dfl-yellow-2: #ffb300;
+  --dfl-black: #111;
+  --muted: rgba(0, 0, 0, 0.6);
+
+  --radius: 16px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--txt);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input {
+  font-family: inherit;
+}
