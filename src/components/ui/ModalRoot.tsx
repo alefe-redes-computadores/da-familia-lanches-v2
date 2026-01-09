@@ -7,41 +7,32 @@ import { ModalBase } from "./ModalBase";
 import { LoginModal } from "./LoginModal";
 import { CartModal } from "./CartModal";
 import { PixModal } from "./PixModal"; 
-// ATUALIZADO: Importando o modal de termos
 import { TermsModal } from "./TermsModal"; 
 
 export function ModalRoot() {
+  // Agora o seletor busca exatamente o que existe na Store
   const activeModal = useUIStore((s) => s.activeModal);
   const closeModal = useUIStore((s) => s.closeModal);
 
   if (!activeModal) return null;
 
   // 1. Login
-  if (activeModal === "login") {
-    return <LoginModal />;
-  }
+  if (activeModal === "login") return <LoginModal />;
 
   // 2. Carrinho
-  if (activeModal === "cart") {
-    return <CartModal />;
-  }
+  if (activeModal === "cart") return <CartModal />;
 
   // 3. PIX
-  if (activeModal === "pix") {
-    return <PixModal />;
-  }
+  if (activeModal === "pix") return <PixModal />;
 
-  // 4. Termos de Privacidade (NOVO)
-  if (activeModal === "terms") {
-    return <TermsModal />;
-  }
+  // 4. Termos de Privacidade
+  if (activeModal === "terms") return <TermsModal />;
 
-  // 5. Menu (Fallback Bonito)
+  // 5. Menu Lateral (Caso seja chamado como modal)
   if (activeModal === "menu") {
     return (
       <ModalBase title="Navegação" onClose={closeModal}>
         <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
-          
           <button onClick={closeModal} style={menuBtnStyle}>
             <span style={{ fontSize: "20px" }}>🏠</span>
             <div>
@@ -49,15 +40,6 @@ export function ModalRoot() {
               <div style={{ fontSize: "12px", color: "#666" }}>Página inicial</div>
             </div>
           </button>
-
-          <button onClick={closeModal} style={menuBtnStyle}>
-            <span style={{ fontSize: "20px" }}>🍔</span>
-            <div>
-              <div style={{ fontWeight: "800", color: "#333" }}>Cardápio</div>
-              <div style={{ fontSize: "12px", color: "#666" }}>Ver delícias</div>
-            </div>
-          </button>
-
           <button onClick={closeModal} style={menuBtnStyle}>
             <span style={{ fontSize: "20px" }}>📦</span>
             <div>
@@ -65,15 +47,6 @@ export function ModalRoot() {
               <div style={{ fontSize: "12px", color: "#666" }}>Histórico</div>
             </div>
           </button>
-
-          <button onClick={closeModal} style={menuBtnStyle}>
-            <span style={{ fontSize: "20px" }}>📞</span>
-            <div>
-              <div style={{ fontWeight: "800", color: "#333" }}>Contato</div>
-              <div style={{ fontSize: "12px", color: "#666" }}>Fale conosco</div>
-            </div>
-          </button>
-
         </div>
       </ModalBase>
     );
@@ -93,5 +66,4 @@ const menuBtnStyle = {
   borderRadius: "12px",
   textAlign: "left" as const,
   cursor: "pointer",
-  transition: "transform 0.1s",
 };

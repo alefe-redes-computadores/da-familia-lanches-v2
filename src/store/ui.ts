@@ -1,46 +1,41 @@
+"use client";
+
 import { create } from "zustand";
 
-type ModalType = "cart" | "checkout" | "product-details" | "login" | "orders" | null;
+// Aqui estão TODOS os tipos de modais do seu projeto antigo e do novo
+export type ModalType = "cart" | "checkout" | "product-details" | "login" | "orders" | "rewards" | "terms" | "menu" | "pix" | null;
 
 interface UIStore {
-  // Estado do Menu Lateral (Mobile)
+  // --- Vindo do ui.ts (Menu Mobile) ---
   isMobileMenuOpen: boolean;
   toggleMobileMenu: () => void;
   closeMobileMenu: () => void;
 
-  // Estado dos Modais
-  isModalOpen: boolean;
-  modalType: ModalType;
-  modalData: any; // Para passar dados pro modal (ex: produto clicado)
+  // --- Vindo do ui.store.ts (Modais) ---
+  activeModal: ModalType;
+  modalData: any; 
   
   openModal: (type: ModalType, data?: any) => void;
   closeModal: () => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
-  // --- Lógica do Menu Mobile ---
+  // Estado Inicial do Menu
   isMobileMenuOpen: false,
-  
-  toggleMobileMenu: () => set((state) => ({ 
-    isMobileMenuOpen: !state.isMobileMenuOpen 
-  })),
-  
+  toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
   closeMobileMenu: () => set({ isMobileMenuOpen: false }),
 
-  // --- Lógica dos Modais ---
-  isModalOpen: false,
-  modalType: null,
+  // Estado Inicial dos Modais
+  activeModal: null,
   modalData: null,
 
   openModal: (type, data = null) => set({ 
-    isModalOpen: true, 
-    modalType: type,
+    activeModal: type,
     modalData: data 
   }),
   
   closeModal: () => set({ 
-    isModalOpen: false, 
-    modalType: null, 
+    activeModal: null, 
     modalData: null 
   }),
 }));
