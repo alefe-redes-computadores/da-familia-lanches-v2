@@ -30,7 +30,7 @@ export function Header() {
 
         {/* Menu Hambúrguer */}
         <HamburgerButton
-          onClick={() => openModal("menu")}
+          onClick={() => (openModal as any)("menu")} 
           ariaLabel="Abrir menu"
         />
 
