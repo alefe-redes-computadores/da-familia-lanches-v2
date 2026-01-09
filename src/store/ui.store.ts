@@ -3,8 +3,8 @@
 import { create } from "zustand";
 
 type UIStore = {
-  // Modais atuais (se você já usa)
-  activeModal: null | "cart" | "login" | "orders" | "rewards";
+  // Modais atualizados para incluir 'terms'
+  activeModal: null | "cart" | "login" | "orders" | "rewards" | "terms";
   openModal: (modal: UIStore["activeModal"]) => void;
   closeModal: () => void;
 
@@ -16,12 +16,10 @@ type UIStore = {
 };
 
 export const useUIStore = create<UIStore>((set) => ({
-  // Modais
   activeModal: null,
   openModal: (modal) => set({ activeModal: modal }),
   closeModal: () => set({ activeModal: null }),
 
-  // Drawer
   isMenuOpen: false,
   openMenu: () => set({ isMenuOpen: true }),
   closeMenu: () => set({ isMenuOpen: false }),

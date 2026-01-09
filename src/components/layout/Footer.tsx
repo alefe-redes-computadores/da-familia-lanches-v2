@@ -71,9 +71,9 @@ export function Footer() {
         <div style={styles.legal}>
           <p>© 2026 Da Família Lanches. Todos os direitos reservados.</p>
           <div style={styles.links}>
-            <button onClick={() => openModal("terms")} style={styles.linkBtn}>Termos de Uso</button>
+            <button onClick={() => (openModal as any)('terms')}>Termos de Uso</button>
             <span>•</span>
-            <button onClick={() => openModal("terms")} style={styles.linkBtn}>Privacidade</button>
+            <button onClick={() => (openModal as any)('terms')}>Privacidade</button>
           </div>
         </div>
 
