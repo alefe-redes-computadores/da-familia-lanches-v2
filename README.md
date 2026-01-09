@@ -35,4 +35,4 @@ Sistema de delivery moderno desenvolvido para a **Da Família Lanches**, focado 
     ```
 
 ---
-*Desenvolvido com ❤️ para a Da Família Lanches.*
+*Desenvolvido com ❤️ para a Da Família Lanches*
