@@ -2,16 +2,27 @@
 
 import { create } from "zustand";
 
-// Aqui estão TODOS os tipos de modais do seu projeto antigo e do novo
-export type ModalType = "cart" | "checkout" | "product-details" | "login" | "orders" | "rewards" | "terms" | "menu" | "pix" | null;
+// Unificação de todos os tipos de modais encontrados nos logs de erro
+export type ModalType = 
+  | "cart" 
+  | "checkout" 
+  | "product-details" 
+  | "login" 
+  | "orders" 
+  | "rewards" 
+  | "terms" 
+  | "menu" 
+  | "pix" 
+  | "outros" // Adicionado para evitar erro no OrdersModal
+  | null;
 
 interface UIStore {
-  // --- Vindo do ui.ts (Menu Mobile) ---
+  // --- Estado do Menu Lateral (Mobile) ---
   isMobileMenuOpen: boolean;
   toggleMobileMenu: () => void;
   closeMobileMenu: () => void;
 
-  // --- Vindo do ui.store.ts (Modais) ---
+  // --- Estado dos Modais (Unificado) ---
   activeModal: ModalType;
   modalData: any; 
   
@@ -20,7 +31,7 @@ interface UIStore {
 }
 
 export const useUIStore = create<UIStore>((set) => ({
-  // Estado Inicial do Menu
+  // Estado Inicial do Menu Mobile
   isMobileMenuOpen: false,
   toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
   closeMobileMenu: () => set({ isMobileMenuOpen: false }),

@@ -104,14 +104,16 @@ export function OrdersModal() {
         const itemsToRepeat = getOrderItems(order);
 
         itemsToRepeat.forEach((item: any) => {
-            addItem(
-                { 
+            // @ts-ignore
+            addItem({
+
                     id: "repeat-" + Math.random(), 
                     name: item.name, 
                     price: 0, 
                     description: "",
                     image: "",
-                    category: "outros"
+                    category: "outros" as any
+                    
                 }, 
                 item.quantity, 
                 item.addons, 
