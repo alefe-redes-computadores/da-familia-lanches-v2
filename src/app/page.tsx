@@ -18,7 +18,7 @@ export default function Home() {
       return isCategoryMatch && isSearchMatch;
     });
   };
-
+ 
   const categoriesOrder = [
     { id: "promocoes", title: "🔥 Promoções" },
     { id: "combos", title: "🧡 Combos" },
