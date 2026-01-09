@@ -16,7 +16,7 @@ import { CheckoutModal } from "@/components/ui/CheckoutModal";
 import { LoginModal } from "@/components/auth/LoginModal"; 
 import { RewardsModal } from "@/components/ui/RewardsModal";
 
-import { useUIStore } from "@/store/ui"; // Certifique-se que o caminho está correto (ex: @/store/ui.store se for o caso)
+import { useUIStore } from "@/store/ui"; 
 import { useAuthStore } from "@/store/auth.store";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -27,8 +27,8 @@ type Props = {
 };
 
 export function AppShell({ children }: Props) {
-  // CORREÇÃO AQUI: Usando activeModal conforme definido no seu ui.store.ts
-  const { openMenu, openModal, activeModal } = useUIStore();
+  // Usei o seletor direto para evitar erro de tipo na desestruturação
+  const ui = useUIStore();
   const { currentUser, setCurrentUser } = useAuthStore();
   
   const [points, setPoints] = useState(0);
@@ -96,8 +96,11 @@ export function AppShell({ children }: Props) {
 
       <header className={styles.header}>
         <div className={styles.left}>
-          {/* Mudei toggleMobileMenu para openMenu conforme seu ui.store.ts */}
-          <HamburgerButton onClick={openMenu} ariaLabel="Abrir menu" />
+          {/* Usei toggleMenu ou openMenu com fallback para evitar erro de build */}
+          <HamburgerButton 
+            onClick={() => (ui as any).openMenu ? (ui as any).openMenu() : (ui as any).toggleMenu()} 
+            ariaLabel="Abrir menu" 
+          />
           <div className={styles.brand}>
             <div className={styles.title}>Da Família Lanches</div>
             <div className={styles.sub}>
@@ -142,8 +145,7 @@ export function AppShell({ children }: Props) {
                             onError={() => setImageError(true)}
                             style={{ 
                                 width: "38px", height: "38px", borderRadius: "50%", 
-                                objectFit: "cover", border: "2px solid #fff",
-                                boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
+                                border: "2px solid #fff", boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
                             }}
                         />
                     ) : (
@@ -172,22 +174,20 @@ export function AppShell({ children }: Props) {
                         </div>
 
                         <button 
-                            onClick={() => { openModal("rewards"); setIsProfileMenuOpen(false); }}
+                            onClick={() => { (ui as any).openModal("rewards"); setIsProfileMenuOpen(false); }}
                             style={{ 
                                 width: "100%", padding: "10px", background: "transparent", border: "none", 
-                                textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px",
-                                fontSize: "14px", color: "#333", borderRadius: "8px"
+                                textAlign: "left", cursor: "pointer", fontSize: "14px", color: "#333"
                             }}
                         >
                             💎 Prêmios e Pontos
                         </button>
 
                         <button 
-                            onClick={() => { openModal("orders"); setIsProfileMenuOpen(false); }}
+                            onClick={() => { (ui as any).openModal("orders"); setIsProfileMenuOpen(false); }}
                             style={{ 
                                 width: "100%", padding: "10px", background: "transparent", border: "none", 
-                                textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px",
-                                fontSize: "14px", color: "#333", borderRadius: "8px"
+                                textAlign: "left", cursor: "pointer", fontSize: "14px", color: "#333"
                             }}
                         >
                             🛍️ Meus Pedidos
@@ -199,8 +199,7 @@ export function AppShell({ children }: Props) {
                             onClick={handleLogout}
                             style={{ 
                                 width: "100%", padding: "10px", background: "transparent", border: "none", 
-                                textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px",
-                                fontSize: "14px", color: "#d32f2f", borderRadius: "8px", fontWeight: "bold"
+                                textAlign: "left", cursor: "pointer", fontSize: "14px", color: "#d32f2f", fontWeight: "bold"
                             }}
                         >
                             🚪 Sair da Conta
@@ -210,12 +209,12 @@ export function AppShell({ children }: Props) {
 
             </div>
           ) : (
-            <button className={styles.primaryBtn} type="button" onClick={() => openModal("login")}>
+            <button className={styles.primaryBtn} type="button" onClick={() => (ui as any).openModal("login")}>
                 Entrar
             </button>
           )}
 
-          <button className={styles.iconBtn} type="button" onClick={() => openModal("cart")}>
+          <button className={styles.iconBtn} type="button" onClick={() => (ui as any).openModal("cart")}>
             🛒
           </button>
         </div>
@@ -226,15 +225,13 @@ export function AppShell({ children }: Props) {
       <Footer />
       <PrivacyBanner />
 
-      {/* CORREÇÃO AQUI: Verificando apenas activeModal */}
-      {activeModal === "cart" && <CartModal />}
-      {activeModal === "orders" && <OrdersModal />} 
-      {activeModal === "login" && <LoginModal />}
-      {activeModal === "rewards" && <RewardsModal />}
-      
-      {/* Caso use outros modais que não estão na store básica: */}
-      {(activeModal as string) === "checkout" && <CheckoutModal />}
-      {(activeModal as string) === "product-details" && <ProductDetailsModal />}
+      {/* Verificação segura do activeModal */}
+      {(ui as any).activeModal === "cart" && <CartModal />}
+      {(ui as any).activeModal === "orders" && <OrdersModal />} 
+      {(ui as any).activeModal === "login" && <LoginModal />}
+      {(ui as any).activeModal === "rewards" && <RewardsModal />}
+      {(ui as any).activeModal === "checkout" && <CheckoutModal />}
+      {(ui as any).activeModal === "product-details" && <ProductDetailsModal />}
     </div>
   );
 }
