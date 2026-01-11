@@ -7,9 +7,10 @@ import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, addDoc, serverTimestamp, increment, setDoc } from "firebase/firestore";
-import { getShopStatus } from "@/lib/openingHours"; // <--- 1. IMPORTAÇÃO DO HORÁRIO
+import { getShopStatus } from "@/lib/openingHours";
 
 type PaymentMethod = "pix" | "card" | "cash";
+type DeliveryMode = "delivery" | "pickup";
 
 export function CheckoutModal() {
   const { closeModal } = useUIStore();
@@ -19,6 +20,7 @@ export function CheckoutModal() {
   // Passos: 1 = Endereço, 2 = Pagamento
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("delivery");
 
   // Endereço e Frete
   const [cep, setCep] = useState("");
@@ -44,40 +46,44 @@ export function CheckoutModal() {
   // Totais
   const subtotal = getCartTotal();
   const isFreteGratis = subtotal >= 80.00; 
-  const finalFee = isFreteGratis ? 0 : deliveryFee;
+  const isRetirada = deliveryMode === "pickup";
+  const finalFee = (isFreteGratis || isRetirada) ? 0 : deliveryFee;
   
   // Cálculo final (evita negativo)
   const total = Math.max(0, subtotal + finalFee - discount);
 
   const PIX_KEY = "34997178336";
 
-  // --- LÓGICA DE CUPONS ---
-  const applyCoupon = () => {
+  // --- LÓGICA DE CUPONS (BUSCA REAL NO FIREBASE) ---
+  const applyCoupon = async () => {
     const code = couponCode.trim().toUpperCase();
-    
-    const coupons: any = {
-        "BRONZE10": { type: "percent", value: 10 },
-        "PRATACOCA": { type: "fixed", value: 8.00 },
-        "OUROBURGER": { type: "fixed", value: 25.00 },
-        "DIAMANTE": { type: "fixed", value: 50.00 }
-    };
+    if (!code) return;
 
-    if (coupons[code]) {
-        const rule = coupons[code];
-        let valorDesconto = 0;
+    setLoading(true);
+    try {
+        const docRef = doc(db, "Cupons", code);
+        const snap = await getDoc(docRef);
 
-        if (rule.type === "percent") {
-            valorDesconto = (subtotal * rule.value) / 100;
+        if (snap.exists() && snap.data().ativo) {
+            const data = snap.data();
+            let valorDesconto = 0;
+
+            if (data.tipo === "percent") {
+                valorDesconto = (subtotal * data.percent) / 100;
+            } else {
+                valorDesconto = data.valor;
+            }
+
+            setDiscount(valorDesconto);
+            setCouponMessage(`✅ Desconto de ${valorDesconto.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} aplicado!`);
         } else {
-            valorDesconto = rule.value;
+            setDiscount(0);
+            setCouponMessage("❌ Cupom inválido ou expirado.");
         }
-
-        setDiscount(valorDesconto);
-        setCouponMessage(`Desconto de ${valorDesconto.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} aplicado!`);
-    } else {
-        setDiscount(0);
-        setCouponMessage("Cupom inválido ou expirado.");
+    } catch (e) {
+        setCouponMessage("Erro ao validar cupom.");
     }
+    setLoading(false);
   };
 
   // --- LÓGICA 1: VIACEP ---
@@ -130,20 +136,23 @@ export function CheckoutModal() {
     }
   };
 
-  // --- LÓGICA 3: FINALIZAR PEDIDO (AGORA COM HORÁRIO) ---
+  // --- LÓGICA 3: FINALIZAR PEDIDO ---
   const handleFinish = async () => {
-    if (!rua || !numero || !bairro) return alert("Preencha o endereço completo!");
+    // Validação condicional: só exige endereço se for Entrega
+    if (deliveryMode === "delivery" && (!rua || !numero || !bairro)) {
+        return alert("Preencha o endereço completo!");
+    }
     if (!currentUser) return alert("Você precisa estar logado!");
     
     setLoading(true);
 
-    // 2. VERIFICA SE ESTÁ FECHADO
     const statusLoja = getShopStatus();
-    const isClosed = !statusLoja.isOpen; // True se fechado
+    const isClosed = !statusLoja.isOpen; 
 
-    const enderecoCompleto = `${rua}, ${numero} - ${bairro} ${complemento ? `(${complemento})` : ''}`;
+    const enderecoFinal = deliveryMode === "pickup" 
+        ? "🛍️ RETIRADA NO LOCAL" 
+        : `${rua}, ${numero} - ${bairro} ${complemento ? `(${complemento})` : ''}`;
     
-    // 3. SALVAR NO FIREBASE
     try {
         const pedidoData = {
             userId: currentUser.uid,
@@ -157,16 +166,15 @@ export function CheckoutModal() {
             total,
             metodoPagamento: method,
             troco: method === 'cash' ? troco : null,
-            endereco: enderecoCompleto,
+            endereco: enderecoFinal,
+            tipoEntrega: deliveryMode,
             data: serverTimestamp(),
-            // Se fechado, status vira "Agendado", se aberto "Pendente"
             status: isClosed ? "Agendado" : "Pendente", 
             isAgendamento: isClosed 
         };
 
         await addDoc(collection(db, "Pedidos"), pedidoData);
         
-        // Atualiza contagem de pedidos (Fidelidade)
         const userRef = doc(db, "Usuarios", currentUser.uid);
         await setDoc(userRef, { 
             pedidosFeitos: increment(1),
@@ -175,12 +183,10 @@ export function CheckoutModal() {
 
     } catch (error) {
         console.error("Erro ao salvar pedido", error);
-        alert("Erro ao salvar, mas vamos enviar pro Zap!");
     }
 
-    // 4. PREPARAR MENSAGEM DO WHATSAPP
     const itensMsg = items.map(i => 
-        `• ${i.quantity}x ${i.name} ${i.selectedAddons.length ? `(${i.selectedAddons.map(a=>a.name).join('+')})` : ''}`
+        `• ${i.quantity}x ${i.name} ${i.selectedAddons?.length ? `(${i.selectedAddons.map(a=>a.name).join('+')})` : ''}`
     ).join("\n");
 
     let pagtoTexto = "";
@@ -188,23 +194,17 @@ export function CheckoutModal() {
     if (method === "card") pagtoTexto = "💳 Cartão (Levar maquininha)";
     if (method === "cash") pagtoTexto = `💵 Dinheiro (Troco para: ${troco || 'Sem troco'})`;
 
-    // Título muda se for Agendamento
     const titulo = isClosed 
         ? `🕒 *PEDIDO AGENDADO (Loja Fechada)*` 
         : `🍔 *NOVO PEDIDO - Da Família*`;
-
-    // Aviso extra no final
-    const avisoExtra = isClosed 
-        ? `\n⚠️ *CLIENTE CIENTE QUE A LOJA ESTÁ FECHADA.*\nEntregar na abertura ou confirmar horário.` 
-        : ``;
 
     const zapText = `
 ${titulo}
 --------------------------------
 ${itensMsg}
 --------------------------------
-📍 *Endereço:*
-${enderecoCompleto}
+📍 *Modo:* ${deliveryMode === "pickup" ? "🛍️ Retirada" : "🛵 Entrega"}
+${deliveryMode === "delivery" ? `🏠 *Endereço:* ${enderecoFinal}` : "🏢 Retirar no Balcão"}
 
 💰 Subtotal: ${subtotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
 🛵 Entrega: ${finalFee === 0 ? "Grátis" : finalFee.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
@@ -212,7 +212,6 @@ ${discount > 0 ? `🔻 Desconto (${couponCode}): - ${discount.toLocaleString('pt
 *TOTAL: ${total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}*
 
 Pagamento: ${pagtoTexto}
-${avisoExtra}
 `.trim();
 
     window.open(`https://wa.me/5534997178336?text=${encodeURIComponent(zapText)}`, "_blank");
@@ -223,48 +222,82 @@ ${avisoExtra}
   };
 
   return (
-    <ModalBase title={step === 1 ? "Endereço de Entrega 🛵" : "Pagamento 💸"} onClose={closeModal}>
+    <ModalBase title={step === 1 ? "Como deseja receber? 🛵" : "Pagamento 💸"} onClose={closeModal}>
       <div style={{ padding: "20px" }}>
         
-        {/* --- PASSO 1: ENDEREÇO --- */}
+        {/* --- PASSO 1: ENDEREÇO / MODO --- */}
         {step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {!manualMode && (
-                    <div style={{ display: "flex", gap: "10px" }}>
-                        <input 
-                            placeholder="CEP (Só números)" 
-                            value={cep}
-                            onChange={e => setCep(e.target.value.replace(/\D/g, ""))}
-                            maxLength={8}
-                            style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }}
-                        />
-                        <button onClick={handleBuscarCep} disabled={loading} style={{ background: "#ffca28", border: "none", borderRadius: "8px", padding: "0 15px", fontWeight: "bold" }}>
-                            {loading ? "..." : "Buscar"}
-                        </button>
-                    </div>
-                )}
                 
-                <input placeholder="Rua" value={rua} onChange={e => setRua(e.target.value)} disabled={!manualMode} style={{ padding: "12px", borderRadius: "8px", border: "1px solid #eee", background: manualMode ? "#fff" : "#f9f9f9" }} />
-                
-                <div style={{ display: "flex", gap: "10px" }}>
-                    <input placeholder="Número" value={numero} onChange={e => setNumero(e.target.value)} style={{ width: "80px", padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }} />
-                    <input placeholder="Bairro" value={bairro} onChange={e => setBairro(e.target.value)} disabled={!manualMode} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #eee", background: manualMode ? "#fff" : "#f9f9f9" }} />
-                </div>
-
-                <input placeholder="Complemento (Opcional)" value={complemento} onChange={e => setComplemento(e.target.value)} style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }} />
-
-                <div style={{ fontSize: "12px", color: deliveryFee === 6 ? "#666" : "green", marginTop: "5px" }}>
-                    {deliveryStatus}
-                </div>
-
-                <div style={{ marginTop: "10px", textAlign: "right" }}>
-                    <button onClick={() => setManualMode(!manualMode)} style={{ background: "none", border: "none", color: "#888", textDecoration: "underline", fontSize: "12px", cursor: "pointer" }}>
-                        {manualMode ? "Tentar buscar CEP" : "Não sei meu CEP / Digitar Manual"}
+                {/* SELETOR MODO DE RECEBIMENTO */}
+                <div style={{ display: "flex", background: "#f5f5f5", padding: "4px", borderRadius: "10px", marginBottom: "15px" }}>
+                    <button 
+                        onClick={() => setDeliveryMode("delivery")}
+                        style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: deliveryMode === "delivery" ? "#111" : "transparent", color: deliveryMode === "delivery" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}
+                    >
+                        🛵 Entrega
+                    </button>
+                    <button 
+                        onClick={() => setDeliveryMode("pickup")}
+                        style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: deliveryMode === "pickup" ? "#111" : "transparent", color: deliveryMode === "pickup" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}
+                    >
+                        🛍️ Retirada
                     </button>
                 </div>
 
-                <button onClick={() => setStep(2)} disabled={!rua || !numero} style={{ marginTop: "15px", background: "#111", color: "#fff", padding: "15px", borderRadius: "8px", border: "none", fontWeight: "bold", cursor: "pointer", opacity: (!rua || !numero) ? 0.5 : 1 }}>
-                    Ir para Pagamento
+                {deliveryMode === "delivery" ? (
+                    <>
+                        {!manualMode && (
+                            <div style={{ display: "flex", gap: "10px" }}>
+                                <input 
+                                    placeholder="CEP (Só números)" 
+                                    value={cep}
+                                    onChange={e => setCep(e.target.value.replace(/\D/g, ""))}
+                                    maxLength={8}
+                                    style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }}
+                                />
+                                <button onClick={handleBuscarCep} disabled={loading} style={{ background: "#ffca28", border: "none", borderRadius: "8px", padding: "0 15px", fontWeight: "bold" }}>
+                                    {loading ? "..." : "Buscar"}
+                                </button>
+                            </div>
+                        )}
+                        
+                        <input placeholder="Rua" value={rua} onChange={e => setRua(e.target.value)} disabled={!manualMode} style={{ padding: "12px", borderRadius: "8px", border: "1px solid #eee", background: manualMode ? "#fff" : "#f9f9f9" }} />
+                        
+                        <div style={{ display: "flex", gap: "10px" }}>
+                            <input placeholder="Número" value={numero} onChange={e => setNumero(e.target.value)} style={{ width: "80px", padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }} />
+                            <input placeholder="Bairro" value={bairro} onChange={e => setBairro(e.target.value)} disabled={!manualMode} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #eee", background: manualMode ? "#fff" : "#f9f9f9" }} />
+                        </div>
+
+                        <input placeholder="Complemento (Opcional)" value={complemento} onChange={e => setComplemento(e.target.value)} style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }} />
+
+                        <div style={{ fontSize: "12px", color: deliveryFee === 6 ? "#666" : "green", marginTop: "5px" }}>
+                            {deliveryStatus}
+                        </div>
+
+                        <div style={{ marginTop: "10px", textAlign: "right" }}>
+                            <button onClick={() => setManualMode(!manualMode)} style={{ background: "none", border: "none", color: "#888", textDecoration: "underline", fontSize: "12px", cursor: "pointer" }}>
+                                {manualMode ? "Tentar buscar CEP" : "Não sei meu CEP / Digitar Manual"}
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <div style={{ padding: "30px 20px", background: "#fff9c4", borderRadius: "12px", textAlign: "center", border: "1px solid #fbc02d", marginBottom: "15px" }}>
+                        <p style={{ fontSize: "16px", fontWeight: "bold", color: "#827717", marginBottom: "5px" }}>📍 Retirada no Balcão</p>
+                        <p style={{ fontSize: "13px", color: "#827717" }}>Preparemos seu pedido e te avisamos pelo WhatsApp!</p>
+                    </div>
+                )}
+
+                <button 
+                  onClick={() => setStep(2)} 
+                  disabled={deliveryMode === "delivery" && (!rua || !numero)} 
+                  style={{ 
+                    marginTop: "15px", background: "#111", color: "#fff", padding: "16px", 
+                    borderRadius: "12px", border: "none", fontWeight: "bold", cursor: "pointer",
+                    opacity: (deliveryMode === "delivery" && (!rua || !numero)) ? 0.5 : 1 
+                  }}
+                >
+                    Ir para Pagamento →
                 </button>
             </div>
         )}
@@ -296,9 +329,9 @@ ${avisoExtra}
                         <span>Subtotal:</span>
                         <span>{subtotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: isFreteGratis ? "green" : "#666" }}>
-                        <span>Entrega ({bairro}):</span>
-                        <span>{isFreteGratis ? "GRÁTIS" : deliveryFee.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: (isFreteGratis || isRetirada) ? "green" : "#666" }}>
+                        <span>Entrega {deliveryMode === "delivery" ? `(${bairro})` : "(Retirada)"}:</span>
+                        <span>{(isFreteGratis || isRetirada) ? "GRÁTIS" : deliveryFee.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
                     </div>
 
                     {discount > 0 && (
@@ -322,18 +355,18 @@ ${avisoExtra}
                             onClick={() => setMethod(m as PaymentMethod)}
                             style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "none", background: method === m ? "#fff" : "transparent", fontWeight: "bold", cursor: "pointer" }}
                         >
-                            {m === 'pix' ? '💠 PIX' : m === 'card' ? '💳 Cartão' : '💵 Dinheiro'}
+                            {m === 'pix' ? '💠 PIX' : m === 'card' ? '💳 Card' : '💵 Dinheiro'}
                         </button>
                     ))}
                 </div>
 
-                {/* Conteúdo Dinâmico */}
+                {/* Conteúdo Dinâmico Pagamento (PIX) */}
                 {method === "pix" && (
-                    <div style={{ textAlign: "center", padding: "10px", border: "1px solid #eee", borderRadius: "8px" }}>
-                        <p style={{ fontSize: "12px", color: "#666" }}>Copie a chave e pague no app do banco:</p>
-                        <div style={{ display: "flex", gap: "5px", marginTop: "5px" }}>
-                            <input readOnly value={PIX_KEY} style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid #ccc", fontSize: "12px", textAlign: "center" }} />
-                            <button onClick={() => { navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }} style={{ background: pixCopied ? "green" : "#ffca28", border: "none", borderRadius: "4px", padding: "0 10px", color: pixCopied ? "#fff" : "#000", fontSize: "12px", fontWeight: "bold" }}>
+                    <div style={{ textAlign: "center", padding: "15px", border: "1px solid #e3f2fd", borderRadius: "12px", background: "#fbb03422" }}>
+                        <p style={{ fontSize: "12px", color: "#666" }}>Copie a chave e pague no app do seu banco:</p>
+                        <div style={{ display: "flex", gap: "5px", marginTop: "10px" }}>
+                            <input readOnly value={PIX_KEY} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #ccc", fontSize: "13px", textAlign: "center", fontWeight: "bold" }} />
+                            <button onClick={() => { navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }} style={{ background: pixCopied ? "#388e3c" : "#ffca28", border: "none", borderRadius: "8px", padding: "0 15px", color: pixCopied ? "#fff" : "#000", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>
                                 {pixCopied ? "Copiado!" : "Copiar"}
                             </button>
                         </div>
@@ -342,7 +375,7 @@ ${avisoExtra}
 
                 {method === "cash" && (
                     <input 
-                        placeholder="Precisa de troco para quanto?" 
+                        placeholder="Troco para quanto?" 
                         value={troco}
                         onChange={e => setTroco(e.target.value)}
                         style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }}
@@ -350,10 +383,10 @@ ${avisoExtra}
                 )}
 
                 {/* Botões Finais */}
-                <div style={{ display: "flex", gap: "10px" }}>
-                    <button onClick={() => setStep(1)} style={{ flex: 1, background: "#ccc", border: "none", borderRadius: "8px", padding: "15px", fontWeight: "bold" }}>Voltar</button>
-                    <button onClick={handleFinish} disabled={loading} style={{ flex: 2, background: "#25D366", color: "#fff", border: "none", borderRadius: "8px", padding: "15px", fontWeight: "bold", fontSize: "16px" }}>
-                        {loading ? "Salvando..." : "Finalizar no Zap 💬"}
+                <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
+                    <button onClick={() => setStep(1)} style={{ flex: 1, background: "transparent", border: "1px solid #ccc", borderRadius: "12px", padding: "16px", fontWeight: "bold", cursor: "pointer" }}>Voltar</button>
+                    <button onClick={handleFinish} disabled={loading} style={{ flex: 2, background: "#25D366", color: "#fff", border: "none", borderRadius: "12px", padding: "16px", fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>
+                        {loading ? "Salvando..." : "Finalizar Pedido 💬"}
                     </button>
                 </div>
 
