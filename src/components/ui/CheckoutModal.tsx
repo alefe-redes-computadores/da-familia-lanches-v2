@@ -22,6 +22,9 @@ export function CheckoutModal() {
   const [loading, setLoading] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("delivery");
 
+  // Telefone do usuário
+  const [userPhone, setUserPhone] = useState("");
+
   // Endereço e Frete
   const [cep, setCep] = useState("");
   const [rua, setRua] = useState("");
@@ -158,6 +161,7 @@ export function CheckoutModal() {
             userId: currentUser.uid,
             userName: currentUser.displayName,
             userEmail: currentUser.email,
+            userPhone: userPhone,
             itens: items,
             subtotal,
             taxaEntrega: finalFee,
@@ -243,6 +247,17 @@ Pagamento: ${pagtoTexto}
                     >
                         🛍️ Retirada
                     </button>
+                </div>
+
+                {/* CAMPO WHATSAPP DO CLIENTE */}
+                <div style={{ marginBottom: "10px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: "bold", color: "#111" }}>SEU WHATSAPP (PARA AVISOS):</label>
+                    <input 
+                        placeholder="(00) 00000-0000" 
+                        value={userPhone}
+                        onChange={e => setUserPhone(e.target.value.replace(/\D/g, ""))}
+                        style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "2px solid #ffca28", fontSize: "16px", outline: "none", marginTop: "5px" }}
+                    />
                 </div>
 
                 {deliveryMode === "delivery" ? (
