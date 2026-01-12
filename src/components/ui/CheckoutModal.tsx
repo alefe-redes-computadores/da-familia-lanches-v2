@@ -321,31 +321,52 @@ Pagamento: ${pagtoTexto}
                 {step === 2 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
 
-                        {/* Sugestão de correção para o container do Cupom */}
+                        {/* --- CONTAINER DO CUPOM COM ALINHAMENTO MILIMÉTRICO --- */}
                         <div style={{
                             display: "flex",
-                            alignItems: "center", // Centraliza o botão e o texto verticalmente
+                            alignItems: "center",
                             justifyContent: "space-between",
-                            border: "1px dashed #2196f3",
-                            borderRadius: "8px",
-                            padding: "5px 12px", // Dá respiro para o texto não colar na borda
-                            marginTop: "15px"
+                            border: "2px dashed #2196f3", // Borda um pouco mais grossa para destacar
+                            borderRadius: "12px",
+                            padding: "0 15px", // Padding apenas nas laterais
+                            marginTop: "20px",
+                            background: "#f8fbff",
+                            height: "50px", // Altura fixa para garantir centralização vertical
+                            overflow: "hidden"
                         }}>
                             <input
+                                type="text"
                                 placeholder="Possui cupom? Digite aqui"
-                                style={{ border: "none", outline: "none", flex: 1, fontSize: "14px" }}
+                                style={{
+                                    border: "none",
+                                    background: "transparent",
+                                    outline: "none",
+                                    flex: 1,
+                                    fontSize: "14px",
+                                    fontWeight: "500",
+                                    color: "#333",
+                                    height: "100%", // Ocupa toda a altura do container
+                                    padding: 0
+                                }}
                             />
                             <button style={{
                                 background: "none",
                                 border: "none",
                                 color: "#2196f3",
-                                fontWeight: "bold",
+                                fontWeight: "900",
+                                fontSize: "13px",
                                 cursor: "pointer",
-                                padding: "5px 0"
+                                padding: "0 0 0 10px", // Espaço entre o texto do input e o botão
+                                height: "100%", // Garante que o botão tenha a mesma base do input
+                                display: "flex",
+                                alignItems: "center",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px"
                             }}>
                                 APLICAR
                             </button>
                         </div>
+
 
                         {couponMessage && <div style={{ fontSize: "12px", color: discount > 0 ? "green" : "red", marginTop: "-10px" }}>{couponMessage}</div>}
 
