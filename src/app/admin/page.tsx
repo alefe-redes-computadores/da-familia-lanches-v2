@@ -81,7 +81,6 @@ export default function AdminPage() {
       }
       audioRef.current.play().catch(e => console.log("Aguardando interação para tocar som..."));
 
-      // Repete o som enquanto houver pendentes
       setTimeout(() => {
         setPedidos(atual => {
           const aindaTemPendente = atual.some(p => normalizarStatus(p.status) === "Pendente");
@@ -92,7 +91,7 @@ export default function AdminPage() {
           }
           return atual;
         });
-      }, 6000); // Toca a cada 6 segundos se não aceitar
+      }, 6000);
     } else {
       setAlarmeAtivo(false);
       if (audioRef.current) {
@@ -108,32 +107,28 @@ export default function AdminPage() {
       alert("Atenção: Este pedido não possui número de telefone cadastrado.");
       return;
     }
-    
     let foneLimpo = telefone.replace(/\D/g, "");
     if (foneLimpo.length > 0 && !foneLimpo.startsWith("55")) {
       foneLimpo = `55${foneLimpo}`;
     }
-    
     const mensagens: any = {
       "Pronto": `Olá ${nome}! Seu pedido da Família Lanches está PRONTO para retirada! 🥡🔥`,
       "Saiu para Entrega": `Olá ${nome}! Seu pedido da Família Lanches SAIU para entrega com o motoboy! 🛵💨`,
     };
-
     const texto = encodeURIComponent(mensagens[status] || `Olá ${nome}! Seu pedido está sendo atualizado.`);
     const url = `https://api.whatsapp.com/send?phone=${foneLimpo}&text=${texto}`;
     window.open(url, "_blank");
   };
+
   const imprimirPedido = (pedido: any) => {
     const janela = window.open('', '', 'width=600,height=800');
     if (!janela) {
       alert("Por favor, libere os pop-ups para imprimir o cupom.");
       return;
     }
-
     const nomeCliente = pedido.userName || "Cliente não identificado";
     const endereco = pedido.endereco || "Endereço não informado";
     const itens = Array.isArray(pedido.itens) ? pedido.itens : [];
-
     const itensHtml = itens.map((item: any) => `
       <div style="border-bottom: 1px dashed #ccc; padding: 10px 0; font-size: 14px;">
         <div style="display: flex; justify-content: space-between;">
@@ -143,7 +138,6 @@ export default function AdminPage() {
         ${Array.isArray(item.selectedAddons) ? item.selectedAddons.map((a: any) => `<div style="margin-left: 10px; font-size: 12px;">+ ${a.name}</div>`).join("") : ""}
       </div>
     `).join("");
-
     const conteudoCupom = `
       <html>
         <head><title>Cupom Família Lanches</title></head>
@@ -176,44 +170,33 @@ export default function AdminPage() {
         </body>
       </html>
     `;
-
     janela.document.open();
     janela.document.write(conteudoCupom);
     janela.document.close();
   };
+
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
-
     const q = query(collection(db, "Pedidos"), orderBy("data", "desc"));
-    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      
       const novosPedidosCount = docs.filter((p: any) => normalizarStatus(p.status) === "Pendente").length;
-      
-      // Só toca o alarme se o número de pendentes aumentar (novo pedido)
       if (!isFirstLoad.current && novosPedidosCount > prevPedidosCount.current) {
         controlarAlarme(true);
       }
-
-      // Se não houver mais nenhum pendente, para o alarme
       if (novosPedidosCount === 0) {
         setAlarmeAtivo(false);
       }
-      
       prevPedidosCount.current = novosPedidosCount;
       isFirstLoad.current = false;
-      
       setPedidos(docs);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, [currentUser]);
 
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
-
     const unsub = onSnapshot(doc(db, "settings", "loja"), (snap) => {
       if (snap.exists()) setStoreOpen(snap.data().isOpen);
     });
@@ -228,8 +211,6 @@ export default function AdminPage() {
   const updateStatus = async (id: string, newStatus: string, pedido?: any) => {
     try {
       await updateDoc(doc(db, "Pedidos", id), { status: newStatus });
-      
-      // Avisa no WhatsApp automaticamente ao mudar para Pronto ou Saiu para Entrega
       if (newStatus === "Pronto" && pedido?.tipoEntrega === "pickup") {
         avisarWhatsApp(pedido.userPhone || pedido.phone, pedido.userName, "Pronto");
       } else if (newStatus === "Saiu para Entrega") {
@@ -245,16 +226,10 @@ export default function AdminPage() {
       const concluidos = Array.isArray(pedidos) 
         ? pedidos.filter(p => normalizarStatus(p.status) === "Finalizado") 
         : [];
-      
       if (concluidos.length === 0) return;
-
-      concluidos.forEach(p => {
-          batch.delete(doc(db, "Pedidos", p.id));
-      });
+      concluidos.forEach(p => { batch.delete(doc(db, "Pedidos", p.id)); });
       await batch.commit();
-    } catch (e) {
-      console.error("Erro ao limpar:", e);
-    }
+    } catch (e) { console.error("Erro ao limpar:", e); }
   };
 
   const pedidosFiltrados = Array.isArray(pedidos) ? pedidos.filter(p => {
@@ -283,9 +258,17 @@ export default function AdminPage() {
       </div>
     );
   }
+
   return (
     <div 
-      style={{ padding: "15px", maxWidth: "1200px", margin: "0 auto", fontFamily: "sans-serif", backgroundColor: "#fcfcfc", minHeight: "100vh" }}
+      style={{ 
+        padding: "15px", 
+        maxWidth: "1400px", 
+        margin: "85px auto 0 auto", // AQUI ESTÁ O AJUSTE PARA O MONITOR DESCER
+        fontFamily: "sans-serif", 
+        backgroundColor: "#fcfcfc", 
+        minHeight: "100vh" 
+      }}
       onClick={() => { if(alarmeAtivo && audioRef.current) audioRef.current.play(); }}
     >
       
@@ -299,7 +282,6 @@ export default function AdminPage() {
           🚨 NOVO PEDIDO PENDENTE! TOQUE PARA OUVIR 🚨
         </div>
       )}
-
       <header style={{ marginBottom: "25px", borderBottom: "1px solid #eee", paddingBottom: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
           <h1 style={{ fontSize: "24px", fontWeight: "900", margin: 0 }}>📟 Monitor Família</h1>
