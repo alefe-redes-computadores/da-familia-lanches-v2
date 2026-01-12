@@ -10,7 +10,7 @@ export function Header() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const items = useCartStore((s) => s.items); 
 
-  // Soma a quantidade total de itens no carrinho para a bolinha vermelha
+  // Soma a quantidade total de itens (ex: 2 X-Tudo + 1 Coca = 3 na bolinha)
   const totalItens = Array.isArray(items) 
     ? items.reduce((acc, item) => acc + (item.quantity || 0), 0) 
     : 0;
@@ -24,7 +24,7 @@ export function Header() {
       </div>
 
       <div className={styles.right}>
-        {/* Carrinho com Badge (Bolinha Vermelha) */}
+        {/* Carrinho com Bolinha Vermelha */}
         <button
           className={styles.iconBtn}
           aria-label="Abrir carrinho"
@@ -48,14 +48,15 @@ export function Header() {
               justifyContent: "center",
               fontWeight: "bold",
               boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-              border: "2px solid #fff"
+              border: "2px solid #fff",
+              zIndex: 10
             }}>
               {totalItens}
             </span>
           )}
         </button>
 
-        {/* Menu Hambúrguer - CORRIGIDO (Usa openModal em vez de toggleMenu) */}
+        {/* Menu Hambúrguer (Conectado ao MobileDrawerMenu novo) */}
         <button
           className={styles.iconBtn}
           onClick={() => (openModal as any)("menu")}
