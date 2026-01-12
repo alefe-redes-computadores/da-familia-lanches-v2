@@ -249,12 +249,15 @@ export default function AdminPage() {
     }
   };
 
-  // --- LÓGICA DE FILTRAGEM POR ABA (BLINDADA CONTRA TELA BRANCA) ---
+    // --- LÓGICA DE FILTRAGEM BLINDADA (MANTENDO O NOME ORIGINAL) ---
   const pedidosFiltrados = Array.isArray(pedidos) ? pedidos.filter(p => {
-    const s = normalizarStatus(p.status);
-    if (tab === "cozinha") return s === "Pendente" || s === "Em Produção";
-    if (tab === "expedicao") return s === "Pronto" || s === "Saiu para Entrega";
-    return s === "Finalizado";
+    try {
+      const s = normalizarStatus(p.status);
+      if (tab === "cozinha") return s === "Pendente" || s === "Em Produção";
+      if (tab === "expedicao") return s === "Pronto" || s === "Saiu para Entrega";
+      if (tab === "concluidos") return s === "Finalizado";
+      return false;
+    } catch (e) { return false; }
   }) : [];
 
   if (!currentUser || !admins.includes(currentUser.email!)) {
@@ -265,6 +268,15 @@ export default function AdminPage() {
       </div>
     );
   }
+
+  if (loading) {
+    return (
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#fcfcfc" }}>
+        <h2 style={{ color: "#666", fontFamily: "sans-serif" }}>Carregando dados da Família... 📟</h2>
+      </div>
+    );
+  }
+
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto", fontFamily: "sans-serif", backgroundColor: "#fcfcfc", minHeight: "100vh" }}>
