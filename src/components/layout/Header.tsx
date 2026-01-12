@@ -48,48 +48,69 @@ export function Header() {
   const totalItens = Array.isArray(items) ? items.reduce((acc, item) => acc + (item.quantity || 0), 0) : 0;
   const userName = currentUser?.displayName?.split(" ")[0] || currentUser?.email?.split("@")[0];
 
-    return (
+     return (
     <header className={styles.header} style={{ 
       display: "flex", 
       alignItems: "center", 
       justifyContent: "space-between", 
       padding: "10px 15px",
       minHeight: "65px",
-      gap: "10px"
+      gap: "5px"
     }}>
-      {/* LADO ESQUERDO: LOGO COMPLETA COM MARGEM */}
-      <div className={styles.left} style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      {/* LADO ESQUERDO: LOGO E STATUS ALINHADOS À ESQUERDA */}
+      <div className={styles.left} style={{ 
+        display: "flex", 
+        flexDirection: "column", 
+        alignItems: "flex-start", // Garante que tudo comece no mesmo ponto à esquerda
+        flexShrink: 0 
+      }}>
         <span className={styles.logo} style={{ 
           fontSize: "16px", 
           fontWeight: "900",
           lineHeight: "1.1",
-          whiteSpace: "nowrap"
+          whiteSpace: "nowrap",
+          textAlign: "left"
         }}>
           Da Família<br/>Lanches
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+        
+        {/* STATUS DA LOJA - CRAVADO NA ESQUERDA */}
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          gap: "4px", 
+          marginTop: "3px",
+          width: "100%" // Garante que o container use a base da logo
+        }}>
             <span style={{ 
-              width: "6px", 
-              height: "6px", 
+              width: "7px", 
+              height: "7px", 
               borderRadius: "50%", 
-              background: shopStatus.isOpen ? "#4caf50" : "#d32f2f" 
+              background: shopStatus.isOpen ? "#4caf50" : "#d32f2f",
+              flexShrink: 0
             }} />
-            <span style={{ fontSize: "9px", fontWeight: "bold", color: "#666" }}>
-              {shopStatus.isOpen ? "Aberto" : "Fechado"}
+            <span style={{ 
+              fontSize: "10px", 
+              fontWeight: "bold", 
+              color: shopStatus.isOpen ? "#4caf50" : "#666",
+              whiteSpace: "nowrap"
+            }}>
+              {shopStatus.isOpen ? "Aberto Agora" : "Fechado"}
             </span>
         </div>
       </div>
 
-      {/* LADO DIREITO: ELEMENTOS COM ESPAÇAMENTO (RESPIRO) */}
+      {/* LADO DIREITO: RESPIRO E PERFIL */}
       <div className={styles.right} style={{ 
         display: "flex", 
         alignItems: "center", 
-        gap: "12px", // Aumentado para tirar a sensação de "grudado"
-        justifyContent: "flex-end"
+        gap: "10px", 
+        justifyContent: "flex-end",
+        flex: 1 // Ocupa o espaço central para empurrar os ícones para as pontas
       }}>
         
         {currentUser && (
-          <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "8px" }} ref={menuRef}>
+          <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "6px" }} ref={menuRef}>
             <div 
               onClick={() => setShowMenu(!showMenu)}
               style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
@@ -126,10 +147,10 @@ export function Header() {
               />
             </div>
 
-            {/* DROPDOWN AJUSTADO */}
+            {/* DROPDOWN */}
             {showMenu && (
               <div style={{ position: "absolute", top: "120%", right: 0, background: "#fff", borderRadius: "12px", boxShadow: "0 8px 20px rgba(0,0,0,0.15)", width: "165px", zIndex: 1000, border: "1px solid #eee" }}>
-                <button onClick={() => { (openModal as any)("rewards"); setShowMenu(false); }} style={{ width: "100%", textAlign: "left", padding: "12px", background: "none", border: "none", fontSize: "13px", fontWeight: "600", borderBottom: "1px solid #f5f5f5" }}>💎 Prêmios e Pontos</button>
+                <button onClick={() => { (openModal as any)("rewards"); setShowMenu(false); }} style={{ width: "100%", textAlign: "left", padding: "12px", background: "none", border: "none", fontSize: "13px", fontWeight: "600", borderBottom: "1px solid #f5f5f5" }}>💎 Recompensas</button>
                 <button onClick={() => { (openModal as any)("orders"); setShowMenu(false); }} style={{ width: "100%", textAlign: "left", padding: "12px", background: "none", border: "none", fontSize: "13px", fontWeight: "600", borderBottom: "1px solid #f5f5f5" }}>🛍️ Meus Pedidos</button>
                 <button onClick={() => auth.signOut()} style={{ width: "100%", textAlign: "left", padding: "12px", background: "none", border: "none", fontSize: "13px", fontWeight: "600", color: "#d32f2f" }}>🚪 Sair</button>
               </div>
@@ -137,8 +158,8 @@ export function Header() {
           </div>
         )}
 
-        {/* GRUPO DE ÍCONES FINAIS */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        {/* GRUPO DE ÍCONES */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <button className={styles.iconBtn} onClick={() => (openModal as any)("cart")} style={{ position: "relative", padding: "4px" }}>
               <span style={{ fontSize: "22px" }}>🛒</span>
               {totalItens > 0 && (
