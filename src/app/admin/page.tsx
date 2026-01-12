@@ -249,7 +249,7 @@ export default function AdminPage() {
     }
   };
 
-    // --- LÓGICA DE FILTRAGEM BLINDADA (MANTENDO O NOME ORIGINAL) ---
+      // --- LÓGICA DE FILTRAGEM SEGURA (RESOLVE TELA BRANCA) ---
   const pedidosFiltrados = Array.isArray(pedidos) ? pedidos.filter(p => {
     try {
       const s = normalizarStatus(p.status);
@@ -260,15 +260,17 @@ export default function AdminPage() {
     } catch (e) { return false; }
   }) : [];
 
+  // --- 1. BARREIRA DE ACESSO ---
   if (!currentUser || !admins.includes(currentUser.email!)) {
     return (
       <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "10px", fontFamily: "sans-serif" }}>
-        <h1>Acesso Negado 🔐</h1>
-        <button onClick={() => window.location.href = "/"} style={{ padding: "10px 20px", borderRadius: "8px", border: "none", background: "#111", color: "#fff", cursor: "pointer" }}>Voltar</button>
+        <h1>Verificando Acesso... 🔐</h1>
+        <button onClick={() => window.location.href = "/"} style={{ padding: "10px 20px", borderRadius: "8px", border: "none", background: "#111", color: "#fff" }}>Voltar</button>
       </div>
     );
   }
 
+  // --- 2. TELA DE CARREGAMENTO ÚNICA ---
   if (loading) {
     return (
       <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#fcfcfc" }}>
@@ -276,6 +278,7 @@ export default function AdminPage() {
       </div>
     );
   }
+
 
 
   return (
