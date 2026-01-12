@@ -1,16 +1,27 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import styles from "./header.module.css";
 import { useUIStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store"; 
+import { getShopStatus } from "@/lib/openingHours"; // Importante para checar o horário
 
 export function Header() {
   const openModal = useUIStore((s) => s.openModal);
   const currentUser = useAuthStore((s) => s.currentUser);
   const items = useCartStore((s) => s.items); 
+  
+  // Estado para controlar se a loja está aberta
+  const [shopStatus, setShopStatus] = useState({ isOpen: true, message: "" });
 
-  // Soma a quantidade total de itens (ex: 2 X-Tudo + 1 Coca = 3 na bolinha)
+  // Atualiza o status da loja ao carregar e a cada minuto
+  useEffect(() => {
+    setShopStatus(getShopStatus());
+    const interval = setInterval(() => setShopStatus(getShopStatus()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const totalItens = Array.isArray(items) 
     ? items.reduce((acc, item) => acc + (item.quantity || 0), 0) 
     : 0;
@@ -20,11 +31,25 @@ export function Header() {
   return (
     <header className={styles.header}>
       <div className={styles.left}>
-        <span className={styles.logo}>Da Família Lanches</span>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+            <span className={styles.logo}>Da Família Lanches</span>
+            {/* --- BOLINHA DE STATUS --- */}
+            <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "-2px" }}>
+                <span style={{ 
+                    width: "8px", 
+                    height: "8px", 
+                    borderRadius: "50%", 
+                    background: shopStatus.isOpen ? "#4caf50" : "#d32f2f" 
+                }} />
+                <span style={{ fontSize: "10px", fontWeight: "bold", color: "#666" }}>
+                    {shopStatus.isOpen ? "Aberto Agora" : "Fechado"}
+                </span>
+            </div>
+        </div>
       </div>
 
       <div className={styles.right}>
-        {/* Carrinho com Bolinha Vermelha */}
+        {/* Carrinho com Badge */}
         <button
           className={styles.iconBtn}
           aria-label="Abrir carrinho"
@@ -56,7 +81,7 @@ export function Header() {
           )}
         </button>
 
-        {/* Menu Hambúrguer (Conectado ao MobileDrawerMenu novo) */}
+        {/* Menu Hambúrguer */}
         <button
           className={styles.iconBtn}
           onClick={() => (openModal as any)("menu")}
@@ -66,24 +91,24 @@ export function Header() {
           ☰
         </button>
 
-        {/* Login ou Avatar */}
+        {/* Perfil */}
         {currentUser ? (
           <div 
             onClick={() => (openModal as any)("profile")}
             style={{ 
               background: "#f0f0f0", 
-              padding: "8px 16px", 
+              padding: "8px 12px", 
               borderRadius: "20px", 
               fontWeight: "bold", 
-              fontSize: "14px",
+              fontSize: "13px",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: "8px"
+              gap: "6px"
             }}
           >
             {currentUser.photoURL ? (
-              <img src={currentUser.photoURL} alt="User" style={{width: 24, height: 24, borderRadius: "50%"}} />
+              <img src={currentUser.photoURL} alt="User" style={{width: 22, height: 22, borderRadius: "50%"}} />
             ) : (
               <span>👤</span>
             )}
