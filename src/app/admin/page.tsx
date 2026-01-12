@@ -13,20 +13,11 @@ import {
 } from "firebase/firestore";
 import { useAuthStore } from "@/store/auth.store";
 
-// --- FUNÇÃO DE DATA REVISADA (Dia/Mês e Hora) ---
+// --- FUNÇÃO DE DATA REVISADA (COM REDE DE SEGURANÇA) ---
 const formatarData = (data: any) => {
   if (!data) return "--/-- --:--";
   try {
-    if (typeof data.toDate === 'function') {
-      const d = data.toDate();
-      return d.toLocaleString('pt-BR', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-    }
-    const d = new Date(data.seconds ? data.seconds * 1000 : data);
+    const d = data.toDate ? data.toDate() : new Date(data.seconds ? data.seconds * 1000 : data);
     return isNaN(d.getTime()) ? "--/-- --:--" : d.toLocaleString('pt-BR', { 
       day: '2-digit', 
       month: '2-digit', 
@@ -38,17 +29,22 @@ const formatarData = (data: any) => {
   }
 };
 
-// --- NORMALIZAÇÃO PARA EVITAR PEDIDOS INVISÍVEIS ---
+// --- NORMALIZAÇÃO BLINDADA (EVITA TELA BRANCA) ---
 const normalizarStatus = (status?: string) => {
   if (!status) return "Pendente";
-  const s = status.toLowerCase().trim();
-  if (s.includes("pendente")) return "Pendente";
-  if (s.includes("produção")) return "Em Produção";
-  if (s.includes("pronto")) return "Pronto";
-  if (s.includes("saiu")) return "Saiu para Entrega";
-  if (s.includes("final")) return "Finalizado";
-  return "Pendente";
+  try {
+    const s = String(status).toLowerCase().trim();
+    if (s.includes("pendente")) return "Pendente";
+    if (s.includes("produção")) return "Em Produção";
+    if (s.includes("pronto")) return "Pronto";
+    if (s.includes("saiu")) return "Saiu para Entrega";
+    if (s.includes("final")) return "Finalizado";
+    return "Pendente";
+  } catch (e) {
+    return "Pendente";
+  }
 };
+
 
 export default function AdminPage() {
   const [pedidos, setPedidos] = useState<any[]>([]);
@@ -234,22 +230,33 @@ export default function AdminPage() {
     } catch (e) { alert("Erro ao atualizar status"); }
   };
 
-  const limparFinalizados = async () => {
+    const limparFinalizados = async () => {
     if(!confirm("Deseja arquivar todos os pedidos finalizados?")) return;
-    const batch = writeBatch(db);
-    pedidos.filter(p => normalizarStatus(p.status) === "Finalizado").forEach(p => {
-        batch.delete(doc(db, "Pedidos", p.id));
-    });
-    await batch.commit();
+    try {
+      const batch = writeBatch(db);
+      const concluidos = Array.isArray(pedidos) 
+        ? pedidos.filter(p => normalizarStatus(p.status) === "Finalizado") 
+        : [];
+      
+      if (concluidos.length === 0) return;
+
+      concluidos.forEach(p => {
+          batch.delete(doc(db, "Pedidos", p.id));
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error("Erro ao limpar:", e);
+    }
   };
 
-  // --- LÓGICA DE FILTRAGEM POR ABA (NORMALIZADA) ---
-  const pedidosFiltrados = pedidos.filter(p => {
+  // --- LÓGICA DE FILTRAGEM POR ABA (BLINDADA CONTRA TELA BRANCA) ---
+  const pedidosFiltrados = Array.isArray(pedidos) ? pedidos.filter(p => {
     const s = normalizarStatus(p.status);
     if (tab === "cozinha") return s === "Pendente" || s === "Em Produção";
     if (tab === "expedicao") return s === "Pronto" || s === "Saiu para Entrega";
     return s === "Finalizado";
-  });
+  }) : [];
+
   if (!currentUser || !admins.includes(currentUser.email!)) {
     return (
       <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "10px", fontFamily: "sans-serif" }}>
