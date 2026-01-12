@@ -212,12 +212,23 @@ export default function AdminPage() {
     });
     await batch.commit();
   };
-  const pedidosFiltrados = pedidos.filter(p => {
-    const s = p.status || "Pendente";
-    if (tab === "cozinha") return s === "Pendente" || s === "Em Produção";
-    if (tab === "expedicao") return s === "Pronto" || s === "Saiu para Entrega";
+    const pedidosFiltrados = pedidos.filter(p => {
+    // Garantimos que o status seja uma string e aceitamos variações
+    const s = String(p.status || "Pendente").trim();
+    
+    if (tab === "cozinha") {
+      // Aceita "Pendente", "Em Produção" ou qualquer um sem status definido
+      return s === "Pendente" || s === "Em Produção" || !p.status;
+    }
+    
+    if (tab === "expedicao") {
+      return s === "Pronto" || s === "Saiu para Entrega";
+    }
+    
+    // Aba Finalizados
     return s === "Finalizado";
   });
+
 
   if (!currentUser || !admins.includes(currentUser.email!)) {
     return (
