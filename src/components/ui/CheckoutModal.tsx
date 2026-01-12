@@ -321,18 +321,16 @@ Pagamento: ${pagtoTexto}
                 {step === 2 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
 
-                        {/* --- CONTAINER DO CUPOM COM ALINHAMENTO MILIMÉTRICO --- */}
+                        {/* --- CONTAINER DO CUPOM (VERSÃO FINAL SEM CORTES) --- */}
                         <div style={{
                             display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            border: "2px dashed #2196f3", // Borda um pouco mais grossa para destacar
+                            alignItems: "center", // Centraliza o botão e o texto verticalmente
+                            border: "2px dashed #2196f3", // Borda azul tracejada visível
                             borderRadius: "12px",
-                            padding: "0 15px", // Padding apenas nas laterais
+                            padding: "10px 15px", // Espaço interno generoso para não colar nas bordas
                             marginTop: "20px",
-                            background: "#f8fbff",
-                            height: "50px", // Altura fixa para garantir centralização vertical
-                            overflow: "hidden"
+                            background: "#f9fcff",
+                            gap: "10px" // Cria um espaço fixo entre o texto e o botão
                         }}>
                             <input
                                 type="text"
@@ -341,12 +339,13 @@ Pagamento: ${pagtoTexto}
                                     border: "none",
                                     background: "transparent",
                                     outline: "none",
-                                    flex: 1,
+                                    flex: 1, // Faz o input ocupar todo o espaço da esquerda
                                     fontSize: "14px",
                                     fontWeight: "500",
                                     color: "#333",
-                                    height: "100%", // Ocupa toda a altura do container
-                                    padding: 0
+                                    padding: 0,
+                                    margin: 0,
+                                    width: "100%"
                                 }}
                             />
                             <button style={{
@@ -356,16 +355,16 @@ Pagamento: ${pagtoTexto}
                                 fontWeight: "900",
                                 fontSize: "13px",
                                 cursor: "pointer",
-                                padding: "0 0 0 10px", // Espaço entre o texto do input e o botão
-                                height: "100%", // Garante que o botão tenha a mesma base do input
-                                display: "flex",
-                                alignItems: "center",
+                                padding: 0,
+                                margin: 0,
                                 textTransform: "uppercase",
-                                letterSpacing: "0.5px"
+                                whiteSpace: "nowrap", // IMPEDIR QUE O TEXTO "APLICAR" QUEBRE OU CORTE
+                                flexShrink: 0 // GARANTE QUE O BOTÃO NÃO SEJA "ESMAGADO"
                             }}>
                                 APLICAR
                             </button>
                         </div>
+
 
 
                         {couponMessage && <div style={{ fontSize: "12px", color: discount > 0 ? "green" : "red", marginTop: "-10px" }}>{couponMessage}</div>}
