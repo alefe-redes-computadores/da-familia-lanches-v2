@@ -40,6 +40,7 @@ export default function AdminPage() {
       setAlarmeAtivo(true);
       if (!audioRef.current) {
         audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+        audioRef.current.loop = true; // <--- ISSO FAZ REPETIR SEM PARAR
       }
       audioRef.current.play().catch(() => console.log("Aguardando interação..."));
     } else {
