@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
-import { 
-  collection, query, orderBy, onSnapshot, 
-  updateDoc, doc, writeBatch 
+import {
+  collection, query, orderBy, onSnapshot,
+  updateDoc, doc, writeBatch
 } from "firebase/firestore";
 import { useAuthStore } from "@/store/auth.store";
 
@@ -20,7 +20,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<"cozinha" | "expedicao" | "concluidos" | "motoboy">("cozinha");
   const { currentUser } = useAuthStore();
   const [alarmeAtivo, setAlarmeAtivo] = useState(false);
-  
+
   // Estados do Rodrigo (Motoboy)
   const [dadosRodrigo, setDadosRodrigo] = useState<any>(null);
 
@@ -29,8 +29,8 @@ export default function AdminPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const admins = [
-    "alefejohsefe@gmail.com", 
-    "kalebhstanley650@gmail.com", 
+    "alefejohsefe@gmail.com",
+    "kalebhstanley650@gmail.com",
     "contato@dafamilialanches.com.br"
   ];
 
@@ -65,23 +65,23 @@ export default function AdminPage() {
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
     const q = query(collection(db, "Pedidos"), orderBy("data", "desc"));
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       const novosPendentes = docs.filter((p: any) => normalizarStatus(p.status) === "Pendente").length;
-      
+
       // Lógica do som de novo pedido
       if (!isFirstLoad.current && novosPendentes > prevPedidosCount.current) {
         controlarAlarme(true);
       }
       if (novosPendentes === 0) setAlarmeAtivo(false);
-      
+
       prevPedidosCount.current = novosPendentes;
       isFirstLoad.current = false;
       setPedidos(docs);
       setLoading(false);
     });
-    
+
     return () => unsubscribe();
   }, [currentUser]);
 
@@ -125,7 +125,7 @@ export default function AdminPage() {
   if (loading) return <div style={{ textAlign: "center", marginTop: "100px" }}><h2>Carregando Monitor... 📟</h2></div>;
 
   return (
-    <div 
+    <div
       style={{ padding: "15px", maxWidth: "1400px", margin: "85px auto 0 auto", fontFamily: "sans-serif", backgroundColor: "#fcfcfc", minHeight: "100vh" }}
       onClick={() => alarmeAtivo && controlarAlarme(false)} // Para o alarme ao clicar na tela
     >
@@ -143,7 +143,7 @@ export default function AdminPage() {
             {storeOpen ? "LOJA ABERTA" : "LOJA FECHADA"}
           </button>
         </div>
-        
+
         <div style={{ display: "flex", background: "#eee", padding: "4px", borderRadius: "12px", marginTop: "20px", overflowX: "auto" }}>
           {["cozinha", "expedicao", "concluidos", "motoboy"].map((t: any) => (
             <button key={t} onClick={() => setTab(t)} style={{ padding: "10px 16px", border: "none", borderRadius: "10px", cursor: "pointer", background: tab === t ? "#fff" : "transparent", fontWeight: "bold" }}>
@@ -154,22 +154,38 @@ export default function AdminPage() {
       </header>
 
       {/* ABA MOTOBOY */}
-      {tab === "motoboy" && dadosRodrigo && (
+      {tab === "motoboy" && (
         <div style={{ background: "#fff", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
-          <h2 style={{ margin: "0 0 20px 0" }}>🛵 Painel do Rodrigo</h2>
+          <h2 style={{ margin: "0 0 5px 0" }}>🛵 Painel do Rodrigo</h2>
+          <p style={{ fontSize: "12px", color: "#666", marginBottom: "20px" }}>Taxa base atual: R$ {dadosRodrigo?.taxaBase?.toFixed(2) || "0,00"}</p>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
             <div style={{ background: "#f1f8e9", padding: "20px", borderRadius: "12px", border: "1px solid #c5e1a5" }}>
-              <span style={{ fontSize: "12px", color: "#558b2f" }}>SALDO ACUMULADO</span>
-              <h3 style={{ margin: "10px 0", fontSize: "28px" }}>R$ {dadosRodrigo.saldoAtual?.toFixed(2)}</h3>
+              <span style={{ fontSize: "10px", fontWeight: "bold", color: "#558b2f", textTransform: "uppercase" }}>Saldo a Pagar</span>
+              <h3 style={{ margin: "10px 0", fontSize: "28px", fontWeight: "900" }}>
+                R$ {dadosRodrigo?.saldoAcumulado ? dadosRodrigo.saldoAcumulado.toFixed(2) : "0,00"}
+              </h3>
             </div>
+
             <div style={{ background: "#e3f2fd", padding: "20px", borderRadius: "12px", border: "1px solid #bbdefb" }}>
-              <span style={{ fontSize: "12px", color: "#1976d2" }}>ENTREGAS DO MÊS</span>
-              <h3 style={{ margin: "10px 0", fontSize: "28px" }}>{dadosRodrigo.totalEntregas}</h3>
+              <span style={{ fontSize: "10px", fontWeight: "bold", color: "#1976d2", textTransform: "uppercase" }}>Total de Entregas</span>
+              <h3 style={{ margin: "10px 0", fontSize: "28px", fontWeight: "900" }}>
+                {dadosRodrigo?.totalEntregas || 0}
+              </h3>
             </div>
           </div>
+
+          <button
+            onClick={() => alert("Em breve: Gerar relatório e zerar saldo")}
+            style={{
+              width: "100%", marginTop: "20px", padding: "16px", borderRadius: "12px",
+              background: "#111", color: "#fff", fontWeight: "bold", border: "none", cursor: "pointer"
+            }}
+          >
+            Fechar Dia / Realizar Pagamento
+          </button>
         </div>
       )}
-
       {/* LISTAGEM DE PEDIDOS */}
       {tab !== "motoboy" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
@@ -177,11 +193,11 @@ export default function AdminPage() {
             <p style={{ textAlign: "center", gridColumn: "1/-1", padding: "50px", color: "#999" }}>Nenhum pedido aqui.</p>
           ) : (
             pedidosFiltrados.map(pedido => (
-              <OrderCard 
-                key={pedido.id} 
-                pedido={pedido} 
-                updateStatus={updateStatus} 
-                imprimirPedido={imprimirPedido} 
+              <OrderCard
+                key={pedido.id}
+                pedido={pedido}
+                updateStatus={updateStatus}
+                imprimirPedido={imprimirPedido}
               />
             ))
           )}
