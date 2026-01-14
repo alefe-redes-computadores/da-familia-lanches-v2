@@ -71,8 +71,10 @@ export function CheckoutModal() {
                 const data = snap.data();
                 let valorDesconto = 0;
 
-                if (data.tipo === "percent") {
-                    valorDesconto = (subtotal * data.percent) / 100;
+                if (data.tipo === "percent" || data.tipo === "porcentagem") {
+                    // Busca o número em 'percent' ou 'valor', o que estiver preenchido no Firebase
+                    const p = data.percent !== undefined ? data.percent : data.valor;
+                    valorDesconto = (subtotal * p) / 100;
                 } else {
                     valorDesconto = data.valor;
                 }
@@ -321,25 +323,27 @@ Pagamento: ${pagtoTexto}
                 {step === 2 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
 
-                        {/* --- CONTAINER DO CUPOM (VERSÃO FINAL SEM CORTES) --- */}
+                        {/* --- CONTAINER DO CUPOM CORRIGIDO --- */}
                         <div style={{
                             display: "flex",
-                            alignItems: "center", // Centraliza o botão e o texto verticalmente
-                            border: "2px dashed #2196f3", // Borda azul tracejada visível
+                            alignItems: "center",
+                            border: "2px dashed #2196f3",
                             borderRadius: "12px",
-                            padding: "10px 15px", // Espaço interno generoso para não colar nas bordas
+                            padding: "10px 15px",
                             marginTop: "20px",
                             background: "#f9fcff",
-                            gap: "10px" // Cria um espaço fixo entre o texto e o botão
+                            gap: "10px"
                         }}>
                             <input
                                 type="text"
                                 placeholder="Possui cupom? Digite aqui"
+                                value={couponCode} // CONECTADO AO ESTADO
+                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())} // SALVA O QUE DIGITA
                                 style={{
                                     border: "none",
                                     background: "transparent",
                                     outline: "none",
-                                    flex: 1, // Faz o input ocupar todo o espaço da esquerda
+                                    flex: 1,
                                     fontSize: "14px",
                                     fontWeight: "500",
                                     color: "#333",
@@ -348,20 +352,24 @@ Pagamento: ${pagtoTexto}
                                     width: "100%"
                                 }}
                             />
-                            <button style={{
-                                background: "none",
-                                border: "none",
-                                color: "#2196f3",
-                                fontWeight: "900",
-                                fontSize: "13px",
-                                cursor: "pointer",
-                                padding: 0,
-                                margin: 0,
-                                textTransform: "uppercase",
-                                whiteSpace: "nowrap", // IMPEDIR QUE O TEXTO "APLICAR" QUEBRE OU CORTE
-                                flexShrink: 0 // GARANTE QUE O BOTÃO NÃO SEJA "ESMAGADO"
-                            }}>
-                                APLICAR
+                            <button
+                                onClick={applyCoupon} // AGORA O BOTÃO FUNCIONA!
+                                disabled={loading}
+                                style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: loading ? "#ccc" : "#2196f3",
+                                    fontWeight: "900",
+                                    fontSize: "13px",
+                                    cursor: "pointer",
+                                    padding: 0,
+                                    margin: 0,
+                                    textTransform: "uppercase",
+                                    whiteSpace: "nowrap",
+                                    flexShrink: 0
+                                }}
+                            >
+                                {loading ? "..." : "APLICAR"}
                             </button>
                         </div>
 
