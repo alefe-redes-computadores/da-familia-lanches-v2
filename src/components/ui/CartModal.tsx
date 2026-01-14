@@ -3,15 +3,16 @@
 import { ModalBase } from "./ModalBase";
 import { useCartStore } from "@/store/cart.store";
 import { useUIStore } from "@/store/ui";
-import { useAuthStore } from "@/store/auth.store"; // Adicionado
-import { useEffect, useState } from "react"; // Adicionado
-import { doc, getDoc } from "firebase/firestore"; // Adicionado
-import { db } from "@/lib/firebase"; // Adicionado
+import { useAuthStore } from "@/store/auth.store";
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { products } from "@/data/products";
 
 export function CartModal() {
   const { closeModal, openModal } = useUIStore();
   const currentUser = useAuthStore((s) => s.currentUser);
-  const { items, increaseQtd, decreaseQtd, removeItem, clearCart, getCartTotal } = useCartStore();
+  const { items, increaseQtd, decreaseQtd, removeItem, clearCart, getCartTotal, addItem } = useCartStore();
   const [points, setPoints] = useState(0);
 
   const total = getCartTotal();
@@ -26,7 +27,7 @@ export function CartModal() {
     fetchPoints();
   }, [currentUser]);
 
-  // Configuração de Metas (Igual ao seu RewardsModal)
+  // Configuração de Metas
   const goals = [
     { target: 5, title: "Nível Bronze", reward: "10% OFF" },
     { target: 10, title: "Nível Prata", reward: "Coca-Cola Grátis" },
@@ -85,11 +86,11 @@ export function CartModal() {
           )}
         </div>
 
-        {/* RODAPÉ COM INCENTIVO DE FIDELIDADE */}
+        {/* RODAPÉ */}
         {items.length > 0 && (
           <div style={{ borderTop: "1px solid #eee", paddingTop: "15px" }}>
             
-            {/* --- CARD DE INCENTIVO (NOVIDADE) --- */}
+            {/* CARD DE INCENTIVO */}
             {currentUser && points < nextGoal.target && (
               <div style={{ 
                 background: "#fff9c4", padding: "12px", borderRadius: "12px", 
@@ -107,6 +108,35 @@ export function CartModal() {
                 </p>
               </div>
             )}
+
+            {/* SEÇÃO DE UPSELLING */}
+            <div style={{ marginTop: "10px", marginBottom: "20px" }}>
+              <p style={{ fontSize: "13px", fontWeight: "bold", color: "#111", marginBottom: "10px" }}>
+                Que tal um acompanhamento? 🥤🍟
+              </p>
+              <div style={{ display: "flex", gap: "12px", overflowX: "auto", paddingBottom: "10px", scrollbarWidth: "none" }}>
+                {products
+                  .filter(p => p.isSuggestion && p.disponivel && !items.find(item => item.id === p.id))
+                  .map(p => (
+                    <div key={p.id} style={{ 
+                      minWidth: "130px", background: "#fff", borderRadius: "12px", padding: "10px", border: "1px solid #eee",
+                      display: "flex", flexDirection: "column", alignItems: "center", boxShadow: "0 2px 5px rgba(0,0,0,0.03)"
+                    }}>
+                      <img src={p.image} alt={p.name} style={{ width: "50px", height: "50px", objectFit: "contain", marginBottom: "8px" }} />
+                      <span style={{ fontSize: "10px", fontWeight: "bold", textAlign: "center", height: "24px", overflow: "hidden" }}>{p.name}</span>
+                      <span style={{ fontSize: "12px", color: "#388e3c", fontWeight: "900", marginTop: "5px" }}>
+                        {p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                      <button 
+                        onClick={() => addItem(p)}
+                        style={{ marginTop: "8px", width: "100%", background: "#111", color: "#fff", border: "none", borderRadius: "8px", padding: "7px", fontSize: "10px", fontWeight: "bold", cursor: "pointer" }}
+                      >
+                        ADICIONAR +
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: "center" }}>
               <span style={{ color: "#666" }}>Total do Pedido:</span>

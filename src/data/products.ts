@@ -9,6 +9,7 @@ export type Product = {
   image: string;
   category: "promocoes" | "combos" | "tradicionais" | "artesanais" | "hotdogs" | "bebidas";
   disponivel: boolean; // <--- CAMPO NOVO DE CONTROLE
+  isSuggestion?: boolean; // <--- CAMPO OPCIONAL PARA DESTAQUE DE SUGESTÕES
 };
 
 export const products: Product[] = [
@@ -31,7 +32,8 @@ export const products: Product[] = [
     price: 64.99,
     image: "/img/promo9.jpg",
     category: "promocoes",
-    disponivel: true
+    disponivel: true,
+    isSuggestion: true
   },
   {
     id: "promo-3",
@@ -40,7 +42,8 @@ export const products: Product[] = [
     price: 59.99,
     image: "/img/promo8.jpg",
     category: "promocoes",
-    disponivel: true
+    disponivel: true,
+    isSuggestion: true
   },
   {
     id: "promo-4",
@@ -116,7 +119,8 @@ export const products: Product[] = [
     price: 34.99,
     image: "/img/combo1.png",
     category: "combos",
-    disponivel: true
+    disponivel: true,
+    isSuggestion: true
   },
   {
     id: "combo-casal-art",
@@ -125,7 +129,8 @@ export const products: Product[] = [
     price: 49.99,
     image: "/img/combo2.png",
     category: "combos",
-    disponivel: true
+    disponivel: true,
+    isSuggestion: true
   },
   {
     id: "combo-familia-trad",
@@ -134,7 +139,8 @@ export const products: Product[] = [
     price: 59.99,
     image: "/img/combo3.png",
     category: "combos",
-    disponivel: true
+    disponivel: true,
+    isSuggestion: true
   },
   {
     id: "combo-familia-art",
@@ -143,7 +149,8 @@ export const products: Product[] = [
     price: 84.99,
     image: "/img/combo4.png",
     category: "combos",
-    disponivel: true
+    disponivel: true,
+    isSuggestion: true
   },
 
   // =========================================
@@ -357,7 +364,8 @@ export const products: Product[] = [
     price: 8.00,
     image: "/img/fanta.png",
     category: "bebidas",
-    disponivel: true
+    disponivel: true,
+    isSuggestion: true
   },
   {
     id: "coca-1l",
@@ -366,7 +374,8 @@ export const products: Product[] = [
     price: 9.00,
     image: "/img/coca-1l.png",
     category: "bebidas",
-    disponivel: true
+    disponivel: true,
+    isSuggestion: true
   },
   {
     id: "coca-1l-zero",
