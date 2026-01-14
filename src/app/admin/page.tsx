@@ -145,12 +145,41 @@ export default function AdminPage() {
           </button>
         </div>
 
-        <div style={{ display: "flex", background: "#eee", padding: "4px", borderRadius: "12px", marginTop: "20px", overflowX: "auto" }}>
-          {["cozinha", "expedicao", "concluidos", "motoboy"].map((t: any) => (
-            <button key={t} onClick={() => setTab(t)} style={{ padding: "10px 16px", border: "none", borderRadius: "10px", cursor: "pointer", background: tab === t ? "#fff" : "transparent", fontWeight: "bold" }}>
-              {t === "motoboy" ? "🛵 Rodrigo" : t.toUpperCase()}
-            </button>
-          ))}
+        {/* NAVEGAÇÃO DE ABAS DINÂMICA */}
+        <div style={{ display: "flex", background: "#f0f0f0", padding: "6px", borderRadius: "16px", marginTop: "20px", overflowX: "auto", gap: "8px", scrollbarWidth: "none" }}>
+          <button 
+            onClick={() => setTab("cozinha")}
+            style={{ flex: "1", minWidth: "fit-content", padding: "12px 18px", border: "none", borderRadius: "12px", cursor: "pointer", background: tab === "cozinha" ? "#111" : "transparent", color: tab === "cozinha" ? "#fff" : "#666", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+          >
+            🔥 COZINHA 
+            <span style={{ background: tab === "cozinha" ? "#ffca28" : "#ddd", color: "#111", padding: "2px 8px", borderRadius: "6px", fontSize: "12px" }}>
+              {pedidos.filter(p => ["Pendente", "Em Produção"].includes(normalizarStatus(p.status))).length}
+            </span>
+          </button>
+
+          <button 
+            onClick={() => setTab("expedicao")}
+            style={{ flex: "1", minWidth: "fit-content", padding: "12px 18px", border: "none", borderRadius: "12px", cursor: "pointer", background: tab === "expedicao" ? "#2196f3" : "transparent", color: tab === "expedicao" ? "#fff" : "#666", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+          >
+            🛵 ENTREGA
+            <span style={{ background: tab === "expedicao" ? "#fff" : "#ddd", color: "#111", padding: "2px 8px", borderRadius: "6px", fontSize: "12px" }}>
+              {pedidos.filter(p => ["Pronto", "Saiu para Entrega"].includes(normalizarStatus(p.status))).length}
+            </span>
+          </button>
+
+          <button 
+            onClick={() => setTab("concluidos")}
+            style={{ flex: "1", minWidth: "fit-content", padding: "12px 18px", border: "none", borderRadius: "12px", cursor: "pointer", background: tab === "concluidos" ? "#4caf50" : "transparent", color: tab === "concluidos" ? "#fff" : "#666", fontWeight: "bold" }}
+          >
+            ✅ FIM
+          </button>
+
+          <button 
+            onClick={() => setTab("motoboy")}
+            style={{ flex: "1", minWidth: "fit-content", padding: "12px 18px", border: "none", borderRadius: "12px", cursor: "pointer", background: tab === "motoboy" ? "#673ab7" : "transparent", color: tab === "motoboy" ? "#fff" : "#666", fontWeight: "bold" }}
+          >
+            👤 RODRIGO
+          </button>
         </div>
       </header>
 
@@ -187,6 +216,7 @@ export default function AdminPage() {
           </button>
         </div>
       )}
+
       {/* LISTAGEM DE PEDIDOS */}
       {tab !== "motoboy" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
