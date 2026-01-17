@@ -13,24 +13,25 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const silenciadoPeloUsuario = useRef(false);
 
-  // 1. SETUP DO ÁUDIO (SOM TURBO)
+  // 1. SETUP DO ÁUDIO (MÁXIMA CONFIANÇA)
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      // Usando um som de alarme industrial mais encorpado e alto
-      const audio = new Audio("https://raw.githubusercontent.com/rafael-claudio/sonoplastia/main/alarm.mp3");
+      // Som de Alarme do Google (Super compatível e audível)
+      const audio = new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg");
       audio.loop = true;
-      audio.volume = 1.0; // Volume máximo no player
+      audio.volume = 1.0;
+      audio.preload = "auto"; // Força o carregamento imediato
       audioRef.current = audio;
 
       const desbloquear = () => {
         if (audioRef.current) {
+          // Tenta um play/pause rápido para "acordar" o canal de áudio
           audioRef.current.play().then(() => {
             audioRef.current?.pause();
-            // Garante que o volume está no topo após o desbloqueio
-            audioRef.current!.volume = 1.0; 
+            console.log("🔊 Sistema de som pronto e liberado");
             window.removeEventListener("click", desbloquear);
             window.removeEventListener("touchstart", desbloquear);
-          }).catch(() => {});
+          }).catch((err) => console.error("Erro ao liberar som:", err));
         }
       };
       window.addEventListener("click", desbloquear);
@@ -38,11 +39,10 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     }
   }, []);
 
-  // 2. ESCUTA EM TEMPO REAL (MANTIDA A LÓGICA QUE FUNCIONOU)
+  // 2. ESCUTA EM TEMPO REAL (MANTIDA A VERSÃO QUE VOCÊ GOSTOU)
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
 
-    // Consulta total sem limit para a contagem de concluídos não bugar
     const q = query(collection(db, "Pedidos"), orderBy("data", "desc"));
 
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
@@ -52,7 +52,9 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       if (temPendentes && !silenciadoPeloUsuario.current) {
         setAlarmeAtivo(true);
         if (audioRef.current) {
-          audioRef.current.play().catch(() => {});
+          // Força o volume e tenta tocar
+          audioRef.current.volume = 1.0;
+          audioRef.current.play().catch(e => console.warn("Aguardando interação para tocar:", e));
         }
       } else if (!temPendentes) {
         setAlarmeAtivo(false);
@@ -68,7 +70,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     });
 
     return () => unsubscribe();
-  }, [currentUser]); // Dependência mínima para não dar delay
+  }, [currentUser]);
 
   return { 
     pedidos, 
