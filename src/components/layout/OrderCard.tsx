@@ -69,15 +69,21 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
         )}
       </div>
 
-      {/* 💳 PAGAMENTO E TOTAL (BLINDAGEM DO MONITOR) */}
+            {/* 💳 PAGAMENTO E TOTAL (VERSÃO CORRIGIDA) */}
       <div style={{ background: "#eee", borderRadius: "12px", padding: "10px", marginBottom: "12px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: "10px", color: "#666", fontWeight: "bold", textTransform: "uppercase" }}>Pagamento</span>
             <span style={{ fontSize: "14px", fontWeight: "800", color: "#333" }}>
-              {pedido.metodoPagamento === "dinheiro" ? "💵 DINHEIRO" : 
-               pedido.metodoPagamento === "pix" ? "💎 PIX" : 
-               pedido.metodoPagamento === "cartao" ? "💳 CARTÃO" : "⚠️ NÃO INFORMADO"}
+              {(() => {
+                const metodo = String(pedido.metodoPagamento || "").toLowerCase().trim();
+                if (metodo.includes("pix")) return "💎 PIX";
+                if (metodo.includes("dinheiro")) return "💵 DINHEIRO";
+                if (metodo.includes("cartao") || metodo.includes("cartão")) return "💳 CARTÃO";
+                if (metodo.includes("debito") || metodo.includes("débito")) return "💳 DÉBITO";
+                if (metodo.includes("credito") || metodo.includes("crédito")) return "💳 CRÉDITO";
+                return `⚠️ ${pedido.metodoPagamento || "NÃO INFORMADO"}`;
+              })()}
             </span>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -87,14 +93,14 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
         </div>
         
         {/* EXIBIÇÃO DO TROCO (SE HOUVER) */}
-        {pedido.metodoPagamento === "dinheiro" && pedido.trocoPara && (
+        {(String(pedido.metodoPagamento).toLowerCase().includes("dinheiro")) && pedido.trocoPara && (
           <div style={{ marginTop: "5px", paddingTop: "5px", borderTop: "1px solid #ddd", fontSize: "12px", color: "#d32f2f", fontWeight: "bold" }}>
             Troco para: R$ {Number(pedido.trocoPara).toFixed(2)} 
             (R$ {(Number(pedido.trocoPara) - Number(pedido.total)).toFixed(2)})
           </div>
         )}
       </div>
-
+      
       {/* BOTÕES DE AÇÃO */}
       <div style={{ display: "flex", gap: "8px" }}>
         {statusAtual === "Pendente" && (
