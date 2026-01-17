@@ -9,7 +9,7 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, addDoc, serverTimestamp, increment, setDoc } from "firebase/firestore";
 import { getShopStatus } from "@/lib/openingHours";
 
-type PaymentMethod = "pix" | "cartao" | "cash";
+type PaymentMethod = "pix" | "cartao" | "dinheiro";
 type DeliveryMode = "delivery" | "pickup";
 
 export function CheckoutModal() {
@@ -183,8 +183,10 @@ export function CheckoutModal() {
                 desconto: discount,
                 cupom: discount > 0 ? couponCode : null,
                 total,
+                // CORREÇÃO: Enviando nomes em português para o banco
                 metodoPagamento: method,
-                troco: method === 'cash' ? troco : null,
+                // CORREÇÃO: Nome do campo agora bate com o monitor (trocoPara)
+                trocoPara: method === 'dinheiro' ? troco : null,
                 endereco: enderecoFinal,
                 tipoEntrega: deliveryMode,
                 data: serverTimestamp(),
@@ -210,7 +212,7 @@ export function CheckoutModal() {
         let pagtoTexto = "";
         if (method === "pix") pagtoTexto = "💠 PIX (Comprovante em anexo)";
         if (method === "cartao") pagtoTexto = "💳 Cartão (Levar maquininha)";
-        if (method === "cash") pagtoTexto = `💵 Dinheiro (Troco para: ${troco || 'Sem troco'})`;
+        if (method === "dinheiro") pagtoTexto = `💵 Dinheiro (Troco para: ${troco || 'Sem troco'})`;
 
         const titulo = isClosed
             ? `🕒 *PEDIDO AGENDADO (Loja Fechada)*`
@@ -408,20 +410,20 @@ Pagamento: ${pagtoTexto}
                                 <span>{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                             </div>
                         </div>
-                        {/* Seletor Pagamento */}
+                        {/* Seletor Pagamento corrigido */}
                         <div style={{ display: "flex", background: "#eee", padding: "4px", borderRadius: "8px" }}>
-                            {['pix', 'cartao', 'cash'].map((m) => (
+                            {['pix', 'cartao', 'dinheiro'].map((m) => (
                                 <button
                                     key={m}
                                     onClick={() => setMethod(m as PaymentMethod)}
                                     style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "none", background: method === m ? "#fff" : "transparent", fontWeight: "bold", cursor: "pointer" }}
                                 >
-                                    {m === 'pix' ? '💠 PIX' : m === 'cartao' ? '💳 Card' : '💵 Dinheiro'}
+                                    {m === 'pix' ? '💠 PIX' : m === 'cartao' ? '💳 Cartão' : '💵 Dinheiro'}
                                 </button>
                             ))}
                         </div>
 
-                        {/* Conteúdo Dinâmico Pagamento (PIX) */}
+                        {/* Conteúdo do PIX e DINHEIRO corrigidos */}
                         {method === "pix" && (
                             <div style={{ textAlign: "center", padding: "15px", border: "1px solid #e3f2fd", borderRadius: "12px", background: "#fbb03422" }}>
                                 <p style={{ fontSize: "12px", color: "#666" }}>Copie a chave e pague no app do seu banco:</p>
@@ -434,7 +436,7 @@ Pagamento: ${pagtoTexto}
                             </div>
                         )}
 
-                        {method === "cash" && (
+                        {method === "dinheiro" && (
                             <input
                                 placeholder="Troco para quanto?"
                                 value={troco}
@@ -442,6 +444,7 @@ Pagamento: ${pagtoTexto}
                                 style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }}
                             />
                         )}
+
 
                         {/* Botões Finais */}
                         <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
