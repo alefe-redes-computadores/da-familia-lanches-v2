@@ -13,19 +13,21 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const silenciadoPeloUsuario = useRef(false);
 
-  // 1. SETUP DO ÁUDIO (Versão Máxima Compatibilidade)
+  // 1. SETUP DO ÁUDIO (SOM TURBO)
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      // Som de alerta clássico, curto e alto
-      const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+      // Usando um som de alarme industrial mais encorpado e alto
+      const audio = new Audio("https://raw.githubusercontent.com/rafael-claudio/sonoplastia/main/alarm.mp3");
       audio.loop = true;
-      audio.volume = 1.0;
+      audio.volume = 1.0; // Volume máximo no player
       audioRef.current = audio;
 
       const desbloquear = () => {
         if (audioRef.current) {
           audioRef.current.play().then(() => {
             audioRef.current?.pause();
+            // Garante que o volume está no topo após o desbloqueio
+            audioRef.current!.volume = 1.0; 
             window.removeEventListener("click", desbloquear);
             window.removeEventListener("touchstart", desbloquear);
           }).catch(() => {});
@@ -36,10 +38,11 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     }
   }, []);
 
-  // 2. ESCUTA EM TEMPO REAL
+  // 2. ESCUTA EM TEMPO REAL (MANTIDA A LÓGICA QUE FUNCIONOU)
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
 
+    // Consulta total sem limit para a contagem de concluídos não bugar
     const q = query(collection(db, "Pedidos"), orderBy("data", "desc"));
 
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
@@ -49,9 +52,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       if (temPendentes && !silenciadoPeloUsuario.current) {
         setAlarmeAtivo(true);
         if (audioRef.current) {
-          // O SEGREDO: Força o recarregamento do som antes de dar play
-          audioRef.current.load(); 
-          audioRef.current.play().catch(e => console.log("Erro som:", e));
+          audioRef.current.play().catch(() => {});
         }
       } else if (!temPendentes) {
         setAlarmeAtivo(false);
@@ -67,7 +68,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     });
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [currentUser]); // Dependência mínima para não dar delay
 
   return { 
     pedidos, 
