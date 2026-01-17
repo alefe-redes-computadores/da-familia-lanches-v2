@@ -49,7 +49,7 @@ export default function AdminPage() {
   };
 
   const updateStatus = async (id: string, newStatus: string, pedido?: any) => {
-    pararAlarme();
+    // REMOVIDO: pararAlarme() daqui para o som não parar ao aceitar um pedido se houver outros pendentes
     if (newStatus === "Saiu para Entrega" && pedido?.tipoEntrega !== "pickup") {
       setModalLogistica({ isOpen: true, pedidoId: id, pedidoData: pedido });
       return;
@@ -89,7 +89,8 @@ export default function AdminPage() {
   if (loading) return <h2 style={{textAlign: "center", marginTop: "100px"}}>Carregando Monitor... 📟</h2>;
 
   return (
-    <div style={{ padding: "15px", maxWidth: "1400px", margin: "85px auto 0 auto", minHeight: "100vh" }} onClick={pararAlarme}>
+    // REMOVIDO: onClick={pararAlarme} da div principal para não silenciar com qualquer clique
+    <div style={{ padding: "15px", maxWidth: "1400px", margin: "85px auto 0 auto", minHeight: "100vh" }}>
       <LogisticaModal 
         isOpen={modalLogistica.isOpen} 
         onClose={() => setModalLogistica({...modalLogistica, isOpen: false})} 
@@ -97,8 +98,11 @@ export default function AdminPage() {
       />
       
       {alarmeAtivo && (
-        <div style={{ background: "#d32f2f", color: "#fff", padding: "15px", textAlign: "center", borderRadius: "12px", marginBottom: "20px", fontWeight: "900", cursor: "pointer", animation: "pulse 1.5s infinite" }}>
-          🚨 NOVO PEDIDO! CLIQUE PARA SILENCIAR 🚨
+        <div 
+          onClick={pararAlarme} // Agora o silêncio manual só funciona clicando AQUI
+          style={{ background: "#d32f2f", color: "#fff", padding: "15px", textAlign: "center", borderRadius: "12px", marginBottom: "20px", fontWeight: "900", cursor: "pointer", animation: "pulse 1.5s infinite" }}
+        >
+          🚨 NOVO PEDIDO! CLIQUE AQUI PARA SILENCIAR 🚨
         </div>
       )}
 
