@@ -12,42 +12,40 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const silenciadoPeloUsuario = useRef(false);
-  // Ref para controlar a conexão e evitar que ela morra
-  const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // 1. SETUP DO ÁUDIO (Ding Dong Profissional)
+  // 1. Inicializa o áudio (Ding Dong)
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2256/2256-preview.mp3");
-      audio.loop = true;
-      audio.preload = "auto";
-      audioRef.current = audio;
+      audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2256/2256-preview.mp3");
+      audioRef.current.loop = true;
 
-      const unlock = () => {
+      const liberarAudio = () => {
         audioRef.current?.play().then(() => {
           audioRef.current?.pause();
-          window.removeEventListener("click", unlock);
+          window.removeEventListener("click", liberarAudio);
         }).catch(() => {});
       };
-      window.addEventListener("click", unlock);
+      window.addEventListener("click", liberarAudio);
     }
   }, []);
 
-  // 2. FUNÇÃO DE CONEXÃO (Acelerada)
-  const conectarMonitor = () => {
-    if (!currentUser || !admins.includes(currentUser.email!)) return;
+  // 2. Escuta do Firebase (A mais simples e direta possível)
+  useEffect(() => {
+    if (!currentUser || !admins.includes(currentUser.email!)) {
+      setLoading(false);
+      return;
+    }
 
-    // Se já existe uma conexão, mata ela antes de criar outra para não duplicar
-    if (unsubscribeRef.current) unsubscribeRef.current();
-
+    // Criamos a consulta
     const q = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(40));
 
-    unsubscribeRef.current = onSnapshot(q, (snapshot) => {
-      console.log("⚡ Pedidos atualizados via Tempo Real");
+    // Abrimos o canal de tempo real
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
       const temPendentes = docs.some(p => normalizarStatus(p.status) === "Pendente");
 
+      // Lógica do Som
       if (temPendentes && !silenciadoPeloUsuario.current) {
         setAlarmeAtivo(true);
         audioRef.current?.play().catch(() => {});
@@ -60,26 +58,12 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       setPedidos(docs);
       setLoading(false);
     }, (error) => {
-      console.error("Erro na conexão:", error);
-      // Se der erro, tenta reconectar em 5 segundos
-      setTimeout(conectarMonitor, 5000);
+      console.error("Erro no Firebase:", error);
+      setLoading(false);
     });
-  };
 
-  useEffect(() => {
-    conectarMonitor();
-    
-    // 3. WAKE-UP (Impede o navegador de dormir)
-    // A cada 1 minuto, ele dá uma "cutucada" na conexão se o monitor estiver vazio
-    const keepAlive = setInterval(() => {
-      if (pedidos.length === 0) conectarMonitor();
-    }, 60000);
-
-    return () => {
-      if (unsubscribeRef.current) unsubscribeRef.current();
-      clearInterval(keepAlive);
-    };
-  }, [currentUser]);
+    return () => unsubscribe();
+  }, [currentUser, admins]);
 
   return { 
     pedidos, 
