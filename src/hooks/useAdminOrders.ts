@@ -23,17 +23,27 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     }
   }, []);
 
-  const controlarAlarme = (ligar: boolean) => {
+    const controlarAlarme = (ligar: boolean) => {
     if (!audioRef.current) return;
 
     if (ligar) {
-      console.log("🔔 Tentando tocar alarme...");
       setAlarmeAtivo(true);
-      audioRef.current.play().catch((err) => {
-        console.warn("⚠️ Som bloqueado pelo navegador. Clique na página para liberar.", err);
-      });
+      // Força o carregamento antes de dar play
+      audioRef.current.load(); 
+      const playPromise = audioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.warn("Autoplay impedido. Tentando novamente em 2s...", error);
+          // Tenta tocar de novo após um pequeno delay se falhar
+          setTimeout(() => {
+            audioRef.current?.play().catch(() => {
+              console.error("Navegador bloqueou o som permanentemente até o próximo clique.");
+            });
+          }, 2000);
+        });
+      }
     } else {
-      console.log("🔕 Desligando alarme.");
       setAlarmeAtivo(false);
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
