@@ -423,18 +423,64 @@ Pagamento: ${pagtoTexto}
                             ))}
                         </div>
 
-                        {/* Conteúdo do PIX e DINHEIRO corrigidos */}
+                        {/* TRECHO PARA SUBSTITUIR NO SEU CÓDIGO ORIGINAL */}
                         {method === "pix" && (
-                            <div style={{ textAlign: "center", padding: "15px", border: "1px solid #e3f2fd", borderRadius: "12px", background: "#fbb03422" }}>
-                                <p style={{ fontSize: "12px", color: "#666" }}>Copie a chave e pague no app do seu banco:</p>
-                                <div style={{ display: "flex", gap: "5px", marginTop: "10px" }}>
-                                    <input readOnly value={PIX_KEY} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #ccc", fontSize: "13px", textAlign: "center", fontWeight: "bold" }} />
-                                    <button onClick={() => { navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }} style={{ background: pixCopied ? "#388e3c" : "#ffca28", border: "none", borderRadius: "8px", padding: "0 15px", color: pixCopied ? "#fff" : "#000", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>
-                                        {pixCopied ? "Copiado!" : "Copiar"}
+                            <div style={{
+                                textAlign: "center",
+                                padding: "15px",
+                                border: "1px solid #ffca28",
+                                borderRadius: "12px",
+                                background: "#fff9c433",
+                                width: "100%",
+                                boxSizing: "border-box",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center" // Garante a centralização vertical do conteúdo
+                            }}>
+                                <p style={{ fontSize: "12px", color: "#666", marginBottom: "10px", width: "100%" }}>
+                                    Copie a chave e pague no app do seu banco:
+                                </p>
+                                <div style={{
+                                    display: "flex",
+                                    gap: "8px",
+                                    alignItems: "center",
+                                    justifyContent: "center", // Centraliza o conjunto input + botão
+                                    width: "100%"
+                                }}>
+                                    <input
+                                        readOnly
+                                        value={PIX_KEY}
+                                        style={{
+                                            flex: 1,
+                                            maxWidth: "200px", // Limita para não empurrar o botão
+                                            padding: "12px",
+                                            borderRadius: "10px",
+                                            border: "1px solid #ddd",
+                                            fontSize: "14px",
+                                            textAlign: "center",
+                                            fontWeight: "bold",
+                                            background: "#fff"
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => { navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }}
+                                        style={{
+                                            background: pixCopied ? "#388e3c" : "#ffca28",
+                                            border: "none",
+                                            borderRadius: "10px",
+                                            padding: "12px 15px",
+                                            color: "#000",
+                                            fontWeight: "bold",
+                                            cursor: "pointer",
+                                            whiteSpace: "nowrap"
+                                        }}
+                                    >
+                                        {pixCopied ? "OK" : "Copiar"}
                                     </button>
                                 </div>
                             </div>
                         )}
+
 
                         {method === "dinheiro" && (
                             <input
