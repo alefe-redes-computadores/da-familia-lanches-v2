@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, limit } from "firebase/firestore";
 import { normalizarStatus } from "@/lib/orderUtils";
 
 export function useAdminOrders(currentUser: any, admins: string[]) {
@@ -12,66 +12,67 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const silenciadoPeloUsuario = useRef(false);
+  const unsubscribeRef = useRef<any>(null);
 
-  // 1. Setup do Áudio (Ding Dong)
+  // 1. SETUP DO ÁUDIO
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2256/2256-preview.mp3");
-      audioRef.current.loop = true;
+      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2256/2256-preview.mp3");
+      audio.loop = true;
+      audioRef.current = audio;
 
-      const liberarAudio = () => {
+      const unlock = () => {
         audioRef.current?.play().then(() => {
           audioRef.current?.pause();
-          window.removeEventListener("click", liberarAudio);
+          window.removeEventListener("click", unlock);
         }).catch(() => {});
       };
-      window.addEventListener("click", liberarAudio);
+      window.addEventListener("click", unlock);
     }
   }, []);
 
-  // 2. Escuta Blindada (Sem OrderBy para evitar erro de índice)
+  // 2. CONEXÃO FORÇADA
   useEffect(() => {
-    if (!currentUser || !admins.includes(currentUser.email!)) {
-      setLoading(false);
-      return;
-    }
+    if (!currentUser || !admins.includes(currentUser.email!)) return;
 
-    // Buscamos a coleção pura. Se houver algo lá, vai aparecer.
-    const colRef = collection(db, "Pedidos");
+    console.log("🛠️ Tentando abrir canal de pedidos...");
 
-    const unsubscribe = onSnapshot(colRef, (snapshot) => {
-      console.log("🔥 Snapshot recebido:", snapshot.size, "pedidos");
-      
+    const q = query(
+      collection(db, "Pedidos"), 
+      orderBy("data", "desc"), 
+      limit(30)
+    );
+
+    // Limpa conexão anterior se existir
+    if (unsubscribeRef.current) unsubscribeRef.current();
+
+    unsubscribeRef.current = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+      // Se chegamos aqui, a conexão está ativa!
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
-      // Ordenamos manualmente aqui no celular (Mais seguro)
-      const docsOrdenados = docs.sort((a, b) => {
-        const dataA = a.data?.seconds ? a.data.seconds * 1000 : new Date(a.data).getTime();
-        const dataB = b.data?.seconds ? b.data.seconds * 1000 : new Date(b.data).getTime();
-        return (dataB || 0) - (dataA || 0);
-      });
+      const temPendentes = docs.some(p => normalizarStatus(p.status) === "Pendente");
 
-      const temPendentes = docsOrdenados.some(p => normalizarStatus(p.status) === "Pendente");
-
-      // Lógica do Som
       if (temPendentes && !silenciadoPeloUsuario.current) {
         setAlarmeAtivo(true);
-        audioRef.current?.play().catch(() => {});
+        audioRef.current?.play().catch(e => console.log("Erro audio:", e));
       } else if (!temPendentes) {
         setAlarmeAtivo(false);
         silenciadoPeloUsuario.current = false;
         audioRef.current?.pause();
       }
 
-      setPedidos(docsOrdenados);
+      setPedidos(docs);
       setLoading(false);
     }, (error) => {
-      console.error("❌ Erro Crítico Firebase:", error);
-      setLoading(false);
+      console.error("❌ Falha total na escuta:", error);
+      // Se falhar, força um recarregamento do hook em 5s
+      setTimeout(() => setLoading(true), 5000);
     });
 
-    return () => unsubscribe();
-  }, [currentUser, admins]);
+    return () => {
+      if (unsubscribeRef.current) unsubscribeRef.current();
+    };
+  }, [currentUser]); // Removido 'admins' para evitar loops de re-render
 
   return { 
     pedidos, 
