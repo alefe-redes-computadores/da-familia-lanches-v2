@@ -12,49 +12,50 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const silenciadoPeloUsuario = useRef(false);
-  const unsubscribeRef = useRef<any>(null);
 
-  // 1. SETUP DO ÁUDIO
+  // 1. SETUP DO ÁUDIO (USANDO SOM DO SISTEMA - NOTIFICAÇÃO CURTA)
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2256/2256-preview.mp3");
-      audio.loop = true;
-      audioRef.current = audio;
-
-      const unlock = () => {
-        audioRef.current?.play().then(() => {
-          audioRef.current?.pause();
-          window.removeEventListener("click", unlock);
-        }).catch(() => {});
-      };
-      window.addEventListener("click", unlock);
+      // Link direto de uma notificação oficial do Google (ultra leve e compatível)
+      const audio = new Audio("https://fonts.gstatic.com/s/i/productlogos/googleg/v6/web-24dp/logo_googleg_color_24dp.png"); // Placeholder para teste de canal
+      // Som de notificação limpo e de alta compatibilidade
+      audioRef.current = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+      audioRef.current.loop = true;
+      audioRef.current.volume = 1.0; // Força volume máximo no player
     }
+
+    const liberarSom = () => {
+      if (audioRef.current) {
+        audioRef.current.play().then(() => {
+          audioRef.current?.pause();
+          window.removeEventListener("mousedown", liberarSom);
+          window.removeEventListener("touchstart", liberarSom);
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener("mousedown", liberarSom);
+    window.addEventListener("touchstart", liberarSom);
   }, []);
 
-  // 2. CONEXÃO FORÇADA
+  // 2. ESCUTA EM TEMPO REAL (SEM CACHE)
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
 
-    console.log("🛠️ Tentando abrir canal de pedidos...");
+    // Criamos a query com limite para ser rápida
+    const q = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(25));
 
-    const q = query(
-      collection(db, "Pedidos"), 
-      orderBy("data", "desc"), 
-      limit(30)
-    );
-
-    // Limpa conexão anterior se existir
-    if (unsubscribeRef.current) unsubscribeRef.current();
-
-    unsubscribeRef.current = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
-      // Se chegamos aqui, a conexão está ativa!
+    // O segredo para não precisar de F5 é o includeMetadataChanges
+    const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
       const temPendentes = docs.some(p => normalizarStatus(p.status) === "Pendente");
 
       if (temPendentes && !silenciadoPeloUsuario.current) {
         setAlarmeAtivo(true);
-        audioRef.current?.play().catch(e => console.log("Erro audio:", e));
+        // Pequeno delay para garantir que o navegador processou a chegada do dado
+        setTimeout(() => {
+          audioRef.current?.play().catch(e => console.warn("Erro ao tocar:", e));
+        }, 500);
       } else if (!temPendentes) {
         setAlarmeAtivo(false);
         silenciadoPeloUsuario.current = false;
@@ -64,15 +65,11 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       setPedidos(docs);
       setLoading(false);
     }, (error) => {
-      console.error("❌ Falha total na escuta:", error);
-      // Se falhar, força um recarregamento do hook em 5s
-      setTimeout(() => setLoading(true), 5000);
+      console.error("Erro Firebase:", error);
     });
 
-    return () => {
-      if (unsubscribeRef.current) unsubscribeRef.current();
-    };
-  }, [currentUser]); // Removido 'admins' para evitar loops de re-render
+    return () => unsubscribe();
+  }, [currentUser]); 
 
   return { 
     pedidos, 
