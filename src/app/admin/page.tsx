@@ -10,7 +10,7 @@ import { useAdminOrders } from "@/hooks/useAdminOrders";
 import { OrderCard } from "@/components/layout/OrderCard";
 import { LogisticaModal } from "@/components/layout/LogisticaModal";
 import { FinanceiroDashboard } from "@/components/layout/FinanceiroDashboard";
-import { RelatoriosAdmin } from "@/components/layout/RelatoriosAdmin"; // Novo componente
+import { RelatoriosAdmin } from "@/components/layout/RelatoriosAdmin";
 import { normalizarStatus, avisarWhatsApp } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
 
@@ -20,11 +20,15 @@ export default function AdminPage() {
   
   const { pedidos, loading, alarmeAtivo, pararAlarme } = useAdminOrders(currentUser, admins);
   
-  // Alterado: "motoboy" agora é "gestao" para incluir relatórios
   const [tab, setTab] = useState<"cozinha" | "expedicao" | "concluidos" | "gestao">("cozinha");
   const [storeOpen, setStoreOpen] = useState(true);
   const [dadosRodrigo, setDadosRodrigo] = useState<any>(null);
   const [modalLogistica, setModalLogistica] = useState({ isOpen: false, pedidoId: "", pedidoData: null as any });
+
+  // --- LÓGICA DE CONTAGEM DINÂMICA ---
+  const countCozinha = pedidos.filter(p => ["Pendente", "Em Produção"].includes(normalizarStatus(p.status))).length;
+  const countExpedicao = pedidos.filter(p => ["Pronto", "Saiu para Entrega"].includes(normalizarStatus(p.status))).length;
+  const countConcluidos = pedidos.filter(p => normalizarStatus(p.status) === "Finalizado").length;
 
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
@@ -105,26 +109,30 @@ export default function AdminPage() {
             {storeOpen ? "LOJA ABERTA" : "LOJA FECHADA"}
           </button>
         </div>
+        
         <div style={{ display: "flex", gap: "8px", marginTop: "20px", overflowX: "auto", paddingBottom: "10px" }}>
-          {["cozinha", "expedicao", "concluidos", "gestao"].map((t: any) => (
-            <button key={t} onClick={() => setTab(t)} style={{ flex: "1", minWidth: "100px", padding: "12px", borderRadius: "12px", border: "none", background: tab === t ? "#111" : "#eee", color: tab === t ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
-              {t === "cozinha" ? "🔥 COZINHA" : t === "expedicao" ? "🛵 ENTREGA" : t === "concluidos" ? "✅ FIM" : "📊 GESTÃO"}
-            </button>
-          ))}
+          <button onClick={() => setTab("cozinha")} style={{ flex: "1", minWidth: "110px", padding: "12px", borderRadius: "12px", border: "none", background: tab === "cozinha" ? "#111" : "#eee", color: tab === "cozinha" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
+            🔥 COZINHA {countCozinha > 0 && `(${countCozinha})`}
+          </button>
+          <button onClick={() => setTab("expedicao")} style={{ flex: "1", minWidth: "110px", padding: "12px", borderRadius: "12px", border: "none", background: tab === "expedicao" ? "#111" : "#eee", color: tab === "expedicao" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
+            🛵 ENTREGA {countExpedicao > 0 && `(${countExpedicao})`}
+          </button>
+          <button onClick={() => setTab("concluidos")} style={{ flex: "1", minWidth: "110px", padding: "12px", borderRadius: "12px", border: "none", background: tab === "concluidos" ? "#111" : "#eee", color: tab === "concluidos" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
+            ✅ FIM {countConcluidos > 0 && `(${countConcluidos})`}
+          </button>
+          <button onClick={() => setTab("gestao")} style={{ flex: "1", minWidth: "110px", padding: "12px", borderRadius: "12px", border: "none", background: tab === "gestao" ? "#111" : "#eee", color: tab === "gestao" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
+            📊 GESTÃO
+          </button>
         </div>
       </header>
 
       {tab === "gestao" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
-          {/* Sessão do Rodrigo (Manual) */}
           <section>
             <h2 style={{ fontSize: "18px", fontWeight: "900", marginBottom: "15px" }}>👤 Financeiro Rodrigo</h2>
             {dadosRodrigo && <FinanceiroDashboard dados={dadosRodrigo} onRegistrarPagamento={handleRegistrarPagamento} />}
           </section>
-          
           <hr style={{ border: "none", borderTop: "1px solid #eee" }} />
-
-          {/* Sessão de Relatórios e Logística detalhada */}
           <section>
             <h2 style={{ fontSize: "18px", fontWeight: "900", marginBottom: "15px" }}>📈 Relatórios & Histórico</h2>
             <RelatoriosAdmin pedidos={pedidos} />
