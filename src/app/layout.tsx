@@ -10,17 +10,21 @@ const poppins = Poppins({
   weight: ["400", "600", "700", "800", "900"],
 });
 
-// CONFIGURAÇÃO COMPLETA: PWA + FAVICON + MOBILE
+// CONFIGURAÇÃO REFORÇADA: PWA + FAVICON
 export const metadata: Metadata = {
   title: "Da Família Lanches",
-  description: "DFL — Cardápio e pedidos online",
+  description: "Você faz parte disso ❤️",
   manifest: "/manifest.json",
   themeColor: "#ffca28",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1",
   icons: {
-    icon: "/icon-192x192.png",       // Favicon para navegadores
-    shortcut: "/icon-192x192.png",   // Atalho
-    apple: "/icon-192x192.png",      // Ícone para iPhone/iOS
+    icon: [
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/icon-192x192.png",
+    apple: [
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
   },
 };
 
@@ -32,7 +36,6 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
-        {/* Tags para forçar o comportamento de App no iOS */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="mobile-web-app-capable" content="yes" />
