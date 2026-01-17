@@ -15,27 +15,27 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const isFirstLoad = useRef(true);
 
   // 1. INICIALIZAÇÃO DO SISTEMA DE ÁUDIO
+    // 1. INICIALIZAÇÃO DO SISTEMA DE ÁUDIO
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      // Usando o som padrão de notificação (mais leve e compatível)
-      const audio = new Audio("https://www.gstatic.com/chat/sounds/new_message.mp3");
+      // TROQUEI O SOM: Agora é um "Ding Dong" de recepção, elegante e eficiente
+      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2256/2256-preview.mp3");
       audio.loop = true;
       audio.preload = "auto";
       audioRef.current = audio;
 
-      // Desbloqueio do canal de áudio pelo primeiro clique do usuário
       const unlockAudio = () => {
         if (audioRef.current) {
           audioRef.current.play().then(() => {
             audioRef.current?.pause();
             window.removeEventListener("click", unlockAudio);
-            console.log("Canal de áudio liberado");
           }).catch(() => {});
         }
       };
       window.addEventListener("click", unlockAudio);
     }
   }, []);
+
 
   // 2. FUNÇÃO CONTROLADORA DO ALARME
   const controlarAlarme = (ligar: boolean) => {
