@@ -31,7 +31,7 @@ export default function AdminPage() {
     return () => { unsubLoja(); unsubRodrigo(); };
   }, [currentUser, admins]);
 
-  // FUNÇÃO PARA ZERAR O TURNO (CORREÇÃO DO ERRO DO TS)
+  // FUNÇÃO PARA ZERAR O TURNO
   const handleRegistrarPagamento = async (valor: number) => {
     if (!confirm(`Confirmar encerramento de turno? Saldo de R$ ${valor.toFixed(2)} será zerado.`)) return;
     try {
@@ -69,6 +69,7 @@ export default function AdminPage() {
         entregador: motoboy
       });
 
+      // Apenas incrementamos a contagem. O saldo agora é manual no Dashboard.
       if (motoboy === "rodrigo") {
         await updateDoc(doc(db, "Entregadores", "rodrigo"), { totalEntregas: increment(1) });
       }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { db } from "@/lib/firebase";
+import { updateDoc, doc } from "firebase/firestore";
 
 interface FinanceiroDashboardProps {
   dados: {
@@ -14,80 +16,98 @@ interface FinanceiroDashboardProps {
 
 export function FinanceiroDashboard({ dados, onRegistrarPagamento }: FinanceiroDashboardProps) {
   const { totalEntregas = 0, saldoAcumulado = 0, taxaBase = 7, garantiaMinima = 100 } = dados;
+  const [editando, setEditando] = useState(false);
+  const [novoSaldo, setNovoSaldo] = useState(saldoAcumulado);
 
-  // CÁLCULO DA REGRA: 100 fixos até 10 entregas, depois +7 por entrega.
-  const calcularDiaria = () => {
+  // Sugestão de cálculo (apenas visual, não grava automático)
+  const sugerirDiaria = () => {
     if (totalEntregas === 0) return 0;
     if (totalEntregas <= 10) return garantiaMinima;
     return garantiaMinima + (totalEntregas - 10) * taxaBase;
   };
 
-  const diariaHoje = calcularDiaria();
-  const saldoTotalComHoje = saldoAcumulado + diariaHoje;
+  const diariaSugerida = sugerirDiaria();
 
-  // Lógica de Cores: Se o saldo é > 0, a lanchonete DEVE (Vermelho).
-  const corSaldo = saldoTotalComHoje > 0 ? "#d32f2f" : "#2e7d32";
+  const salvarSaldoManual = async () => {
+    try {
+      await updateDoc(doc(db, "Entregadores", "rodrigo"), {
+        saldoAcumulado: Number(novoSaldo)
+      });
+      setEditando(false);
+      alert("Saldo atualizado!");
+    } catch (e) { alert("Erro ao salvar"); }
+  };
+
+  const lancarDiariaManual = async () => {
+    if (!confirm(`Lançar R$ ${diariaSugerida} ao saldo acumulado?`)) return;
+    try {
+      await updateDoc(doc(db, "Entregadores", "rodrigo"), {
+        saldoAcumulado: saldoAcumulado + diariaSugerida
+      });
+      alert("Diária lançada com sucesso!");
+    } catch (e) { alert("Erro ao lançar"); }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       
-      {/* CARD PRINCIPAL: SALDO TOTAL ACUMULADO */}
+      {/* CARD DE SALDO EDITÁVEL */}
       <div style={{ 
         background: "#fff", padding: "25px", borderRadius: "20px", 
-        border: `2px solid ${corSaldo}`, textAlign: "center",
-        boxShadow: "0 10px 20px rgba(0,0,0,0.05)" 
+        border: "2px solid #111", textAlign: "center", boxShadow: "0 10px 20px rgba(0,0,0,0.05)" 
       }}>
-        <span style={{ fontSize: "12px", fontWeight: "bold", color: "#666", textTransform: "uppercase" }}>
-          Dívida Total da Lanchonete (Acumulado)
-        </span>
-        <h2 style={{ margin: "10px 0", fontSize: "36px", fontWeight: "900", color: corSaldo }}>
-          R$ {saldoTotalComHoje.toFixed(2)}
-        </h2>
-        <p style={{ fontSize: "12px", color: "#888", margin: 0 }}>
-          {saldoTotalComHoje > 0 ? "⚠️ Valor a ser pago ao Rodrigo" : "✅ Acerto em dia"}
-        </p>
+        <span style={{ fontSize: "12px", fontWeight: "bold", color: "#666" }}>SALDO ATUAL (DÍVIDA)</span>
+        
+        {editando ? (
+          <div style={{ marginTop: "10px" }}>
+            <input 
+              type="number" 
+              value={novoSaldo} 
+              onChange={(e) => setNovoSaldo(Number(e.target.value))}
+              style={{ fontSize: "24px", width: "150px", textAlign: "center", padding: "5px", borderRadius: "8px" }}
+            />
+            <div style={{ marginTop: "10px", display: "flex", gap: "5px", justifyContent: "center" }}>
+              <button onClick={salvarSaldoManual} style={{ background: "#4caf50", color: "#fff", border: "none", padding: "5px 15px", borderRadius: "5px" }}>Salvar</button>
+              <button onClick={() => setEditando(false)} style={{ background: "#f44336", color: "#fff", border: "none", padding: "5px 15px", borderRadius: "5px" }}>X</button>
+            </div>
+          </div>
+        ) : (
+          <h2 onClick={() => { setNovoSaldo(saldoAcumulado); setEditando(true); }} style={{ margin: "10px 0", fontSize: "36px", fontWeight: "900", cursor: "pointer" }}>
+            R$ {saldoAcumulado.toFixed(2)} ✏️
+          </h2>
+        )}
+        <p style={{ fontSize: "11px", color: "#888" }}>Clique no valor para ajustar manualmente</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
-        {/* RESUMO DO TURNO ATUAL */}
-        <div style={{ background: "#f8f9fa", padding: "15px", borderRadius: "15px", border: "1px solid #eee" }}>
-          <span style={{ fontSize: "10px", color: "#666", fontWeight: "bold" }}>DIÁRIA DE HOJE</span>
-          <h4 style={{ margin: "5px 0", fontSize: "20px" }}>R$ {diariaHoje.toFixed(2)}</h4>
-          <span style={{ fontSize: "10px", color: "#999" }}>{totalEntregas} entregas realizadas</span>
-        </div>
-
-        {/* TAXA EXTRA */}
-        <div style={{ background: "#f8f9fa", padding: "15px", borderRadius: "15px", border: "1px solid #eee" }}>
-          <span style={{ fontSize: "10px", color: "#666", fontWeight: "bold" }}>EXTRAS ({totalEntregas > 10 ? totalEntregas - 10 : 0})</span>
-          <h4 style={{ margin: "5px 0", fontSize: "20px" }}>
-            R$ {totalEntregas > 10 ? ((totalEntregas - 10) * taxaBase).toFixed(2) : "0,00"}
-          </h4>
-          <span style={{ fontSize: "10px", color: "#999" }}>Acima de 10 entregas</span>
-        </div>
+      {/* SUGESTÃO DE HOJE */}
+      <div style={{ background: "#e3f2fd", padding: "15px", borderRadius: "15px", border: "1px solid #bbdefb", textAlign: "center" }}>
+        <span style={{ fontSize: "12px", color: "#1976d2", fontWeight: "bold" }}>ENTREGAS DE HOJE: {totalEntregas}</span>
+        <h3 style={{ margin: "5px 0" }}>Sugestão Diária: R$ {diariaSugerida.toFixed(2)}</h3>
+        <button 
+          onClick={lancarDiariaManual}
+          style={{ background: "#1976d2", color: "#fff", border: "none", padding: "8px 15px", borderRadius: "8px", fontWeight: "bold", marginTop: "5px", cursor: "pointer" }}
+        >
+          ADICIONAR ESTA DIÁRIA AO SALDO
+        </button>
       </div>
 
-      {/* BOTÕES DE AÇÃO RÁPIDA */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
         <button 
-          onClick={() => onRegistrarPagamento(saldoTotalComHoje)}
-          style={{ 
-            padding: "15px", borderRadius: "12px", border: "none", 
-            background: "#111", color: "#fff", fontWeight: "bold", cursor: "pointer" 
-          }}
+          onClick={() => onRegistrarPagamento(saldoAcumulado)}
+          style={{ padding: "15px", borderRadius: "12px", border: "none", background: "#111", color: "#fff", fontWeight: "bold", cursor: "pointer" }}
         >
-          PAGAR TUDO (PIX)
+          PAGAR TUDO (ZERAR)
         </button>
         <button 
-          onClick={() => alert("Função: Descontar Consumo/Adiantamento")}
-          style={{ 
-            padding: "15px", borderRadius: "12px", border: "1px solid #ddd", 
-            background: "#fff", color: "#333", fontWeight: "bold", cursor: "pointer" 
+          onClick={() => {
+            const valor = Number(prompt("Valor do adiantamento/lanche:"));
+            if (valor) updateDoc(doc(db, "Entregadores", "rodrigo"), { saldoAcumulado: saldoAcumulado - valor });
           }}
+          style={{ padding: "15px", borderRadius: "12px", border: "1px solid #ddd", background: "#fff", color: "#333", fontWeight: "bold", cursor: "pointer" }}
         >
-          DESCONTAR...
+          DESCONTAR VALOR
         </button>
       </div>
-
     </div>
   );
 }
