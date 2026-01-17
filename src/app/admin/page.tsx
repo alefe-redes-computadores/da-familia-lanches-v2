@@ -10,6 +10,7 @@ import { useAdminOrders } from "@/hooks/useAdminOrders";
 import { OrderCard } from "@/components/layout/OrderCard";
 import { LogisticaModal } from "@/components/layout/LogisticaModal";
 import { FinanceiroDashboard } from "@/components/layout/FinanceiroDashboard";
+import { RelatoriosAdmin } from "@/components/layout/RelatoriosAdmin"; // Novo componente
 import { normalizarStatus, avisarWhatsApp } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
 
@@ -19,7 +20,8 @@ export default function AdminPage() {
   
   const { pedidos, loading, alarmeAtivo, pararAlarme } = useAdminOrders(currentUser, admins);
   
-  const [tab, setTab] = useState<"cozinha" | "expedicao" | "concluidos" | "motoboy">("cozinha");
+  // Alterado: "motoboy" agora é "gestao" para incluir relatórios
+  const [tab, setTab] = useState<"cozinha" | "expedicao" | "concluidos" | "gestao">("cozinha");
   const [storeOpen, setStoreOpen] = useState(true);
   const [dadosRodrigo, setDadosRodrigo] = useState<any>(null);
   const [modalLogistica, setModalLogistica] = useState({ isOpen: false, pedidoId: "", pedidoData: null as any });
@@ -31,7 +33,6 @@ export default function AdminPage() {
     return () => { unsubLoja(); unsubRodrigo(); };
   }, [currentUser, admins]);
 
-  // FUNÇÃO PARA ZERAR O TURNO
   const handleRegistrarPagamento = async (valor: number) => {
     if (!confirm(`Confirmar encerramento de turno? Saldo de R$ ${valor.toFixed(2)} será zerado.`)) return;
     try {
@@ -40,9 +41,7 @@ export default function AdminPage() {
       batch.update(rodrigoRef, { totalEntregas: 0, saldoAcumulado: 0 });
       await batch.commit();
       alert("Turno zerado com sucesso!");
-    } catch (e) {
-      alert("Erro ao zerar turno.");
-    }
+    } catch (e) { alert("Erro ao zerar turno."); }
   };
 
   const updateStatus = async (id: string, newStatus: string, pedido?: any) => {
@@ -64,24 +63,14 @@ export default function AdminPage() {
     if (!pedidoId) return;
     try {
       const pedidoRef = doc(db, "Pedidos", pedidoId);
-      await updateDoc(pedidoRef, { 
-        status: "Saiu para Entrega", 
-        entregador: motoboy
-      });
-
-      // Apenas incrementamos a contagem. O saldo agora é manual no Dashboard.
+      await updateDoc(pedidoRef, { status: "Saiu para Entrega", entregador: motoboy });
       if (motoboy === "rodrigo") {
         await updateDoc(doc(db, "Entregadores", "rodrigo"), { totalEntregas: increment(1) });
       }
-
       const tel = pedidoData?.userPhone || pedidoData?.phone;
       if (tel) avisarWhatsApp(tel, pedidoData?.userName, "Saiu para Entrega");
-      
       setModalLogistica({ isOpen: false, pedidoId: "", pedidoData: null });
-    } catch (e) { 
-      console.error(e);
-      alert("Erro ao despachar pedido."); 
-    }
+    } catch (e) { alert("Erro ao despachar pedido."); }
   };
 
   const pedidosFiltrados = pedidos.filter(p => {
@@ -117,16 +106,30 @@ export default function AdminPage() {
           </button>
         </div>
         <div style={{ display: "flex", gap: "8px", marginTop: "20px", overflowX: "auto", paddingBottom: "10px" }}>
-          {["cozinha", "expedicao", "concluidos", "motoboy"].map((t: any) => (
+          {["cozinha", "expedicao", "concluidos", "gestao"].map((t: any) => (
             <button key={t} onClick={() => setTab(t)} style={{ flex: "1", minWidth: "100px", padding: "12px", borderRadius: "12px", border: "none", background: tab === t ? "#111" : "#eee", color: tab === t ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
-              {t === "cozinha" ? "🔥 COZINHA" : t === "expedicao" ? "🛵 ENTREGA" : t === "concluidos" ? "✅ FIM" : "👤 RODRIGO"}
+              {t === "cozinha" ? "🔥 COZINHA" : t === "expedicao" ? "🛵 ENTREGA" : t === "concluidos" ? "✅ FIM" : "📊 GESTÃO"}
             </button>
           ))}
         </div>
       </header>
 
-      {tab === "motoboy" ? (
-        dadosRodrigo && <FinanceiroDashboard dados={dadosRodrigo} onRegistrarPagamento={handleRegistrarPagamento} />
+      {tab === "gestao" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+          {/* Sessão do Rodrigo (Manual) */}
+          <section>
+            <h2 style={{ fontSize: "18px", fontWeight: "900", marginBottom: "15px" }}>👤 Financeiro Rodrigo</h2>
+            {dadosRodrigo && <FinanceiroDashboard dados={dadosRodrigo} onRegistrarPagamento={handleRegistrarPagamento} />}
+          </section>
+          
+          <hr style={{ border: "none", borderTop: "1px solid #eee" }} />
+
+          {/* Sessão de Relatórios e Logística detalhada */}
+          <section>
+            <h2 style={{ fontSize: "18px", fontWeight: "900", marginBottom: "15px" }}>📈 Relatórios & Histórico</h2>
+            <RelatoriosAdmin pedidos={pedidos} />
+          </section>
+        </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
           {pedidosFiltrados.length === 0 ? (
