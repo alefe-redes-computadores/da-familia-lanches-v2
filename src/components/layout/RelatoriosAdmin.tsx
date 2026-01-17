@@ -10,22 +10,19 @@ export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
     const filtrarPorData = (pedidoData: any) => {
     if (!pedidoData) return false;
     
-    // Converte a data do pedido (seja string ou timestamp) para um objeto Date
     const dataDoPedido = pedidoData.seconds 
       ? new Date(pedidoData.seconds * 1000) 
       : new Date(pedidoData);
       
     const agora = new Date();
-    
-    // Zera as horas para comparar apenas o dia
     const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).getTime();
     const dataPedidoZerada = new Date(dataDoPedido.getFullYear(), dataDoPedido.getMonth(), dataDoPedido.getDate()).getTime();
     
     const diffEmDias = Math.floor((hoje - dataPedidoZerada) / (1000 * 60 * 60 * 24));
     
-    if (filtroDias === 0) return diffEmDias === 0; // Hoje
-    if (filtroDias === 1) return diffEmDias === 1; // Ontem
-    return diffEmDias <= filtroDias && diffEmDias >= 0; // Períodos maiores
+    if (filtroDias === 0) return diffEmDias === 0; 
+    if (filtroDias === 1) return diffEmDias === 1; 
+    return diffEmDias <= filtroDias && diffEmDias >= 0; 
   };
 
   const pedidosFiltrados = pedidos.filter(p => 
@@ -36,12 +33,24 @@ export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
   const totalPedidos = pedidosFiltrados.length;
   const ticketMedio = totalPedidos > 0 ? totalVendido / totalPedidos : 0;
 
-  // Separação por método
+  // Separação por método com TRADUÇÃO VISUAL
   const porMetodo = pedidosFiltrados.reduce((acc: any, p) => {
     const m = p.metodoPagamento || "Outro";
     acc[m] = (acc[m] || 0) + (p.total || 0);
     return acc;
   }, {});
+
+  // Função para deixar o nome do método bonito no gráfico
+  const formatMetodo = (m: string) => {
+    const labels: any = {
+      dinheiro: "💵 Dinheiro",
+      cash: "💵 Dinheiro",
+      cartao: "💳 Cartão",
+      card: "💳 Cartão",
+      pix: "💠 Pix"
+    };
+    return labels[m] || m;
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px", color: "#111" }}>
@@ -71,52 +80,61 @@ export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
 
       {/* CARDS DE KPI */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px" }}>
-        <div style={{ background: "#fff", padding: "15px", borderRadius: "15px", border: "1px solid #eee" }}>
-          <span style={{ fontSize: "11px", color: "#666" }}>FATURAMENTO BRUTO</span>
-          <h3 style={{ margin: "5px 0", color: "#2e7d32" }}>R$ {totalVendido.toFixed(2)}</h3>
+        <div style={{ background: "#fff", padding: "15px", borderRadius: "15px", border: "2px solid #eee" }}>
+          <span style={{ fontSize: "11px", color: "#666", fontWeight: "bold" }}>FATURAMENTO</span>
+          <h3 style={{ margin: "5px 0", color: "#2e7d32", fontSize: "20px" }}>R$ {totalVendido.toFixed(2)}</h3>
         </div>
         <div style={{ background: "#fff", padding: "15px", borderRadius: "15px", border: "1px solid #eee" }}>
-          <span style={{ fontSize: "11px", color: "#666" }}>PEDIDOS CONCLUÍDOS</span>
-          <h3 style={{ margin: "5px 0" }}>{totalPedidos}</h3>
+          <span style={{ fontSize: "11px", color: "#666", fontWeight: "bold" }}>PEDIDOS</span>
+          <h3 style={{ margin: "5px 0", fontSize: "20px" }}>{totalPedidos}</h3>
         </div>
         <div style={{ background: "#fff", padding: "15px", borderRadius: "15px", border: "1px solid #eee" }}>
-          <span style={{ fontSize: "11px", color: "#666" }}>TICKET MÉDIO</span>
-          <h3 style={{ margin: "5px 0" }}>R$ {ticketMedio.toFixed(2)}</h3>
+          <span style={{ fontSize: "11px", color: "#666", fontWeight: "bold" }}>TICKET MÉDIO</span>
+          <h3 style={{ margin: "5px 0", fontSize: "20px" }}>R$ {ticketMedio.toFixed(2)}</h3>
         </div>
       </div>
 
       {/* MINI GRÁFICO DE MÉTODOS */}
       <div style={{ background: "#fff", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
-        <h4 style={{ margin: "0 0 15px 0", fontSize: "14px" }}>💰 Vendas por Método</h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {Object.entries(porMetodo).map(([metodo, valor]: any) => {
-            const porcentagem = (valor / totalVendido) * 100;
-            return (
-              <div key={metodo}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
-                  <span>{metodo}</span>
-                  <span style={{ fontWeight: "bold" }}>R$ {valor.toFixed(2)}</span>
+        <h4 style={{ margin: "0 0 15px 0", fontSize: "14px", fontWeight: "900" }}>💰 Vendas por Método</h4>
+        <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+          {Object.entries(porMetodo).length === 0 ? (
+            <p style={{ color: "#999", fontSize: "12px" }}>Sem dados de pagamento no período.</p>
+          ) : (
+            Object.entries(porMetodo).map(([metodo, valor]: any) => {
+              const porcentagem = totalVendido > 0 ? (valor / totalVendido) * 100 : 0;
+              return (
+                <div key={metodo}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "6px" }}>
+                    <span style={{ fontWeight: "500" }}>{formatMetodo(metodo)}</span>
+                    <span style={{ fontWeight: "bold" }}>R$ {valor.toFixed(2)} ({porcentagem.toFixed(0)}%)</span>
+                  </div>
+                  <div style={{ width: "100%", height: "10px", background: "#f0f0f0", borderRadius: "5px", overflow: "hidden" }}>
+                    <div style={{ 
+                        width: `${porcentagem}%`, 
+                        height: "100%", 
+                        background: metodo.includes("pix") ? "#00bcd4" : "#111",
+                        borderRadius: "5px" 
+                    }}></div>
+                  </div>
                 </div>
-                <div style={{ width: "100%", height: "8px", background: "#f0f0f0", borderRadius: "4px", overflow: "hidden" }}>
-                  <div style={{ width: `${porcentagem}%`, height: "100%", background: "#111" }}></div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
-      {/* HISTÓRICO DE LOGÍSTICA (RODRIGO) NO PERÍODO */}
+      {/* HISTÓRICO DE LOGÍSTICA */}
       <div style={{ background: "#fff", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
-        <h4 style={{ margin: "0 0 15px 0", fontSize: "14px" }}>🛵 Entregas do Rodrigo no Período</h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <h4 style={{ margin: "0 0 15px 0", fontSize: "14px", fontWeight: "900" }}>🛵 Entregas do Rodrigo ({pedidosFiltrados.filter(p => p.entregador === "rodrigo").length})</h4>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {pedidosFiltrados.filter(p => p.entregador === "rodrigo").length === 0 ? (
             <p style={{ color: "#999", fontSize: "12px" }}>Nenhuma entrega registrada.</p>
           ) : (
             pedidosFiltrados.filter(p => p.entregador === "rodrigo").map(p => (
-              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px", borderBottom: "1px solid #f9f9f9", fontSize: "12px" }}>
-                <span>#{p.id.slice(-4)} - {p.userName}</span>
-                <span style={{ color: "#666" }}>{new Date(p.data).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px", background: "#f9f9f9", borderRadius: "8px", fontSize: "12px" }}>
+                <span style={{ fontWeight: "bold" }}>#{p.id.slice(-4)} - {p.userName}</span>
+                <span style={{ color: "#666" }}>{p.total?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
               </div>
             ))
           )}

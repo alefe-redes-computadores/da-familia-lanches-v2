@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface LogisticaModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -7,7 +9,18 @@ interface LogisticaModalProps {
 }
 
 export function LogisticaModal({ isOpen, onClose, onConfirm }: LogisticaModalProps) {
+  const [loading, setLoading] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleConfirm = async (motoboy: "rodrigo" | "avulso") => {
+    setLoading(true);
+    try {
+      await onConfirm(motoboy);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{
@@ -43,24 +56,26 @@ export function LogisticaModal({ isOpen, onClose, onConfirm }: LogisticaModalPro
 
         <div style={{ display: "grid", gap: "12px" }}>
           <button
-            onClick={() => onConfirm("rodrigo")}
+            disabled={loading}
+            onClick={() => handleConfirm("rodrigo")}
             style={{
               padding: "18px",
               borderRadius: "15px",
               border: "none",
-              background: "#673ab7",
+              background: loading ? "#ccc" : "#673ab7",
               color: "#fff",
               fontWeight: "bold",
-              cursor: "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               fontSize: "16px",
-              transition: "transform 0.1s"
+              transition: "all 0.2s"
             }}
           >
-            👤 Rodrigo (Fixo)
+            {loading ? "Processando..." : "👤 Rodrigo (Fixo)"}
           </button>
 
           <button
-            onClick={() => onConfirm("avulso")}
+            disabled={loading}
+            onClick={() => handleConfirm("avulso")}
             style={{
               padding: "18px",
               borderRadius: "15px",
@@ -68,7 +83,7 @@ export function LogisticaModal({ isOpen, onClose, onConfirm }: LogisticaModalPro
               background: "#f9f9f9",
               color: "#333",
               fontWeight: "bold",
-              cursor: "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               fontSize: "16px"
             }}
           >
@@ -76,6 +91,7 @@ export function LogisticaModal({ isOpen, onClose, onConfirm }: LogisticaModalPro
           </button>
 
           <button 
+            disabled={loading}
             onClick={onClose} 
             style={{ 
               marginTop: "10px", 

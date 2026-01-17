@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { updateDoc, doc, increment, onSnapshot, writeBatch } from "firebase/firestore";
 import { useAuthStore } from "@/store/auth.store";
@@ -25,7 +25,18 @@ export default function AdminPage() {
   const [dadosRodrigo, setDadosRodrigo] = useState<any>(null);
   const [modalLogistica, setModalLogistica] = useState({ isOpen: false, pedidoId: "", pedidoData: null as any });
 
-  // --- LÓGICA DE CONTAGEM DINÂMICA ---
+  // --- LÓGICA DE UNIFICAÇÃO PARA RELATÓRIOS (v4.5.3) ---
+  // Isso garante que 'cash'/'dinheiro' e 'card'/'cartao' sejam somados juntos no gráfico
+  const pedidosFormatadosParaRelatorio = useMemo(() => {
+    return pedidos.map(p => ({
+      ...p,
+      metodoPagamento: p.metodoPagamento === 'cash' ? 'dinheiro' : 
+                       (p.metodoPagamento === 'card' || p.metodoPagamento === 'cartao') ? 'cartao' : 
+                       p.metodoPagamento
+    }));
+  }, [pedidos]);
+
+  // --- CONTAGEM DINÂMICA ---
   const countCozinha = pedidos.filter(p => ["Pendente", "Em Produção"].includes(normalizarStatus(p.status))).length;
   const countExpedicao = pedidos.filter(p => ["Pronto", "Saiu para Entrega"].includes(normalizarStatus(p.status))).length;
   const countConcluidos = pedidos.filter(p => normalizarStatus(p.status) === "Finalizado").length;
@@ -49,7 +60,6 @@ export default function AdminPage() {
   };
 
   const updateStatus = async (id: string, newStatus: string, pedido?: any) => {
-    // REMOVIDO: pararAlarme() daqui para o som não parar ao aceitar um pedido se houver outros pendentes
     if (newStatus === "Saiu para Entrega" && pedido?.tipoEntrega !== "pickup") {
       setModalLogistica({ isOpen: true, pedidoId: id, pedidoData: pedido });
       return;
@@ -73,6 +83,8 @@ export default function AdminPage() {
       }
       const tel = pedidoData?.userPhone || pedidoData?.phone;
       if (tel) avisarWhatsApp(tel, pedidoData?.userName, "Saiu para Entrega");
+      
+      // FECHAR MODAL
       setModalLogistica({ isOpen: false, pedidoId: "", pedidoData: null });
     } catch (e) { alert("Erro ao despachar pedido."); }
   };
@@ -89,17 +101,16 @@ export default function AdminPage() {
   if (loading) return <h2 style={{textAlign: "center", marginTop: "100px"}}>Carregando Monitor... 📟</h2>;
 
   return (
-    // REMOVIDO: onClick={pararAlarme} da div principal para não silenciar com qualquer clique
     <div style={{ padding: "15px", maxWidth: "1400px", margin: "85px auto 0 auto", minHeight: "100vh" }}>
       <LogisticaModal 
         isOpen={modalLogistica.isOpen} 
-        onClose={() => setModalLogistica({...modalLogistica, isOpen: false})} 
+        onClose={() => setModalLogistica({isOpen: false, pedidoId: "", pedidoData: null})} 
         onConfirm={confirmarDespacho} 
       />
       
       {alarmeAtivo && (
         <div 
-          onClick={pararAlarme} // Agora o silêncio manual só funciona clicando AQUI
+          onClick={pararAlarme}
           style={{ background: "#d32f2f", color: "#fff", padding: "15px", textAlign: "center", borderRadius: "12px", marginBottom: "20px", fontWeight: "900", cursor: "pointer", animation: "pulse 1.5s infinite" }}
         >
           🚨 NOVO PEDIDO! CLIQUE AQUI PARA SILENCIAR 🚨
@@ -139,7 +150,8 @@ export default function AdminPage() {
           <hr style={{ border: "none", borderTop: "1px solid #eee" }} />
           <section>
             <h2 style={{ fontSize: "18px", fontWeight: "900", marginBottom: "15px" }}>📈 Relatórios & Histórico</h2>
-            <RelatoriosAdmin pedidos={pedidos} />
+            {/* USANDO OS PEDIDOS FORMATADOS PARA UNIFICAR O GRÁFICO */}
+            <RelatoriosAdmin pedidos={pedidosFormatadosParaRelatorio} />
           </section>
         </div>
       ) : (
