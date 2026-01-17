@@ -13,74 +13,79 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const alarmeSilenciadoManualmente = useRef(false);
 
-  // 1. INICIALIZAÇÃO DO ÁUDIO COM DESBLOQUEIO
+  // 1. INICIALIZAÇÃO COM MULTI-SINAL
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      // Usando um link de áudio do GitHub que é mais estável para evitar erros de carregamento
-      const audio = new Audio("https://raw.githubusercontent.com/rafael-claudio/sonoplastia/main/alarm.mp3");
+      // Link direto de um som de notificação padrão do Android (muito estável)
+      const audio = new Audio("https://www.gstatic.com/chat/sounds/new_message.mp3");
       audio.loop = true;
       audio.preload = "auto";
       audioRef.current = audio;
 
-      // Função para o navegador permitir o som após o primeiro clique do usuário na tela
-      const desbloquearAudio = () => {
+      // Desbloqueio obrigatório por clique
+      const liberarSom = () => {
         if (audioRef.current) {
           audioRef.current.play().then(() => {
             audioRef.current?.pause();
-            window.removeEventListener("click", desbloquearAudio);
-            console.log("🔊 Canal de áudio liberado pelo navegador");
+            window.removeEventListener("click", liberarSom);
+            console.log("Som Liberado!");
           }).catch(() => {});
         }
       };
-      window.addEventListener("click", desbloquearAudio);
+      window.addEventListener("click", liberarSom);
     }
   }, []);
 
   const controlarAlarme = (ligar: boolean) => {
     if (!audioRef.current) return;
+    
     if (ligar && !alarmeSilenciadoManualmente.current) {
       setAlarmeAtivo(true);
-      // Tenta tocar; se falhar (por falta de clique), o navegador avisará no console
-      audioRef.current.play().catch((e) => console.warn("Aguardando clique para tocar som...", e));
+      // Tenta tocar o áudio
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // PLANO B: Se o áudio falhar, tenta um "Beep" de sistema a cada 2s
+          if (!alarmeSilenciadoManualmente.current) {
+             console.log("Tentando Beep de emergência...");
+             const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+             const osc = context.createOscillator();
+             osc.type = "sine";
+             osc.connect(context.destination);
+             osc.start();
+             osc.stop(context.currentTime + 0.2);
+          }
+        });
+      }
     } else if (!ligar) {
       setAlarmeAtivo(false);
       audioRef.current.pause();
     }
   };
 
-  // 2. BUSCA DE DADOS (CONSULTA PURA PARA NÃO BUGAR)
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
 
-    const colRef = collection(db, "Pedidos");
-    
-    const unsubscribe = onSnapshot(colRef, (snapshot) => {
-      console.log("🔥 Snapshot recebido! Pedidos encontrados:", snapshot.size);
-      
+    const unsubscribe = onSnapshot(collection(db, "Pedidos"), (snapshot) => {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
-      // Ordenação manual: do mais novo para o mais antigo
       const docsOrdenados = docs.sort((a, b) => {
         const dataA = a.data?.seconds ? a.data.seconds * 1000 : new Date(a.data).getTime();
         const dataB = b.data?.seconds ? b.data.seconds * 1000 : new Date(b.data).getTime();
         return (dataB || 0) - (dataA || 0);
       });
 
-      // Se houver qualquer pedido "Pendente", o som deve tocar
       const temPendentes = docs.some((p: any) => normalizarStatus(p.status) === "Pendente");
 
       if (temPendentes) {
         controlarAlarme(true);
       } else {
-        // Quando limpa a cozinha, reseta o silêncio manual para o próximo pedido
         alarmeSilenciadoManualmente.current = false;
         controlarAlarme(false);
       }
 
       setPedidos(docsOrdenados);
-      setLoading(false);
-    }, (error) => {
-      console.error("❌ ERRO NO FIREBASE:", error);
       setLoading(false);
     });
 
