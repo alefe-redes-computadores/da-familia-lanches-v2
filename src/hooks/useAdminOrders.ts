@@ -12,69 +12,90 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const silenciadoPeloUsuario = useRef(false);
+  const isFirstLoad = useRef(true);
 
-  // 1. Setup do Áudio
+  // 1. INICIALIZAÇÃO DO SISTEMA DE ÁUDIO
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2256/2256-preview.mp3");
+      // Usando o som padrão de notificação (mais leve e compatível)
+      const audio = new Audio("https://www.gstatic.com/chat/sounds/new_message.mp3");
       audio.loop = true;
+      audio.preload = "auto";
       audioRef.current = audio;
 
-      const unlock = () => {
+      // Desbloqueio do canal de áudio pelo primeiro clique do usuário
+      const unlockAudio = () => {
         if (audioRef.current) {
           audioRef.current.play().then(() => {
             audioRef.current?.pause();
-            window.removeEventListener("click", unlock);
+            window.removeEventListener("click", unlockAudio);
+            console.log("Canal de áudio liberado");
           }).catch(() => {});
         }
       };
-      window.addEventListener("click", unlock);
+      window.addEventListener("click", unlockAudio);
     }
   }, []);
 
-  // 2. ESCUTA BLINDADA (Foco em Tempo Real)
+  // 2. FUNÇÃO CONTROLADORA DO ALARME
+  const controlarAlarme = (ligar: boolean) => {
+    if (!audioRef.current) return;
+    if (ligar) {
+      if (silenciadoPeloUsuario.current) return;
+      setAlarmeAtivo(true);
+      audioRef.current.play().catch((e) => console.log("Aguardando interação...", e));
+    } else {
+      setAlarmeAtivo(false);
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  };
+
+  // 3. ESCUTA EM TEMPO REAL (SEM NECESSIDADE DE F5)
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
 
-    // Query simples e direta
-    const q = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(30));
+    // Query otimizada para o Firebase entregar o pedido instantaneamente
+    const q = query(
+      collection(db, "Pedidos"), 
+      orderBy("data", "desc"), 
+      limit(50)
+    );
 
-    // snapshotListenOptions com includeMetadataChanges garante que o Firebase
-    // nos avise no exato segundo que o servidor recebeu o pedido
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
-      
-      // Se a mudança veio do servidor ou é uma mudança local imediata
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
+      // Verifica se existe qualquer pedido pendente
       const temPendentes = docs.some(p => normalizarStatus(p.status) === "Pendente");
 
-      // Gerenciamento de Som (sem travar o estado)
-      if (temPendentes && !silenciadoPeloUsuario.current) {
-        setAlarmeAtivo(true);
-        audioRef.current?.play().catch(() => {});
-      } else if (!temPendentes) {
-        setAlarmeAtivo(false);
+      // Lógica de som: Se tem pendente, liga. Se não tem, desliga e reseta o silêncio manual.
+      if (temPendentes) {
+        controlarAlarme(true);
+      } else {
         silenciadoPeloUsuario.current = false;
-        audioRef.current?.pause();
+        controlarAlarme(false);
       }
 
       setPedidos(docs);
       setLoading(false);
+      isFirstLoad.current = false;
     }, (error) => {
-      console.error("Erro no Firebase:", error);
+      console.error("Erro no monitoramento:", error);
+      // Fallback em caso de erro na query
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [currentUser, admins]); // SEM alarmeAtivo aqui para não resetar a conexão!
+  }, [currentUser, admins]); // Mantemos dependências mínimas para evitar loops e delays
 
+  // 4. RETORNO DAS FUNÇÕES PARA O COMPONENTE ADMIN
   return { 
     pedidos, 
     loading, 
     alarmeAtivo, 
     pararAlarme: () => {
-      silenciadoPeloUsuario.current = true;
-      setAlarmeAtivo(false);
-      audioRef.current?.pause();
+      silenciadoPeloUsuario.current = true; // Impede o som de voltar até o próximo ciclo
+      controlarAlarme(false);
     } 
   };
 }
