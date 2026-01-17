@@ -7,14 +7,25 @@ export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
   const [filtroDias, setFiltroDias] = useState(0); // 0 = Hoje, 1 = Ontem, 7 = Semana
 
   // Lógica de Filtro de Data
-  const filtrarPorData = (pedidoData: any) => {
-    const dataPedido = new Date(pedidoData).setHours(0,0,0,0);
-    const hoje = new Date().setHours(0,0,0,0);
-    const diffEmDias = Math.floor((hoje - dataPedido) / (1000 * 60 * 60 * 24));
+    const filtrarPorData = (pedidoData: any) => {
+    if (!pedidoData) return false;
     
-    if (filtroDias === 0) return diffEmDias === 0;
-    if (filtroDias === 1) return diffEmDias === 1;
-    return diffEmDias <= filtroDias;
+    // Converte a data do pedido (seja string ou timestamp) para um objeto Date
+    const dataDoPedido = pedidoData.seconds 
+      ? new Date(pedidoData.seconds * 1000) 
+      : new Date(pedidoData);
+      
+    const agora = new Date();
+    
+    // Zera as horas para comparar apenas o dia
+    const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).getTime();
+    const dataPedidoZerada = new Date(dataDoPedido.getFullYear(), dataDoPedido.getMonth(), dataDoPedido.getDate()).getTime();
+    
+    const diffEmDias = Math.floor((hoje - dataPedidoZerada) / (1000 * 60 * 60 * 24));
+    
+    if (filtroDias === 0) return diffEmDias === 0; // Hoje
+    if (filtroDias === 1) return diffEmDias === 1; // Ontem
+    return diffEmDias <= filtroDias && diffEmDias >= 0; // Períodos maiores
   };
 
   const pedidosFiltrados = pedidos.filter(p => 
