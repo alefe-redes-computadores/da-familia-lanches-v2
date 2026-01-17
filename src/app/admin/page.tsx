@@ -4,12 +4,13 @@ import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
 import {
   collection, query, orderBy, onSnapshot,
-  updateDoc, doc, writeBatch
+  updateDoc, doc, increment
 } from "firebase/firestore";
 import { useAuthStore } from "@/store/auth.store";
 
 // Importações dos arquivos que você criou/fatiou
 import { OrderCard } from "@/components/layout/OrderCard";
+import { LogisticaModal } from "@/components/layout/LogisticaModal"; // NOVO
 import { formatarData, normalizarStatus, avisarWhatsApp } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
 
@@ -24,6 +25,9 @@ export default function AdminPage() {
   // Estados do Rodrigo (Motoboy)
   const [dadosRodrigo, setDadosRodrigo] = useState<any>(null);
 
+  // Estados do Modal de Logística
+  const [modalLogistica, setModalLogistica] = useState({ isOpen: false, pedidoId: "", pedidoData: null as any });
+
   const prevPedidosCount = useRef(0);
   const isFirstLoad = useRef(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -34,13 +38,12 @@ export default function AdminPage() {
     "contato@dafamilialanches.com.br"
   ];
 
-  // --- LÓGICA DO ALARME (RECUPERADA) ---
   const controlarAlarme = (ligar: boolean) => {
     if (ligar) {
       setAlarmeAtivo(true);
       if (!audioRef.current) {
         audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-        audioRef.current.loop = true; // <--- ISSO FAZ REPETIR SEM PARAR
+        audioRef.current.loop = true;
       }
       audioRef.current.play().catch(() => console.log("Aguardando interação..."));
     } else {
@@ -52,7 +55,6 @@ export default function AdminPage() {
     }
   };
 
-  // --- BUSCA DADOS DO RODRIGO ---
   useEffect(() => {
     if (tab === "motoboy") {
       const unsub = onSnapshot(doc(db, "Entregadores", "rodrigo"), (snap) => {
@@ -62,7 +64,6 @@ export default function AdminPage() {
     }
   }, [tab]);
 
-  // --- MONITOR DE PEDIDOS (REAL-TIME) ---
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
     const q = query(collection(db, "Pedidos"), orderBy("data", "desc"));
@@ -71,7 +72,6 @@ export default function AdminPage() {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       const novosPendentes = docs.filter((p: any) => normalizarStatus(p.status) === "Pendente").length;
 
-      // Lógica do som de novo pedido
       if (!isFirstLoad.current && novosPendentes > prevPedidosCount.current) {
         controlarAlarme(true);
       }
@@ -86,7 +86,6 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // --- CONTROLE DA LOJA ---
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
     return onSnapshot(doc(db, "settings", "loja"), (snap) => {
@@ -100,15 +99,50 @@ export default function AdminPage() {
     } catch (e) { console.error(e); }
   };
 
+  // FUNÇÃO DE ATUALIZAÇÃO REFORMULADA PARA LOGÍSTICA
   const updateStatus = async (id: string, newStatus: string, pedido?: any) => {
+    // Se o clique for para DESPACHAR, abrimos o modal em vez de atualizar direto
+    if (newStatus === "Saiu para Entrega" && pedido?.tipoEntrega !== "pickup") {
+      setModalLogistica({ isOpen: true, pedidoId: id, pedidoData: pedido });
+      return;
+    }
+
     try {
       await updateDoc(doc(db, "Pedidos", id), { status: newStatus });
       if (newStatus === "Pronto" && pedido?.tipoEntrega === "pickup") {
         avisarWhatsApp(pedido.userPhone || pedido.phone, pedido.userName, "Pronto");
-      } else if (newStatus === "Saiu para Entrega") {
+      } else if (newStatus === "Saiu para Entrega" && pedido?.tipoEntrega === "pickup") {
+        // Para retirada, não precisa de modal de motoboy
         avisarWhatsApp(pedido.userPhone || pedido.phone, pedido.userName, "Saiu para Entrega");
       }
     } catch (e) { alert("Erro ao atualizar status"); }
+  };
+
+  // CONFIRMAÇÃO DO MOTOBOY NO MODAL
+  const confirmarDespacho = async (motoboy: "rodrigo" | "avulso") => {
+    const { pedidoId, pedidoData } = modalLogistica;
+    
+    try {
+      // 1. Atualiza o pedido
+      await updateDoc(doc(db, "Pedidos", pedidoId), { 
+        status: "Saiu para Entrega",
+        entregador: motoboy 
+      });
+
+      // 2. Se for Rodrigo, incrementa o contador global dele
+      if (motoboy === "rodrigo") {
+        await updateDoc(doc(db, "Entregadores", "rodrigo"), {
+          totalEntregas: increment(1)
+        });
+      }
+
+      // 3. Avisa o cliente
+      avisarWhatsApp(pedidoData.userPhone || pedidoData.phone, pedidoData.userName, "Saiu para Entrega");
+      
+      setModalLogistica({ isOpen: false, pedidoId: "", pedidoData: null });
+    } catch (e) {
+      alert("Erro ao processar entrega");
+    }
   };
 
   const pedidosFiltrados = pedidos.filter(p => {
@@ -128,9 +162,15 @@ export default function AdminPage() {
   return (
     <div
       style={{ padding: "15px", maxWidth: "1400px", margin: "85px auto 0 auto", fontFamily: "sans-serif", backgroundColor: "#fcfcfc", minHeight: "100vh" }}
-      onClick={() => alarmeAtivo && controlarAlarme(false)} // Para o alarme ao clicar na tela
+      onClick={() => alarmeAtivo && controlarAlarme(false)}
     >
-      {/* ALERTA VISUAL DE NOVO PEDIDO */}
+      {/* MODAL DE LOGÍSTICA */}
+      <LogisticaModal 
+        isOpen={modalLogistica.isOpen}
+        onClose={() => setModalLogistica({ ...modalLogistica, isOpen: false })}
+        onConfirm={confirmarDespacho}
+      />
+
       {alarmeAtivo && (
         <div style={{ background: "#d32f2f", color: "#fff", padding: "15px", textAlign: "center", borderRadius: "12px", marginBottom: "20px", fontWeight: "900", animation: "pulse 1.5s infinite" }}>
           🚨 NOVO PEDIDO PENDENTE! CLIQUE PARA PARAR O SOM 🚨
@@ -145,7 +185,6 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* NAVEGAÇÃO DE ABAS DINÂMICA */}
         <div style={{ display: "flex", background: "#f0f0f0", padding: "6px", borderRadius: "16px", marginTop: "20px", overflowX: "auto", gap: "8px", scrollbarWidth: "none" }}>
           <button 
             onClick={() => setTab("cozinha")}
@@ -183,7 +222,6 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {/* ABA MOTOBOY */}
       {tab === "motoboy" && (
         <div style={{ background: "#fff", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
           <h2 style={{ margin: "0 0 5px 0" }}>🛵 Painel do Rodrigo</h2>
@@ -204,20 +242,9 @@ export default function AdminPage() {
               </h3>
             </div>
           </div>
-
-          <button
-            onClick={() => alert("Em breve: Gerar relatório e zerar saldo")}
-            style={{
-              width: "100%", marginTop: "20px", padding: "16px", borderRadius: "12px",
-              background: "#111", color: "#fff", fontWeight: "bold", border: "none", cursor: "pointer"
-            }}
-          >
-            Fechar Dia / Realizar Pagamento
-          </button>
         </div>
       )}
 
-      {/* LISTAGEM DE PEDIDOS */}
       {tab !== "motoboy" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
           {pedidosFiltrados.length === 0 ? (

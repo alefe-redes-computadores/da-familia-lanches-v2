@@ -1,7 +1,7 @@
 "use client";
 
-import { useCartStore } from "@/store/cart.store"; // Caso use para o addItem
-import { normalizarStatus, getColorByStatus, formatarData } from "@/lib/orderUtils"; // CAMINHO CORRIGIDO
+import { useCartStore } from "@/store/cart.store"; 
+import { normalizarStatus, getColorByStatus, formatarData } from "@/lib/orderUtils";
 
 export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
   const statusAtual = normalizarStatus(pedido.status);
@@ -19,6 +19,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
       boxShadow: "0 6px 15px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column",
       borderLeft: `8px solid ${getColorByStatus(pedido.status)}`
     }}>
+      {/* CABEÇALHO E STATUS */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
         <span style={{ fontSize: "11px", fontWeight: "900", color: getColorByStatus(pedido.status) }}>
           {statusAtual.toUpperCase()}
@@ -29,6 +30,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
         </div>
       </div>
 
+      {/* CLIENTE E CONTATO */}
       <div style={{ marginBottom: "12px" }}>
         <h3 style={{ margin: "0", fontSize: "18px", fontWeight: "800" }}>{pedido.userName || "Cliente"}</h3>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "5px" }}>
@@ -41,10 +43,12 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
         </div>
       </div>
 
+      {/* ENTREGA / ENDEREÇO */}
       <div style={{ padding: "10px", borderRadius: "10px", background: pedido.tipoEntrega === "pickup" ? "#e3f2fd" : "#fff3e0", fontSize: "12px", marginBottom: "12px", border: "1px solid #ddd" }}>
         <b>{pedido.tipoEntrega === "pickup" ? "🥡 RETIRADA" : "🛵 ENTREGA"}</b><br/>{pedido.endereco || "No balcão"}
       </div>
 
+      {/* ITENS DO PEDIDO */}
       <div style={{ background: "#f8f9fa", borderRadius: "12px", padding: "12px", marginBottom: "12px", flex: 1 }}>
         {itensValidos.map((item: any, idx: number) => (
           <div key={idx} style={{ marginBottom: "8px", borderBottom: idx !== itensValidos.length - 1 ? "1px dashed #eee" : "none", paddingBottom: "5px" }}>
@@ -56,13 +60,42 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
             ))}
           </div>
         ))}
+
+        {/* 📝 OBSERVAÇÕES (v5.0 - Já preparado para quando o cliente enviar) */}
+        {pedido.observacao && (
+          <div style={{ marginTop: "10px", padding: "8px", background: "#fff9c4", borderRadius: "8px", borderLeft: "4px solid #fbc02d", fontSize: "12px" }}>
+            <b>📝 OBS:</b> {pedido.observacao}
+          </div>
+        )}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", borderTop: "1px solid #eee", paddingTop: "10px" }}>
-        <span style={{ fontSize: "12px", color: "#666" }}>{pedido.metodoPagamento?.toUpperCase()}</span>
-        <span style={{ fontSize: "18px", fontWeight: "900" }}>R$ {Number(pedido.total || 0).toFixed(2)}</span>
+      {/* 💳 PAGAMENTO E TOTAL (BLINDAGEM DO MONITOR) */}
+      <div style={{ background: "#eee", borderRadius: "12px", padding: "10px", marginBottom: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: "10px", color: "#666", fontWeight: "bold", textTransform: "uppercase" }}>Pagamento</span>
+            <span style={{ fontSize: "14px", fontWeight: "800", color: "#333" }}>
+              {pedido.metodoPagamento === "dinheiro" ? "💵 DINHEIRO" : 
+               pedido.metodoPagamento === "pix" ? "💎 PIX" : 
+               pedido.metodoPagamento === "cartao" ? "💳 CARTÃO" : "⚠️ NÃO INFORMADO"}
+            </span>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <span style={{ fontSize: "10px", color: "#666", fontWeight: "bold", textTransform: "uppercase" }}>Total</span><br/>
+            <span style={{ fontSize: "20px", fontWeight: "900", color: "#111" }}>R$ {Number(pedido.total || 0).toFixed(2)}</span>
+          </div>
+        </div>
+        
+        {/* EXIBIÇÃO DO TROCO (SE HOUVER) */}
+        {pedido.metodoPagamento === "dinheiro" && pedido.trocoPara && (
+          <div style={{ marginTop: "5px", paddingTop: "5px", borderTop: "1px solid #ddd", fontSize: "12px", color: "#d32f2f", fontWeight: "bold" }}>
+            Troco para: R$ {Number(pedido.trocoPara).toFixed(2)} 
+            (R$ {(Number(pedido.trocoPara) - Number(pedido.total)).toFixed(2)})
+          </div>
+        )}
       </div>
 
+      {/* BOTÕES DE AÇÃO */}
       <div style={{ display: "flex", gap: "8px" }}>
         {statusAtual === "Pendente" && (
           <button onClick={() => updateStatus(pedido.id, "Em Produção")} style={{ flex: 1, padding: "12px", borderRadius: "10px", background: "#ffca28", border: "none", fontWeight: "bold", cursor: "pointer" }}>ACEITAR</button>
