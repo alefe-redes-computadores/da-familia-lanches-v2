@@ -13,12 +13,26 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const alarmeSilenciadoManualmente = useRef(false);
 
-  // Inicializa áudio
+  // 1. INICIALIZAÇÃO DO ÁUDIO COM DESBLOQUEIO
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+      // Usando um link de áudio do GitHub que é mais estável para evitar erros de carregamento
+      const audio = new Audio("https://raw.githubusercontent.com/rafael-claudio/sonoplastia/main/alarm.mp3");
       audio.loop = true;
+      audio.preload = "auto";
       audioRef.current = audio;
+
+      // Função para o navegador permitir o som após o primeiro clique do usuário na tela
+      const desbloquearAudio = () => {
+        if (audioRef.current) {
+          audioRef.current.play().then(() => {
+            audioRef.current?.pause();
+            window.removeEventListener("click", desbloquearAudio);
+            console.log("🔊 Canal de áudio liberado pelo navegador");
+          }).catch(() => {});
+        }
+      };
+      window.addEventListener("click", desbloquearAudio);
     }
   }, []);
 
@@ -26,38 +40,39 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     if (!audioRef.current) return;
     if (ligar && !alarmeSilenciadoManualmente.current) {
       setAlarmeAtivo(true);
-      audioRef.current.play().catch(() => {});
+      // Tenta tocar; se falhar (por falta de clique), o navegador avisará no console
+      audioRef.current.play().catch((e) => console.warn("Aguardando clique para tocar som...", e));
     } else if (!ligar) {
       setAlarmeAtivo(false);
       audioRef.current.pause();
     }
   };
 
+  // 2. BUSCA DE DADOS (CONSULTA PURA PARA NÃO BUGAR)
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
 
-    // CONSULTA PURA: Sem orderBy, sem limit, sem filtros. 
-    // Se houver algo no banco, ISSO VAI PUXAR.
     const colRef = collection(db, "Pedidos");
     
     const unsubscribe = onSnapshot(colRef, (snapshot) => {
-      console.log("🔥 Snapshot recebido! Documentos:", snapshot.size);
+      console.log("🔥 Snapshot recebido! Pedidos encontrados:", snapshot.size);
       
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
-      // Ordenação manual robusta por data (do mais novo para o mais antigo)
+      // Ordenação manual: do mais novo para o mais antigo
       const docsOrdenados = docs.sort((a, b) => {
         const dataA = a.data?.seconds ? a.data.seconds * 1000 : new Date(a.data).getTime();
         const dataB = b.data?.seconds ? b.data.seconds * 1000 : new Date(b.data).getTime();
         return (dataB || 0) - (dataA || 0);
       });
 
-      // Lógica de Alarme baseada no estado real do banco
+      // Se houver qualquer pedido "Pendente", o som deve tocar
       const temPendentes = docs.some((p: any) => normalizarStatus(p.status) === "Pendente");
 
       if (temPendentes) {
         controlarAlarme(true);
       } else {
+        // Quando limpa a cozinha, reseta o silêncio manual para o próximo pedido
         alarmeSilenciadoManualmente.current = false;
         controlarAlarme(false);
       }
@@ -65,7 +80,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       setPedidos(docsOrdenados);
       setLoading(false);
     }, (error) => {
-      console.error("❌ ERRO CRÍTICO NO FIREBASE:", error);
+      console.error("❌ ERRO NO FIREBASE:", error);
       setLoading(false);
     });
 
