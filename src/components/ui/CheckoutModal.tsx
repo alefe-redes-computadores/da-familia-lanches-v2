@@ -9,7 +9,7 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, addDoc, serverTimestamp, increment, setDoc } from "firebase/firestore";
 import { getShopStatus } from "@/lib/openingHours";
 
-type PaymentMethod = "pix" | "card" | "cash";
+type PaymentMethod = "pix" | "cartao" | "cash";
 type DeliveryMode = "delivery" | "pickup";
 
 export function CheckoutModal() {
@@ -35,7 +35,6 @@ export function CheckoutModal() {
 
     const [deliveryFee, setDeliveryFee] = useState(6.00); // Padrão
     const [deliveryStatus, setDeliveryStatus] = useState("");
-
     // Pagamento
     const [method, setMethod] = useState<PaymentMethod>("pix");
     const [troco, setTroco] = useState("");
@@ -57,6 +56,20 @@ export function CheckoutModal() {
 
     const PIX_KEY = "34997178336";
 
+    // --- FUNÇÕES DE MÁSCARA (Ajustes de Formatação) ---
+    const formatPhone = (v: string) => {
+        v = v.replace(/\D/g, "");
+        if (v.length > 11) v = v.slice(0, 11);
+        v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
+        v = v.replace(/(\d)(\d{4})$/, "$1-$2");
+        return v;
+    };
+
+    const formatCEP = (v: string) => {
+        v = v.replace(/\D/g, "");
+        if (v.length > 8) v = v.slice(0, 8);
+        return v.replace(/^(\d{5})(\d)/, "$1-$2");
+    };
     // --- LÓGICA DE CUPONS (BUSCA REAL NO FIREBASE) ---
     const applyCoupon = async () => {
         const code = couponCode.trim().toUpperCase();
@@ -72,7 +85,6 @@ export function CheckoutModal() {
                 let valorDesconto = 0;
 
                 if (data.tipo === "percent" || data.tipo === "porcentagem") {
-                    // Busca o número em 'percent' ou 'valor', o que estiver preenchido no Firebase
                     const p = data.percent !== undefined ? data.percent : data.valor;
                     valorDesconto = (subtotal * p) / 100;
                 } else {
@@ -91,12 +103,14 @@ export function CheckoutModal() {
         setLoading(false);
     };
 
-    // --- LÓGICA 1: VIACEP ---
-    const handleBuscarCep = async () => {
-        if (cep.length !== 8) return alert("CEP deve ter 8 dígitos");
+    // --- LÓGICA 1: VIACEP (Atualizada para aceitar busca automática) ---
+    const handleBuscarCep = async (cepOpcional?: string) => {
+        const valorCep = (cepOpcional || cep).replace(/\D/g, "");
+        if (valorCep.length !== 8) return;
+
         setLoading(true);
         try {
-            const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+            const res = await fetch(`https://viacep.com.br/ws/${valorCep}/json/`);
             const data = await res.json();
             if (data.erro) {
                 setManualMode(true);
@@ -112,7 +126,6 @@ export function CheckoutModal() {
         }
         setLoading(false);
     };
-
     // --- LÓGICA 2: TAXA DINÂMICA ---
     const calcularTaxaEntrega = async (nomeBairro: string) => {
         try {
@@ -141,7 +154,7 @@ export function CheckoutModal() {
         }
     };
 
-    // --- LÓGICA 3: FINALIZAR PEDIDO ---
+    // --- LÓGICA 3: FINALIZAR PEDIDO (Início) ---
     const handleFinish = async () => {
         // Validação condicional: só exige endereço se for Entrega
         if (deliveryMode === "delivery" && (!rua || !numero || !bairro)) {
@@ -190,14 +203,13 @@ export function CheckoutModal() {
         } catch (error) {
             console.error("Erro ao salvar pedido", error);
         }
-
         const itensMsg = items.map(i =>
             `• ${i.quantity}x ${i.name} ${i.selectedAddons?.length ? `(${i.selectedAddons.map(a => a.name).join('+')})` : ''}`
         ).join("\n");
 
         let pagtoTexto = "";
         if (method === "pix") pagtoTexto = "💠 PIX (Comprovante em anexo)";
-        if (method === "card") pagtoTexto = "💳 Cartão (Levar maquininha)";
+        if (method === "cartao") pagtoTexto = "💳 Cartão (Levar maquininha)";
         if (method === "cash") pagtoTexto = `💵 Dinheiro (Troco para: ${troco || 'Sem troco'})`;
 
         const titulo = isClosed
@@ -226,7 +238,6 @@ Pagamento: ${pagtoTexto}
         closeModal();
         setLoading(false);
     };
-
     return (
         <ModalBase title={step === 1 ? "Como deseja receber? 🛵" : "Pagamento 💸"} onClose={closeModal}>
             <div style={{ padding: "20px" }}>
@@ -251,13 +262,13 @@ Pagamento: ${pagtoTexto}
                             </button>
                         </div>
 
-                        {/* CAMPO WHATSAPP DO CLIENTE */}
+                        {/* CAMPO WHATSAPP COM MÁSCARA */}
                         <div style={{ marginBottom: "10px" }}>
                             <label style={{ fontSize: "12px", fontWeight: "bold", color: "#111" }}>SEU WHATSAPP (PARA AVISOS):</label>
                             <input
                                 placeholder="(00) 00000-0000"
                                 value={userPhone}
-                                onChange={e => setUserPhone(e.target.value.replace(/\D/g, ""))}
+                                onChange={e => setUserPhone(formatPhone(e.target.value))}
                                 style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "2px solid #ffca28", fontSize: "16px", outline: "none", marginTop: "5px" }}
                             />
                         </div>
@@ -267,18 +278,18 @@ Pagamento: ${pagtoTexto}
                                 {!manualMode && (
                                     <div style={{ display: "flex", gap: "10px" }}>
                                         <input
-                                            placeholder="CEP (Só números)"
+                                            placeholder="CEP: 00000-000"
                                             value={cep}
-                                            onChange={e => setCep(e.target.value.replace(/\D/g, ""))}
-                                            maxLength={8}
+                                            onChange={e => setCep(formatCEP(e.target.value))}
+                                            onBlur={() => handleBuscarCep()} // Busca automática ao sair do campo
+                                            maxLength={9}
                                             style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }}
                                         />
-                                        <button onClick={handleBuscarCep} disabled={loading} style={{ background: "#ffca28", border: "none", borderRadius: "8px", padding: "0 15px", fontWeight: "bold" }}>
+                                        <button onClick={() => handleBuscarCep()} disabled={loading} style={{ background: "#ffca28", border: "none", borderRadius: "8px", padding: "0 15px", fontWeight: "bold" }}>
                                             {loading ? "..." : "Buscar"}
                                         </button>
                                     </div>
                                 )}
-
                                 <input placeholder="Rua" value={rua} onChange={e => setRua(e.target.value)} disabled={!manualMode} style={{ padding: "12px", borderRadius: "8px", border: "1px solid #eee", background: manualMode ? "#fff" : "#f9f9f9" }} />
 
                                 <div style={{ display: "flex", gap: "10px" }}>
@@ -318,12 +329,11 @@ Pagamento: ${pagtoTexto}
                         </button>
                     </div>
                 )}
-
                 {/* --- PASSO 2: PAGAMENTO --- */}
                 {step === 2 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
 
-                        {/* --- CONTAINER DO CUPOM CORRIGIDO --- */}
+                        {/* CONTAINER DO CUPOM */}
                         <div style={{
                             display: "flex",
                             alignItems: "center",
@@ -337,8 +347,8 @@ Pagamento: ${pagtoTexto}
                             <input
                                 type="text"
                                 placeholder="Possui cupom? Digite aqui"
-                                value={couponCode} // CONECTADO AO ESTADO
-                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())} // SALVA O QUE DIGITA
+                                value={couponCode}
+                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                                 style={{
                                     border: "none",
                                     background: "transparent",
@@ -353,7 +363,7 @@ Pagamento: ${pagtoTexto}
                                 }}
                             />
                             <button
-                                onClick={applyCoupon} // AGORA O BOTÃO FUNCIONA!
+                                onClick={applyCoupon}
                                 disabled={loading}
                                 style={{
                                     background: "none",
@@ -372,8 +382,6 @@ Pagamento: ${pagtoTexto}
                                 {loading ? "..." : "APLICAR"}
                             </button>
                         </div>
-
-
 
                         {couponMessage && <div style={{ fontSize: "12px", color: discount > 0 ? "green" : "red", marginTop: "-10px" }}>{couponMessage}</div>}
 
@@ -400,16 +408,15 @@ Pagamento: ${pagtoTexto}
                                 <span>{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                             </div>
                         </div>
-
                         {/* Seletor Pagamento */}
                         <div style={{ display: "flex", background: "#eee", padding: "4px", borderRadius: "8px" }}>
-                            {['pix', 'card', 'cash'].map((m) => (
+                            {['pix', 'cartao', 'cash'].map((m) => (
                                 <button
                                     key={m}
                                     onClick={() => setMethod(m as PaymentMethod)}
                                     style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "none", background: method === m ? "#fff" : "transparent", fontWeight: "bold", cursor: "pointer" }}
                                 >
-                                    {m === 'pix' ? '💠 PIX' : m === 'card' ? '💳 Card' : '💵 Dinheiro'}
+                                    {m === 'pix' ? '💠 PIX' : m === 'cartao' ? '💳 Card' : '💵 Dinheiro'}
                                 </button>
                             ))}
                         </div>
