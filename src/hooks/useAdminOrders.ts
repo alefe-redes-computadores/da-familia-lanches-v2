@@ -12,90 +12,83 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const silenciadoPeloUsuario = useRef(false);
-  const isFirstLoad = useRef(true);
+  // Ref para controlar a conexão e evitar que ela morra
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // 1. INICIALIZAÇÃO DO SISTEMA DE ÁUDIO
+  // 1. SETUP DO ÁUDIO (Ding Dong Profissional)
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      // Usando o som padrão de notificação (mais leve e compatível)
-      const audio = new Audio("https://www.gstatic.com/chat/sounds/new_message.mp3");
+      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2256/2256-preview.mp3");
       audio.loop = true;
       audio.preload = "auto";
       audioRef.current = audio;
 
-      // Desbloqueio do canal de áudio pelo primeiro clique do usuário
-      const unlockAudio = () => {
-        if (audioRef.current) {
-          audioRef.current.play().then(() => {
-            audioRef.current?.pause();
-            window.removeEventListener("click", unlockAudio);
-            console.log("Canal de áudio liberado");
-          }).catch(() => {});
-        }
+      const unlock = () => {
+        audioRef.current?.play().then(() => {
+          audioRef.current?.pause();
+          window.removeEventListener("click", unlock);
+        }).catch(() => {});
       };
-      window.addEventListener("click", unlockAudio);
+      window.addEventListener("click", unlock);
     }
   }, []);
 
-  // 2. FUNÇÃO CONTROLADORA DO ALARME
-  const controlarAlarme = (ligar: boolean) => {
-    if (!audioRef.current) return;
-    if (ligar) {
-      if (silenciadoPeloUsuario.current) return;
-      setAlarmeAtivo(true);
-      audioRef.current.play().catch((e) => console.log("Aguardando interação...", e));
-    } else {
-      setAlarmeAtivo(false);
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-  };
-
-  // 3. ESCUTA EM TEMPO REAL (SEM NECESSIDADE DE F5)
-  useEffect(() => {
+  // 2. FUNÇÃO DE CONEXÃO (Acelerada)
+  const conectarMonitor = () => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
 
-    // Query otimizada para o Firebase entregar o pedido instantaneamente
-    const q = query(
-      collection(db, "Pedidos"), 
-      orderBy("data", "desc"), 
-      limit(50)
-    );
+    // Se já existe uma conexão, mata ela antes de criar outra para não duplicar
+    if (unsubscribeRef.current) unsubscribeRef.current();
 
-    const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+    const q = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(40));
+
+    unsubscribeRef.current = onSnapshot(q, (snapshot) => {
+      console.log("⚡ Pedidos atualizados via Tempo Real");
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
-      // Verifica se existe qualquer pedido pendente
       const temPendentes = docs.some(p => normalizarStatus(p.status) === "Pendente");
 
-      // Lógica de som: Se tem pendente, liga. Se não tem, desliga e reseta o silêncio manual.
-      if (temPendentes) {
-        controlarAlarme(true);
-      } else {
+      if (temPendentes && !silenciadoPeloUsuario.current) {
+        setAlarmeAtivo(true);
+        audioRef.current?.play().catch(() => {});
+      } else if (!temPendentes) {
+        setAlarmeAtivo(false);
         silenciadoPeloUsuario.current = false;
-        controlarAlarme(false);
+        audioRef.current?.pause();
       }
 
       setPedidos(docs);
       setLoading(false);
-      isFirstLoad.current = false;
     }, (error) => {
-      console.error("Erro no monitoramento:", error);
-      // Fallback em caso de erro na query
-      setLoading(false);
+      console.error("Erro na conexão:", error);
+      // Se der erro, tenta reconectar em 5 segundos
+      setTimeout(conectarMonitor, 5000);
     });
+  };
 
-    return () => unsubscribe();
-  }, [currentUser, admins]); // Mantemos dependências mínimas para evitar loops e delays
+  useEffect(() => {
+    conectarMonitor();
+    
+    // 3. WAKE-UP (Impede o navegador de dormir)
+    // A cada 1 minuto, ele dá uma "cutucada" na conexão se o monitor estiver vazio
+    const keepAlive = setInterval(() => {
+      if (pedidos.length === 0) conectarMonitor();
+    }, 60000);
 
-  // 4. RETORNO DAS FUNÇÕES PARA O COMPONENTE ADMIN
+    return () => {
+      if (unsubscribeRef.current) unsubscribeRef.current();
+      clearInterval(keepAlive);
+    };
+  }, [currentUser]);
+
   return { 
     pedidos, 
     loading, 
     alarmeAtivo, 
     pararAlarme: () => {
-      silenciadoPeloUsuario.current = true; // Impede o som de voltar até o próximo ciclo
-      controlarAlarme(false);
+      silenciadoPeloUsuario.current = true;
+      setAlarmeAtivo(false);
+      audioRef.current?.pause();
     } 
   };
 }
