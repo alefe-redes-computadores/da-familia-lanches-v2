@@ -120,30 +120,45 @@ export default function AdminPage() {
 
   // CONFIRMAÇÃO DO MOTOBOY NO MODAL
   const confirmarDespacho = async (motoboy: "rodrigo" | "avulso") => {
-    const { pedidoId, pedidoData } = modalLogistica;
-    
-    try {
-      // 1. Atualiza o pedido
-      await updateDoc(doc(db, "Pedidos", pedidoId), { 
-        status: "Saiu para Entrega",
-        entregador: motoboy 
+  const { pedidoId, pedidoData } = modalLogistica;
+  
+  // Verificação de segurança: se não houver ID, nem tenta processar
+  if (!pedidoId) {
+    alert("Erro: ID do pedido não encontrado.");
+    return;
+  }
+
+  try {
+    // 1. Atualiza o pedido com fallback para campos que podem faltar
+    await updateDoc(doc(db, "Pedidos", pedidoId), { 
+      status: "Saiu para Entrega",
+      entregador: motoboy,
+      atualizadoEm: new Date().toISOString() // Adiciona um registro de tempo
+    });
+
+    // 2. Se for Rodrigo, incrementa o contador global dele
+    if (motoboy === "rodrigo") {
+      const rodrigoRef = doc(db, "Entregadores", "rodrigo");
+      await updateDoc(rodrigoRef, {
+        totalEntregas: increment(1)
       });
-
-      // 2. Se for Rodrigo, incrementa o contador global dele
-      if (motoboy === "rodrigo") {
-        await updateDoc(doc(db, "Entregadores", "rodrigo"), {
-          totalEntregas: increment(1)
-        });
-      }
-
-      // 3. Avisa o cliente
-      avisarWhatsApp(pedidoData.userPhone || pedidoData.phone, pedidoData.userName, "Saiu para Entrega");
-      
-      setModalLogistica({ isOpen: false, pedidoId: "", pedidoData: null });
-    } catch (e) {
-      alert("Erro ao processar entrega");
     }
-  };
+
+    // 3. Avisa o cliente (com proteção para telefone ausente)
+    const telefone = pedidoData?.userPhone || pedidoData?.phone;
+    if (telefone) {
+      avisarWhatsApp(telefone, pedidoData?.userName || "Cliente", "Saiu para Entrega");
+    } else {
+      console.log("Pedido sem telefone, aviso de WhatsApp pulado.");
+    }
+    
+    setModalLogistica({ isOpen: false, pedidoId: "", pedidoData: null });
+  } catch (e) {
+    console.error("Erro detalhado:", e);
+    alert("Erro ao processar entrega. Verifique se o pedido ainda existe no banco.");
+  }
+};
+
 
   const pedidosFiltrados = pedidos.filter(p => {
     const s = normalizarStatus(p.status);
