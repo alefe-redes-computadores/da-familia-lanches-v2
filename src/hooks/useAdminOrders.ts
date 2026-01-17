@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, limit } from "firebase/firestore";
+import { collection, onSnapshot, query, limit, orderBy } from "firebase/firestore";
 import { normalizarStatus } from "@/lib/orderUtils";
 
 export function useAdminOrders(currentUser: any, admins: string[]) {
@@ -11,79 +11,72 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const [alarmeAtivo, setAlarmeAtivo] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isFirstLoad = useRef(true);
+  const alarmeSilenciadoManualmente = useRef(false);
 
-  // 1. Inicialização do Áudio com "Keep-Alive" para evitar bloqueio do navegador
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
       const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
       audio.loop = true;
-      audio.preload = "auto";
       audioRef.current = audio;
-
-      // Toca um micro-silêncio a cada 25s para o navegador não "matar" o processo de áudio da aba
-      const interval = setInterval(() => {
-        if (!alarmeAtivo && audioRef.current) {
-          audioRef.current.volume = 0;
-          audioRef.current.play().then(() => audioRef.current?.pause()).catch(() => {});
-          audioRef.current.volume = 1;
-        }
-      }, 25000);
-      return () => clearInterval(interval);
     }
-  }, [alarmeAtivo]);
+  }, []);
 
   const controlarAlarme = (ligar: boolean) => {
     if (!audioRef.current) return;
     if (ligar) {
+      if (alarmeSilenciadoManualmente.current) return; // Se o usuário já clicou para silenciar, não religa sozinho
       setAlarmeAtivo(true);
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(err => {
-        console.warn("Navegador bloqueou o autoplay. O som tocará após o primeiro clique na tela.", err);
-      });
+      audioRef.current.play().catch(() => console.log("Aguardando interação para som..."));
     } else {
       setAlarmeAtivo(false);
       audioRef.current.pause();
     }
   };
 
-  // 2. Escuta do Firebase em Tempo Real (Otimizada)
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
 
-    // Buscamos os 50 mais recentes para garantir performance
-    const q = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(50));
+    // Query simplificada: Se o orderBy estiver bugando, ele remove o pedido da lista. 
+    // Vamos usar apenas a coleção pura para garantir que os pedidos APAREÇAM.
+    const q = query(collection(db, "Pedidos"), limit(50));
     
-    const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
-      // LÓGICA DE SOM PERSISTENTE:
-      // Filtramos se existe qualquer pedido com status "Pendente"
-      const temPendentes = docs.some((p: any) => normalizarStatus(p.status) === "Pendente");
+      // Ordenação manual no JavaScript (mais seguro que no Firebase se os índices estiverem ruins)
+      const docsOrdenados = docs.sort((a, b) => {
+        const dataA = a.data?.seconds ? a.data.seconds : new Date(a.data).getTime();
+        const dataB = b.data?.seconds ? b.data.seconds : new Date(b.data).getTime();
+        return dataB - dataA;
+      });
 
-      // Se houver pendentes e o alarme estiver desligado, ligue-o (mesmo após recarregar a página)
-      if (temPendentes && !alarmeAtivo) {
+      const temPendentes = docsOrdenados.some((p: any) => normalizarStatus(p.status) === "Pendente");
+
+      // Lógica do Som
+      if (temPendentes) {
         controlarAlarme(true);
-      }
-      
-      // Se não houver mais nenhum pendente (todos foram aceitos ou cancelados), desliga o som
-      if (!temPendentes && alarmeAtivo) {
+      } else {
+        alarmeSilenciadoManualmente.current = false; // Reseta o silêncio quando limpa a cozinha
         controlarAlarme(false);
       }
 
-      setPedidos(docs);
+      setPedidos(docsOrdenados);
       setLoading(false);
-      isFirstLoad.current = false;
+    }, (error) => {
+      console.error("Erro no Firebase Snapshot:", error);
+      alert("Erro ao carregar pedidos. Verifique o console.");
     });
 
     return () => unsubscribe();
-  }, [currentUser, admins, alarmeAtivo]); 
+  }, [currentUser, admins]);
 
-  // Função para silenciar manualmente (pararAlarme) será enviada no retorno
   return { 
     pedidos, 
     loading, 
     alarmeAtivo, 
-    pararAlarme: () => controlarAlarme(false) 
+    pararAlarme: () => {
+      alarmeSilenciadoManualmente.current = true;
+      controlarAlarme(false);
+    } 
   };
 }
