@@ -17,7 +17,6 @@ export default function AdminPage() {
   const { currentUser } = useAuthStore();
   const admins = ["alefejohsefe@gmail.com", "kalebhstanley650@gmail.com", "contato@dafamilialanches.com.br"];
   
-  // O Hook agora gerencia os pedidos e o alarme
   const { pedidos, loading, alarmeAtivo, pararAlarme } = useAdminOrders(currentUser, admins);
   
   const [tab, setTab] = useState<"cozinha" | "expedicao" | "concluidos" | "motoboy">("cozinha");
@@ -25,18 +24,29 @@ export default function AdminPage() {
   const [dadosRodrigo, setDadosRodrigo] = useState<any>(null);
   const [modalLogistica, setModalLogistica] = useState({ isOpen: false, pedidoId: "", pedidoData: null as any });
 
-  // Monitoramento de Loja e Rodrigo (Firebase)
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
     const unsubLoja = onSnapshot(doc(db, "settings", "loja"), (snap) => snap.exists() && setStoreOpen(snap.data().isOpen));
     const unsubRodrigo = onSnapshot(doc(db, "Entregadores", "rodrigo"), (snap) => snap.exists() && setDadosRodrigo(snap.data()));
     return () => { unsubLoja(); unsubRodrigo(); };
-  }, [currentUser]);
+  }, [currentUser, admins]);
 
-  // FUNÇÃO DE ATUALIZAÇÃO COM SILENCIADOR DE ALARME
+  // FUNÇÃO PARA ZERAR O TURNO (CORREÇÃO DO ERRO DO TS)
+  const handleRegistrarPagamento = async (valor: number) => {
+    if (!confirm(`Confirmar encerramento de turno? Saldo de R$ ${valor.toFixed(2)} será zerado.`)) return;
+    try {
+      const batch = writeBatch(db);
+      const rodrigoRef = doc(db, "Entregadores", "rodrigo");
+      batch.update(rodrigoRef, { totalEntregas: 0, saldoAcumulado: 0 });
+      await batch.commit();
+      alert("Turno zerado com sucesso!");
+    } catch (e) {
+      alert("Erro ao zerar turno.");
+    }
+  };
+
   const updateStatus = async (id: string, newStatus: string, pedido?: any) => {
-    pararAlarme(); // REGRA DE OURO: Interagiu com o monitor, o som para.
-
+    pararAlarme();
     if (newStatus === "Saiu para Entrega" && pedido?.tipoEntrega !== "pickup") {
       setModalLogistica({ isOpen: true, pedidoId: id, pedidoData: pedido });
       return;
@@ -53,44 +63,39 @@ export default function AdminPage() {
     const { pedidoId, pedidoData } = modalLogistica;
     if (!pedidoId) return;
     try {
-      await updateDoc(doc(db, "Pedidos", pedidoId), { 
+      const pedidoRef = doc(db, "Pedidos", pedidoId);
+      await updateDoc(pedidoRef, { 
         status: "Saiu para Entrega", 
-        entregador: motoboy,
-        atualizadoEm: new Date().toISOString()
+        entregador: motoboy
       });
+
       if (motoboy === "rodrigo") {
         await updateDoc(doc(db, "Entregadores", "rodrigo"), { totalEntregas: increment(1) });
       }
-      avisarWhatsApp(pedidoData?.userPhone || pedidoData?.phone, pedidoData?.userName, "Saiu para Entrega");
-      setModalLogistica({ isOpen: false, pedidoId: "", pedidoData: null });
-    } catch (e) { alert("Erro no despacho"); }
-  };
 
-  const handleRegistrarPagamento = async (valor: number) => {
-    if (!confirm(`Zerar entregas do Rodrigo? Valor total: R$ ${valor.toFixed(2)}`)) return;
-    try {
-      const batch = writeBatch(db);
-      batch.update(doc(db, "Entregadores", "rodrigo"), { totalEntregas: 0, saldoAcumulado: 0 });
-      await batch.commit();
-      alert("Turno encerrado e saldo zerado!");
-    } catch (e) { alert("Erro ao zerar turno"); }
+      const tel = pedidoData?.userPhone || pedidoData?.phone;
+      if (tel) avisarWhatsApp(tel, pedidoData?.userName, "Saiu para Entrega");
+      
+      setModalLogistica({ isOpen: false, pedidoId: "", pedidoData: null });
+    } catch (e) { 
+      console.error(e);
+      alert("Erro ao despachar pedido."); 
+    }
   };
 
   const pedidosFiltrados = pedidos.filter(p => {
     const s = normalizarStatus(p.status);
     if (tab === "cozinha") return s === "Pendente" || s === "Em Produção";
     if (tab === "expedicao") return s === "Pronto" || s === "Saiu para Entrega";
-    return s === "Finalizado";
+    if (tab === "concluidos") return s === "Finalizado";
+    return false;
   });
 
   if (!currentUser || !admins.includes(currentUser.email!)) return <h1 style={{textAlign: "center", marginTop: "100px"}}>Acesso Negado 🔐</h1>;
   if (loading) return <h2 style={{textAlign: "center", marginTop: "100px"}}>Carregando Monitor... 📟</h2>;
 
   return (
-    <div 
-      style={{ padding: "15px", maxWidth: "1400px", margin: "85px auto 0 auto", minHeight: "100vh" }} 
-      onClick={pararAlarme} // Clicar em qualquer lugar limpo da tela também para o som
-    >
+    <div style={{ padding: "15px", maxWidth: "1400px", margin: "85px auto 0 auto", minHeight: "100vh" }} onClick={pararAlarme}>
       <LogisticaModal 
         isOpen={modalLogistica.isOpen} 
         onClose={() => setModalLogistica({...modalLogistica, isOpen: false})} 
@@ -99,7 +104,7 @@ export default function AdminPage() {
       
       {alarmeAtivo && (
         <div style={{ background: "#d32f2f", color: "#fff", padding: "15px", textAlign: "center", borderRadius: "12px", marginBottom: "20px", fontWeight: "900", cursor: "pointer", animation: "pulse 1.5s infinite" }}>
-          🚨 NOVO PEDIDO! CLIQUE AQUI OU EM "ACEITAR" PARA PARAR O SOM 🚨
+          🚨 NOVO PEDIDO! CLIQUE PARA SILENCIAR 🚨
         </div>
       )}
 
