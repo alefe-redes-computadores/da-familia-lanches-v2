@@ -13,12 +13,13 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const silenciadoPeloUsuario = useRef(false);
 
+  // 1. SETUP DO ÁUDIO (Versão Máxima Compatibilidade)
   useEffect(() => {
     if (typeof window !== "undefined" && !audioRef.current) {
-      // SOM NOVO: Mais alto e persistente (Campainha de Loja Forte)
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2256/2256-preview.mp3");
+      // Som de alerta clássico, curto e alto
+      const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
       audio.loop = true;
-      audio.volume = 1.0; 
+      audio.volume = 1.0;
       audioRef.current = audio;
 
       const desbloquear = () => {
@@ -35,6 +36,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     }
   }, []);
 
+  // 2. ESCUTA EM TEMPO REAL
   useEffect(() => {
     if (!currentUser || !admins.includes(currentUser.email!)) return;
 
@@ -42,16 +44,16 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
     const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      
       const temPendentes = docs.some(p => normalizarStatus(p.status) === "Pendente");
 
-      // LÓGICA DE PERSISTÊNCIA: 
-      // O som só liga se houver pendentes e não tiver sido silenciado manualmente.
       if (temPendentes && !silenciadoPeloUsuario.current) {
         setAlarmeAtivo(true);
-        audioRef.current?.play().catch(() => {});
+        if (audioRef.current) {
+          // O SEGREDO: Força o recarregamento do som antes de dar play
+          audioRef.current.load(); 
+          audioRef.current.play().catch(e => console.log("Erro som:", e));
+        }
       } else if (!temPendentes) {
-        // Quando os pendentes somem (ex: aceitou todos), resetamos tudo.
         setAlarmeAtivo(false);
         silenciadoPeloUsuario.current = false;
         audioRef.current?.pause();
@@ -71,7 +73,6 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     pedidos, 
     loading, 
     alarmeAtivo, 
-    // Função para silenciar manualmente via botão
     pararAlarme: () => {
       silenciadoPeloUsuario.current = true;
       setAlarmeAtivo(false);
