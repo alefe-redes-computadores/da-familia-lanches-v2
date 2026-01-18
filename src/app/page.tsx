@@ -48,39 +48,56 @@ export default function Home() {
       {!isStoreOpen && (
         <div style={{
           background: "#d32f2f", color: "#fff", padding: "12px", textAlign: "center",
-          fontWeight: "bold", fontSize: "14px", position: "sticky", top: 0, zIndex: 100,
+          fontWeight: "bold", fontSize: "14px", position: "sticky", top: "65px", zIndex: 100,
           boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
         }}>
           😴 A Família está descansando agora. Voltamos em breve!
         </div>
       )}
 
-      {/* BANNER + BUSCA */}
+      {/* BANNER + BUSCA - AJUSTADO PARA COMPENSAR O HEADER FIXO */}
       <section style={{ 
-        textAlign: "center", padding: "40px 20px", 
+        textAlign: "center", 
+        // marginTop de 65px para não ficar atrás do Header fixo
+        // padding superior de 40px para o texto respirar
+        padding: "40px 20px", 
+        marginTop: "65px",
         background: isStoreOpen 
           ? "linear-gradient(135deg, #ffca28 0%, #ff6f00 100%)" 
           : "linear-gradient(135deg, #757575 0%, #424242 100%)",
-        color: "#fff", marginBottom: "20px", borderRadius: "0 0 20px 20px", boxShadow: "0 4px 15px rgba(0,0,0,0.2)"
+        color: "#fff", 
+        marginBottom: "20px", 
+        borderRadius: "0 0 20px 20px", 
+        boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+        position: "relative"
       }}>
-        <h1 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 15px 0", textShadow: "0 2px 4px rgba(0,0,0,0.2)" }}>
-          {isStoreOpen ? "Fome de quê hoje? 😋" : "Loja Fechada no momento"}
+        <h1 style={{ 
+          fontSize: "clamp(22px, 6vw, 28px)", 
+          fontWeight: "900", 
+          margin: "0 0 20px 0", 
+          textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+          lineHeight: "1.2",
+          maxWidth: "90%",
+          marginLeft: "auto",
+          marginRight: "auto"
+        }}>
+          {isStoreOpen ? "Bem-vindo à Família! O que vamos pedir? ❤️" : "Loja Fechada no momento"}
         </h1>
         
         {/* BARRA DE PESQUISA */}
-        <div style={{ position: "relative", maxWidth: "400px", margin: "0 auto" }}>
+        <div style={{ position: "relative", maxWidth: "400px", margin: "0 auto", zIndex: 10 }}>
           <input 
             type="text" 
             placeholder="Procure por lanche, bebida..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
-              width: "100%", padding: "12px 16px 12px 40px", borderRadius: "25px",
-              border: "none", background: "#fff", fontSize: "15px", outline: "none", color: "#333",
-              boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
+              width: "100%", padding: "14px 16px 14px 45px", borderRadius: "25px",
+              border: "none", background: "#fff", fontSize: "16px", outline: "none", color: "#333",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
             }}
           />
-          <span style={{ position: "absolute", left: "12px", top: "12px", fontSize: "16px" }}>🔍</span>
+          <span style={{ position: "absolute", left: "15px", top: "14px", fontSize: "18px" }}>🔍</span>
         </div>
       </section>
 
