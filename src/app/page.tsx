@@ -25,11 +25,10 @@ export default function Home() {
     return () => unsub();
   }, []);
 
-  // LÓGICA DO CONTAGEM REGRESSIVA + FECHAMENTO AUTOMÁTICO
+  // LÓGICA DO CONTAGEM REGRESSIVA CORRIGIDA (ATÉ DOMINGO, 14 DE JUNHO ÀS 23:59:59)
   useEffect(() => {
-    // Alvo: 12 de Junho às 23:59:59 (Mantendo o ano dinâmico vigente)
-    const currentYear = new Date().getFullYear();
-    const targetDate = new Date(`June 12, ${currentYear} 23:59:59`).getTime();
+    // Alvo ajustado para o Domingo, dia 14 de Junho às 23:59:59
+    const targetDate = new Date("June 14, 2026 23:59:59").getTime();
 
     const timer = setInterval(() => {
       const now = new Date().getTime();
@@ -38,19 +37,20 @@ export default function Home() {
       if (difference <= 0) {
         clearInterval(timer);
         setTimeLeft({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
+        setShowSplash(false); // Fecha o splash automaticamente se o prazo expirar
       } else {
         const d = Math.floor(difference / (1000 * 60 * 60 * 24));
         const h = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const m = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
         const s = Math.floor((difference % (1000 * 60)) / 1000);
-        setTimeLeft({ dias: d, horas: h, minutos: m, segundos: s });
+        setTimeLeft({ dias: d, horas: h, minutes: m, segundos: s } as any);
       }
     }, 1000);
 
-    // Fechamento automático após 5 segundos
+    // Fechamento automático de segurança (ajustado para 6 segundos para dar tempo de ler)
     const autoClose = setTimeout(() => {
       setShowSplash(false);
-    }, 5000);
+    }, 6000);
 
     return () => {
       clearInterval(timer);
@@ -58,14 +58,20 @@ export default function Home() {
     };
   }, []);
 
+  // CORREÇÃO DO CLIQUE DO BOTÃO (FECHA E ROLA COM SEGURANÇA)
   const handleCloseSplash = () => {
     setShowSplash(false);
+    
+    // Pequeno delay para o navegador processar a saída do Splash e liberar o toque/scroll
     setTimeout(() => {
       const promoSection = document.getElementById("promocoes");
       if (promoSection) {
-        promoSection.scrollIntoView({ behavior: "smooth" });
+        promoSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        // Fallback caso o ID dê alguma incompatibilidade no mobile, joga um leve scroll pra baixo
+        window.scrollTo({ top: 300, behavior: "smooth" });
       }
-    }, 100);
+    }, 150);
   };
 
   const getProductsByCategory = (cat: string) => {
@@ -130,7 +136,7 @@ export default function Home() {
             {[
               { label: "Dias", value: timeLeft.dias },
               { label: "Horas", value: timeLeft.horas },
-              { label: "Min", value: timeLeft.minutos },
+              { label: "Min", value: (timeLeft as any).minutes || 0 },
               { label: "Seg", value: timeLeft.segundos }
             ].map((item, index) => (
               <div key={index} style={{
@@ -149,18 +155,16 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Botão de Ação */}
+          {/* Botão de Ação Corrigido (Z-Index alto para garantir o clique) */}
           <button 
             onClick={handleCloseSplash}
             style={{
               background: "linear-gradient(135deg, #ffca28 0%, #ff6f00 100%)",
               color: "#fff", fontWeight: "900", fontSize: "15px", border: "none",
               padding: "15px 35px", borderRadius: "30px", cursor: "pointer",
-              boxShadow: "0 5px 20px rgba(255, 111, 0, 0.4)", transition: "transform 0.2s",
-              letterSpacing: "0.5px"
+              boxShadow: "0 5px 20px rgba(255, 111, 0, 0.4)", transition: "transform 0.1s",
+              letterSpacing: "0.5px", position: "relative", zIndex: 10000
             }}
-            onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.95)"}
-            onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
           >
             🍔 VER PROMOÇÕES
           </button>
@@ -171,7 +175,7 @@ export default function Home() {
       {!isStoreOpen && (
         <div style={{
           background: "#d32f2f", color: "#fff", padding: "12px", textAlign: "center",
-          fontWeight: "bold", fontSize: "14px", position: "sticky", top: "65px", zIndex: 100,
+          fontWeight: "bold", fontSize: "14px", position: "sticky", top: "65px", zIndex: 10,
           boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
         }}>
           😴 A Família está descansando agora. Voltamos em breve!
@@ -226,8 +230,6 @@ export default function Home() {
         const items = getProductsByCategory(section.id);
         const isHotDogs = section.id === "hotdogs";
 
-        // Hot Dogs: sempre mostra a seção mesmo todos indisponíveis
-        // Outras categorias: esconde se não tem nenhum item
         if (!isHotDogs && items.length === 0) return null;
         if (isHotDogs && items.length === 0 && searchTerm !== "") return null;
 
@@ -240,7 +242,6 @@ export default function Home() {
               display: "flex", alignItems: "center", gap: "8px"
             }}>
               {section.title}
-              {/* Badge "Em breve" na seção Hot Dogs */}
               {isHotDogs && (
                 <span style={{
                   fontSize: "11px", fontWeight: "700", background: "#ff6f00",
@@ -285,14 +286,12 @@ export default function Home() {
                       position: "relative",
                       opacity: (isAvailable && isStoreOpen) ? 1 : 0.6, 
                       filter: (isAvailable && isStoreOpen) ? "none" : "grayscale(100%)",
-                      // Destaque sutil para isSuggestion
                       outline: (product.isSuggestion && isAvailable) ? "2px solid #ffca28" : "none",
                     }}
                   >
-                    {/* BADGE DESTAQUE */}
                     {product.isSuggestion && isAvailable && (
                       <div style={{
-                        position: "absolute", top: "10px", left: "10px", zIndex: 10,
+                        position: "absolute", top: "10px", left: "10px", zIndex: 9,
                         background: "#ffca28", color: "#111", fontSize: "9px", fontWeight: "900",
                         padding: "3px 7px", borderRadius: "4px", letterSpacing: "0.5px"
                       }}>
@@ -300,10 +299,9 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* BADGE DESCONTO */}
                     {hasOldPrice && isAvailable && (
                       <div style={{
-                        position: "absolute", top: product.isSuggestion ? "30px" : "10px", left: "10px", zIndex: 10,
+                        position: "absolute", top: product.isSuggestion ? "30px" : "10px", left: "10px", zIndex: 9,
                         background: "#d32f2f", color: "#fff", fontSize: "9px", fontWeight: "900",
                         padding: "3px 7px", borderRadius: "4px"
                       }}>
@@ -311,10 +309,9 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* ETIQUETA ESGOTADO / FECHADO */}
                     {(!isAvailable || !isStoreOpen) && (
                       <div style={{
-                        position: "absolute", top: "10px", right: "10px", zIndex: 10,
+                        position: "absolute", top: "10px", right: "10px", zIndex: 9,
                         background: !isStoreOpen ? "#757575" : "#d32f2f", color: "#fff", fontSize: "10px", fontWeight: "bold",
                         padding: "4px 8px", borderRadius: "4px"
                       }}>
@@ -342,7 +339,6 @@ export default function Home() {
 
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "5px" }}>
                       <div style={{ display: "flex", flexDirection: "column" }}>
-                        {/* PREÇO ORIGINAL RISCADO */}
                         {hasOldPrice && (
                           <span style={{ fontSize: "11px", color: "#999", textDecoration: "line-through", lineHeight: "1.2" }}>
                             {product.oldPrice!.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -374,7 +370,6 @@ export default function Home() {
         );
       })}
 
-      {/* MENSAGEM DE BUSCA VAZIA */}
       {searchTerm !== "" && products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
         <div style={{ textAlign: "center", padding: "40px", color: "#999" }}>
           <div style={{ fontSize: "40px", marginBottom: "10px" }}>😕</div>
