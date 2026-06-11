@@ -12,6 +12,10 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isStoreOpen, setIsStoreOpen] = useState(true);
 
+  // ESTADOS DO SPLASH SCREEN
+  const [showSplash, setShowSplash] = useState(true);
+  const [timeLeft, setTimeLeft] = useState({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
+
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "settings", "loja"), (snap) => {
       if (snap.exists()) {
@@ -20,6 +24,49 @@ export default function Home() {
     });
     return () => unsub();
   }, []);
+
+  // LÓGICA DO CONTAGEM REGRESSIVA + FECHAMENTO AUTOMÁTICO
+  useEffect(() => {
+    // Alvo: 12 de Junho às 23:59:59 (Mantendo o ano dinâmico vigente)
+    const currentYear = new Date().getFullYear();
+    const targetDate = new Date(`June 12, ${currentYear} 23:59:59`).getTime();
+
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      const difference = targetDate - now;
+
+      if (difference <= 0) {
+        clearInterval(timer);
+        setTimeLeft({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
+      } else {
+        const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const h = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((difference % (1000 * 60)) / 1000);
+        setTimeLeft({ dias: d, horas: h, minutos: m, segundos: s });
+      }
+    }, 1000);
+
+    // Fechamento automático após 5 segundos
+    const autoClose = setTimeout(() => {
+      setShowSplash(false);
+    }, 5000);
+
+    return () => {
+      clearInterval(timer);
+      clearTimeout(autoClose);
+    };
+  }, []);
+
+  const handleCloseSplash = () => {
+    setShowSplash(false);
+    setTimeout(() => {
+      const promoSection = document.getElementById("promocoes");
+      if (promoSection) {
+        promoSection.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 100);
+  };
 
   const getProductsByCategory = (cat: string) => {
     return products.filter((p) => {
@@ -40,6 +87,85 @@ export default function Home() {
 
   return (
     <div style={{ paddingBottom: "100px", background: "#f8f9fa", minHeight: "100vh" }}>
+
+      {/* INFORMAÇÃO DO SPLASH SCREEN PROMOCIONAL */}
+      {showSplash && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+          backgroundColor: "#0d0d0d", zIndex: 9999, display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", padding: "20px", color: "#fff",
+          textAlign: "center", fontFamily: "Poppins, sans-serif"
+        }}>
+          {/* Estilos Inline Injetados para Efeitos e Animações CSS Nativas */}
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes pulseHeart { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.2); opacity: 1; } }
+            @keyframes spinBall { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            @keyframes softGlow { 0%, 100% { text-shadow: 0 0 10px #ffca28; } 50% { text-shadow: 0 0 25px #ff6f00; } }
+          `}} />
+
+          {/* Cabeçalho de Ícones Animados */}
+          <div style={{ display: "flex", gap: "15px", marginBottom: "20px", fontSize: "28px" }}>
+            <span style={{ animation: "pulseHeart 1.5s infinite ease-in-out", display: "inline-block", color: "#d32f2f" }}>❤️</span>
+            <span style={{ animation: "spinBall 4s infinite linear", display: "inline-block" }}>⚽</span>
+          </div>
+
+          {/* Títulos da Campanha */}
+          <h1 style={{ 
+            fontSize: "clamp(20px, 6vw, 32px)", fontWeight: "900", margin: "0 0 15px 0",
+            color: "#ffca28", animation: "softGlow 2.5s infinite", letterSpacing: "1px", lineHeight: "1.2"
+          }}>
+            ❤️⚽ DIA DOS NAMORADOS NA DFL ⚽❤️
+          </h1>
+
+          <p style={{ fontSize: "clamp(14px, 4vw, 16px)", color: "#eee", margin: "0 0 10px 0", fontWeight: "600", maxWidth: "450px" }}>
+            Hoje é dia de torcer junto, compartilhar e comer bem.
+          </p>
+          
+          <p style={{ fontSize: "clamp(12px, 3.5vw, 14px)", color: "#b3b3b3", margin: "0 0 35px 0", maxWidth: "400px" }}>
+            Aproveite nossos combos especiais antes que a campanha termine.
+          </p>
+
+          {/* Painel do Cronômetro */}
+          <div style={{ display: "flex", gap: "12px", marginBottom: "40px" }}>
+            {[
+              { label: "Dias", value: timeLeft.dias },
+              { label: "Horas", value: timeLeft.horas },
+              { label: "Min", value: timeLeft.minutos },
+              { label: "Seg", value: timeLeft.segundos }
+            ].map((item, index) => (
+              <div key={index} style={{
+                background: "linear-gradient(180deg, #1f1f1f 0%, #0c0c0c 100%)",
+                border: "1px solid #333", borderTop: "2px solid #ffca28",
+                borderRadius: "12px", minWidth: "65px", padding: "10px 5px",
+                boxShadow: "0 4px 10px rgba(0,0,0,0.5)"
+              }}>
+                <div style={{ fontSize: "20px", fontWeight: "900", color: "#ffca28" }}>
+                  {String(item.value).padStart(2, "0")}
+                </div>
+                <div style={{ fontSize: "10px", color: "#888", fontWeight: "700", textTransform: "uppercase", marginTop: "2px" }}>
+                  {item.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Botão de Ação */}
+          <button 
+            onClick={handleCloseSplash}
+            style={{
+              background: "linear-gradient(135deg, #ffca28 0%, #ff6f00 100%)",
+              color: "#fff", fontWeight: "900", fontSize: "15px", border: "none",
+              padding: "15px 35px", borderRadius: "30px", cursor: "pointer",
+              boxShadow: "0 5px 20px rgba(255, 111, 0, 0.4)", transition: "transform 0.2s",
+              letterSpacing: "0.5px"
+            }}
+            onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.95)"}
+            onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
+          >
+            🍔 VER PROMOÇÕES
+          </button>
+        </div>
+      )}
 
       {/* AVISO DE LOJA FECHADA */}
       {!isStoreOpen && (
