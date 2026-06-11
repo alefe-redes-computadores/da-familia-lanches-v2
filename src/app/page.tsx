@@ -16,6 +16,12 @@ export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [timeLeft, setTimeLeft] = useState({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
 
+  // ESTADOS DO JOGO DO BAÚ DA SORTE
+  const [showBauModal, setShowBauModal] = useState(false);
+  const [tentativas, setTentativas] = useState(2);
+  const [bauStatus, setBauStatus] = useState<"inicio" | "erro1" | "ganhou">("inicio");
+  const [copiado, setCopiado] = useState(false);
+
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "settings", "loja"), (snap) => {
       if (snap.exists()) {
@@ -25,9 +31,8 @@ export default function Home() {
     return () => unsub();
   }, []);
 
-  // LÓGICA DO CONTAGEM REGRESSIVA CORRIGIDA COM NÚMEROS PUROS (ATÉ DOMINGO, 14/06 ÀS 23:59:59)
+  // LÓGICA DO CONTAGEM REGRESSIVA (ATÉ DOMINGO, 14/06 ÀS 23:59:59)
   useEffect(() => {
-    // Ano (2026), Mês (5 = Junho, pois começa em 0), Dia (14), Hora (23), Min (59), Seg (59)
     const targetDate = new Date(2026, 5, 14, 23, 59, 59).getTime();
 
     const timer = setInterval(() => {
@@ -47,9 +52,15 @@ export default function Home() {
       }
     }, 1000);
 
-    // Fechamento automático de segurança em 6 segundos
     const autoClose = setTimeout(() => {
       setShowSplash(false);
+      // Quando o splash fecha sozinho ou pelo botão, abre o Baú da Sorte depois de 1.5 segundos
+      setTimeout(() => {
+        // Verifica no localStorage para não incomodar quem já jogou
+        if (!localStorage.getItem("dfl_bau_jogado")) {
+          setShowBauModal(true);
+        }
+      }, 1500);
     }, 6000);
 
     return () => {
@@ -58,18 +69,40 @@ export default function Home() {
     };
   }, []);
 
-  // CLIQUE DO BOTÃO (FECHA E ROLA COM SEGURANÇA)
   const handleCloseSplash = () => {
     setShowSplash(false);
-    
     setTimeout(() => {
       const promoSection = document.getElementById("promocoes");
       if (promoSection) {
         promoSection.scrollIntoView({ behavior: "smooth", block: "start" });
-      } else {
-        window.scrollTo({ top: 300, behavior: "smooth" });
       }
+      // Abre o Baú da Sorte logo após o scroll
+      setTimeout(() => {
+        if (!localStorage.getItem("dfl_bau_jogado")) {
+          setShowBauModal(true);
+        }
+      }, 1000);
     }, 150);
+  };
+
+  // LÓGICA DO CLIQUE NO BAÚ
+  const handleEscolherBau = (id: number) => {
+    if (bauStatus === "ganhou") return;
+
+    if (tentativas === 2) {
+      setTentativas(1);
+      setBauStatus("erro1");
+    } else if (tentativas === 1) {
+      setTentativas(0);
+      setBauStatus("ganhou");
+      localStorage.setItem("dfl_bau_jogado", "true"); // Trava para jogar só uma vez
+    }
+  };
+
+  const handleCopiarCupom = () => {
+    navigator.clipboard.writeText("FAMILIA10");
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
   };
 
   const getProductsByCategory = (cat: string) => {
@@ -126,7 +159,6 @@ export default function Home() {
             Aproveite nossos combos especiais antes que a campanha termine.
           </p>
 
-          {/* Painel do Cronômetro */}
           <div style={{ display: "flex", gap: "12px", marginBottom: "40px" }}>
             {[
               { label: "Dias", value: timeLeft.dias },
@@ -162,6 +194,84 @@ export default function Home() {
           >
             🍔 VER PROMOÇÕES
           </button>
+        </div>
+      )}
+
+      {/* GAMIFICAÇÃO: MODAL DO BAÚ DA Sorte */}
+      {showBauModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+          backgroundColor: "rgba(0,0,0,0.85)", zIndex: 9998, display: "flex",
+          alignItems: "center", justifyContent: "center", padding: "20px", fontFamily: "sans-serif"
+        }}>
+          <div style={{
+            background: "#111", border: "2px solid #ffca28", borderRadius: "24px",
+            padding: "25px", maxWidth: "340px", width: "100%", textAlign: "center", color: "#fff",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.5)", position: "relative"
+          }}>
+            
+            <button 
+              onClick={() => setShowBauModal(false)}
+              style={{ position: "absolute", top: "15px", right: "15px", background: "none", border: "none", color: "#aaa", fontSize: "18px", cursor: "pointer" }}
+            >
+              ✕
+            </button>
+
+            <h2 style={{ fontSize: "20px", fontWeight: "900", color: "#ffca28", margin: "0 0 10px 0" }}>
+              {bauStatus === "ganhou" ? "🎉 VOCÊ GANHOU! 🎉" : "🎁 RODADA PREMIADA"}
+            </h2>
+
+            <p style={{ fontSize: "14px", color: "#ccc", margin: "0 0 20px 0", lineHeight: "1.4" }}>
+              {bauStatus === "inicio" && `Escolha um dos baús da Família abaixo para tentar ganhar um cupom secreto! (Tentativas: ${tentativas})`}
+              {bauStatus === "erro1" && `❌ Poxa, esse estava vazio! Resta ${tentativas} tentativa. Escolha outro baú!`}
+              {bauStatus === "ganhou" && "Incrível! Você tem muita sorte. Use o cupom abaixo no seu carrinho antes de fechar o pedido!"}
+            </p>
+
+            {/* AREA DOS BAÚS */}
+            {bauStatus !== "ganhou" ? (
+              <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "15px" }}>
+                {[1, 2, 3].map((num) => (
+                  <div 
+                    key={num}
+                    onClick={() => handleEscolherBau(num)}
+                    style={{
+                      fontSize: "45px", cursor: "pointer", background: "#222", 
+                      padding: "10px", borderRadius: "15px", border: "1px solid #333",
+                      transition: "transform 0.1s"
+                    }}
+                    onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.9)"}
+                    onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
+                  >
+                    📦
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* TELA DE GANHOU O CUPOM */
+              <div style={{ background: "#222", padding: "15px", borderRadius: "16px", border: "1px dashed #ffca28", marginBottom: "20px" }}>
+                <span style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold" }}>CÓDIGO DO CUPOM:</span>
+                <div style={{ fontSize: "24px", fontWeight: "900", color: "#ffca28", margin: "5px 0", letterSpacing: "1px" }}>FAMILIA10</div>
+                <button 
+                  onClick={handleCopiarCupom}
+                  style={{
+                    background: copiado ? "#4caf50" : "#ffca28", color: copiado ? "#fff" : "#111",
+                    border: "none", padding: "8px 15px", borderRadius: "8px", fontWeight: "bold",
+                    fontSize: "12px", cursor: "pointer", marginTop: "5px", width: "100%"
+                  }}
+                >
+                  {copiado ? "📋 COPIADO!" : "📋 COPIAR CÓDIGO"}
+                </button>
+              </div>
+            )}
+
+            <button 
+              onClick={() => setShowBauModal(false)}
+              style={{ background: "none", border: "none", color: "#ffca28", fontWeight: "bold", fontSize: "13px", cursor: "pointer", textDecoration: "underline" }}
+            >
+              {bauStatus === "ganhou" ? "Ir para o Cardápio 🍔" : "Não quero desconto"}
+            </button>
+
+          </div>
         </div>
       )}
 
