@@ -25,10 +25,10 @@ export default function Home() {
     return () => unsub();
   }, []);
 
-  // LÓGICA DO CONTAGEM REGRESSIVA CORRIGIDA (ATÉ DOMINGO, 14 DE JUNHO ÀS 23:59:59)
+  // LÓGICA DO CONTAGEM REGRESSIVA CORRIGIDA COM NÚMEROS PUROS (ATÉ DOMINGO, 14/06 ÀS 23:59:59)
   useEffect(() => {
-    // Alvo ajustado para o Domingo, dia 14 de Junho às 23:59:59
-    const targetDate = new Date("June 14, 2026 23:59:59").getTime();
+    // Ano (2026), Mês (5 = Junho, pois começa em 0), Dia (14), Hora (23), Min (59), Seg (59)
+    const targetDate = new Date(2026, 5, 14, 23, 59, 59).getTime();
 
     const timer = setInterval(() => {
       const now = new Date().getTime();
@@ -37,7 +37,7 @@ export default function Home() {
       if (difference <= 0) {
         clearInterval(timer);
         setTimeLeft({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
-        setShowSplash(false); // Fecha o splash automaticamente se o prazo expirar
+        setShowSplash(false);
       } else {
         const d = Math.floor(difference / (1000 * 60 * 60 * 24));
         const h = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -47,7 +47,7 @@ export default function Home() {
       }
     }, 1000);
 
-    // Fechamento automático de segurança (ajustado para 6 segundos para dar tempo de ler)
+    // Fechamento automático de segurança em 6 segundos
     const autoClose = setTimeout(() => {
       setShowSplash(false);
     }, 6000);
@@ -58,17 +58,15 @@ export default function Home() {
     };
   }, []);
 
-  // CORREÇÃO DO CLIQUE DO BOTÃO (FECHA E ROLA COM SEGURANÇA)
+  // CLIQUE DO BOTÃO (FECHA E ROLA COM SEGURANÇA)
   const handleCloseSplash = () => {
     setShowSplash(false);
     
-    // Pequeno delay para o navegador processar a saída do Splash e liberar o toque/scroll
     setTimeout(() => {
       const promoSection = document.getElementById("promocoes");
       if (promoSection) {
         promoSection.scrollIntoView({ behavior: "smooth", block: "start" });
       } else {
-        // Fallback caso o ID dê alguma incompatibilidade no mobile, joga um leve scroll pra baixo
         window.scrollTo({ top: 300, behavior: "smooth" });
       }
     }, 150);
@@ -102,20 +100,17 @@ export default function Home() {
           alignItems: "center", justifyContent: "center", padding: "20px", color: "#fff",
           textAlign: "center", fontFamily: "Poppins, sans-serif"
         }}>
-          {/* Estilos Inline Injetados para Efeitos e Animações CSS Nativas */}
           <style dangerouslySetInnerHTML={{__html: `
             @keyframes pulseHeart { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.2); opacity: 1; } }
             @keyframes spinBall { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
             @keyframes softGlow { 0%, 100% { text-shadow: 0 0 10px #ffca28; } 50% { text-shadow: 0 0 25px #ff6f00; } }
           `}} />
 
-          {/* Cabeçalho de Ícones Animados */}
           <div style={{ display: "flex", gap: "15px", marginBottom: "20px", fontSize: "28px" }}>
             <span style={{ animation: "pulseHeart 1.5s infinite ease-in-out", display: "inline-block", color: "#d32f2f" }}>❤️</span>
             <span style={{ animation: "spinBall 4s infinite linear", display: "inline-block" }}>⚽</span>
           </div>
 
-          {/* Títulos da Campanha */}
           <h1 style={{ 
             fontSize: "clamp(20px, 6vw, 32px)", fontWeight: "900", margin: "0 0 15px 0",
             color: "#ffca28", animation: "softGlow 2.5s infinite", letterSpacing: "1px", lineHeight: "1.2"
@@ -155,7 +150,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Botão de Ação Corrigido (Z-Index alto para garantir o clique) */}
           <button 
             onClick={handleCloseSplash}
             style={{
