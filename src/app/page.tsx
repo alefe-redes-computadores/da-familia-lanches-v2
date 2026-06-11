@@ -16,7 +16,7 @@ export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [timeLeft, setTimeLeft] = useState({ dias: 0, horas: 0, minutos: 0, segundos: 0 });
 
-  // ESTADOS DO JOGO DO BAÚ DA SORTE
+  // ESTADOS DO JOGO DO BAÚ DA SERSA
   const [showBauModal, setShowBauModal] = useState(false);
   const [tentativas, setTentativas] = useState(2);
   const [bauStatus, setBauStatus] = useState<"inicio" | "erro1" | "ganhou">("inicio");
@@ -54,13 +54,11 @@ export default function Home() {
 
     const autoClose = setTimeout(() => {
       setShowSplash(false);
-      // Quando o splash fecha sozinho ou pelo botão, abre o Baú da Sorte depois de 1.5 segundos
       setTimeout(() => {
-        // Verifica no localStorage para não incomodar quem já jogou
         if (!localStorage.getItem("dfl_bau_jogado")) {
           setShowBauModal(true);
         }
-      }, 1500);
+      }, 800); // Reduzido o tempo para abrir o baú mais rápido após o fechamento automático
     }, 6000);
 
     return () => {
@@ -76,17 +74,21 @@ export default function Home() {
       if (promoSection) {
         promoSection.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-      // Abre o Baú da Sorte logo após o scroll
       setTimeout(() => {
         if (!localStorage.getItem("dfl_bau_jogado")) {
           setShowBauModal(true);
         }
-      }, 1000);
+      }, 600); // Reduzido para o baú aparecer logo em seguida do scroll
     }, 150);
   };
 
-  // LÓGICA DO CLIQUE NO BAÚ
-  const handleEscolherBau = (id: number) => {
+  // LÓGICA DO CLIQUE NO BAÚ (AGILIZADA SEM DELAY)
+  const handleEscolherBau = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault(); // Previne o clique duplo fantasma no mobile
+      e.stopPropagation();
+    }
+    
     if (bauStatus === "ganhou") return;
 
     if (tentativas === 2) {
@@ -95,12 +97,12 @@ export default function Home() {
     } else if (tentativas === 1) {
       setTentativas(0);
       setBauStatus("ganhou");
-      localStorage.setItem("dfl_bau_jogado", "true"); // Trava para jogar só uma vez
+      localStorage.setItem("dfl_bau_jogado", "true");
     }
   };
 
   const handleCopiarCupom = () => {
-    navigator.clipboard.writeText("FAMILIA10");
+    navigator.clipboard.writeText("BEMVINDO10");
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   };
@@ -197,7 +199,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* GAMIFICAÇÃO: MODAL DO BAÚ DA Sorte */}
+      {/* GAMIFICAÇÃO: MODAL DO BAÚ DA SORTE */}
       {showBauModal && (
         <div style={{
           position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
@@ -227,30 +229,29 @@ export default function Home() {
               {bauStatus === "ganhou" && "Incrível! Você tem muita sorte. Use o cupom abaixo no seu carrinho antes de fechar o pedido!"}
             </p>
 
-            {/* AREA DOS BAÚS */}
+            {/* AREA DOS BAÚS COM RESPOSTA RÁPIDA (onTouchStart + onClick) */}
             {bauStatus !== "ganhou" ? (
               <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "15px" }}>
                 {[1, 2, 3].map((num) => (
                   <div 
                     key={num}
-                    onClick={() => handleEscolherBau(num)}
+                    onTouchStart={(e) => handleEscolherBau(e)}
+                    onClick={(e) => handleEscolherBau(e)}
                     style={{
                       fontSize: "45px", cursor: "pointer", background: "#222", 
                       padding: "10px", borderRadius: "15px", border: "1px solid #333",
-                      transition: "transform 0.1s"
+                      transition: "transform 0.05s", WebkitTapHighlightColor: "transparent"
                     }}
-                    onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.9)"}
-                    onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
                   >
                     📦
                   </div>
                 ))}
               </div>
             ) : (
-              /* TELA DE GANHOU O CUPOM */
+              /* TELA DE GANHOU O CUPOM ATUALIZADO */
               <div style={{ background: "#222", padding: "15px", borderRadius: "16px", border: "1px dashed #ffca28", marginBottom: "20px" }}>
                 <span style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold" }}>CÓDIGO DO CUPOM:</span>
-                <div style={{ fontSize: "24px", fontWeight: "900", color: "#ffca28", margin: "5px 0", letterSpacing: "1px" }}>FAMILIA10</div>
+                <div style={{ fontSize: "24px", fontWeight: "900", color: "#ffca28", margin: "5px 0", letterSpacing: "1px" }}>BEMVINDO10</div>
                 <button 
                   onClick={handleCopiarCupom}
                   style={{
