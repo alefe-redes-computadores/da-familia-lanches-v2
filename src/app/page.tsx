@@ -8,12 +8,10 @@ import { doc, onSnapshot } from "firebase/firestore";
 
 export default function Home() {
   const openModal = useUIStore((s) => s.openModal);
-  
-  // ESTADOS
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isStoreOpen, setIsStoreOpen] = useState(true);
 
-  // ESCUTAR STATUS DA LOJA EM TEMPO REAL
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "settings", "loja"), (snap) => {
       if (snap.exists()) {
@@ -23,7 +21,6 @@ export default function Home() {
     return () => unsub();
   }, []);
 
-  // Função que filtra os produtos
   const getProductsByCategory = (cat: string) => {
     return products.filter((p) => {
       const isCategoryMatch = p.category === cat;
@@ -31,7 +28,7 @@ export default function Home() {
       return isCategoryMatch && isSearchMatch;
     });
   };
- 
+
   const categoriesOrder = [
     { id: "promocoes", title: "🔥 Promoções" },
     { id: "combos", title: "🧡 Combos" },
@@ -43,8 +40,8 @@ export default function Home() {
 
   return (
     <div style={{ paddingBottom: "100px", background: "#f8f9fa", minHeight: "100vh" }}>
-      
-      {/* AVISO DE LOJA FECHADA (STICKY) */}
+
+      {/* AVISO DE LOJA FECHADA */}
       {!isStoreOpen && (
         <div style={{
           background: "#d32f2f", color: "#fff", padding: "12px", textAlign: "center",
@@ -55,11 +52,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* BANNER + BUSCA - AJUSTADO PARA COMPENSAR O HEADER FIXO */}
+      {/* BANNER + BUSCA */}
       <section style={{ 
         textAlign: "center", 
-        // marginTop de 65px para não ficar atrás do Header fixo
-        // padding superior de 40px para o texto respirar
         padding: "40px 20px", 
         marginTop: "65px",
         background: isStoreOpen 
@@ -83,8 +78,7 @@ export default function Home() {
         }}>
           {isStoreOpen ? "Bem-vindo à Família! O que vamos pedir? ❤️" : "Loja Fechada no momento"}
         </h1>
-        
-        {/* BARRA DE PESQUISA */}
+
         <div style={{ position: "relative", maxWidth: "400px", margin: "0 auto", zIndex: 10 }}>
           <input 
             type="text" 
@@ -104,17 +98,31 @@ export default function Home() {
       {/* LISTAGEM DE CATEGORIAS */}
       {categoriesOrder.map((section) => {
         const items = getProductsByCategory(section.id);
-        
-        if (items.length === 0) return null;
+        const isHotDogs = section.id === "hotdogs";
+
+        // Hot Dogs: sempre mostra a seção mesmo todos indisponíveis
+        // Outras categorias: esconde se não tem nenhum item
+        if (!isHotDogs && items.length === 0) return null;
+        if (isHotDogs && items.length === 0 && searchTerm !== "") return null;
 
         return (
           <section key={section.id} id={section.id} style={{ padding: "0 20px", marginBottom: "30px", scrollMarginTop: "120px" }}>
-            
+
             <h2 style={{ 
               fontSize: "20px", fontWeight: "800", color: "#333", 
-              marginBottom: "15px", borderLeft: "5px solid #ffca28", paddingLeft: "10px" 
+              marginBottom: "15px", borderLeft: "5px solid #ffca28", paddingLeft: "10px",
+              display: "flex", alignItems: "center", gap: "8px"
             }}>
               {section.title}
+              {/* Badge "Em breve" na seção Hot Dogs */}
+              {isHotDogs && (
+                <span style={{
+                  fontSize: "11px", fontWeight: "700", background: "#ff6f00",
+                  color: "#fff", padding: "2px 8px", borderRadius: "999px"
+                }}>
+                  Em breve
+                </span>
+              )}
             </h2>
 
             <div style={{ 
@@ -123,19 +131,20 @@ export default function Home() {
               gap: "15px" 
             }}>
               {items.map((product) => {
-                
+
                 const isAvailable = product.disponivel !== false;
+                const hasOldPrice = typeof product.oldPrice === "number" && product.oldPrice > product.price;
 
                 const handleProductClick = () => {
-                    if (!isStoreOpen) {
-                        alert("Estamos fechados no momento! 🛑\n\nAbriremos em breve para preparar sua delícia. Fique de olho!");
-                        return;
-                    }
-                    if (isAvailable) {
-                        openModal("product-details", product);
-                    } else {
-                        alert(`Ops! 🛑\n\nO item "${product.name}" acabou por hoje ou está indisponível.\n\nEscolha outra delícia! 😋`);
-                    }
+                  if (!isStoreOpen) {
+                    alert("Estamos fechados no momento! 🛑\n\nAbriremos em breve para preparar sua delícia. Fique de olho!");
+                    return;
+                  }
+                  if (isAvailable) {
+                    openModal("product-details", product);
+                  } else {
+                    alert(`Ops! 🛑\n\nO item "${product.name}" acabou por hoje ou está indisponível.\n\nEscolha outra delícia! 😋`);
+                  }
                 };
 
                 return (
@@ -149,54 +158,86 @@ export default function Home() {
                       display: "flex", flexDirection: "column", gap: "10px",
                       position: "relative",
                       opacity: (isAvailable && isStoreOpen) ? 1 : 0.6, 
-                      filter: (isAvailable && isStoreOpen) ? "none" : "grayscale(100%)"
+                      filter: (isAvailable && isStoreOpen) ? "none" : "grayscale(100%)",
+                      // Destaque sutil para isSuggestion
+                      outline: (product.isSuggestion && isAvailable) ? "2px solid #ffca28" : "none",
                     }}
                   >
-                    {/* ETIQUETA ESGOTADO OU FECHADO */}
+                    {/* BADGE DESTAQUE */}
+                    {product.isSuggestion && isAvailable && (
+                      <div style={{
+                        position: "absolute", top: "10px", left: "10px", zIndex: 10,
+                        background: "#ffca28", color: "#111", fontSize: "9px", fontWeight: "900",
+                        padding: "3px 7px", borderRadius: "4px", letterSpacing: "0.5px"
+                      }}>
+                        ⭐ DESTAQUE
+                      </div>
+                    )}
+
+                    {/* BADGE DESCONTO */}
+                    {hasOldPrice && isAvailable && (
+                      <div style={{
+                        position: "absolute", top: product.isSuggestion ? "30px" : "10px", left: "10px", zIndex: 10,
+                        background: "#d32f2f", color: "#fff", fontSize: "9px", fontWeight: "900",
+                        padding: "3px 7px", borderRadius: "4px"
+                      }}>
+                        -{Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100)}% OFF
+                      </div>
+                    )}
+
+                    {/* ETIQUETA ESGOTADO / FECHADO */}
                     {(!isAvailable || !isStoreOpen) && (
-                        <div style={{
-                            position: "absolute", top: "10px", right: "10px", zIndex: 10,
-                            background: !isStoreOpen ? "#757575" : "#d32f2f", color: "#fff", fontSize: "10px", fontWeight: "bold",
-                            padding: "4px 8px", borderRadius: "4px"
-                        }}>
-                            {!isStoreOpen ? "FECHADO" : "ESGOTADO"}
-                        </div>
+                      <div style={{
+                        position: "absolute", top: "10px", right: "10px", zIndex: 10,
+                        background: !isStoreOpen ? "#757575" : "#d32f2f", color: "#fff", fontSize: "10px", fontWeight: "bold",
+                        padding: "4px 8px", borderRadius: "4px"
+                      }}>
+                        {!isStoreOpen ? "FECHADO" : "ESGOTADO"}
+                      </div>
                     )}
 
                     <div style={{ width: "100%", aspectRatio: "1/1", borderRadius: "12px", overflow: "hidden", background: "#eee" }}>
-                       <img 
-                         src={product.image} 
-                         alt={product.name} 
-                         style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-                         onError={(e) => (e.currentTarget.src = "https://placehold.co/200?text=Sem+Foto")}
-                       />
+                      <img 
+                        src={product.image} 
+                        alt={product.name} 
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                        onError={(e) => (e.currentTarget.src = "https://placehold.co/200?text=Sem+Foto")}
+                      />
                     </div>
 
                     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                       <div style={{ fontWeight: "bold", fontSize: "15px", color: "#111", lineHeight: "1.2", marginBottom: "4px" }}>
-                         {product.name}
-                       </div>
-                       <div style={{ fontSize: "12px", color: "#888", lineHeight: "1.4", flex: 1 }}>
-                         {product.description}
-                       </div>
+                      <div style={{ fontWeight: "bold", fontSize: "15px", color: "#111", lineHeight: "1.2", marginBottom: "4px" }}>
+                        {product.name}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#888", lineHeight: "1.4", flex: 1 }}>
+                        {product.description}
+                      </div>
                     </div>
 
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "5px" }}>
-                       <span style={{ fontWeight: "900", color: (isAvailable && isStoreOpen) ? "#2e7d32" : "#999", fontSize: "16px" }}>
-                         {product.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
-                       </span>
-                       
-                       <button 
-                         style={{ 
-                           background: (isAvailable && isStoreOpen) ? "#111" : "#eee", 
-                           color: (isAvailable && isStoreOpen) ? "#fff" : "#999", 
-                           width: "32px", height: "32px", 
-                           borderRadius: "50%", border: "none", fontSize: "20px", fontWeight: "bold",
-                           display: "flex", alignItems: "center", justifyContent: "center"
-                         }}
-                       >
-                         {(isAvailable && isStoreOpen) ? "+" : "🚫"}
-                       </button>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        {/* PREÇO ORIGINAL RISCADO */}
+                        {hasOldPrice && (
+                          <span style={{ fontSize: "11px", color: "#999", textDecoration: "line-through", lineHeight: "1.2" }}>
+                            {product.oldPrice!.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </span>
+                        )}
+                        <span style={{ fontWeight: "900", color: (isAvailable && isStoreOpen) ? "#2e7d32" : "#999", fontSize: "16px" }}>
+                          {product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                      </div>
+
+                      <button 
+                        style={{ 
+                          background: (isAvailable && isStoreOpen) ? "#111" : "#eee", 
+                          color: (isAvailable && isStoreOpen) ? "#fff" : "#999", 
+                          width: "32px", height: "32px", 
+                          borderRadius: "50%", border: "none", fontSize: "20px", fontWeight: "bold",
+                          display: "flex", alignItems: "center", justifyContent: "center"
+                        }}
+                      >
+                        {(isAvailable && isStoreOpen) ? "+" : "🚫"}
+                      </button>
                     </div>
 
                   </div>
