@@ -6,22 +6,60 @@ export type Product = {
   name: string;
   description: string;
   price: number;
+  oldPrice?: number; // <--- PREÇO ORIGINAL PARA EXIBIR DESCONTO
   image: string;
   category: "promocoes" | "combos" | "tradicionais" | "artesanais" | "hotdogs" | "bebidas";
-  disponivel: boolean; // <--- CAMPO NOVO DE CONTROLE
-  isSuggestion?: boolean; // <--- CAMPO OPCIONAL PARA DESTAQUE DE SUGESTÕES
+  disponivel: boolean;
+  isSuggestion?: boolean;
 };
 
 export const products: Product[] = [
   // =========================================
   // 🔥 PROMOÇÕES
   // =========================================
+
+  // --- NOVAS PROMOÇÕES (EM DESTAQUE) ---
+  {
+    id: "promo-casal-campeao",
+    name: "Combo Casal Campeão",
+    description: "Amor, futebol e um lanche incrível! 2 Burgers Cadim + 1 Fanta 1L geladinha.",
+    price: 39.99,
+    oldPrice: 49.99,
+    image: "/img/promo-casal-campeao.jpg",
+    category: "promocoes",
+    disponivel: true,
+    isSuggestion: true
+  },
+  {
+    id: "promo-paixao-em-dobro",
+    name: "Combo Paixão em Dobro",
+    description: "Pra torcer junto, namorar junto e matar a fome junto! 2 Burgers Armaria + 1 Fanta 1L.",
+    price: 41.99,
+    oldPrice: 51.00,
+    image: "/img/promo-paixao-em-dobro.jpg",
+    category: "promocoes",
+    disponivel: true,
+    isSuggestion: true
+  },
+  {
+    id: "promo-torcida-do-amor",
+    name: "Combo Torcida do Amor",
+    description: "O jogo fica melhor quando a torcida está completa! 2 Uai + 2 Bão + 1 Kuat 2L.",
+    price: 49.99,
+    oldPrice: 61.00,
+    image: "/img/promo-torcida-do-amor.jpg",
+    category: "promocoes",
+    disponivel: true,
+    isSuggestion: true
+  },
+
+  // --- PROMOÇÕES EXISTENTES ---
   {
     id: "promo-1",
     name: "2 UAI + 1 COCA 600ml",
     description: "Especial 4 Anos! 2 Burgers 'Uai' completinhos + Coca 600ml geladinha.",
     price: 29.99,
-    image: "/img/promo10.png", 
+    image: "/img/promo10.png",
     category: "promocoes",
     disponivel: false
   },
@@ -52,7 +90,7 @@ export const products: Product[] = [
     price: 54.00,
     image: "/img/promo6.jpg",
     category: "promocoes",
-    disponivel: true
+    disponivel: false
   },
   {
     id: "promo-5",
@@ -61,7 +99,7 @@ export const products: Product[] = [
     price: 49.99,
     image: "/img/promo5.jpg",
     category: "promocoes",
-    disponivel: true
+    disponivel: false
   },
   {
     id: "promo-6",
@@ -88,7 +126,7 @@ export const products: Product[] = [
     price: 39.99,
     image: "/img/promo3.jpg",
     category: "promocoes",
-    disponivel: true
+    disponivel: false
   },
   {
     id: "promo-9",
