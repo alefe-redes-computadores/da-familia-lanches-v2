@@ -74,7 +74,7 @@ export default function Home() {
   };
 
   const handleCopiarCupom = () => {
-    navigator.clipboard.writeText("FRETEOFF");
+    navigator.clipboard.writeText("BEMVINDO10");
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   };
@@ -233,10 +233,10 @@ export default function Home() {
             </h2>
 
             <p style={{ fontSize: "14px", color: "#ccc", margin: "0 0 20px 0", lineHeight: "1.4" }}>
-              {slotStatus === "inicio" && `Gire a roleta para tentar ganhar um cupom de Frete Grátis! (Tentativas: ${tentativas})`}
+              {slotStatus === "inicio" && `Gire a roleta para tentar ganhar 10% de Desconto no seu pedido! (Tentativas: ${tentativas})`}
               {slotStatus === "girando" && "Cruzando os dedos..."}
               {slotStatus === "quase" && `Bateu na trave! Você tem mais ${tentativas} giro da sorte. Vai!`}
-              {slotStatus === "ganhou" && "Você tirou a sorte grande! Aplique o cupom no carrinho e aproveite."}
+              {slotStatus === "ganhou" && "Você tirou a sorte grande! Aplique o cupom no carrinho para garantir 10% de desconto."}
             </p>
 
             {/* AS ROLETA DOS EMOJIS */}
@@ -271,7 +271,7 @@ export default function Home() {
             ) : (
               <div style={{ background: "#222", padding: "15px", borderRadius: "16px", border: "1px dashed #ffca28" }}>
                 <span style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold" }}>CÓDIGO DO CUPOM:</span>
-                <div style={{ fontSize: "24px", fontWeight: "900", color: "#ffca28", margin: "5px 0", letterSpacing: "1px" }}>FRETEOFF</div>
+                <div style={{ fontSize: "24px", fontWeight: "900", color: "#ffca28", margin: "5px 0", letterSpacing: "1px" }}>BEMVINDO10</div>
                 <button 
                   onClick={handleCopiarCupom}
                   style={{
