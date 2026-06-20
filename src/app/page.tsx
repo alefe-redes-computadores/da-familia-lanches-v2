@@ -12,6 +12,13 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isStoreOpen, setIsStoreOpen] = useState(true);
 
+  // 🎰 ESTADOS DA GAMIFICAÇÃO (CAÇA-NÍQUEL)
+  const [showSlotModal, setShowSlotModal] = useState(false);
+  const [tentativas, setTentativas] = useState(2);
+  const [slotStatus, setSlotStatus] = useState<"inicio" | "girando" | "quase" | "ganhou">("inicio");
+  const [slots, setSlots] = useState(['🎰', '🎰', '🎰']);
+  const [copiado, setCopiado] = useState(false);
+
   // Monitora se a loja está aberta ou fechada em tempo real pelo Firebase
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "settings", "loja"), (snap) => {
@@ -21,6 +28,56 @@ export default function Home() {
     });
     return () => unsub();
   }, []);
+
+  // 🎰 EFEITO DA GAMIFICAÇÃO: Aparece após 2.5s se a pessoa ainda não tiver jogado
+  useEffect(() => {
+    const hasPlayed = localStorage.getItem("dfl_slot_jogado");
+    if (!hasPlayed) {
+      const timer = setTimeout(() => setShowSlotModal(true), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // 🎰 LÓGICA DO GIRO DA ROLETA
+  const handleSpinSlot = () => {
+    if (slotStatus === "girando" || slotStatus === "ganhou") return;
+    
+    setSlotStatus("girando");
+    let counter = 0;
+    
+    // Animação de giro rápido (100ms)
+    const interval = setInterval(() => {
+      const emojis = ['🍔', '🍟', '🥤', '🍕', '🌭', '🍩'];
+      const randomEmoji = () => emojis[Math.floor(Math.random() * emojis.length)];
+      setSlots([randomEmoji(), randomEmoji(), randomEmoji()]);
+      
+      counter++;
+      
+      // Para o giro após ~1.2 segundos
+      if (counter > 12) {
+        clearInterval(interval);
+        
+        if (tentativas === 2) {
+          // Resultado forçado: Quase ganhou
+          setSlots(['🍔', '🍔', '🍟']);
+          setSlotStatus("quase");
+          setTentativas(1);
+        } else {
+          // Resultado forçado: Ganhou o prêmio
+          setSlots(['🎁', '🎁', '🎁']);
+          setSlotStatus("ganhou");
+          setTentativas(0);
+          localStorage.setItem("dfl_slot_jogado", "true");
+        }
+      }
+    }, 100);
+  };
+
+  const handleCopiarCupom = () => {
+    navigator.clipboard.writeText("FRETEOFF");
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  };
 
   // Busca simples de produtos pela categoria e termo de pesquisa
   const getProductsByCategory = (cat: string) => {
@@ -150,6 +207,94 @@ export default function Home() {
 
   return (
     <div style={{ paddingBottom: "100px", background: "#f8f9fa", minHeight: "100vh" }}>
+
+      {/* 🎰 MODAL GAMIFICAÇÃO - CAÇA NÍQUEL */}
+      {showSlotModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+          backgroundColor: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex",
+          alignItems: "center", justifyContent: "center", padding: "20px", fontFamily: "sans-serif"
+        }}>
+          <div style={{
+            background: "#111", border: "2px solid #ffca28", borderRadius: "24px",
+            padding: "25px", maxWidth: "340px", width: "100%", textAlign: "center", color: "#fff",
+            boxShadow: "0 10px 40px rgba(255, 202, 40, 0.2)", position: "relative"
+          }}>
+            
+            <button 
+              onClick={() => setShowSlotModal(false)}
+              style={{ position: "absolute", top: "15px", right: "15px", background: "none", border: "none", color: "#aaa", fontSize: "18px", cursor: "pointer" }}
+            >
+              ✕
+            </button>
+
+            <h2 style={{ fontSize: "20px", fontWeight: "900", color: "#ffca28", margin: "0 0 10px 0" }}>
+              {slotStatus === "ganhou" ? "JACKPOT! 🎉" : "🎰 SORTEIO DA FAMÍLIA"}
+            </h2>
+
+            <p style={{ fontSize: "14px", color: "#ccc", margin: "0 0 20px 0", lineHeight: "1.4" }}>
+              {slotStatus === "inicio" && `Gire a roleta para tentar ganhar um cupom de Frete Grátis! (Tentativas: ${tentativas})`}
+              {slotStatus === "girando" && "Cruzando os dedos..."}
+              {slotStatus === "quase" && `Bateu na trave! Você tem mais ${tentativas} giro da sorte. Vai!`}
+              {slotStatus === "ganhou" && "Você tirou a sorte grande! Aplique o cupom no carrinho e aproveite."}
+            </p>
+
+            {/* AS ROLETA DOS EMOJIS */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '25px' }}>
+              {slots.map((emoji, idx) => (
+                <div key={idx} style={{
+                  fontSize: '40px', background: '#222', border: '2px solid #ffca28',
+                  borderRadius: '12px', padding: '15px 10px', minWidth: '75px',
+                  boxShadow: 'inset 0 0 15px rgba(0,0,0,0.8)',
+                  display: 'flex', justifyContent: 'center', alignItems: 'center'
+                }}>
+                  {emoji}
+                </div>
+              ))}
+            </div>
+
+            {/* BOTÃO DE AÇÃO */}
+            {slotStatus !== "ganhou" ? (
+              <button 
+                onClick={handleSpinSlot}
+                disabled={slotStatus === "girando"}
+                style={{
+                  background: slotStatus === "girando" ? "#555" : "linear-gradient(135deg, #ffca28 0%, #ff6f00 100%)", 
+                  color: "#fff", border: "none", padding: "15px", borderRadius: "30px", fontWeight: "900",
+                  fontSize: "16px", cursor: slotStatus === "girando" ? "not-allowed" : "pointer", 
+                  width: "100%", boxShadow: slotStatus === "girando" ? "none" : "0 5px 15px rgba(255, 111, 0, 0.4)",
+                  transition: "transform 0.1s"
+                }}
+              >
+                {slotStatus === "girando" ? "GIRANDO..." : "🎯 GIRAR ROLETA"}
+              </button>
+            ) : (
+              <div style={{ background: "#222", padding: "15px", borderRadius: "16px", border: "1px dashed #ffca28" }}>
+                <span style={{ fontSize: "12px", color: "#aaa", fontWeight: "bold" }}>CÓDIGO DO CUPOM:</span>
+                <div style={{ fontSize: "24px", fontWeight: "900", color: "#ffca28", margin: "5px 0", letterSpacing: "1px" }}>FRETEOFF</div>
+                <button 
+                  onClick={handleCopiarCupom}
+                  style={{
+                    background: copiado ? "#4caf50" : "#ffca28", color: copiado ? "#fff" : "#111",
+                    border: "none", padding: "10px 15px", borderRadius: "8px", fontWeight: "bold",
+                    fontSize: "14px", cursor: "pointer", marginTop: "10px", width: "100%"
+                  }}
+                >
+                  {copiado ? "📋 COPIADO!" : "📋 COPIAR CÓDIGO"}
+                </button>
+              </div>
+            )}
+
+            <button 
+              onClick={() => setShowSlotModal(false)}
+              style={{ background: "none", border: "none", color: "#888", fontWeight: "bold", fontSize: "12px", cursor: "pointer", textDecoration: "underline", marginTop: "20px" }}
+            >
+              {slotStatus === "ganhou" ? "Ir para o Cardápio 🍔" : "Não quero brinde hoje"}
+            </button>
+
+          </div>
+        </div>
+      )}
 
       {/* AVISO DE LOJA FECHADA */}
       {!isStoreOpen && (
