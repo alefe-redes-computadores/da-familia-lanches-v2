@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { arrayUnion, doc, onSnapshot, Timestamp, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth.store";
 import { useAdminOrders } from "@/hooks/useAdminOrders";
@@ -9,14 +9,19 @@ import { OrderCard } from "@/components/layout/OrderCard";
 import { RelatoriosAdmin } from "@/components/layout/RelatoriosAdmin";
 import { CatalogAdmin } from "@/components/admin/CatalogAdmin";
 import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";
+import { RewardsAdmin } from "@/components/admin/RewardsAdmin";
+import { CouponsAdmin } from "@/components/admin/CouponsAdmin";
+import { prepareRewardForFinalizedOrder } from "@/lib/rewards";
+import { updateOrderStatus } from "@/lib/orderRepository";
 import { evaluateStoreStatus, normalizeStoreSettings } from "@/lib/storeSchedule";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
 import styles from "./admin.module.css";
 
-const ADMINS = ["alefejohsefe@gmail.com", "kalebhstanley650@gmail.com", "contato@dafamilialanches.com.br", "carols2maite@gmail.com", "degustbolosnopote@gmail.com"];
+const ADMINS = ["alefejohsefe@gmail.com", "kalebhstanley650@gmail.com", "contato@dafamilialanches.com.br", "carols2maite@gmail.com", "degustbolosnopote@gmail.com",
+  "viniciusrdefreitas@gmail.com"];
 
-type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "gestao";
+type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "cupons" | "fidelidade" | "gestao";
 
 const normalizeSearch = (value: unknown) =>
   String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -38,19 +43,20 @@ export default function AdminPage() {
     });
   }, [authorized]);
 
-  const persistStatus = async (id: string, status: string) => {
-    const now = Timestamp.now();
-    await updateDoc(doc(db, "Pedidos", id), {
-      status,
-      statusUpdatedAt: now,
-      statusHistory: arrayUnion({ status, at: now }),
-    });
-  };
-
-  const updateStatus = async (id: string, status: string) => {
+  const updateStatus = async (id: string, status: string, pedido?: Record<string, unknown>) => {
     try {
-      await persistStatus(id, status);
-      setFeedback("");
+      const rewardPlan = status === "Finalizado" && pedido
+        ? await prepareRewardForFinalizedOrder(pedido)
+        : null;
+      const result = await updateOrderStatus({
+        orderId: id,
+        nextStatus: status,
+        pickup: pedido?.tipoEntrega === "pickup",
+        rewardPlan,
+      });
+      setFeedback(result.rewardAwarded
+        ? "Pedido concluído e benefício de fidelidade liberado na mesma operação."
+        : "");
     } catch (error) {
       console.error(error);
       setFeedback("Nao foi possivel atualizar o pedido. Tente novamente.");
@@ -101,6 +107,8 @@ export default function AdminPage() {
     ["cancelados", "Cancelados", counts.cancelados],
     ["catalogo", "Cardápio", null],
     ["operacao", "Funcionamento", null],
+    ["cupons", "Cupons", null],
+    ["fidelidade", "Fidelidade", null],
     ["gestao", "Relatórios", null],
   ];
 
@@ -150,6 +158,22 @@ export default function AdminPage() {
         <section className={styles.management}>
           <div className={styles.sectionHeading}><div><span>OPERAÇÃO</span><h2>Funcionamento da loja</h2></div><p>Agenda automática, controle manual e exceções.</p></div>
           <StoreOperationAdmin />
+        </section>
+      ) : tab === "cupons" ? (
+        <section className={styles.management}>
+          <div className={styles.sectionHeading}>
+            <div><span>PROMOÇÕES</span><h2>Cupons de desconto</h2></div>
+            <p>Crie, agende, pause e edite cupons sem mexer diretamente no banco.</p>
+          </div>
+          <CouponsAdmin />
+        </section>
+      ) : tab === "fidelidade" ? (
+        <section className={styles.management}>
+          <div className={styles.sectionHeading}>
+            <div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div>
+            <p>Configure benefícios reais. Apenas pedidos finalizados contam.</p>
+          </div>
+          <RewardsAdmin />
         </section>
       ) : tab === "gestao" ? (
         <section className={styles.management}>

@@ -1,7 +1,7 @@
 // ARQUIVO DE DADOS DOS PRODUTOS 📝
 // DICA: Para pausar um produto (Esgotado), mude disponivel para: false
 
-export type ProductCategory = "promocoes" | "combos" | "tradicionais" | "artesanais" | "hotdogs" | "bebidas";
+export type ProductCategory = string;
 
 export type Product = {
   id: string;

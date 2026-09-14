@@ -7,14 +7,7 @@ export const CATALOG_ADDONS_COLLECTION = "CatalogoAdicionais";
 
 export type CatalogSource = "fallback" | "hybrid";
 
-const categories = new Set<ProductCategory>([
-  "promocoes",
-  "combos",
-  "tradicionais",
-  "artesanais",
-  "hotdogs",
-  "bebidas",
-]);
+
 
 function finiteMoney(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
@@ -50,7 +43,7 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
   const category = text(raw.category ?? raw.categoria) as ProductCategory;
   const price = finiteMoney(raw.price ?? raw.preco);
 
-  if (!id || !name || !description || !image || !categories.has(category) || price === null) {
+  if (!id || !name || !description || !image || !category || price === null) {
     console.warn("[catalog] Produto remoto ignorado por dados invalidos:", snapshot.id);
     return null;
   }

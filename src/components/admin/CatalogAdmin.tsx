@@ -1,23 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
+import { deleteDoc, deleteField, doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { products as fallbackProducts, type Product, type ProductCategory } from "@/data/products";
 import { ADDONS as fallbackAddons, type Addon } from "@/data/addons";
 import { useCatalog } from "@/hooks/useCatalog";
+import { useCatalogCategories } from "@/hooks/useCatalogCategories";
 import { CATALOG_ADDONS_COLLECTION, CATALOG_PRODUCTS_COLLECTION } from "@/lib/catalog";
+import { CATALOG_CATEGORIES_COLLECTION, FALLBACK_CATEGORIES, type CatalogCategory } from "@/lib/catalogCategories";
 import styles from "./CatalogAdmin.module.css";
 
-const CATEGORIES: Array<{ value: ProductCategory; label: string }> = [
-  { value: "promocoes", label: "Promoções" },
-  { value: "combos", label: "Combos" },
-  { value: "tradicionais", label: "Tradicionais" },
-  { value: "artesanais", label: "Artesanais" },
-  { value: "hotdogs", label: "Hot dogs" },
-  { value: "bebidas", label: "Bebidas" },
-];
 
 type ProductDraft = {
   id: string;
@@ -110,6 +104,7 @@ const draftFromAddon = (addon: Addon): AddonDraft => ({
 
 export function CatalogAdmin() {
   const { products, addons, allAddons, source, remoteProducts, remoteAddons, loading } = useCatalog();
+  const { categories, remoteCategories, loading: categoriesLoading } = useCatalogCategories();
   const [productDraft, setProductDraft] = useState<ProductDraft | null>(null);
   const [productMode, setProductMode] = useState<"create" | "edit" | null>(null);
   const [addonDraft, setAddonDraft] = useState<AddonDraft | null>(null);
@@ -121,6 +116,8 @@ export function CatalogAdmin() {
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "active" | "paused">("all");
   const [confirmSeed, setConfirmSeed] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [categoryDraft, setCategoryDraft] = useState<{ id: string; label: string; mode: "create" | "edit" } | null>(null);
+  const [categoryDeleteConfirm, setCategoryDeleteConfirm] = useState<string | null>(null);
 
   const filteredProducts = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
@@ -137,9 +134,13 @@ export function CatalogAdmin() {
   const pausedProducts = products.length - activeProducts;
   const activeAddons = allAddons.filter((addon) => addon.disponivel !== false).length;
 
+  const categoryOptions = categories.map((category) => ({ value: category.id, label: `${category.label}${category.active ? "" : " (oculta)"}` }));
+  const categoryLabel = (id: string) => categories.find((category) => category.id === id)?.label ?? id;
+  const productsInCategory = (id: string) => products.filter((product) => product.category === id);
+
   const openCreateProduct = () => {
     setProductMode("create");
-    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: "tradicionais", disponivel: true, isSuggestion: false, sortOrder: "", addonIds: undefined });
+    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, sortOrder: "", addonIds: undefined });
     setMessage("");
   };
 
@@ -187,17 +188,17 @@ export function CatalogAdmin() {
         name: productDraft.name.trim(),
         description: productDraft.description.trim(),
         price,
-        oldPrice,
+        oldPrice: oldPrice ?? deleteField(),
         image: productDraft.image.trim(),
         category: productDraft.category,
         disponivel: productDraft.disponivel,
         isSuggestion: productDraft.isSuggestion,
-        sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : null,
+        sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : deleteField(),
         updatedAt: serverTimestamp(),
       };
 
       if (productDraft.category === "bebidas") payload.addonIds = [];
-      else payload.addonIds = productDraft.addonIds ?? null;
+      else payload.addonIds = productDraft.addonIds ?? deleteField();
 
       await setDoc(doc(db, CATALOG_PRODUCTS_COLLECTION, id), payload, { merge: true });
       setProductDraft(null);
@@ -216,9 +217,9 @@ export function CatalogAdmin() {
     try {
       await setDoc(doc(db, CATALOG_PRODUCTS_COLLECTION, product.id), {
         id: product.id, name: product.name, description: product.description, price: product.price,
-        oldPrice: product.oldPrice ?? null, image: product.image, category: product.category,
+        oldPrice: product.oldPrice ?? deleteField(), image: product.image, category: product.category,
         disponivel: !product.disponivel, isSuggestion: Boolean(product.isSuggestion),
-        sortOrder: product.sortOrder ?? null, addonIds: product.addonIds ?? null, updatedAt: serverTimestamp(),
+        sortOrder: product.sortOrder ?? deleteField(), addonIds: product.addonIds ?? deleteField(), updatedAt: serverTimestamp(),
       }, { merge: true });
       setMessage(product.disponivel ? "Produto pausado." : "Produto reativado.");
     } catch (error) {
@@ -239,6 +240,7 @@ export function CatalogAdmin() {
     setMessage("");
     try {
       const batch = writeBatch(db);
+      FALLBACK_CATEGORIES.forEach((category) => batch.set(doc(db, CATALOG_CATEGORIES_COLLECTION, category.id), { ...category, migratedFromFallback: true, updatedAt: serverTimestamp() }, { merge: true }));
       fallbackProducts.forEach((product, index) => {
         batch.set(doc(db, CATALOG_PRODUCTS_COLLECTION, product.id), {
           ...product,
@@ -270,6 +272,47 @@ export function CatalogAdmin() {
     }
   };
 
+  const saveCategory = async () => {
+    if (!categoryDraft) return;
+    const label = categoryDraft.label.trim();
+    if (!label) return setMessage("Informe o nome da categoria.");
+    const id = categoryDraft.mode === "edit" ? categoryDraft.id : slugify(label);
+    if (!id) return setMessage("Nome de categoria inválido.");
+    if (categoryDraft.mode === "create" && categories.some((category) => category.id === id)) return setMessage("Já existe uma categoria com esse nome.");
+    setBusy(`category-${id}`);
+    try {
+      const existing = categories.find((category) => category.id === id);
+      await setDoc(doc(db, CATALOG_CATEGORIES_COLLECTION, id), { id, label, active: existing?.active ?? true, sortOrder: existing?.sortOrder ?? (categories.length ? Math.max(...categories.map((category) => category.sortOrder)) + 10 : 0), updatedAt: serverTimestamp() }, { merge: true });
+      setCategoryDraft(null); setMessage(categoryDraft.mode === "create" ? "Categoria criada." : "Categoria atualizada.");
+    } catch (error) { console.error(error); setMessage("Não foi possível salvar a categoria."); }
+    finally { setBusy(""); }
+  };
+
+  const toggleCategory = async (category: CatalogCategory) => {
+    setBusy(`category-toggle-${category.id}`);
+    try { await setDoc(doc(db, CATALOG_CATEGORIES_COLLECTION, category.id), { ...category, active: !category.active, updatedAt: serverTimestamp() }, { merge: true }); if (categoryFilter === category.id && category.active) setCategoryFilter("all"); setMessage(category.active ? "Categoria ocultada da vitrine." : "Categoria reativada."); }
+    catch (error) { console.error(error); setMessage("Não foi possível alterar a categoria."); }
+    finally { setBusy(""); }
+  };
+
+  const moveCategory = async (category: CatalogCategory, direction: -1 | 1) => {
+    const ordered=[...categories].sort((a,b)=>a.sortOrder-b.sortOrder||a.label.localeCompare(b.label,"pt-BR")); const index=ordered.findIndex((item)=>item.id===category.id); const target=index+direction; if(index<0||target<0||target>=ordered.length)return;
+    [ordered[index],ordered[target]]=[ordered[target],ordered[index]]; setBusy(`category-order-${category.id}`);
+    try { const batch=writeBatch(db); ordered.forEach((item,pos)=>batch.set(doc(db,CATALOG_CATEGORIES_COLLECTION,item.id),{id:item.id,label:item.label,active:item.active,sortOrder:pos*10,updatedAt:serverTimestamp()},{merge:true})); await batch.commit(); setMessage("Ordem das categorias atualizada."); }
+    catch(error){console.error(error);setMessage("Não foi possível reordenar as categorias.");} finally{setBusy("");}
+  };
+
+  const removeCategory = async (category: CatalogCategory) => {
+    const count=productsInCategory(category.id).length; if(count>0){setCategoryDeleteConfirm(null);return setMessage(`Não dá para excluir "${category.label}": existem ${count} produto(s) nela. Mova os produtos primeiro.`);} if(categoryDeleteConfirm!==category.id){setCategoryDeleteConfirm(category.id);return setMessage(`Toque novamente em excluir para confirmar "${category.label}".`);}
+    setBusy(`category-delete-${category.id}`); try{await deleteDoc(doc(db,CATALOG_CATEGORIES_COLLECTION,category.id));setCategoryDeleteConfirm(null);setMessage("Categoria vazia excluída.");}catch(error){console.error(error);setMessage("Não foi possível excluir a categoria.");}finally{setBusy("");}
+  };
+
+  const moveProduct = async (product: Product, direction: -1 | 1) => {
+    const ordered=products.filter((item)=>item.category===product.category).sort((a,b)=>(a.sortOrder??Number.MAX_SAFE_INTEGER)-(b.sortOrder??Number.MAX_SAFE_INTEGER)||a.name.localeCompare(b.name,"pt-BR")); const index=ordered.findIndex((item)=>item.id===product.id); const target=index+direction; if(index<0||target<0||target>=ordered.length)return;
+    [ordered[index],ordered[target]]=[ordered[target],ordered[index]]; setBusy(`product-order-${product.id}`);
+    try{const batch=writeBatch(db);ordered.forEach((item,pos)=>batch.set(doc(db,CATALOG_PRODUCTS_COLLECTION,item.id),{sortOrder:pos*10,updatedAt:serverTimestamp()},{merge:true}));await batch.commit();setMessage(`Ordem de ${categoryLabel(product.category)} atualizada.`);}catch(error){console.error(error);setMessage("Não foi possível reordenar os produtos.");}finally{setBusy("");}
+  };
+
   const openCreateAddon = () => {
     setAddonMode("create");
     setAddonDraft({ id: "", name: "", price: "", disponivel: true, sortOrder: "" });
@@ -299,7 +342,7 @@ export function CatalogAdmin() {
         name: addonDraft.name.trim(),
         price,
         disponivel: addonDraft.disponivel,
-        sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : null,
+        sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : deleteField(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
       setAddonDraft(null);
@@ -333,17 +376,17 @@ export function CatalogAdmin() {
     }
   };
 
-  if (loading) return <div className={styles.state}>Carregando catálogo...</div>;
+  if (loading || categoriesLoading) return <div className={styles.state}>Carregando catálogo...</div>;
 
   return <div className={styles.root}>
     <section className={styles.summary}>
       <div className={styles.summaryCopy}>
         <span>FONTE ATUAL</span>
         <strong>{source === "hybrid" ? "Catálogo remoto operacional" : "Fallback local ativo"}</strong>
-        <p>{remoteProducts} produtos e {remoteAddons} adicionais com versão remota.</p>
+        <p>{remoteProducts} produtos, {remoteAddons} adicionais e {remoteCategories} categorias com versão remota.</p>
       </div>
       <div className={styles.summaryActions}>
-        <button className={styles.secondaryAction} onClick={openCreateAddon}>+ Adicional</button>
+        <button className={styles.secondaryAction} onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Categoria</button><button className={styles.secondaryAction} onClick={openCreateAddon}>+ Adicional</button>
         <button className={styles.mainAction} onClick={openCreateProduct}>+ Novo produto</button>
       </div>
     </section>
@@ -361,7 +404,7 @@ export function CatalogAdmin() {
       <div className={styles.searchWrap}><span>BUSCAR</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, descrição ou ID" /></div>
       <ChoicePicker label="Categoria" value={categoryFilter} onChange={setCategoryFilter} options={[
         { value: "all", label: "Todas as categorias" },
-        ...CATEGORIES,
+        ...categoryOptions,
       ]} />
       <ChoicePicker label="Estado" value={availabilityFilter} onChange={setAvailabilityFilter} options={[
         { value: "all", label: "Todos os estados" },
@@ -380,19 +423,25 @@ export function CatalogAdmin() {
         <img src={product.image} alt="" />
         <div className={styles.productInfo}>
           <div className={styles.productTitle}>
-            <div><strong>{product.name}</strong><span>{CATEGORIES.find((category) => category.value === product.category)?.label} · {product.id}</span></div>
+            <div><strong>{product.name}</strong><span>{categoryLabel(product.category)} · {product.id}</span></div>
             {product.isSuggestion && <b>Sugestão</b>}
           </div>
           <p>{product.description}</p>
           <div className={styles.productBottom}><strong>{money(product.price)}</strong><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
         </div>
         <div className={styles.actions}>
+          <div className={styles.orderActions}><button title="Subir produto" onClick={() => moveProduct(product, -1)} disabled={busy.startsWith("product-order-")}>↑</button><button title="Descer produto" onClick={() => moveProduct(product, 1)} disabled={busy.startsWith("product-order-")}>↓</button></div>
           <button onClick={() => toggleProduct(product)} disabled={busy === `toggle-${product.id}`}>{product.disponivel ? "Pausar" : "Reativar"}</button>
           <button className={styles.primary} onClick={() => openEditProduct(product)}>Editar</button>
         </div>
       </article>)}
       {!filteredProducts.length && <div className={styles.empty}><strong>Nenhum produto encontrado</strong><span>Altere os filtros ou crie um novo produto.</span></div>}
     </div>
+
+    <section className={styles.categoryPanel}>
+      <div className={styles.sectionBar}><div><span>CATEGORIAS</span><strong>{categories.length} cadastradas</strong></div><button onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Nova categoria</button></div>
+      <div className={styles.categoryGrid}>{categories.map((category,index)=>{const count=productsInCategory(category.id).length;return <article key={category.id} className={styles.categoryCard} data-off={!category.active}><div className={styles.categoryMain}><div><strong>{category.label}</strong><span>{category.id} · {count} produto{count===1?"":"s"}</span></div><b>{category.active?"VISÍVEL":"OCULTA"}</b></div><div className={styles.categoryActions}><button disabled={index===0||busy.startsWith("category-order-")} onClick={()=>moveCategory(category,-1)}>↑</button><button disabled={index===categories.length-1||busy.startsWith("category-order-")} onClick={()=>moveCategory(category,1)}>↓</button><button onClick={()=>setCategoryDraft({id:category.id,label:category.label,mode:"edit"})}>Renomear</button><button onClick={()=>toggleCategory(category)} disabled={busy===`category-toggle-${category.id}`}>{category.active?"Ocultar":"Reativar"}</button><button className={styles.dangerAction} data-confirm={categoryDeleteConfirm===category.id} onClick={()=>removeCategory(category)} disabled={busy===`category-delete-${category.id}`}>{categoryDeleteConfirm===category.id?"Confirmar":"Excluir"}</button></div></article>})}</div>
+    </section>
 
     <section className={styles.addonsPanel}>
       <div className={styles.sectionBar}><div><span>ADICIONAIS</span><strong>{allAddons.length} cadastrados</strong></div><button onClick={openCreateAddon}>+ Novo adicional</button></div>
@@ -405,10 +454,14 @@ export function CatalogAdmin() {
     </section>
 
     <section className={styles.maintenance}>
-      <div><span>MANUTENÇÃO</span><strong>Fallback local</strong><p>Reaplica os itens-base do código no Firestore sem remover produtos ou adicionais criados pelo Admin.</p></div>
+      <div><span>MANUTENÇÃO</span><strong>Fallback local</strong><p>Reaplica categorias, produtos e adicionais-base no Firestore sem remover itens criados pelo Admin.</p></div>
       <button data-confirm={confirmSeed} onClick={seedCatalog} disabled={busy === "seed"}>{busy === "seed" ? "Sincronizando..." : confirmSeed ? "Confirmar sincronização" : "Sincronizar catálogo-base"}</button>
       {confirmSeed && <button className={styles.cancelSeed} onClick={() => setConfirmSeed(false)}>Cancelar</button>}
     </section>
+
+    {categoryDraft && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setCategoryDraft(null); }}>
+      <section className={styles.smallEditor}><div className={styles.editorHead}><div><span>{categoryDraft.mode === "create" ? "NOVA CATEGORIA" : "EDITAR CATEGORIA"}</span><h3>{categoryDraft.mode === "create" ? "Criar seção do cardápio" : categoryDraft.label}</h3></div><button onClick={() => setCategoryDraft(null)}>×</button></div>{categoryDraft.mode === "edit" && <div className={styles.idBox}><span>ID permanente</span><strong>{categoryDraft.id}</strong></div>}<label>Nome<input autoFocus value={categoryDraft.label} onChange={(e) => setCategoryDraft({ ...categoryDraft, label: e.target.value })} placeholder="Ex.: Porções" /></label><p className={styles.categoryHint}>O ID é permanente: renomear não quebra os produtos vinculados.</p><div className={styles.editorActions}><button onClick={() => setCategoryDraft(null)}>Cancelar</button><button className={styles.save} onClick={saveCategory} disabled={busy.startsWith("category-")}>{busy.startsWith("category-") ? "Salvando..." : "Salvar categoria"}</button></div></section>
+    </div>}
 
     {productDraft && productMode && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) { setProductDraft(null); setProductMode(null); } }}>
       <section className={styles.editor}>
@@ -420,7 +473,7 @@ export function CatalogAdmin() {
           <label>Preço<input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: e.target.value })} placeholder="0,00" /></label>
           <label>Preço anterior<input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: e.target.value })} placeholder="Opcional" /></label>
           <div className={styles.photoUpload}><label className={styles.photoButton}>{uploadingImage ? "Enviando..." : "Escolher foto do celular"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingImage} onChange={(e)=>{const file=e.target.files?.[0];if(file)void uploadProductImage(file);e.currentTarget.value="";}} /></label><small>JPG, PNG ou WebP · até 6 MB. O campo de URL continua funcionando.</small></div>
-          <div className={styles.formChoice}><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={CATEGORIES} /></div>
+          <div className={styles.formChoice}><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={categoryOptions} /></div>
           <label>Ordem<input inputMode="numeric" value={productDraft.sortOrder} onChange={(e) => setProductDraft({ ...productDraft, sortOrder: e.target.value })} placeholder="Opcional" /></label>
           <label className={styles.full}>Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /></label>
         </div>

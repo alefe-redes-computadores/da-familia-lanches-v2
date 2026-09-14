@@ -1,13 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc } from "firebase/firestore";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { doc, getDoc, increment, serverTimestamp, setDoc } from "firebase/firestore";
 import { ModalBase } from "./ModalBase";
 import { useUIStore } from "@/store/ui";
 import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { formatCEPBR, formatPhoneBR, saveUserProfile } from "@/lib/userProfile";
 import { db } from "@/lib/firebase";
+import { createCustomerOrder } from "@/lib/orderRepository";
 import { getEffectiveShopStatus } from "@/lib/shopStatus";
+import { findCustomerRewardByCode, rewardDiscount, rewardIsExpired } from "@/lib/rewards";
+import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupons";
 import styles from "./CheckoutModal.module.css";
 
 type PaymentMethod = "pix" | "cartao" | "dinheiro";
@@ -29,16 +34,20 @@ export function CheckoutModal() {
   const { closeModal, openModal } = useUIStore();
   const { items, getCartTotal, clearCart } = useCartStore();
   const currentUser = useAuthStore((s) => s.currentUser);
+  const { profile, loading: profileLoading } = useUserProfile(currentUser);
+  const hydratedProfileRef = useRef<string>("");
 
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("delivery");
+  const [customerName, setCustomerName] = useState("");
   const [userPhone, setUserPhone] = useState("");
   const [cep, setCep] = useState("");
   const [rua, setRua] = useState("");
   const [bairro, setBairro] = useState("");
   const [numero, setNumero] = useState("");
   const [complemento, setComplemento] = useState("");
+  const [referencia, setReferencia] = useState("");
   const [manualMode, setManualMode] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState(DEFAULT_DELIVERY_FEE);
   const [deliveryStatus, setDeliveryStatus] = useState("");
@@ -47,6 +56,7 @@ export function CheckoutModal() {
   const [pixCopied, setPixCopied] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCouponCode, setAppliedCouponCode] = useState("");
+  const [appliedRewardId, setAppliedRewardId] = useState("");
   const [discount, setDiscount] = useState(0);
   const [couponMessage, setCouponMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -62,28 +72,42 @@ export function CheckoutModal() {
   const addressReady = isPickup || Boolean(rua.trim() && numero.trim() && bairro.trim());
   const phoneReady = phoneDigits.length === 10 || phoneDigits.length === 11;
 
-  const canAdvance = phoneReady && addressReady && items.length > 0;
+  const nameReady = customerName.trim().length >= 2;
+  const canAdvance = nameReady && phoneReady && addressReady && items.length > 0;
+
+  useEffect(() => {
+    if (!currentUser || profileLoading) return;
+    const hydrationKey = `${currentUser.uid}:${profile?.profileVersion ?? 0}:${profile?.phone ?? ""}:${profile?.address?.cep ?? ""}`;
+    if (hydratedProfileRef.current === hydrationKey) return;
+    hydratedProfileRef.current = hydrationKey;
+
+    setCustomerName(profile?.name || currentUser.displayName || "");
+    setUserPhone(profile?.phone || "");
+    setCep(profile?.address.cep || "");
+    setRua(profile?.address.street || "");
+    setNumero(profile?.address.number || "");
+    setBairro(profile?.address.district || "");
+    setComplemento(profile?.address.complement || "");
+    setReferencia(profile?.address.reference || "");
+
+    const hasSavedAddress = Boolean(profile?.address.street || profile?.address.district);
+    if (hasSavedAddress) {
+      setManualMode(true);
+      if (profile?.address.district) void calculateDeliveryFee(profile.address.district);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, profile, profileLoading]);
+
 
   const changeCouponCode = (value: string) => {
     const next = value.toUpperCase();
     setCouponCode(next);
     if (appliedCouponCode && next.trim() !== appliedCouponCode) {
       setAppliedCouponCode("");
+      setAppliedRewardId("");
       setDiscount(0);
       setCouponMessage("Cupom alterado. Valide novamente para aplicar o desconto.");
     }
-  };
-
-  const formatPhone = (value: string) => {
-    let digits = value.replace(/\D/g, "").slice(0, 11);
-    digits = digits.replace(/^(\d{2})(\d)/g, "($1) $2");
-    digits = digits.replace(/(\d)(\d{4})$/, "$1-$2");
-    return digits;
-  };
-
-  const formatCEP = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 8);
-    return digits.replace(/^(\d{5})(\d)/, "$1-$2");
   };
 
   const calculateDeliveryFee = async (district: string) => {
@@ -157,6 +181,7 @@ export function CheckoutModal() {
     const code = couponCode.trim().toUpperCase();
     setCouponMessage("");
     setAppliedCouponCode("");
+    setAppliedRewardId("");
     setDiscount(0);
 
     if (!code) {
@@ -166,28 +191,56 @@ export function CheckoutModal() {
 
     setLoading(true);
     try {
-      const snap = await getDoc(doc(db, "Cupons", code));
-      if (!snap.exists() || snap.data().ativo !== true) {
-        setCouponMessage("Cupom inválido, inativo ou expirado.");
-        return;
+      const publicCoupon = await getDoc(doc(db, "Cupons", code));
+
+      if (publicCoupon.exists()) {
+        const coupon = normalizeCoupon(publicCoupon.id, publicCoupon.data());
+        const availability = couponAvailability(coupon, subtotal);
+        if (availability.ok) {
+          const bounded = couponDiscount(coupon, subtotal);
+          setCouponCode(code);
+          setAppliedCouponCode(code);
+          setDiscount(bounded);
+          setCouponMessage(`${money(bounded)} de desconto aplicado.`);
+          return;
+        }
+        if (availability.reason === "min-order") return setCouponMessage(`Este cupom exige pedido mínimo de ${money(coupon.minOrder)}.`);
+        if (availability.reason === "not-started") return setCouponMessage("Este cupom ainda não começou.");
+        if (availability.reason === "expired") return setCouponMessage("Este cupom expirou.");
+        if (availability.reason === "inactive") return setCouponMessage("Este cupom está pausado.");
+        if (availability.reason === "invalid") return setCouponMessage("Este cupom está configurado de forma inválida.");
       }
 
-      const data = snap.data();
-      const rawValue = Number(data.valor ?? data.percent ?? 0);
-      if (!Number.isFinite(rawValue) || rawValue <= 0) {
-        setCouponMessage("Este cupom está configurado de forma inválida.");
-        return;
+      if (currentUser) {
+        const reward = await findCustomerRewardByCode(currentUser.uid, code);
+
+        if (reward) {
+          if (reward.used) {
+            setCouponMessage("Este benefício já foi utilizado.");
+            return;
+          }
+          if (rewardIsExpired(reward)) {
+            setCouponMessage("Este benefício expirou.");
+            return;
+          }
+          if (subtotal < reward.minOrder) {
+            setCouponMessage(`Este benefício exige pedido mínimo de ${money(reward.minOrder)}.`);
+            return;
+          }
+
+          const bounded = rewardDiscount(reward, subtotal);
+          if (bounded > 0) {
+            setCouponCode(code);
+            setAppliedCouponCode(code);
+            setAppliedRewardId(reward.id);
+            setDiscount(bounded);
+            setCouponMessage(`${money(bounded)} de benefício aplicado.`);
+            return;
+          }
+        }
       }
 
-      const calculated = data.tipo === "percent" || data.tipo === "porcentagem"
-        ? (subtotal * rawValue) / 100
-        : rawValue;
-      const bounded = Math.min(subtotal, Math.max(0, calculated));
-
-      setCouponCode(code);
-      setAppliedCouponCode(code);
-      setDiscount(bounded);
-      setCouponMessage(`${money(bounded)} de desconto aplicado.`);
+      setCouponMessage("Cupom ou benefício inválido, inativo ou expirado.");
     } catch (error) {
       console.error("Erro ao validar cupom", error);
       setCouponMessage("Não foi possível validar o cupom agora.");
@@ -213,6 +266,11 @@ export function CheckoutModal() {
       setErrorMessage("Seu carrinho está vazio.");
       return;
     }
+    if (!nameReady) {
+      setStep(1);
+      setErrorMessage("Informe seu nome para o pedido.");
+      return;
+    }
     if (!phoneReady) {
       setStep(1);
       setErrorMessage("Informe um WhatsApp válido com DDD.");
@@ -234,11 +292,11 @@ export function CheckoutModal() {
       const isClosed = !shopStatus.isOpen;
       const finalAddress = isPickup
         ? "RETIRADA NO LOCAL"
-        : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}`;
+        : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}${referencia.trim() ? ` · Ref.: ${referencia.trim()}` : ""}`;
 
       const orderData = {
         userId: currentUser.uid,
-        userName: currentUser.displayName,
+        userName: customerName.trim() || currentUser.displayName || "Cliente",
         userEmail: currentUser.email,
         userPhone: userPhone.trim(),
         itens: items,
@@ -246,6 +304,7 @@ export function CheckoutModal() {
         taxaEntrega: finalFee,
         desconto: safeDiscount,
         cupom: safeDiscount > 0 && appliedCouponCode ? appliedCouponCode : null,
+        rewardId: appliedRewardId || null,
         total,
         metodoPagamento: method,
         trocoPara: method === "dinheiro" ? (troco.trim() || null) : null,
@@ -254,17 +313,52 @@ export function CheckoutModal() {
         data: serverTimestamp(),
         status: isClosed ? "Agendado" : "Pendente",
         isAgendamento: isClosed,
+        sourceSystem: "dfl_site",
+        orderSchemaVersion: 2,
+        customerSnapshot: {
+          id: currentUser.uid,
+          name: customerName.trim() || currentUser.displayName || "Cliente",
+          email: currentUser.email || "",
+          phone: userPhone.trim(),
+          phoneE164: `+55${phoneDigits}`,
+        },
+        deliverySnapshot: isPickup ? null : {
+          cep: cep.trim(),
+          street: rua.trim(),
+          number: numero.trim(),
+          district: bairro.trim(),
+          complement: complemento.trim(),
+          reference: referencia.trim(),
+        },
       };
 
-      const orderRef = await addDoc(collection(db, "Pedidos"), orderData);
+      const created = await createCustomerOrder({
+        userId: currentUser.uid,
+        order: orderData,
+        subtotal,
+        discount: safeDiscount > 0 && appliedCouponCode ? {
+          code: appliedCouponCode,
+          rewardId: appliedRewardId || null,
+          expectedDiscount: safeDiscount,
+        } : null,
+      });
 
       try {
+        await saveUserProfile(currentUser, {
+          name: customerName,
+          phone: userPhone,
+          cep,
+          street: rua,
+          number: numero,
+          district: bairro,
+          complement: complemento,
+          reference: referencia,
+        });
         await setDoc(doc(db, "Usuarios", currentUser.uid), {
           pedidosFeitos: increment(1),
-          email: currentUser.email,
         }, { merge: true });
       } catch (profileError) {
-        console.error("Pedido salvo, mas falhou ao atualizar fidelidade", profileError);
+        console.error("Pedido salvo, mas falhou ao atualizar o perfil do cliente", profileError);
       }
 
       const itemsMessage = items.map((item) => {
@@ -281,7 +375,7 @@ export function CheckoutModal() {
 
       const message = [
         isClosed ? "🕒 *PEDIDO AGENDADO — Da Família*" : "🍔 *NOVO PEDIDO — Da Família*",
-        `Pedido: *#${orderRef.id.slice(-8).toUpperCase()}*`,
+        `Pedido: *#${created.id.slice(-8).toUpperCase()}*`,
         "",
         itemsMessage,
         "",
@@ -299,7 +393,7 @@ export function CheckoutModal() {
       const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
       clearCart();
       openModal("order-success", {
-        orderId: orderRef.id,
+        orderId: created.id,
         isScheduled: isClosed,
         deliveryMode,
         total,
@@ -307,7 +401,16 @@ export function CheckoutModal() {
       });
     } catch (error) {
       console.error("Erro ao salvar pedido", error);
-      setErrorMessage("Não conseguimos registrar o pedido. Seu carrinho foi preservado. Tente novamente antes de enviar pelo WhatsApp.");
+      const code = error instanceof Error ? error.message : "";
+      if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {
+        setAppliedCouponCode("");
+        setAppliedRewardId("");
+        setDiscount(0);
+        setCouponMessage("O cupom ou benefício mudou desde a validação. Aplique o código novamente.");
+        setErrorMessage("Revise o cupom ou benefício antes de confirmar. Seu carrinho foi preservado.");
+      } else {
+        setErrorMessage("Não conseguimos registrar o pedido. Seu carrinho foi preservado. Tente novamente antes de enviar pelo WhatsApp.");
+      }
     } finally {
       setLoading(false);
     }
@@ -328,25 +431,28 @@ export function CheckoutModal() {
               <button type="button" data-active={deliveryMode === "delivery"} onClick={() => setDeliveryMode("delivery")}><b>Entrega</b><small>Receber no endereço</small></button>
               <button type="button" data-active={deliveryMode === "pickup"} onClick={() => setDeliveryMode("pickup")}><b>Retirada</b><small>Buscar no balcão</small></button>
             </div>
-            <label className={styles.label}>WhatsApp com DDD<input className={styles.input} data-invalid={Boolean(userPhone && !phoneReady)} placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => setUserPhone(formatPhone(event.target.value))} inputMode="tel" autoComplete="tel" /></label>
+            <div className={styles.profileHint} data-loaded={Boolean(profile)}><div><strong>{profile ? "Dados carregados da sua conta" : "Seus dados de entrega"}</strong><span>{profile ? "Você pode alterar aqui. Salvamos a atualização depois do pedido." : "Preencha uma vez e os próximos pedidos ficam mais rápidos."}</span></div>{profileLoading && <b>Carregando…</b>}</div>
+            <label className={styles.label}>Nome para o pedido<input className={styles.input} data-invalid={Boolean(customerName && !nameReady)} placeholder="Seu nome" value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoComplete="name" /></label>
+            <label className={styles.label}>WhatsApp para contato e atualizações <span>(obrigatório)</span><input className={styles.input} data-invalid={Boolean(userPhone && !phoneReady)} placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => setUserPhone(formatPhoneBR(event.target.value))} inputMode="tel" autoComplete="tel" /></label>
             {deliveryMode === "delivery" ? <>
               <section className={styles.card}>
-                <div className={styles.cardTitle}><div><strong>Endereço de entrega</strong><span>Busque pelo CEP ou preencha manualmente.</span></div></div>
-                {!manualMode && <div className={styles.inline}><input className={styles.input} placeholder="CEP" value={cep} onChange={(event) => setCep(formatCEP(event.target.value))} onBlur={() => { if (cep.replace(/\D/g, "").length === 8) void handleSearchCep(); }} inputMode="numeric" autoComplete="postal-code"/><button className={styles.yellowButton} type="button" onClick={() => void handleSearchCep()} disabled={loading}>{loading ? "Buscando…" : "Buscar"}</button></div>}
+                <div className={styles.cardTitle}><div><strong>Endereço de entrega</strong><span>{profile?.address.street ? "Endereço recuperado da sua conta. Confira ou edite antes de continuar." : "Busque pelo CEP ou preencha manualmente."}</span></div></div>
+                {!manualMode && <div className={styles.inline}><input className={styles.input} placeholder="CEP" value={cep} onChange={(event) => setCep(formatCEPBR(event.target.value))} onBlur={() => { if (cep.replace(/\D/g, "").length === 8) void handleSearchCep(); }} inputMode="numeric" autoComplete="postal-code"/><button className={styles.yellowButton} type="button" onClick={() => void handleSearchCep()} disabled={loading}>{loading ? "Buscando…" : "Buscar"}</button></div>}
                 <input className={styles.input} placeholder="Rua" value={rua} onChange={(event) => setRua(event.target.value)} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
                 <div className={styles.addressGrid}><input className={styles.input} placeholder="Número" value={numero} onChange={(event) => setNumero(event.target.value)} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={(event) => setBairro(event.target.value)} onBlur={() => { if (manualMode && bairro.trim()) void calculateDeliveryFee(bairro); }} readOnly={!manualMode} data-readonly={!manualMode}/></div>
                 <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={(event) => setComplemento(event.target.value)} autoComplete="address-line2"/>
+                <input className={styles.input} placeholder="Referência (opcional) · Ex.: portão preto" value={referencia} onChange={(event) => setReferencia(event.target.value)} />
                 {deliveryStatus && <div className={styles.info}>{deliveryStatus}</div>}
                 <button className={styles.linkButton} type="button" onClick={() => setManualMode((value) => !value)}>{manualMode ? "Usar busca por CEP" : "Preencher endereço manualmente"}</button>
               </section>
               {hasFreeDelivery && <div className={styles.successHint}>Seu pedido já atingiu o valor de frete grátis.</div>}
             </> : <div className={styles.pickupCard}><strong>Retirada no balcão</strong><span>Sem taxa de entrega. O pedido ficará identificado pelo seu nome e referência.</span></div>}
-            <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance) setStep(2); else setErrorMessage(!phoneReady ? "Informe um WhatsApp válido com DDD." : "Complete o endereço para continuar."); }}>Continuar</button>
+            <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : "Complete o endereço para continuar."); }}>Continuar</button>
           </div>
         ) : (
           <div className={styles.stack}>
-            <section className={styles.receiveCard}><div><strong>{isPickup ? "Retirada no balcão" : "Entrega no endereço"}</strong><span>{isPickup ? "Sem taxa de entrega" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}`}</span><small>{userPhone}</small></div><button type="button" onClick={() => setStep(1)}>Editar</button></section>
-            <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom</strong><span>Use apenas se você tiver um código válido.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters"/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || !couponCode.trim()}>Aplicar</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.muted}>{couponMessage}</span>}</section>
+            <section className={styles.receiveCard}><div><strong>{customerName || (isPickup ? "Retirada no balcão" : "Entrega no endereço")}</strong><span>{isPickup ? "Retirada no balcão · sem taxa de entrega" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}${referencia ? ` · Ref.: ${referencia}` : ""}`}</span><small>{userPhone}</small></div><button type="button" onClick={() => setStep(1)}>Editar</button></section>
+            <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters"/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || !couponCode.trim()}>Aplicar</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.muted}>{couponMessage}</span>}</section>
             <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>Entrega</span><b data-free={finalFee === 0}>{finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{hasFreeDelivery && !isPickup && <small>Frete grátis aplicado para pedidos a partir de R$ 80.</small>}</section>
             <section><div className={styles.sectionLabel}>Como você quer pagar?</div><div className={styles.paymentTabs}>{(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => <button type="button" key={option} data-active={method === option} onClick={() => setMethod(option)}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>)}</div></section>
             {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Copie a chave abaixo. O pedido é registrado antes de qualquer envio pelo WhatsApp.</span></div><div className={styles.inline}><input className={styles.input} readOnly value={PIX_KEY}/><button className={styles.yellowButton} type="button" onClick={() => { void navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }}>{pixCopied ? "Copiado" : "Copiar"}</button></div></div>}

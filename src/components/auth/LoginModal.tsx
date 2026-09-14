@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { ensureUserBaseProfile } from "@/lib/userProfile";
 import { ModalBase } from "@/components/ui/ModalBase";
 import { useUIStore, type ModalType } from "@/store/ui";
 import styles from "./LoginModal.module.css";
@@ -22,7 +23,12 @@ export function LoginModal() {
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-      await signInWithPopup(auth, provider);
+      const credential = await signInWithPopup(auth, provider);
+      try {
+        await ensureUserBaseProfile(credential.user);
+      } catch (profileError) {
+        console.warn("Login concluído, mas o perfil não pôde ser preparado:", profileError);
+      }
 
       const returnTo = modalData?.returnTo;
       if (returnTo && returnTo !== "login") {
@@ -45,7 +51,7 @@ export function LoginModal() {
         <div className={styles.copy}>
           <span>RÁPIDO E SEGURO</span>
           <h3>Seus pedidos e seu histórico em um só lugar.</h3>
-          <p>Use sua conta Google. Você volta para o fluxo de onde parou depois do login.</p>
+          <p>Use sua conta Google. Seus dados de entrega podem ficar salvos para agilizar os próximos pedidos.</p>
         </div>
 
         {error && <div className={styles.error}>{error}</div>}

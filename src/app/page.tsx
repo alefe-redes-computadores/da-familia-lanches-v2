@@ -1,21 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
+import { useCatalogCategories } from "@/hooks/useCatalogCategories";
 import { compareCatalogProducts } from "@/lib/catalog";
 import { useShopStatus } from "@/hooks/useShopStatus";
 import { useUIStore } from "@/store/ui";
 import styles from "./page.module.css";
 
-const categories = [
-  { id: "promocoes", label: "Promoções" },
-  { id: "combos", label: "Combos" },
-  { id: "tradicionais", label: "Tradicionais" },
-  { id: "artesanais", label: "Artesanais" },
-  { id: "hotdogs", label: "Hot Dogs" },
-  { id: "bebidas", label: "Bebidas" },
-] as const;
+
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -29,17 +23,24 @@ export default function Home() {
   const openModal = useUIStore((s) => s.openModal);
   const shopStatus = useShopStatus();
   const { products } = useCatalog();
+  const { activeCategories: categories } = useCatalogCategories();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("todos");
 
   const filtered = useMemo(() => {
     const term = normalize(search);
+    const visibleCategories = new Set(categories.map((category) => category.id));
     return products.filter((product) => {
+      if (!visibleCategories.has(product.category)) return false;
       const categoryOk = activeCategory === "todos" || product.category === activeCategory;
       const searchOk = !term || normalize(product.name).includes(term) || normalize(product.description || "").includes(term);
       return categoryOk && searchOk;
     });
-  }, [activeCategory, search]);
+  }, [activeCategory, categories, products, search]);
+
+  useEffect(() => {
+    if (activeCategory !== "todos" && !categories.some((category) => category.id === activeCategory)) setActiveCategory("todos");
+  }, [activeCategory, categories]);
 
   const openProduct = (product: Product) => {
     if (product.disponivel === false) return;

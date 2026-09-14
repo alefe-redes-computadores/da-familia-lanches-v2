@@ -54,6 +54,19 @@ export function statusReached(current: string | undefined, step: CanonicalOrderS
   return flow.indexOf(normalized as CanonicalOrderStatus) >= flow.indexOf(step);
 }
 
+export function canTransitionOrderStatus(current?: string, next?: string, pickup = false) {
+  const from = normalizarStatus(current) as CanonicalOrderStatus;
+  const to = normalizarStatus(next) as CanonicalOrderStatus;
+  if (from === to) return true;
+  if (from === "Finalizado" || from === "Cancelado") return false;
+  if (to === "Cancelado") return true;
+  if (from === "Agendado") return to === "Em Produção" || to === "Pendente";
+  const flow = timelineSteps(pickup);
+  const fromIndex = flow.indexOf(from);
+  const toIndex = flow.indexOf(to);
+  return fromIndex >= 0 && toIndex === fromIndex + 1;
+}
+
 export function historyEntry(status: string) {
   return { status: normalizarStatus(status), at: Timestamp.now() };
 }
