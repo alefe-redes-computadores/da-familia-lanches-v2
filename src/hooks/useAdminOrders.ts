@@ -4,15 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { normalizarStatus } from "@/lib/orderUtils";
+import type { AdminOrder } from "@/lib/adminOrders";
 
 export function useAdminOrders(currentUser: any, admins: string[]) {
-  const [pedidos, setPedidos] = useState<any[]>([]);
+  const [pedidos, setPedidos] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [alarmeAtivo, setAlarmeAtivo] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const initializedRef = useRef(false);
   const knownIdsRef = useRef<Set<string>>(new Set());
-  const silenciadoPeloUsuario = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || audioRef.current) return;
@@ -53,18 +53,18 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     const ordersQuery = query(collection(db, "Pedidos"), orderBy("data", "desc"));
 
     const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-      const docs = snapshot.docs.map((document) => ({ id: document.id, ...document.data() } as any));
-      const pendingIds = docs.filter((order) => normalizarStatus(order.status) === "Pendente").map((order) => String(order.id));
+      const docs = snapshot.docs.map((document): AdminOrder => ({ id: document.id, ...document.data() } as AdminOrder));
+      const pendingIds = docs
+        .filter((order) => normalizarStatus(order.status) === "Pendente")
+        .map((order) => String(order.id));
       const pendingSet = new Set(pendingIds);
       const hasNewPending = initializedRef.current && pendingIds.some((id) => !knownIdsRef.current.has(id));
 
       if (hasNewPending) {
-        silenciadoPeloUsuario.current = false;
         setAlarmeAtivo(true);
         audioRef.current?.play().catch(() => undefined);
       } else if (!pendingIds.length) {
         setAlarmeAtivo(false);
-        silenciadoPeloUsuario.current = false;
         audioRef.current?.pause();
       }
 
@@ -85,7 +85,6 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     loading,
     alarmeAtivo,
     pararAlarme: () => {
-      silenciadoPeloUsuario.current = true;
       setAlarmeAtivo(false);
       audioRef.current?.pause();
       if (audioRef.current) audioRef.current.currentTime = 0;
