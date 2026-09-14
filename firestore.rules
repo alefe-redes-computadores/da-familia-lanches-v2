@@ -29,6 +29,18 @@ service cloud.firestore {
     }
 
 
+    function isValidCustomerOrderCreatedOutbox() {
+      let orderAfter = getAfter(
+        /databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)
+      ).data;
+
+      return request.resource.data.event_type == "order.created"
+        && request.resource.data.payload.userId == request.auth.uid
+        && orderAfter.userId == request.auth.uid
+        && orderAfter.sourceSystem == "dfl_site"
+        && orderAfter.orderSchemaVersion == request.resource.data.payload.orderSchemaVersion;
+    }
+
     match /integration_outbox/{eventId} {
       allow create: if request.auth != null
         && eventId == request.resource.data.event_id
@@ -49,29 +61,7 @@ service cloud.firestore {
         && request.resource.data.payload.userId is string
         && request.resource.data.payload.orderSchemaVersion is number
         && (
-          (
-            request.resource.data.event_type == "order.created"
-            && request.resource.data.payload.userId == request.auth.uid
-            && getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.userId == request.auth.uid
-            && request.resource.data.payload.orderSchemaVersion
-              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.orderSchemaVersion
-            && request.resource.data.payload.tipoEntrega
-              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.tipoEntrega
-            && request.resource.data.payload.status
-              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.status
-            && request.resource.data.payload.subtotal
-              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.subtotal
-            && request.resource.data.payload.taxaEntrega
-              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.taxaEntrega
-            && request.resource.data.payload.desconto
-              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.desconto
-            && request.resource.data.payload.total
-              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.total
-            && request.resource.data.payload.metodoPagamento
-              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.metodoPagamento
-            && request.resource.data.payload.itens
-              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.itens
-          )
+          isValidCustomerOrderCreatedOutbox()
           ||
           (
             request.resource.data.event_type == "order.updated"
