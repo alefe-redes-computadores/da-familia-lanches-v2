@@ -34,6 +34,8 @@ export type UserProfileInput = {
   reference: string;
 };
 
+export type ProfileSource = "checkout" | "account";
+
 const clean = (value: unknown) => String(value ?? "").trim();
 
 export function phoneDigitsBR(value: string) {
@@ -93,13 +95,16 @@ export function userProviders(user: User) {
 export async function ensureUserBaseProfile(user: User) {
   const ref = doc(db, "Usuarios", user.uid);
   const existing = await getDoc(ref);
+  const current = existing.exists() ? normalizeProfile(existing.data()) : null;
 
   const base = {
-    name: clean(user.displayName),
+    // Nome editado pelo cliente é fonte preferencial. O Google só preenche
+    // quando ainda não existe um nome salvo.
+    name: current?.name || clean(user.displayName),
     email: clean(user.email),
     photoURL: clean(user.photoURL),
     authProviders: userProviders(user),
-    profileVersion: 2,
+    profileVersion: 3,
     updatedAt: serverTimestamp(),
   };
 
@@ -124,18 +129,30 @@ export async function ensureUserBaseProfile(user: User) {
   }
 }
 
-export async function saveUserProfile(user: User, input: UserProfileInput) {
+export async function saveUserProfile(
+  user: User,
+  input: UserProfileInput,
+  source: ProfileSource = "checkout",
+) {
+  const ref = doc(db, "Usuarios", user.uid);
+  const existing = await getDoc(ref);
+  const current = existing.exists() ? normalizeProfile(existing.data()) : null;
   const phone = formatPhoneBR(input.phone);
   const phoneE164 = phoneToE164BR(phone);
+  const phoneVerified = Boolean(
+    current?.phoneVerified
+    && current.phoneE164
+    && current.phoneE164 === phoneE164,
+  );
 
-  await setDoc(doc(db, "Usuarios", user.uid), {
-    name: clean(input.name) || clean(user.displayName),
+  await setDoc(ref, {
+    name: clean(input.name) || current?.name || clean(user.displayName),
     email: clean(user.email),
     photoURL: clean(user.photoURL),
     phone,
     phoneE164,
-    phoneVerified: false,
-    phoneSource: "checkout",
+    phoneVerified,
+    phoneSource: source,
     address: {
       cep: formatCEPBR(input.cep),
       street: clean(input.street),
@@ -145,7 +162,7 @@ export async function saveUserProfile(user: User, input: UserProfileInput) {
       reference: clean(input.reference),
     },
     authProviders: userProviders(user),
-    profileVersion: 2,
+    profileVersion: 3,
     updatedAt: serverTimestamp(),
   }, { merge: true });
 }

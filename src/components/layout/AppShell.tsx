@@ -16,6 +16,7 @@ import { OrderSuccessModal } from "@/components/ui/OrderSuccessModal";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { LoginIntentModal } from "@/components/auth/LoginIntentModal";
 import { RewardsModal } from "@/components/ui/RewardsModal";
+import { AccountModal } from "@/components/ui/AccountModal";
 import { PixModal } from "@/components/ui/PixModal";
 import { TermsModal } from "@/components/ui/TermsModal";
 import { useUIStore } from "@/store/ui";
@@ -61,6 +62,7 @@ export function AppShell({ children }: Props) {
       case "login": return <LoginModal />;
       case "login-prompt": return <LoginIntentModal />;
       case "rewards": return <RewardsModal />;
+      case "account": return <AccountModal />;
       case "checkout": return <CheckoutModal />;
       case "order-success": return <OrderSuccessModal />;
       case "product-details": return <ProductDetailsModal />;

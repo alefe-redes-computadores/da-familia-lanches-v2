@@ -11,6 +11,7 @@ export type ModalType =
   | "orders"
   | "order-success"
   | "rewards"
+  | "account"
   | "terms"
   | "menu"
   | "pix"

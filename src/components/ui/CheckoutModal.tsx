@@ -77,7 +77,13 @@ export function CheckoutModal() {
 
   useEffect(() => {
     if (!currentUser || profileLoading) return;
-    const hydrationKey = `${currentUser.uid}:${profile?.profileVersion ?? 0}:${profile?.phone ?? ""}:${profile?.address?.cep ?? ""}`;
+    const hydrationKey = JSON.stringify({
+      uid: currentUser.uid,
+      version: profile?.profileVersion ?? 0,
+      name: profile?.name ?? "",
+      phone: profile?.phone ?? "",
+      address: profile?.address ?? null,
+    });
     if (hydratedProfileRef.current === hydrationKey) return;
     hydratedProfileRef.current = hydrationKey;
 

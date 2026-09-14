@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { auth } from "@/lib/firebase";
 import { useCustomerOrderCount } from "@/hooks/useCustomerOrderCount";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useShopStatus } from "@/hooks/useShopStatus";
 import { useUIStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth.store";
@@ -15,6 +16,7 @@ export function Header() {
   const items = useCartStore((state) => state.items);
   const shopStatus = useShopStatus();
   const { count: ordersCount } = useCustomerOrderCount();
+  const { profile } = useUserProfile(currentUser);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -27,7 +29,7 @@ export function Header() {
   }, []);
 
   const totalItems = items.reduce((total, item) => total + (item.quantity || 0), 0);
-  const userName = currentUser?.displayName?.split(" ")[0] || currentUser?.email?.split("@")[0] || "Conta";
+  const userName = profile?.name?.split(" ")[0] || currentUser?.displayName?.split(" ")[0] || currentUser?.email?.split("@")[0] || "Conta";
   const initials = userName.slice(0, 1).toUpperCase();
 
   return (
@@ -57,6 +59,7 @@ export function Header() {
 
             {showMenu && (
               <div className={styles.accountMenu}>
+                <button type="button" onClick={() => { openModal("account"); setShowMenu(false); }}>Minha conta</button>
                 <button type="button" onClick={() => { openModal("orders"); setShowMenu(false); }}>Meus pedidos</button>
                 <button type="button" onClick={() => { openModal("rewards"); setShowMenu(false); }}>Meu progresso</button>
                 <button className={styles.logout} type="button" onClick={() => auth.signOut()}>Sair da conta</button>
