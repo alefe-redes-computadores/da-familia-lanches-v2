@@ -3,7 +3,6 @@ import { normalizarStatus } from "./orderUtils";
 
 export type CanonicalOrderStatus = "Agendado" | "Pendente" | "Em Produção" | "Pronto" | "Saiu para Entrega" | "Finalizado" | "Cancelado";
 export type StatusHistoryEntry = { status: string; at?: unknown };
-
 export const ORDER_FLOW: CanonicalOrderStatus[] = ["Pendente", "Em Produção", "Pronto", "Saiu para Entrega", "Finalizado"];
 
 export function statusTitle(status?: string, pickup = false) {
@@ -17,7 +16,6 @@ export function statusTitle(status?: string, pickup = false) {
   if (s === "Cancelado") return "Pedido cancelado";
   return s;
 }
-
 export function statusDescription(status?: string, pickup = false) {
   const s = normalizarStatus(status);
   if (s === "Agendado") return "A loja recebeu o pedido para o próximo período de atendimento.";
@@ -29,7 +27,15 @@ export function statusDescription(status?: string, pickup = false) {
   if (s === "Cancelado") return "Este pedido foi cancelado.";
   return "Acompanhe as atualizações do seu pedido por aqui.";
 }
-
+export function nextCustomerMessage(status?: string, pickup = false) {
+  const s=normalizarStatus(status);
+  if(s==="Agendado") return "Próximo passo: a equipe inicia o atendimento no período agendado.";
+  if(s==="Pendente") return "Próximo passo: a equipe confirma e começa o preparo.";
+  if(s==="Em Produção") return "Próximo passo: o pedido fica pronto para retirada ou despacho.";
+  if(s==="Pronto") return pickup ? "Pode se preparar para retirar no balcão." : "Próximo passo: despacho para entrega.";
+  if(s==="Saiu para Entrega") return "A caminho. O site ainda não calcula localização ou tempo de chegada do motoboy.";
+  return "";
+}
 export function statusProgress(status?: string, pickup = false) {
   const s = normalizarStatus(status);
   if (s === "Agendado") return 8;
@@ -40,33 +46,7 @@ export function statusProgress(status?: string, pickup = false) {
   if (s === "Finalizado") return 100;
   return 0;
 }
-
-export function timelineSteps(pickup = false) {
-  return pickup
-    ? ["Pendente", "Em Produção", "Pronto", "Finalizado"] as CanonicalOrderStatus[]
-    : ORDER_FLOW;
-}
-
-export function statusReached(current: string | undefined, step: CanonicalOrderStatus, pickup = false) {
-  const normalized = normalizarStatus(current);
-  if (normalized === "Cancelado" || normalized === "Agendado") return false;
-  const flow = timelineSteps(pickup);
-  return flow.indexOf(normalized as CanonicalOrderStatus) >= flow.indexOf(step);
-}
-
-export function canTransitionOrderStatus(current?: string, next?: string, pickup = false) {
-  const from = normalizarStatus(current) as CanonicalOrderStatus;
-  const to = normalizarStatus(next) as CanonicalOrderStatus;
-  if (from === to) return true;
-  if (from === "Finalizado" || from === "Cancelado") return false;
-  if (to === "Cancelado") return true;
-  if (from === "Agendado") return to === "Em Produção" || to === "Pendente";
-  const flow = timelineSteps(pickup);
-  const fromIndex = flow.indexOf(from);
-  const toIndex = flow.indexOf(to);
-  return fromIndex >= 0 && toIndex === fromIndex + 1;
-}
-
-export function historyEntry(status: string) {
-  return { status: normalizarStatus(status), at: Timestamp.now() };
-}
+export function timelineSteps(pickup = false) { return pickup ? ["Pendente", "Em Produção", "Pronto", "Finalizado"] as CanonicalOrderStatus[] : ORDER_FLOW; }
+export function statusReached(current: string | undefined, step: CanonicalOrderStatus, pickup = false) { const normalized=normalizarStatus(current); if(normalized==="Cancelado"||normalized==="Agendado")return false; const flow=timelineSteps(pickup); return flow.indexOf(normalized as CanonicalOrderStatus)>=flow.indexOf(step); }
+export function canTransitionOrderStatus(current?: string, next?: string, pickup = false) { const from=normalizarStatus(current) as CanonicalOrderStatus; const to=normalizarStatus(next) as CanonicalOrderStatus; if(from===to)return true; if(from==="Finalizado"||from==="Cancelado")return false; if(to==="Cancelado")return true; if(from==="Agendado")return to==="Em Produção"||to==="Pendente"; const flow=timelineSteps(pickup); const fromIndex=flow.indexOf(from),toIndex=flow.indexOf(to); return fromIndex>=0&&toIndex===fromIndex+1; }
+export function historyEntry(status: string) { return { status: normalizarStatus(status), at: Timestamp.now() }; }

@@ -7,6 +7,7 @@ import { useCatalogCategories } from "@/hooks/useCatalogCategories";
 import { compareCatalogProducts } from "@/lib/catalog";
 import { useShopStatus } from "@/hooks/useShopStatus";
 import { useUIStore } from "@/store/ui";
+import { ActiveOrderBanner } from "@/components/ui/ActiveOrderBanner";
 import styles from "./page.module.css";
 
 
@@ -78,6 +79,7 @@ export default function Home() {
       </div>
 
       <main className={styles.content}>
+        <ActiveOrderBanner />
         {!shopStatus.isOpen && (
           <div className={styles.closedNotice}>
             <strong>{shopStatus.message || "A loja está fechada agora."}</strong>
