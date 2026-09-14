@@ -21,3 +21,9 @@
 @media(max-width:370px){
   .tab{font-size:8px;padding-inline:5px}
 }
+
+/* Cirurgia 12D — topo administrativo alinhado ao viewport real */
+@media(max-width:680px){
+  .page{padding-top:calc(8px + env(safe-area-inset-top))}
+  .hero{margin-top:0}
+}

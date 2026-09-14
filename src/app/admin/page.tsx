@@ -12,7 +12,7 @@ import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
 import styles from "./admin.module.css";
 
-const ADMINS = ["alefejohsefe@gmail.com", "kalebhstanley650@gmail.com", "contato@dafamilialanches.com.br"];
+const ADMINS = ["alefejohsefe@gmail.com", "kalebhstanley650@gmail.com", "contato@dafamilialanches.com.br", "carols2maite@gmail.com", "degustbolosnopote@gmail.com"];
 
 type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "gestao";
 

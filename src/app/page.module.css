@@ -1,5 +1,5 @@
 .page{min-height:100vh;background:#f5f3ef;padding-bottom:110px;color:#171717}
-.hero{position:relative;overflow:hidden;background:#111;color:#fff;margin-top:84px}
+.hero{position:relative;overflow:hidden;background:#111;color:#fff;margin-top:0}
 .heroGlow{position:absolute;inset:-40% -20% auto 35%;height:360px;background:radial-gradient(circle,rgba(255,202,40,.34),transparent 66%);pointer-events:none}
 .heroInner{position:relative;max-width:1120px;margin:0 auto;padding:30px 18px 28px}
 .statusRow{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid rgba(255,255,255,.13);border-radius:999px;background:rgba(255,255,255,.06);font-size:11px;font-weight:700}
@@ -42,7 +42,6 @@
 /* Cirurgia 11: leitura mobile no estilo app de delivery */
 @media(max-width:560px){
   .page{padding-bottom:104px}
-  .hero{margin-top:76px}
   .heroInner{padding:24px 16px 22px}
   .eyebrow{margin-top:18px;font-size:9px}
   .hero h1{font-size:34px;line-height:1.01}

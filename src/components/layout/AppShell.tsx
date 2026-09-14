@@ -51,7 +51,7 @@ export function AppShell({ children }: Props) {
   }, [activeModal, isAdmin]);
 
   if (isAdmin) {
-    return <div className={styles.shell}><main className={styles.main}>{children}</main></div>;
+    return <div className={`${styles.shell} ${styles.adminShell}`}><main className={`${styles.main} ${styles.adminMain}`}>{children}</main></div>;
   }
 
   const modal = (() => {

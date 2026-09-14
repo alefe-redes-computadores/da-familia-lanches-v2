@@ -1,1 +1,4 @@
 .shell{min-height:100dvh;background:#f5f3ef;display:flex;flex-direction:column}.main{flex:1;width:100%;padding:84px 0 0;margin:0}@media(max-width:760px){.main{padding-top:76px;padding-bottom:86px}.shell{padding-bottom:env(safe-area-inset-bottom)}}
+
+/* 12D: admin nao possui Header publico, portanto nao recebe offset dele */
+.adminShell{padding-bottom:0!important}.adminMain{padding-top:0!important;padding-bottom:0!important}

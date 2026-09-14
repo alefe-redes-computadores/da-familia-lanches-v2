@@ -44,6 +44,37 @@ function slugify(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
 }
 
+type ChoiceOption<T extends string> = { value: T; label: string };
+
+function ChoicePicker<T extends string>({ label, value, options, onChange }: {
+  label: string;
+  value: T;
+  options: Array<ChoiceOption<T>>;
+  onChange: (value: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value)?.label ?? value;
+
+  return <>
+    <button type="button" className={styles.choiceButton} onClick={() => setOpen(true)}>
+      <span>{label}</span><strong>{selected}</strong><i>v</i>
+    </button>
+    {open && <div className={styles.choiceOverlay} onMouseDown={(event) => {
+      if (event.target === event.currentTarget) setOpen(false);
+    }}>
+      <section className={styles.choiceSheet}>
+        <div className={styles.choiceHead}><div><span>SELECIONE</span><strong>{label}</strong></div><button type="button" onClick={() => setOpen(false)}>×</button></div>
+        <div className={styles.choiceList}>
+          {options.map((option) => <button type="button" key={option.value} data-active={option.value === value} onClick={() => {
+            onChange(option.value);
+            setOpen(false);
+          }}><span>{option.label}</span><i /></button>)}
+        </div>
+      </section>
+    </div>}
+  </>;
+}
+
 function nextId(name: string, used: Set<string>) {
   const base = slugify(name) || "produto";
   if (!used.has(base)) return base;
@@ -310,15 +341,15 @@ export function CatalogAdmin() {
 
     <section className={styles.catalogTools}>
       <div className={styles.searchWrap}><span>BUSCAR</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, descrição ou ID" /></div>
-      <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as "all" | ProductCategory)}>
-        <option value="all">Todas as categorias</option>
-        {CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
-      </select>
-      <select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value as "all" | "active" | "paused")}>
-        <option value="all">Todos os estados</option>
-        <option value="active">Disponíveis</option>
-        <option value="paused">Pausados</option>
-      </select>
+      <ChoicePicker label="Categoria" value={categoryFilter} onChange={setCategoryFilter} options={[
+        { value: "all", label: "Todas as categorias" },
+        ...CATEGORIES,
+      ]} />
+      <ChoicePicker label="Estado" value={availabilityFilter} onChange={setAvailabilityFilter} options={[
+        { value: "all", label: "Todos os estados" },
+        { value: "active", label: "Disponíveis" },
+        { value: "paused", label: "Pausados" },
+      ]} />
     </section>
 
     <div className={styles.sectionBar}>
@@ -370,7 +401,7 @@ export function CatalogAdmin() {
           <label className={styles.full}>Descrição<textarea value={productDraft.description} onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })} placeholder="Ingredientes e descrição comercial" /></label>
           <label>Preço<input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: e.target.value })} placeholder="0,00" /></label>
           <label>Preço anterior<input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: e.target.value })} placeholder="Opcional" /></label>
-          <label>Categoria<select value={productDraft.category} onChange={(e) => setProductDraft({ ...productDraft, category: e.target.value as ProductCategory })}>{CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}</select></label>
+          <div className={styles.formChoice}><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={CATEGORIES} /></div>
           <label>Ordem<input inputMode="numeric" value={productDraft.sortOrder} onChange={(e) => setProductDraft({ ...productDraft, sortOrder: e.target.value })} placeholder="Opcional" /></label>
           <label className={styles.full}>Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /></label>
         </div>
