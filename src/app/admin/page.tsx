@@ -1,161 +1,185 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { arrayUnion, doc, onSnapshot, Timestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { updateDoc, doc, increment, onSnapshot, writeBatch } from "firebase/firestore";
 import { useAuthStore } from "@/store/auth.store";
 import { useAdminOrders } from "@/hooks/useAdminOrders";
-
-// Importações dos arquivos fatiados
 import { OrderCard } from "@/components/layout/OrderCard";
-import { LogisticaModal } from "@/components/layout/LogisticaModal";
-import { FinanceiroDashboard } from "@/components/layout/FinanceiroDashboard";
 import { RelatoriosAdmin } from "@/components/layout/RelatoriosAdmin";
-import { normalizarStatus, avisarWhatsApp } from "@/lib/orderUtils";
+import { CatalogAdmin } from "@/components/admin/CatalogAdmin";
+import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
+import styles from "./admin.module.css";
+
+const ADMINS = ["alefejohsefe@gmail.com", "kalebhstanley650@gmail.com", "contato@dafamilialanches.com.br"];
+
+type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "gestao";
+
+const normalizeSearch = (value: unknown) =>
+  String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export default function AdminPage() {
   const { currentUser } = useAuthStore();
-  const admins = ["alefejohsefe@gmail.com", "kalebhstanley650@gmail.com", "contato@dafamilialanches.com.br"];
-  
-  const { pedidos, loading, alarmeAtivo, pararAlarme } = useAdminOrders(currentUser, admins);
-  
-  const [tab, setTab] = useState<"cozinha" | "expedicao" | "concluidos" | "gestao">("cozinha");
+  const { pedidos, loading, alarmeAtivo, pararAlarme } = useAdminOrders(currentUser, ADMINS);
+  const [tab, setTab] = useState<Tab>("cozinha");
   const [storeOpen, setStoreOpen] = useState(true);
-  const [dadosRodrigo, setDadosRodrigo] = useState<any>(null);
-  const [modalLogistica, setModalLogistica] = useState({ isOpen: false, pedidoId: "", pedidoData: null as any });
+  const [search, setSearch] = useState("");
+  const [feedback, setFeedback] = useState("");
 
-  // --- CONTAGEM DINÂMICA ---
-  const countCozinha = pedidos.filter(p => ["Pendente", "Em Produção"].includes(normalizarStatus(p.status))).length;
-  const countExpedicao = pedidos.filter(p => ["Pronto", "Saiu para Entrega"].includes(normalizarStatus(p.status))).length;
-  const countConcluidos = pedidos.filter(p => normalizarStatus(p.status) === "Finalizado").length;
+  const authorized = Boolean(currentUser?.email && ADMINS.includes(currentUser.email));
 
   useEffect(() => {
-    if (!currentUser || !admins.includes(currentUser.email!)) return;
-    const unsubLoja = onSnapshot(doc(db, "settings", "loja"), (snap) => snap.exists() && setStoreOpen(snap.data().isOpen));
-    const unsubRodrigo = onSnapshot(doc(db, "Entregadores", "rodrigo"), (snap) => snap.exists() && setDadosRodrigo(snap.data()));
-    return () => { unsubLoja(); unsubRodrigo(); };
-  }, [currentUser, admins]);
+    if (!authorized) return;
+    return onSnapshot(doc(db, "settings", "loja"), (snapshot) => {
+      if (snapshot.exists() && typeof snapshot.data().isOpen === "boolean") setStoreOpen(snapshot.data().isOpen);
+    });
+  }, [authorized]);
 
-  const handleRegistrarPagamento = async (valor: number) => {
-    if (!confirm(`Confirmar encerramento de turno? Saldo de R$ ${valor.toFixed(2)} será zerado.`)) return;
-    try {
-      const batch = writeBatch(db);
-      const rodrigoRef = doc(db, "Entregadores", "rodrigo");
-      batch.update(rodrigoRef, { totalEntregas: 0, saldoAcumulado: 0 });
-      await batch.commit();
-      alert("Turno zerado com sucesso!");
-    } catch (e) { alert("Erro ao zerar turno."); }
+  const persistStatus = async (id: string, status: string) => {
+    const now = Timestamp.now();
+    await updateDoc(doc(db, "Pedidos", id), {
+      status,
+      statusUpdatedAt: now,
+      statusHistory: arrayUnion({ status, at: now }),
+    });
   };
 
-  const updateStatus = async (id: string, newStatus: string, pedido?: any) => {
-    if (newStatus === "Saiu para Entrega" && pedido?.tipoEntrega !== "pickup") {
-      setModalLogistica({ isOpen: true, pedidoId: id, pedidoData: pedido });
-      return;
+  const updateStatus = async (id: string, status: string) => {
+    try {
+      await persistStatus(id, status);
+      setFeedback("");
+    } catch (error) {
+      console.error(error);
+      setFeedback("Nao foi possivel atualizar o pedido. Tente novamente.");
     }
-    try {
-      await updateDoc(doc(db, "Pedidos", id), { status: newStatus });
-      if (["Pronto", "Saiu para Entrega"].includes(newStatus)) {
-        avisarWhatsApp(pedido?.userPhone || pedido?.phone, pedido?.userName, newStatus);
-      }
-    } catch (e) { alert("Erro ao atualizar status"); }
   };
 
-  const confirmarDespacho = async (motoboy: "rodrigo" | "avulso") => {
-    const { pedidoId, pedidoData } = modalLogistica;
-    if (!pedidoId) return;
+  const toggleStore = async () => {
     try {
-      const pedidoRef = doc(db, "Pedidos", pedidoId);
-      await updateDoc(pedidoRef, { status: "Saiu para Entrega", entregador: motoboy });
-      if (motoboy === "rodrigo") {
-        await updateDoc(doc(db, "Entregadores", "rodrigo"), { totalEntregas: increment(1) });
-      }
-      const tel = pedidoData?.userPhone || pedidoData?.phone;
-      if (tel) avisarWhatsApp(tel, pedidoData?.userName, "Saiu para Entrega");
-      
-      // FECHAR MODAL
-      setModalLogistica({ isOpen: false, pedidoId: "", pedidoData: null });
-    } catch (e) { alert("Erro ao despachar pedido."); }
+      await updateDoc(doc(db, "settings", "loja"), { isOpen: !storeOpen });
+      setFeedback("");
+    } catch (error) {
+      console.error(error);
+      setFeedback("Nao foi possivel alterar o status da loja.");
+    }
   };
 
-  const pedidosFiltrados = pedidos.filter(p => {
-    const s = normalizarStatus(p.status);
-    if (tab === "cozinha") return s === "Pendente" || s === "Em Produção";
-    if (tab === "expedicao") return s === "Pronto" || s === "Saiu para Entrega";
-    if (tab === "concluidos") return s === "Finalizado";
-    return false;
-  });
+  const counts = useMemo(() => ({
+    cozinha: pedidos.filter((p) => ["Pendente", "Em Produção", "Agendado"].includes(normalizarStatus(p.status))).length,
+    expedicao: pedidos.filter((p) => ["Pronto", "Saiu para Entrega"].includes(normalizarStatus(p.status))).length,
+    concluidos: pedidos.filter((p) => normalizarStatus(p.status) === "Finalizado").length,
+    cancelados: pedidos.filter((p) => normalizarStatus(p.status) === "Cancelado").length,
+  }), [pedidos]);
 
-  if (!currentUser || !admins.includes(currentUser.email!)) return <h1 style={{textAlign: "center", marginTop: "100px"}}>Acesso Negado 🔐</h1>;
-  if (loading) return <h2 style={{textAlign: "center", marginTop: "100px"}}>Carregando Monitor... 📟</h2>;
+  const filtered = useMemo(() => {
+    const term = normalizeSearch(search);
+    return pedidos.filter((pedido) => {
+      const status = normalizarStatus(pedido.status);
+      const inTab =
+        tab === "cozinha" ? ["Pendente", "Em Produção", "Agendado"].includes(status) :
+        tab === "expedicao" ? ["Pronto", "Saiu para Entrega"].includes(status) :
+        tab === "concluidos" ? status === "Finalizado" :
+        tab === "cancelados" ? status === "Cancelado" :
+        false;
+
+      if (!inTab) return false;
+      if (!term) return true;
+      return normalizeSearch([
+        pedido.id,
+        pedido.userName,
+        pedido.userPhone,
+        pedido.phone,
+        pedido.endereco,
+        pedido.metodoPagamento,
+      ].join(" ")).includes(term);
+    });
+  }, [pedidos, search, tab]);
+
+  if (!currentUser) return <div className={styles.statePage}><strong>Central administrativa</strong><span>Entre com uma conta autorizada para continuar.</span></div>;
+  if (!authorized) return <div className={styles.statePage}><strong>Acesso negado</strong><span>Esta conta nao possui permissao administrativa.</span></div>;
+  if (loading) return <div className={styles.statePage}><strong>Carregando operacao...</strong></div>;
+
+  const tabItems: Array<[Tab, string, number | null]> = [
+    ["cozinha", "Cozinha", counts.cozinha],
+    ["expedicao", "Expedicao", counts.expedicao],
+    ["concluidos", "Concluidos", counts.concluidos],
+    ["cancelados", "Cancelados", counts.cancelados],
+    ["catalogo", "Cardápio", null],
+    ["gestao", "Relatórios", null],
+  ];
 
   return (
-    <div style={{ padding: "15px", maxWidth: "1400px", margin: "85px auto 0 auto", minHeight: "100vh" }}>
-      <LogisticaModal 
-        isOpen={modalLogistica.isOpen} 
-        onClose={() => setModalLogistica({isOpen: false, pedidoId: "", pedidoData: null})} 
-        onConfirm={confirmarDespacho} 
-      />
-      
-      {alarmeAtivo && (
-        <div 
-          onClick={pararAlarme}
-          style={{ background: "#d32f2f", color: "#fff", padding: "15px", textAlign: "center", borderRadius: "12px", marginBottom: "20px", fontWeight: "900", cursor: "pointer", animation: "pulse 1.5s infinite" }}
-        >
-          🚨 NOVO PEDIDO! CLIQUE AQUI PARA SILENCIAR 🚨
-        </div>
-      )}
+    <main className={styles.page}>
+      {alarmeAtivo && <button className={styles.alarm} onClick={pararAlarme}>NOVO PEDIDO <span>toque para silenciar</span></button>}
 
-      <header style={{ marginBottom: "25px", borderBottom: "1px solid #eee", paddingBottom: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1 style={{ fontSize: "24px", fontWeight: "900", margin: 0 }}>📟 Monitor Família</h1>
-          <button onClick={() => updateDoc(doc(db, "settings", "loja"), { isOpen: !storeOpen })} style={{ padding: "10px 20px", borderRadius: "10px", border: "none", fontWeight: "bold", background: storeOpen ? "#4caf50" : "#f44336", color: "#fff", cursor: "pointer" }}>
-            {storeOpen ? "LOJA ABERTA" : "LOJA FECHADA"}
+      <header className={styles.hero}>
+        <div className={styles.brandRow}>
+          <div className={styles.adminMark}><span>DFL</span><b>OPERACAO</b></div>
+          <div className={styles.account}>{currentUser.email}</div>
+        </div>
+
+        <div className={styles.heroTop}>
+          <div>
+            <span className={styles.eyebrow}>CENTRAL ADMINISTRATIVA</span>
+            <h1>Central de pedidos</h1>
+            <p>{counts.cozinha} aguardando cozinha · {counts.expedicao} na expedicao</p>
+          </div>
+          <button className={styles.store} data-open={storeOpen} onClick={toggleStore}>
+            <i />
+            {storeOpen ? "Loja aberta" : "Loja fechada"}
           </button>
         </div>
-        
-        <div style={{ display: "flex", gap: "8px", marginTop: "20px", overflowX: "auto", paddingBottom: "10px" }}>
-          <button onClick={() => setTab("cozinha")} style={{ flex: "1", minWidth: "110px", padding: "12px", borderRadius: "12px", border: "none", background: tab === "cozinha" ? "#111" : "#eee", color: tab === "cozinha" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
-            🔥 COZINHA {countCozinha > 0 && `(${countCozinha})`}
-          </button>
-          <button onClick={() => setTab("expedicao")} style={{ flex: "1", minWidth: "110px", padding: "12px", borderRadius: "12px", border: "none", background: tab === "expedicao" ? "#111" : "#eee", color: tab === "expedicao" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
-            🛵 ENTREGA {countExpedicao > 0 && `(${countExpedicao})`}
-          </button>
-          <button onClick={() => setTab("concluidos")} style={{ flex: "1", minWidth: "110px", padding: "12px", borderRadius: "12px", border: "none", background: tab === "concluidos" ? "#111" : "#eee", color: tab === "concluidos" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
-            ✅ FIM {countConcluidos > 0 && `(${countConcluidos})`}
-          </button>
-          <button onClick={() => setTab("gestao")} style={{ flex: "1", minWidth: "110px", padding: "12px", borderRadius: "12px", border: "none", background: tab === "gestao" ? "#111" : "#eee", color: tab === "gestao" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}>
-            📊 GESTÃO
-          </button>
-        </div>
+
+        <nav className={styles.tabs} aria-label="Etapas da operacao">
+          {tabItems.map(([key, label, count]) => (
+            <button key={key} className={styles.tab} data-active={tab === key} onClick={() => setTab(key)}>
+              <span>{label}</span>
+              {count !== null && <b>{count}</b>}
+            </button>
+          ))}
+        </nav>
       </header>
 
-      {tab === "gestao" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
-          <section>
-            <h2 style={{ fontSize: "18px", fontWeight: "900", marginBottom: "15px" }}>👤 Financeiro Rodrigo</h2>
-            {dadosRodrigo && <FinanceiroDashboard dados={dadosRodrigo} onRegistrarPagamento={handleRegistrarPagamento} />}
-          </section>
-          <hr style={{ border: "none", borderTop: "1px solid #eee" }} />
-          <section>
-            <h2 style={{ fontSize: "18px", fontWeight: "900", marginBottom: "15px" }}>📈 Relatórios & Histórico</h2>
-            {/* USANDO OS PEDIDOS FORMATADOS PARA UNIFICAR O GRÁFICO */}
-            <RelatoriosAdmin pedidos={pedidos} />
-          </section>
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
-          {pedidosFiltrados.length === 0 ? (
-            <p style={{ textAlign: "center", gridColumn: "1/-1", color: "#999", padding: "50px" }}>Nenhum pedido nesta aba.</p>
-          ) : (
-            pedidosFiltrados.map(p => <OrderCard key={p.id} pedido={p} updateStatus={updateStatus} imprimirPedido={imprimirPedido} />)
-          )}
-        </div>
-      )}
+      {feedback && <div className={styles.feedback}>{feedback}<button onClick={() => setFeedback("")}>Fechar</button></div>}
 
-      <style jsx>{`
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-      `}</style>
-    </div>
+      {tab === "catalogo" ? (
+        <section className={styles.management}>
+          <div className={styles.sectionHeading}>
+            <div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div>
+            <p>Edite o catálogo remoto sem alterar pedidos já realizados.</p>
+          </div>
+          <CatalogAdmin />
+        </section>
+      ) : tab === "gestao" ? (
+        <section className={styles.management}>
+          <div className={styles.sectionHeading}>
+            <div><span>DESEMPENHO</span><h2>Relatorios da loja</h2></div>
+            <p>Somente pedidos finalizados entram nos indicadores comerciais.</p>
+          </div>
+          <RelatoriosAdmin pedidos={pedidos} />
+        </section>
+      ) : (
+        <>
+          <div className={styles.toolbar}>
+            <div>
+              <strong>{tabItems.find(([key]) => key === tab)?.[1]}</strong>
+              <span>{filtered.length} pedido{filtered.length === 1 ? "" : "s"} nesta visualizacao</span>
+            </div>
+            <label className={styles.search}>
+              <span>Buscar</span>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cliente, telefone ou pedido" />
+              {search && <button type="button" onClick={() => setSearch("")} aria-label="Limpar busca">×</button>}
+            </label>
+          </div>
+
+          <div className={styles.grid}>
+            {filtered.length
+              ? filtered.map((pedido) => <OrderCard key={pedido.id} pedido={pedido} updateStatus={updateStatus} imprimirPedido={imprimirPedido} />)
+              : <div className={styles.empty}><strong>Nenhum pedido aqui.</strong><span>{search ? "Tente limpar a busca." : "A fila esta limpa nesta etapa."}</span></div>}
+          </div>
+        </>
+      )}
+    </main>
   );
 }

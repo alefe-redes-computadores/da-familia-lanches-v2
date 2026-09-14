@@ -1,145 +1,101 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { normalizarStatus } from "@/lib/orderUtils";
-import { normalizePaymentMethod, orderDateToDate } from "@/lib/orderCompat";
+import { normalizePaymentMethod, orderDateToDate, paymentLabel } from "@/lib/orderCompat";
+import styles from "./RelatoriosAdmin.module.css";
+
+const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
-  const [filtroDias, setFiltroDias] = useState(0); // 0 = Hoje, 1 = Ontem, 7 = Semana
+  const [filtroDias, setFiltroDias] = useState(0);
 
-  // Lógica de Filtro de Data
-    const filtrarPorData = (pedidoData: any) => {
-    if (!pedidoData) return false;
-    
-    const dataDoPedido = orderDateToDate(pedidoData);
-    if (!dataDoPedido) return false;
-      
-    const agora = new Date();
-    const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).getTime();
-    const dataPedidoZerada = new Date(dataDoPedido.getFullYear(), dataDoPedido.getMonth(), dataDoPedido.getDate()).getTime();
-    
-    const diffEmDias = Math.floor((hoje - dataPedidoZerada) / (1000 * 60 * 60 * 24));
-    
-    if (filtroDias === 0) return diffEmDias === 0; 
-    if (filtroDias === 1) return diffEmDias === 1; 
-    return diffEmDias <= filtroDias && diffEmDias >= 0; 
-  };
+  const pedidosFiltrados = useMemo(() => pedidos.filter((pedido) => {
+    if (normalizarStatus(pedido.status) !== "Finalizado") return false;
+    const date = orderDateToDate(pedido.data);
+    if (!date) return false;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const orderDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    const diff = Math.floor((today - orderDay) / 86400000);
+    if (filtroDias === 0) return diff === 0;
+    if (filtroDias === 1) return diff === 1;
+    return diff >= 0 && diff < filtroDias;
+  }), [pedidos, filtroDias]);
 
-  const pedidosFiltrados = pedidos.filter(p => 
-    normalizarStatus(p.status) === "Finalizado" && filtrarPorData(p.data)
-  );
-
-  const totalVendido = pedidosFiltrados.reduce((acc, p) => acc + (p.total || 0), 0);
+  const totalVendido = pedidosFiltrados.reduce((sum, pedido) => sum + Number(pedido.total || 0), 0);
   const totalPedidos = pedidosFiltrados.length;
-  const ticketMedio = totalPedidos > 0 ? totalVendido / totalPedidos : 0;
+  const ticketMedio = totalPedidos ? totalVendido / totalPedidos : 0;
 
-  // Separação por método com TRADUÇÃO VISUAL
-  const porMetodo = pedidosFiltrados.reduce((acc: any, p) => {
-    const m = normalizePaymentMethod(p.metodoPagamento);
-    acc[m] = (acc[m] || 0) + Number(p.total || 0);
+  const porMetodo = useMemo(() => pedidosFiltrados.reduce<Record<string, number>>((acc, pedido) => {
+    const method = normalizePaymentMethod(pedido.metodoPagamento);
+    acc[method] = (acc[method] || 0) + Number(pedido.total || 0);
     return acc;
-  }, {});
+  }, {}), [pedidosFiltrados]);
 
-  // Função para deixar o nome do método bonito no gráfico
-  const formatMetodo = (m: string) => {
-    const labels: any = {
-      dinheiro: "💵 Dinheiro",
-      cash: "💵 Dinheiro",
-      cartao: "💳 Cartão",
-      pix: "💠 Pix",
-      outro: "Outro"
-    };
-    return labels[m] || m;
-  };
+  const entregas = pedidosFiltrados.filter((pedido) => pedido.tipoEntrega !== "pickup").length;
+  const retiradas = pedidosFiltrados.filter((pedido) => pedido.tipoEntrega === "pickup").length;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px", color: "#111" }}>
-      
-      {/* SELETOR DE PERÍODO */}
-      <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "5px" }}>
+    <div className={styles.root}>
+      <div className={styles.filters}>
         {[
-          { label: "Hoje", valor: 0 },
-          { label: "Ontem", valor: 1 },
-          { label: "7 Dias", valor: 7 },
-          { label: "30 Dias", valor: 30 }
-        ].map(f => (
-          <button 
-            key={f.label}
-            onClick={() => setFiltroDias(f.valor)}
-            style={{ 
-              padding: "8px 20px", borderRadius: "20px", border: "1px solid #ddd",
-              background: filtroDias === f.valor ? "#111" : "#fff",
-              color: filtroDias === f.valor ? "#fff" : "#111",
-              fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap"
-            }}
-          >
-            {f.label}
+          { label: "Hoje", value: 0 },
+          { label: "Ontem", value: 1 },
+          { label: "7 dias", value: 7 },
+          { label: "30 dias", value: 30 },
+        ].map((filter) => (
+          <button key={filter.label} data-active={filtroDias === filter.value} onClick={() => setFiltroDias(filter.value)}>
+            {filter.label}
           </button>
         ))}
       </div>
 
-      {/* CARDS DE KPI */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px" }}>
-        <div style={{ background: "#fff", padding: "15px", borderRadius: "15px", border: "2px solid #eee" }}>
-          <span style={{ fontSize: "11px", color: "#666", fontWeight: "bold" }}>FATURAMENTO</span>
-          <h3 style={{ margin: "5px 0", color: "#2e7d32", fontSize: "20px" }}>R$ {totalVendido.toFixed(2)}</h3>
-        </div>
-        <div style={{ background: "#fff", padding: "15px", borderRadius: "15px", border: "1px solid #eee" }}>
-          <span style={{ fontSize: "11px", color: "#666", fontWeight: "bold" }}>PEDIDOS</span>
-          <h3 style={{ margin: "5px 0", fontSize: "20px" }}>{totalPedidos}</h3>
-        </div>
-        <div style={{ background: "#fff", padding: "15px", borderRadius: "15px", border: "1px solid #eee" }}>
-          <span style={{ fontSize: "11px", color: "#666", fontWeight: "bold" }}>TICKET MÉDIO</span>
-          <h3 style={{ margin: "5px 0", fontSize: "20px" }}>R$ {ticketMedio.toFixed(2)}</h3>
-        </div>
+      <div className={styles.kpis}>
+        <article><span>Faturamento finalizado</span><strong>{money(totalVendido)}</strong></article>
+        <article><span>Pedidos finalizados</span><strong>{totalPedidos}</strong></article>
+        <article><span>Ticket medio</span><strong>{money(ticketMedio)}</strong></article>
+        <article><span>Atendimento</span><strong>{entregas} entrega{entregas === 1 ? "" : "s"} · {retiradas} retirada{retiradas === 1 ? "" : "s"}</strong></article>
       </div>
 
-      {/* MINI GRÁFICO DE MÉTODOS */}
-      <div style={{ background: "#fff", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
-        <h4 style={{ margin: "0 0 15px 0", fontSize: "14px", fontWeight: "900" }}>💰 Vendas por Método</h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+      <section className={styles.panel}>
+        <div className={styles.panelTitle}>
+          <div><span>PAGAMENTOS</span><h3>Vendas por metodo</h3></div>
+          <small>{totalPedidos ? "Base: pedidos finalizados" : "Sem vendas no periodo"}</small>
+        </div>
+
+        <div className={styles.methods}>
           {Object.entries(porMetodo).length === 0 ? (
-            <p style={{ color: "#999", fontSize: "12px" }}>Sem dados de pagamento no período.</p>
-          ) : (
-            Object.entries(porMetodo).map(([metodo, valor]: any) => {
-              const porcentagem = totalVendido > 0 ? (valor / totalVendido) * 100 : 0;
+            <div className={styles.noData}>Sem dados de pagamento neste periodo.</div>
+          ) : Object.entries(porMetodo)
+            .sort(([, a], [, b]) => b - a)
+            .map(([method, value]) => {
+              const percentage = totalVendido > 0 ? (value / totalVendido) * 100 : 0;
               return (
-                <div key={metodo}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "6px" }}>
-                    <span style={{ fontWeight: "500" }}>{formatMetodo(metodo)}</span>
-                    <span style={{ fontWeight: "bold" }}>R$ {valor.toFixed(2)} ({porcentagem.toFixed(0)}%)</span>
-                  </div>
-                  <div style={{ width: "100%", height: "10px", background: "#f0f0f0", borderRadius: "5px", overflow: "hidden" }}>
-                    <div style={{ 
-                        width: `${porcentagem}%`, 
-                        height: "100%", 
-                        background: metodo.includes("pix") ? "#00bcd4" : "#111",
-                        borderRadius: "5px" 
-                    }}></div>
-                  </div>
+                <div className={styles.method} key={method}>
+                  <div><span>{paymentLabel(method)}</span><b>{money(value)} · {percentage.toFixed(0)}%</b></div>
+                  <div className={styles.bar}><i style={{ width: `${Math.min(100, percentage)}%` }} /></div>
                 </div>
               );
-            })
-          )}
+            })}
         </div>
-      </div>
+      </section>
 
-      {/* HISTÓRICO DE LOGÍSTICA */}
-      <div style={{ background: "#fff", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
-        <h4 style={{ margin: "0 0 15px 0", fontSize: "14px", fontWeight: "900" }}>🛵 Entregas do Rodrigo ({pedidosFiltrados.filter(p => p.entregador === "rodrigo").length})</h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {pedidosFiltrados.filter(p => p.entregador === "rodrigo").length === 0 ? (
-            <p style={{ color: "#999", fontSize: "12px" }}>Nenhuma entrega registrada.</p>
-          ) : (
-            pedidosFiltrados.filter(p => p.entregador === "rodrigo").map(p => (
-              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px", background: "#f9f9f9", borderRadius: "8px", fontSize: "12px" }}>
-                <span style={{ fontWeight: "bold" }}>#{p.id.slice(-4)} - {p.userName}</span>
-                <span style={{ color: "#666" }}>{p.total?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-              </div>
-            ))
-          )}
+      <section className={styles.panel}>
+        <div className={styles.panelTitle}>
+          <div><span>HISTORICO</span><h3>Pedidos finalizados no periodo</h3></div>
+          <small>{totalPedidos} registro{totalPedidos === 1 ? "" : "s"}</small>
         </div>
-      </div>
+        <div className={styles.history}>
+          {pedidosFiltrados.length === 0 ? <div className={styles.noData}>Nenhum pedido finalizado neste periodo.</div> :
+            pedidosFiltrados.slice(0, 30).map((pedido) => (
+              <div className={styles.historyRow} key={pedido.id}>
+                <div><b>#{String(pedido.id).slice(-6).toUpperCase()}</b><span>{pedido.userName || "Cliente"}</span></div>
+                <div><b>{money(Number(pedido.total || 0))}</b><span>{pedido.tipoEntrega === "pickup" ? "Retirada" : "Entrega"}</span></div>
+              </div>
+            ))}
+        </div>
+      </section>
     </div>
   );
 }

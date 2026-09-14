@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { products, type Product } from "@/data/products";
+import type { Product } from "@/data/products";
+import { useCatalog } from "@/hooks/useCatalog";
+import { compareCatalogProducts } from "@/lib/catalog";
 import { useShopStatus } from "@/hooks/useShopStatus";
 import { useUIStore } from "@/store/ui";
 import styles from "./page.module.css";
@@ -26,6 +28,7 @@ function normalize(value: string) {
 export default function Home() {
   const openModal = useUIStore((s) => s.openModal);
   const shopStatus = useShopStatus();
+  const { products } = useCatalog();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("todos");
 
@@ -50,11 +53,11 @@ export default function Home() {
         <div className={styles.heroInner}>
           <div className={styles.statusRow}>
             <span className={`${styles.statusDot} ${shopStatus.isOpen ? styles.open : styles.closed}`} />
-            <span>{shopStatus.isOpen ? "Aberto agora" : "Fechado agora"}</span>
+            <span>{shopStatus.isOpen ? "Aberto para pedidos" : "Fechado agora"}</span>
           </div>
           <p className={styles.eyebrow}>DA FAMÍLIA LANCHES</p>
-          <h1>Seu lanche favorito, sem enrolação.</h1>
-          <p className={styles.heroText}>Escolha, personalize e finalize seu pedido. O cardápio ficou mais rápido para achar o que você quer.</p>
+          <h1>O que vai matar sua fome hoje?</h1>
+          <p className={styles.heroText}>Encontre rápido, personalize do seu jeito e acompanhe o pedido por aqui.</p>
 
           <label className={styles.searchBox}>
             <span aria-hidden="true">⌕</span>
@@ -83,17 +86,13 @@ export default function Home() {
 
         {categories.map((category) => {
           if (activeCategory !== "todos" && activeCategory !== category.id) return null;
-          const categoryProducts = filtered.filter((product) => product.category === category.id).sort((a, b) => {
-            if (a.disponivel !== b.disponivel) return a.disponivel ? -1 : 1;
-            if (!!a.isSuggestion !== !!b.isSuggestion) return a.isSuggestion ? -1 : 1;
-            return a.price - b.price;
-          });
+          const categoryProducts = filtered.filter((product) => product.category === category.id).sort(compareCatalogProducts);
           if (!categoryProducts.length) return null;
 
           return (
             <section className={styles.section} key={category.id} id={category.id}>
               <div className={styles.sectionHeader}>
-                <div><span className={styles.sectionKicker}>CARDÁPIO</span><h2>{category.label}</h2></div>
+                <div><span className={styles.sectionKicker}>{category.id === "promocoes" ? "OFERTAS DO CARDÁPIO" : "ESCOLHA O SEU"}</span><h2>{category.label}</h2></div>
                 <span className={styles.count}>{categoryProducts.length} itens</span>
               </div>
               <div className={styles.grid}>
@@ -106,10 +105,10 @@ export default function Home() {
                       <div className={styles.media}>
                         <img src={product.image} alt={product.name} loading="lazy" />
                         <div className={styles.badges}>
-                          {product.isSuggestion && available && <span className={styles.featured}>Destaque</span>}
+                          {product.isSuggestion && available && <span className={styles.featured}>Sugestão da casa</span>}
                           {hasDiscount && available && <span className={styles.discount}>-{discount}%</span>}
                         </div>
-                        {!available && <span className={styles.soldOut}>Esgotado</span>}
+                        {!available && <span className={styles.soldOut}>Indisponível</span>}
                       </div>
                       <div className={styles.cardBody}>
                         <h3>{product.name}</h3>
@@ -119,7 +118,7 @@ export default function Home() {
                             {hasDiscount && <span className={styles.oldPrice}>{money(product.oldPrice!)}</span>}
                             <strong>{money(product.price)}</strong>
                           </div>
-                          <button type="button" className={styles.addButton} disabled={!available} onClick={(event) => { event.stopPropagation(); openProduct(product); }} aria-label={available ? `Adicionar ${product.name}` : `${product.name} esgotado`}>
+                          <button type="button" className={styles.addButton} disabled={!available} onClick={(event) => { event.stopPropagation(); openProduct(product); }} aria-label={available ? `Ver opções de ${product.name}` : `${product.name} indisponível`}>
                             {available ? "+" : "—"}
                           </button>
                         </div>
@@ -135,8 +134,8 @@ export default function Home() {
         {filtered.length === 0 && (
           <div className={styles.empty}>
             <strong>Nenhum item encontrado.</strong>
-            <span>Tente outro nome ou volte para “Todos”.</span>
-            <button type="button" onClick={() => { setSearch(""); setActiveCategory("todos"); }}>Limpar filtros</button>
+            <span>Tente outro nome ou volte ao cardápio completo.</span>
+            <button type="button" onClick={() => { setSearch(""); setActiveCategory("todos"); }}>Ver cardápio completo</button>
           </div>
         )}
       </main>

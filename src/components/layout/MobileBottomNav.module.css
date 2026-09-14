@@ -1,1 +1,7 @@
 .nav{display:none}@media(max-width:760px){.nav{position:fixed;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));z-index:970;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:7px;border:1px solid rgba(255,255,255,.08);border-radius:22px;background:rgba(17,17,17,.96);box-shadow:0 18px 45px rgba(0,0,0,.3);backdrop-filter:blur(18px)}.nav button{position:relative;min-width:0;min-height:50px;border:0;border-radius:16px;background:transparent;color:#cfcfcf;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}.nav button:active{background:#292929;transform:scale(.97)}.nav button>span{font-size:17px;line-height:1}.nav button>b{font-size:9px;font-weight:800;white-space:nowrap}.nav .cart{background:#ffca28;color:#111}.nav i{position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:8px;font-style:normal;font-weight:900;display:grid;place-items:center;border:2px solid #111}}
+
+@media(max-width:380px){
+  .nav{left:7px;right:7px;gap:2px;padding:6px}
+  .nav button{min-height:48px}
+  .nav button>b{font-size:8px}
+}

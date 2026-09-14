@@ -16,15 +16,15 @@ export function LoginIntentModal() {
           <span className={styles.eyebrow}>ITEM ADICIONADO</span>
           <h3>Entre agora e deixe o final do pedido mais rápido.</h3>
           <p>
-            O login com Google leva poucos segundos, mantém seus pedidos vinculados à sua conta
-            e mantém seu histórico de pedidos vinculado à sua conta.
+            O login com Google leva poucos segundos, vincula seus pedidos à sua conta
+            e deixa o histórico disponível nos próximos acessos.
           </p>
         </div>
 
         <div className={styles.benefits}>
           <span><b>01</b> Histórico vinculado à sua conta</span>
-          <span><b>02</b> Histórico dos seus pedidos</span>
-          <span><b>03</b> Menos surpresa na finalização</span>
+          <span><b>02</b> Acompanhamento em tempo real</span>
+          <span><b>03</b> Recompra mais rápida depois</span>
         </div>
 
         <button className={styles.primary} type="button" onClick={() => openModal("login")}>

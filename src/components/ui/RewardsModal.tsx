@@ -1,30 +1,21 @@
 "use client";
-
-import { useMemo } from "react";
-import { useCustomerOrderCount } from "@/hooks/useCustomerOrderCount";
-import { useAuthStore } from "@/store/auth.store";
-import { useUIStore } from "@/store/ui";
 import { ModalBase } from "./ModalBase";
+import { useUIStore } from "@/store/ui";
+import { useAuthStore } from "@/store/auth.store";
+import { useCustomerOrderStats } from "@/hooks/useCustomerOrderStats";
 import styles from "./RewardsModal.module.css";
 
-const milestones = [5, 10, 20, 50];
-
-export function RewardsModal() {
-  const closeModal = useUIStore((state) => state.closeModal);
-  const currentUser = useAuthStore((state) => state.currentUser);
-  const { count: ordersCount, loading } = useCustomerOrderCount();
-  const next = useMemo(() => milestones.find((target) => target > ordersCount) ?? milestones[milestones.length - 1], [ordersCount]);
-  const progress = Math.min(100, (ordersCount / next) * 100);
-
-  return (
-    <ModalBase title="Seu progresso" onClose={closeModal}>
-      <div className={styles.wrap}>
-        <div className={styles.hero}><span>HISTÓRICO NA SUA CONTA</span><strong>{loading ? "—" : ordersCount}</strong><p>{ordersCount === 1 ? "pedido registrado" : "pedidos registrados"}. Seu histórico ajuda a deixar os próximos pedidos mais rápidos.</p></div>
-        <div className={styles.progressCard}><div><b>Próximo marco</b><span>{ordersCount}/{next}</span></div><div className={styles.track}><i style={{ width: `${progress}%` }} /></div><small>{ordersCount >= next ? "Marco alcançado." : `Faltam ${next - ordersCount} pedido${next - ordersCount === 1 ? "" : "s"} para o próximo marco.`}</small></div>
-        <div className={styles.milestones}>{milestones.map((target) => { const reached = ordersCount >= target; return <div key={target} className={reached ? styles.reached : styles.pending}><b>{target}</b><span>{reached ? "Marco alcançado" : "Em progresso"}</span></div>; })}</div>
-        <div className={styles.notice}><b>Sem promessa que o sistema não possa cumprir.</b><p>Este número representa pedidos vinculados à sua conta — não saldo financeiro nem cupom. Benefícios só aparecem aqui quando estiverem realmente cadastrados e válidos.</p></div>
-        {!currentUser && <div className={styles.notice}><b>Entre para acompanhar.</b><p>O histórico fica vinculado à conta usada no pedido.</p></div>}
-      </div>
-    </ModalBase>
-  );
+export function RewardsModal(){
+ const closeModal=useUIStore(s=>s.closeModal);
+ const currentUser=useAuthStore(s=>s.currentUser);
+ const stats=useCustomerOrderStats();
+ return <ModalBase title="Sua historia na Da Familia" onClose={closeModal}><div className={styles.body}>
+ {!currentUser?<div className={styles.empty}><strong>Entre para ver seu historico</strong><p>Seus pedidos ficam vinculados a sua conta e poderao ser usados por campanhas reais de fidelidade.</p></div>
+ :stats.loading?<div className={styles.empty}><p>Carregando seus pedidos...</p></div>
+ :stats.error?<div className={styles.empty}><strong>Historico indisponivel agora</strong><p>{stats.error}</p></div>
+ :<><section className={styles.hero}><span>HISTORICO REAL</span><strong>{stats.completed}</strong><p>pedido{stats.completed===1?"":"s"} concluido{stats.completed===1?"":"s"}</p></section>
+ <div className={styles.stats}><div><strong>{stats.total}</strong><span>registrados</span></div><div><strong>{stats.active}</strong><span>em andamento</span></div><div><strong>{stats.cancelled}</strong><span>cancelados</span></div></div>
+ <section className={styles.info}><strong>Base para a fidelidade</strong><p>Quando houver campanha ativa, somente pedidos realmente concluidos poderao contar. Pedido criado, cancelado ou ainda em andamento nao vira recompensa automaticamente.</p></section>
+ <section className={styles.pending}><span>FIDELIDADE</span><strong>Nenhuma campanha ativa no momento</strong><p>Nao vamos inventar cupom, premio ou saldo. Quando uma campanha for configurada pela loja, ela aparecera aqui com regra e beneficio claros.</p></section></>}
+ </div></ModalBase>
 }

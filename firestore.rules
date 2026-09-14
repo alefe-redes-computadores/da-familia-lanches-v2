@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email in [
+        "alefejohsefe@gmail.com",
+        "kalebhstanley650@gmail.com",
+        "contato@dafamilialanches.com.br"
+      ];
+    }
+
+    match /CatalogoProdutos/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /CatalogoAdicionais/{id} { allow read: if true; allow write: if isAdmin(); }
+
+    match /Pedidos/{id} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /Usuarios/{uid} {
+      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    match /settings/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /Cupons/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /TaxasDeEntrega/{document=**} { allow read: if true; allow write: if isAdmin(); }
+
+    // Compatibilidade temporária com coleções legadas ainda não auditadas.
+    // Somente administradores autenticados podem acessá-las por esta regra.
+    match /{document=**} { allow read, write: if isAdmin(); }
+  }
+}

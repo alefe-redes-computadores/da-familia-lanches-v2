@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ADDONS, type Addon } from "@/data/addons";
+import type { Addon } from "@/data/addons";
 import type { Product } from "@/data/products";
+import { useCatalog } from "@/hooks/useCatalog";
+import { availableAddonsForProduct } from "@/lib/catalog";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import { useUIStore } from "@/store/ui";
@@ -20,6 +22,7 @@ export function ProductDetailsModal() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const authLoading = useAuthStore((s) => s.loading);
   const addItem = useCartStore((s) => s.addItem);
+  const { addons } = useCatalog();
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [observation, setObservation] = useState("");
@@ -29,7 +32,8 @@ export function ProductDetailsModal() {
   if (!product) return null;
 
   const total = (product.price + addonsTotal) * quantity;
-  const allowAddons = product.category !== "bebidas";
+  const productAddons = availableAddonsForProduct(product, addons);
+  const allowAddons = productAddons.length > 0;
 
   const toggleAddon = (addon: Addon) => {
     setSelectedAddons((current) => current.some((item) => item.id === addon.id) ? current.filter((item) => item.id !== addon.id) : [...current, addon]);
@@ -51,14 +55,14 @@ export function ProductDetailsModal() {
       <div className={styles.wrap}>
         <div className={styles.product}>
           <img src={product.image} alt={product.name} />
-          <div><span className={styles.kicker}>SEU PEDIDO</span><h3>{product.name}</h3><p>{product.description}</p><strong>{money(product.price)}</strong></div>
+          <div><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <span>{money(product.oldPrice)}</span>}<strong>{money(product.price)}</strong></div></div>
         </div>
 
         {allowAddons && (
           <section className={styles.section}>
-            <div className={styles.sectionTitle}><div><strong>Adicionais</strong><span>Escolha quantos quiser</span></div>{selectedAddons.length > 0 && <b>{selectedAddons.length}</b>}</div>
+            <div className={styles.sectionTitle}><div><strong>Quer incrementar?</strong><span>Adicionais opcionais · escolha quantos quiser</span></div>{selectedAddons.length > 0 && <b>{selectedAddons.length}</b>}</div>
             <div className={styles.addons}>
-              {ADDONS.map((addon) => {
+              {productAddons.map((addon) => {
                 const selected = selectedAddons.some((item) => item.id === addon.id);
                 return <button type="button" key={addon.id} className={selected ? styles.addonSelected : styles.addon} onClick={() => toggleAddon(addon)}><span className={styles.check}>{selected ? "✓" : "+"}</span><span className={styles.addonName}>{addon.name}</span><strong>+ {money(addon.price)}</strong></button>;
               })}

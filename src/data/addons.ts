@@ -2,6 +2,8 @@ export type Addon = {
   id: string;
   name: string;
   price: number;
+  disponivel?: boolean;
+  sortOrder?: number;
 };
 
 export const ADDONS: Addon[] = [

@@ -1,6 +1,8 @@
 // ARQUIVO DE DADOS DOS PRODUTOS 📝
 // DICA: Para pausar um produto (Esgotado), mude disponivel para: false
 
+export type ProductCategory = "promocoes" | "combos" | "tradicionais" | "artesanais" | "hotdogs" | "bebidas";
+
 export type Product = {
   id: string;
   name: string;
@@ -8,9 +10,11 @@ export type Product = {
   price: number;
   oldPrice?: number; // <--- PREÇO ORIGINAL PARA EXIBIR DESCONTO
   image: string;
-  category: "promocoes" | "combos" | "tradicionais" | "artesanais" | "hotdogs" | "bebidas";
+  category: ProductCategory;
   disponivel: boolean;
   isSuggestion?: boolean;
+  sortOrder?: number;
+  addonIds?: string[];
 };
 
 export const products: Product[] = [

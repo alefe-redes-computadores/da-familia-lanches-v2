@@ -8,6 +8,7 @@ import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { db } from "@/lib/firebase";
 import { getEffectiveShopStatus } from "@/lib/shopStatus";
+import styles from "./CheckoutModal.module.css";
 
 type PaymentMethod = "pix" | "cartao" | "dinheiro";
 type DeliveryMode = "delivery" | "pickup";
@@ -25,7 +26,7 @@ const normalizeText = (value: string) =>
   value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 export function CheckoutModal() {
-  const { closeModal } = useUIStore();
+  const { closeModal, openModal } = useUIStore();
   const { items, getCartTotal, clearCart } = useCartStore();
   const currentUser = useAuthStore((s) => s.currentUser);
 
@@ -295,9 +296,15 @@ export function CheckoutModal() {
         isClosed ? "\nLoja fechada neste momento: pedido registrado como agendado." : null,
       ].filter(Boolean).join("\n");
 
+      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
       clearCart();
-      closeModal();
-      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      openModal("order-success", {
+        orderId: orderRef.id,
+        isScheduled: isClosed,
+        deliveryMode,
+        total,
+        whatsappUrl,
+      });
     } catch (error) {
       console.error("Erro ao salvar pedido", error);
       setErrorMessage("Não conseguimos registrar o pedido. Seu carrinho foi preservado. Tente novamente antes de enviar pelo WhatsApp.");
@@ -306,106 +313,46 @@ export function CheckoutModal() {
     }
   };
 
-  const fieldStyle = { width: "100%", boxSizing: "border-box" as const, padding: "13px 14px", borderRadius: 11, border: "1px solid #ddd", outline: "none", fontSize: 14, background: "#fff" };
-
   return (
-    <ModalBase title={step === 1 ? "Entrega ou retirada" : "Revise e pague"} onClose={closeModal}>
-      <div style={{ padding: 18 }}>
-        <div style={{ display: "flex", gap: 7, marginBottom: 18 }}>
-          <div style={{ flex: 1, height: 5, borderRadius: 99, background: "#111" }} />
-          <div style={{ flex: 1, height: 5, borderRadius: 99, background: step === 2 ? "#111" : "#e5e5e5" }} />
+    <ModalBase title={step === 1 ? "Como você quer receber?" : "Confirme seu pedido"} onClose={closeModal}>
+      <div className={styles.body}>
+        <div className={styles.steps} aria-label={`Etapa ${step} de 2`}>
+          <i data-active="true" /><i data-active={step === 2} />
         </div>
-
-        {errorMessage && <div style={{ background: "#fff1f0", color: "#a61b1b", border: "1px solid #ffd0cc", borderRadius: 12, padding: 12, marginBottom: 14, fontSize: 12, lineHeight: 1.45 }}>{errorMessage}</div>}
+        <div className={styles.stepCaption}><strong>{step === 1 ? "Entrega" : "Pagamento"}</strong><span>{step}/2</span></div>
+        {errorMessage && <div className={styles.error}>{errorMessage}</div>}
 
         {step === 1 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", gap: 5, padding: 4, background: "#f3f3f3", borderRadius: 12 }}>
-              <button onClick={() => setDeliveryMode("delivery")} style={{ flex: 1, padding: 12, border: 0, borderRadius: 9, background: deliveryMode === "delivery" ? "#111" : "transparent", color: deliveryMode === "delivery" ? "#fff" : "#555", fontWeight: 900, cursor: "pointer" }}>Entrega</button>
-              <button onClick={() => setDeliveryMode("pickup")} style={{ flex: 1, padding: 12, border: 0, borderRadius: 9, background: deliveryMode === "pickup" ? "#111" : "transparent", color: deliveryMode === "pickup" ? "#fff" : "#555", fontWeight: 900, cursor: "pointer" }}>Retirada</button>
+          <div className={styles.stack}>
+            <div className={styles.modeTabs}>
+              <button type="button" data-active={deliveryMode === "delivery"} onClick={() => setDeliveryMode("delivery")}><b>Entrega</b><small>Receber no endereço</small></button>
+              <button type="button" data-active={deliveryMode === "pickup"} onClick={() => setDeliveryMode("pickup")}><b>Retirada</b><small>Buscar no balcão</small></button>
             </div>
-
-            <label style={{ fontSize: 11, fontWeight: 900 }}>WHATSAPP COM DDD
-              <input placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => setUserPhone(formatPhone(event.target.value))} inputMode="tel" style={{ ...fieldStyle, marginTop: 6, borderColor: phoneReady || !userPhone ? "#ddd" : "#ef9a9a" }} />
-            </label>
-
-            {deliveryMode === "delivery" ? (
-              <>
-                {!manualMode && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input placeholder="CEP" value={cep} onChange={(event) => setCep(formatCEP(event.target.value))} onBlur={() => { if (cep.replace(/\D/g, "").length === 8) void handleSearchCep(); }} inputMode="numeric" style={fieldStyle} />
-                    <button onClick={() => void handleSearchCep()} disabled={loading} style={{ border: 0, borderRadius: 11, background: "#ffca28", padding: "0 15px", fontWeight: 900, cursor: "pointer" }}>{loading ? "…" : "Buscar"}</button>
-                  </div>
-                )}
-
-                <input placeholder="Rua" value={rua} onChange={(event) => setRua(event.target.value)} readOnly={!manualMode} style={{ ...fieldStyle, background: manualMode ? "#fff" : "#f7f7f7" }} />
-                <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 8 }}>
-                  <input placeholder="Número" value={numero} onChange={(event) => setNumero(event.target.value)} inputMode="numeric" style={fieldStyle} />
-                  <input placeholder="Bairro" value={bairro} onChange={(event) => setBairro(event.target.value)} onBlur={() => { if (manualMode && bairro.trim()) void calculateDeliveryFee(bairro); }} readOnly={!manualMode} style={{ ...fieldStyle, background: manualMode ? "#fff" : "#f7f7f7" }} />
-                </div>
-                <input placeholder="Complemento (opcional)" value={complemento} onChange={(event) => setComplemento(event.target.value)} style={fieldStyle} />
-
-                {deliveryStatus && <div style={{ fontSize: 11, color: "#666", lineHeight: 1.4 }}>{deliveryStatus}</div>}
-                <button onClick={() => setManualMode((value) => !value)} style={{ alignSelf: "flex-start", border: 0, background: "transparent", padding: 0, color: "#666", textDecoration: "underline", fontSize: 11, cursor: "pointer" }}>{manualMode ? "Voltar para busca por CEP" : "Preencher endereço manualmente"}</button>
-              </>
-            ) : (
-              <div style={{ background: "#fff8d7", border: "1px solid #ffe082", borderRadius: 14, padding: 16 }}>
-                <strong style={{ display: "block", fontSize: 13 }}>Retirada no balcão</strong>
-                <span style={{ display: "block", marginTop: 4, color: "#6d5b00", fontSize: 11, lineHeight: 1.45 }}>Você recebe o aviso pelo WhatsApp quando o pedido estiver em andamento.</span>
-              </div>
-            )}
-
-            <button onClick={() => { setErrorMessage(""); if (canAdvance) setStep(2); else setErrorMessage(!phoneReady ? "Informe um WhatsApp válido com DDD." : "Complete o endereço para continuar."); }} style={{ marginTop: 5, width: "100%", border: 0, borderRadius: 13, background: "#111", color: "#fff", padding: 16, fontWeight: 900, cursor: "pointer", opacity: canAdvance ? 1 : 0.65 }}>Continuar</button>
+            <label className={styles.label}>WhatsApp com DDD<input className={styles.input} data-invalid={Boolean(userPhone && !phoneReady)} placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => setUserPhone(formatPhone(event.target.value))} inputMode="tel" autoComplete="tel" /></label>
+            {deliveryMode === "delivery" ? <>
+              <section className={styles.card}>
+                <div className={styles.cardTitle}><div><strong>Endereço de entrega</strong><span>Busque pelo CEP ou preencha manualmente.</span></div></div>
+                {!manualMode && <div className={styles.inline}><input className={styles.input} placeholder="CEP" value={cep} onChange={(event) => setCep(formatCEP(event.target.value))} onBlur={() => { if (cep.replace(/\D/g, "").length === 8) void handleSearchCep(); }} inputMode="numeric" autoComplete="postal-code"/><button className={styles.yellowButton} type="button" onClick={() => void handleSearchCep()} disabled={loading}>{loading ? "Buscando…" : "Buscar"}</button></div>}
+                <input className={styles.input} placeholder="Rua" value={rua} onChange={(event) => setRua(event.target.value)} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
+                <div className={styles.addressGrid}><input className={styles.input} placeholder="Número" value={numero} onChange={(event) => setNumero(event.target.value)} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={(event) => setBairro(event.target.value)} onBlur={() => { if (manualMode && bairro.trim()) void calculateDeliveryFee(bairro); }} readOnly={!manualMode} data-readonly={!manualMode}/></div>
+                <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={(event) => setComplemento(event.target.value)} autoComplete="address-line2"/>
+                {deliveryStatus && <div className={styles.info}>{deliveryStatus}</div>}
+                <button className={styles.linkButton} type="button" onClick={() => setManualMode((value) => !value)}>{manualMode ? "Usar busca por CEP" : "Preencher endereço manualmente"}</button>
+              </section>
+              {hasFreeDelivery && <div className={styles.successHint}>Seu pedido já atingiu o valor de frete grátis.</div>}
+            </> : <div className={styles.pickupCard}><strong>Retirada no balcão</strong><span>Sem taxa de entrega. O pedido ficará identificado pelo seu nome e referência.</span></div>}
+            <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance) setStep(2); else setErrorMessage(!phoneReady ? "Informe um WhatsApp válido com DDD." : "Complete o endereço para continuar."); }}>Continuar</button>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 14, background: "#fafafa" }}>
-              <strong style={{ display: "block", fontSize: 12 }}>Recebimento</strong>
-              <span style={{ display: "block", marginTop: 5, color: "#666", fontSize: 11, lineHeight: 1.45 }}>{isPickup ? "Retirada no local" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}`}</span>
-              <span style={{ display: "block", marginTop: 3, color: "#666", fontSize: 11 }}>{userPhone}</span>
-            </div>
-
-            <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 14 }}>
-              <strong style={{ display: "block", fontSize: 12, marginBottom: 9 }}>Cupom</strong>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters" style={fieldStyle} />
-                <button onClick={() => void applyCoupon()} disabled={loading || !couponCode.trim()} style={{ border: 0, borderRadius: 11, background: "#ffca28", padding: "0 14px", fontWeight: 900, cursor: "pointer" }}>Aplicar</button>
-              </div>
-              {couponMessage && <span style={{ display: "block", marginTop: 7, fontSize: 10, color: safeDiscount > 0 ? "#2e7d32" : "#777" }}>{couponMessage}</span>}
-            </div>
-
-            <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 8 }}><span>Subtotal</span><span>{money(subtotal)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 8 }}><span>Entrega</span><span style={{ color: finalFee === 0 ? "#2e7d32" : "inherit" }}>{finalFee === 0 ? "Grátis" : money(finalFee)}</span></div>
-              {safeDiscount > 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#2e7d32", marginBottom: 8 }}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><span>-{money(safeDiscount)}</span></div>}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid #eee", paddingTop: 10, marginTop: 4 }}><strong>Total</strong><strong style={{ fontSize: 22 }}>{money(total)}</strong></div>
-              {hasFreeDelivery && !isPickup && <span style={{ display: "block", marginTop: 7, color: "#2e7d32", fontSize: 10 }}>Frete grátis aplicado para pedidos a partir de R$ 80.</span>}
-            </div>
-
-            <div style={{ display: "flex", gap: 5, padding: 4, background: "#f3f3f3", borderRadius: 12 }}>
-              {(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => (
-                <button key={option} onClick={() => setMethod(option)} style={{ flex: 1, padding: 11, border: 0, borderRadius: 9, background: method === option ? "#fff" : "transparent", boxShadow: method === option ? "0 1px 4px rgba(0,0,0,.08)" : "none", fontWeight: 900, fontSize: 11, cursor: "pointer" }}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>
-              ))}
-            </div>
-
-            {method === "pix" && (
-              <div style={{ border: "1px solid #ffe082", background: "#fffdf3", borderRadius: 14, padding: 14 }}>
-                <span style={{ display: "block", fontSize: 11, color: "#666" }}>Chave PIX</span>
-                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <input readOnly value={PIX_KEY} style={fieldStyle} />
-                  <button onClick={() => { void navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }} style={{ border: 0, borderRadius: 11, background: pixCopied ? "#2e7d32" : "#ffca28", color: pixCopied ? "#fff" : "#111", padding: "0 14px", fontWeight: 900, cursor: "pointer" }}>{pixCopied ? "Copiado" : "Copiar"}</button>
-                </div>
-              </div>
-            )}
-
-            {method === "dinheiro" && <input placeholder="Troco para quanto? Ex.: 100,00" value={troco} onChange={(event) => setTroco(event.target.value)} inputMode="decimal" style={fieldStyle} />}
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 8 }}>
-              <button onClick={() => { setErrorMessage(""); setStep(1); }} disabled={loading} style={{ border: "1px solid #ddd", borderRadius: 13, background: "#fff", padding: 15, fontWeight: 800, cursor: "pointer" }}>Voltar</button>
-              <button onClick={() => void finishOrder()} disabled={loading} style={{ border: 0, borderRadius: 13, background: "#25D366", color: "#fff", padding: 15, fontWeight: 900, cursor: "pointer", opacity: loading ? 0.7 : 1 }}>{loading ? "Registrando pedido…" : "Registrar e abrir WhatsApp"}</button>
-            </div>
-
-            <span style={{ textAlign: "center", color: "#888", fontSize: 10, lineHeight: 1.45 }}>O WhatsApp só abre depois que o pedido for salvo com sucesso. Se ocorrer erro, seu carrinho permanece intacto.</span>
+          <div className={styles.stack}>
+            <section className={styles.receiveCard}><div><strong>{isPickup ? "Retirada no balcão" : "Entrega no endereço"}</strong><span>{isPickup ? "Sem taxa de entrega" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}`}</span><small>{userPhone}</small></div><button type="button" onClick={() => setStep(1)}>Editar</button></section>
+            <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom</strong><span>Use apenas se você tiver um código válido.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters"/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || !couponCode.trim()}>Aplicar</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.muted}>{couponMessage}</span>}</section>
+            <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>Entrega</span><b data-free={finalFee === 0}>{finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{hasFreeDelivery && !isPickup && <small>Frete grátis aplicado para pedidos a partir de R$ 80.</small>}</section>
+            <section><div className={styles.sectionLabel}>Como você quer pagar?</div><div className={styles.paymentTabs}>{(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => <button type="button" key={option} data-active={method === option} onClick={() => setMethod(option)}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>)}</div></section>
+            {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Copie a chave abaixo. O pedido é registrado antes de qualquer envio pelo WhatsApp.</span></div><div className={styles.inline}><input className={styles.input} readOnly value={PIX_KEY}/><button className={styles.yellowButton} type="button" onClick={() => { void navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }}>{pixCopied ? "Copiado" : "Copiar"}</button></div></div>}
+            {method === "dinheiro" && <label className={styles.label}>Troco para quanto? <span>(opcional)</span><input className={styles.input} placeholder="Ex.: 100,00" value={troco} onChange={(event) => setTroco(event.target.value)} inputMode="decimal"/></label>}
+            <div className={styles.actions}><button className={styles.secondary} type="button" onClick={() => { setErrorMessage(""); setStep(1); }} disabled={loading}>Voltar</button><button className={styles.primary} type="button" onClick={() => void finishOrder()} disabled={loading}>{loading ? "Registrando pedido…" : `Confirmar pedido · ${money(total)}`}</button></div>
+            <p className={styles.trust}>Seu pedido entra primeiro no sistema. Depois você pode acompanhar o status pelo site e, se quiser, avisar a loja pelo WhatsApp.</p>
           </div>
         )}
       </div>

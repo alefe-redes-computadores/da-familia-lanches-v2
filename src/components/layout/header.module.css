@@ -4,3 +4,21 @@
 .accountWrap{position:relative;min-width:0}.account{height:42px;display:flex;align-items:center;gap:7px;border:0;background:transparent;padding:0;cursor:pointer}.accountText{display:none;text-align:right}.accountText b{max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.accountText small{font-size:8px;color:#956d00;font-weight:800}.account img,.avatar{width:34px;height:34px;border-radius:12px;object-fit:cover;border:1px solid #e8e4dc}.avatar{display:grid;place-items:center;background:#111;color:#ffca28;font-size:12px;font-weight:900}.accountMenu{position:absolute;right:0;top:48px;width:175px;overflow:hidden;border:1px solid #e9e5dd;border-radius:15px;background:#fff;box-shadow:0 18px 42px rgba(0,0,0,.16);padding:5px}.accountMenu button{width:100%;border:0;background:transparent;padding:11px 10px;text-align:left;border-radius:10px;font-size:11px;font-weight:800;cursor:pointer}.accountMenu button:hover{background:#f6f3ed}.accountMenu .logout{color:#b42318}
 @media(min-width:420px){.header{padding:0 18px}.logo{font-size:15px}.accountText{display:flex;flex-direction:column}.actions{gap:8px}}
 .brandBlock{border:0;background:transparent;padding:0;text-align:left;cursor:pointer}.desktopCart{display:grid}@media(max-width:760px){.desktopCart{display:none}.header{height:76px}.accountText{display:none}}
+
+@media(max-width:380px){
+  .header{padding-left:10px;padding-right:10px;gap:7px}
+  .logo{font-size:13px}
+  .status{font-size:7.5px}
+  .actions{gap:5px}
+  .login{height:36px;padding:0 11px;font-size:10px}
+  .iconButton{width:36px;height:36px}
+}
+
+@media(max-width:380px){
+  .header{padding-left:10px;padding-right:10px;gap:7px}
+  .logo{font-size:13px}
+  .status{font-size:7.5px}
+  .actions{gap:5px}
+  .login{height:36px;padding:0 11px;font-size:10px}
+  .iconButton{width:36px;height:36px}
+}

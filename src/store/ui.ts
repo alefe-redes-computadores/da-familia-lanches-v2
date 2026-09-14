@@ -9,6 +9,7 @@ export type ModalType =
   | "login"
   | "login-prompt"
   | "orders"
+  | "order-success"
   | "rewards"
   | "terms"
   | "menu"
