@@ -77,3 +77,12 @@ dfl-site-cirurgia*.sh
 dfl-site-cirurgia*.tar.gz
 dfl-site-tomografia*.tar.gz
 *.bak-c04-*
+
+# DFL local audits and surgery artifacts
+.dfl-audit-*/
+.dfl-auditoria-*/
+.dfl-backups/
+dfl-*-audit.sh
+dfl-*-audit.tar.gz
+dfl-site-*.tar.gz
+dfl-site-*.sh
