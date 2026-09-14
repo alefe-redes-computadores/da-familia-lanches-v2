@@ -2,51 +2,36 @@
 
 import { create } from "zustand";
 
-// Unificação de todos os tipos de modais encontrados nos logs de erro
-export type ModalType = 
-  | "cart" 
-  | "checkout" 
-  | "product-details" 
-  | "login" 
-  | "orders" 
-  | "rewards" 
-  | "terms" 
-  | "menu" 
-  | "pix" 
-  | "outros" // Adicionado para evitar erro no OrdersModal
+export type ModalType =
+  | "cart"
+  | "checkout"
+  | "product-details"
+  | "login"
+  | "login-prompt"
+  | "orders"
+  | "rewards"
+  | "terms"
+  | "menu"
+  | "pix"
+  | "outros"
   | null;
 
 interface UIStore {
-  // --- Estado do Menu Lateral (Mobile) ---
   isMobileMenuOpen: boolean;
   toggleMobileMenu: () => void;
   closeMobileMenu: () => void;
-
-  // --- Estado dos Modais (Unificado) ---
   activeModal: ModalType;
-  modalData: any; 
-  
-  openModal: (type: ModalType, data?: any) => void;
+  modalData: unknown;
+  openModal: (type: ModalType, data?: unknown) => void;
   closeModal: () => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
-  // Estado Inicial do Menu Mobile
   isMobileMenuOpen: false,
   toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
   closeMobileMenu: () => set({ isMobileMenuOpen: false }),
-
-  // Estado Inicial dos Modais
   activeModal: null,
   modalData: null,
-
-  openModal: (type, data = null) => set({ 
-    activeModal: type,
-    modalData: data 
-  }),
-  
-  closeModal: () => set({ 
-    activeModal: null, 
-    modalData: null 
-  }),
+  openModal: (type, data = null) => set({ activeModal: type, modalData: data }),
+  closeModal: () => set({ activeModal: null, modalData: null }),
 }));

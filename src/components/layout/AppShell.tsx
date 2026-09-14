@@ -1,78 +1,70 @@
 "use client";
 
+import { type ReactNode, useEffect } from "react";
 import styles from "./AppShell.module.css";
-import { ReactNode, useEffect, useState } from "react";
-import { MobileDrawerMenu } from "./MobileDrawerMenu";
-import { Footer } from "./Footer";
+import { Header } from "@/components/layout/Header";
+import { MobileDrawerMenu } from "@/components/layout/MobileDrawerMenu";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
+import { Footer } from "@/components/layout/Footer";
 import { PrivacyBanner } from "@/components/ui/PrivacyBanner";
-import { getShopStatus } from "@/lib/openingHours";
-
-// IMPORTA O HEADER NOVO QUE CRIAMOS
-import { Header } from "@/components//layout/Header"; 
-
-// IMPORTS DOS MODAIS
 import { CartModal } from "@/components/ui/CartModal";
 import { ProductDetailsModal } from "@/components/ui/ProductDetailsModal";
 import { OrdersModal } from "@/components/ui/OrdersModal";
 import { CheckoutModal } from "@/components/ui/CheckoutModal";
-import { LoginModal } from "@/components/auth/LoginModal"; 
+import { LoginModal } from "@/components/auth/LoginModal";
+import { LoginIntentModal } from "@/components/auth/LoginIntentModal";
 import { RewardsModal } from "@/components/ui/RewardsModal";
-
-import { useUIStore } from "@/store/ui"; 
+import { PixModal } from "@/components/ui/PixModal";
+import { TermsModal } from "@/components/ui/TermsModal";
+import { useUIStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
-type Props = {
-  children: ReactNode;
-};
+type Props = { children: ReactNode };
 
 export function AppShell({ children }: Props) {
-  const ui = useUIStore();
-  const { setCurrentUser } = useAuthStore();
-  const [shopStatus, setShopStatus] = useState({ isOpen: true, message: "" });
+  const activeModal = useUIStore((state) => state.activeModal);
+  const setCurrentUser = useAuthStore((state) => state.setCurrentUser);
+  const setLoading = useAuthStore((state) => state.setLoading);
+
+  useEffect(() => onAuthStateChanged(auth, (user) => {
+    setCurrentUser(user);
+    setLoading(false);
+  }), [setCurrentUser, setLoading]);
 
   useEffect(() => {
-    setShopStatus(getShopStatus());
-    const interval = setInterval(() => setShopStatus(getShopStatus()), 60000);
-    return () => clearInterval(interval);
-  }, []);
+    const shouldLock = Boolean(activeModal && activeModal !== "menu");
+    if (!shouldLock) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [activeModal]);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-    });
-    return () => unsubscribe();
-  }, [setCurrentUser]);
+  const modal = (() => {
+    switch (activeModal) {
+      case "cart": return <CartModal />;
+      case "orders": return <OrdersModal />;
+      case "login": return <LoginModal />;
+      case "login-prompt": return <LoginIntentModal />;
+      case "rewards": return <RewardsModal />;
+      case "checkout": return <CheckoutModal />;
+      case "product-details": return <ProductDetailsModal />;
+      case "pix": return <PixModal />;
+      case "terms": return <TermsModal />;
+      default: return null;
+    }
+  })();
 
   return (
     <div className={styles.shell}>
-      
-      {!shopStatus.isOpen && (
-        <div style={{ 
-            background: "#fff9c4", color: "#856404", textAlign: "center", 
-            padding: "8px", fontSize: "12px", fontWeight: "bold",
-            borderBottom: "1px solid #ffeeba"
-        }}>
-            🛑 Loja Fechada Agora. Seu pedido será agendado! ({shopStatus.message})
-        </div>
-      )}
-
-      {/* --- O HEADER NOVO ENTRA AQUI, SUBSTITUINDO O ANTIGO --- */}
       <Header />
-
       <MobileDrawerMenu />
       <main className={styles.main}>{children}</main>
       <Footer />
+      <MobileBottomNav />
       <PrivacyBanner />
-
-      {/* Gerenciamento de Modais */}
-      {(ui as any).activeModal === "cart" && <CartModal />}
-      {(ui as any).activeModal === "orders" && <OrdersModal />} 
-      {(ui as any).activeModal === "login" && <LoginModal />}
-      {(ui as any).activeModal === "rewards" && <RewardsModal />}
-      {(ui as any).activeModal === "checkout" && <CheckoutModal />}
-      {(ui as any).activeModal === "product-details" && <ProductDetailsModal />}
+      {modal}
     </div>
   );
 }

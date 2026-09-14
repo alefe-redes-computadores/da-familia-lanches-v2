@@ -39,3 +39,41 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# === DFL SITE / TERMUX ===
+node_modules/
+.next/
+out/
+.vercel/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+
+# Backups de cirurgias
+.dfl-backups/
+.dfl-site-backups/
+*.bak
+*.backup
+
+# Auditorias / tomografias
+*dfl-site-tomografia*
+*tomografia*.tar.gz
+*auditoria*.tar.gz
+
+# Temporarios
+.dfl-tmp/
+*.tmp
+
+dfl-site-cirurgia*-base.tar.gz
+dfl-site-cirurgia*.sh
+.cirurgia*.b64
+.cirurgia*.gz
+# DFL local surgery / tomography artifacts
+.dfl-backups/
+dfl-site-cirurgia*.sh
+dfl-site-cirurgia*.tar.gz
+dfl-site-tomografia*.tar.gz
+*.bak-c04-*

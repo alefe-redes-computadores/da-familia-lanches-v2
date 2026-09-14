@@ -1,126 +1,83 @@
 "use client";
 
-import { ModalBase } from "./ModalBase";
-import { useUIStore } from "@/store/ui";
+import { useMemo, useState } from "react";
+import { ADDONS, type Addon } from "@/data/addons";
+import type { Product } from "@/data/products";
+import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
-import { useState } from "react";
+import { useUIStore } from "@/store/ui";
+import { ModalBase } from "./ModalBase";
+import styles from "./ProductDetailsModal.module.css";
+
+function money(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 export function ProductDetailsModal() {
-  const { closeModal, modalData } = useUIStore(); // Pega o produto clicado
+  const closeModal = useUIStore((s) => s.closeModal);
+  const openModal = useUIStore((s) => s.openModal);
+  const modalData = useUIStore((s) => s.modalData);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const authLoading = useAuthStore((s) => s.loading);
   const addItem = useCartStore((s) => s.addItem);
-
   const [quantity, setQuantity] = useState(1);
-  const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
+  const [observation, setObservation] = useState("");
+  const product = modalData as Product | null;
 
-  // Se não tiver produto carregado, não mostra nada
-  if (!modalData) return null;
-  const product = modalData;
+  const addonsTotal = useMemo(() => selectedAddons.reduce((sum, addon) => sum + addon.price, 0), [selectedAddons]);
+  if (!product) return null;
 
-  // --- LISTA OFICIAL DE ADICIONAIS (BASEADA NA SUA FOTO) ---
-  const addonsList = [
-    { id: "cebola", name: "Cebola", price: 0.99 },
-    { id: "salada", name: "Salada", price: 1.99 },
-    { id: "ovo", name: "Ovo", price: 1.99 },
-    { id: "bacon", name: "Bacon", price: 2.99 },
-    { id: "hamb_trad", name: "Hambúrguer Tradicional 56g", price: 2.99 },
-    { id: "cheddar", name: "Cheddar Cremoso", price: 3.99 },
-    { id: "frango", name: "Filé de Frango", price: 5.99 },
-    { id: "hamb_art", name: "Hambúrguer Artesanal 120g", price: 7.99 },
-  ];
-  // ---------------------------------------------------------
+  const total = (product.price + addonsTotal) * quantity;
+  const allowAddons = product.category !== "bebidas";
 
-  const handleToggleAddon = (addon: any) => {
-    const exists = selectedAddons.find(a => a.id === addon.id);
-    if (exists) {
-        setSelectedAddons(selectedAddons.filter(a => a.id !== addon.id));
-    } else {
-        setSelectedAddons([...selectedAddons, addon]);
+  const toggleAddon = (addon: Addon) => {
+    setSelectedAddons((current) => current.some((item) => item.id === addon.id) ? current.filter((item) => item.id !== addon.id) : [...current, addon]);
+  };
+
+  const handleAdd = () => {
+    addItem(product, quantity, selectedAddons, observation.trim());
+    const alreadyPrompted = typeof window !== "undefined" && window.sessionStorage.getItem("dfl_login_intent_shown") === "1";
+    if (!authLoading && !currentUser && !alreadyPrompted) {
+      window.sessionStorage.setItem("dfl_login_intent_shown", "1");
+      openModal("login-prompt");
+      return;
     }
-  };
-
-  const handleAddToCart = () => {
-    // Adiciona ao carrinho com os complementos
-    addItem(product, quantity, selectedAddons, "");
-    
     closeModal();
-    // Opcional: Se quiser abrir o carrinho direto, descomente a linha abaixo:
-    // useUIStore.getState().openModal("cart");
   };
-
-  // Calcula o preço total
-  const totalAddons = selectedAddons.reduce((acc, curr) => acc + curr.price, 0);
-  const finalPrice = (product.price + totalAddons) * quantity;
 
   return (
-    <ModalBase title="Adicionais" onClose={closeModal}>
-      <div style={{ padding: "20px" }}>
-        
-        {/* Cabeçalho do Produto */}
-        <div style={{ display: "flex", gap: "15px", marginBottom: "20px", alignItems: "center" }}>
-            {product.image && (
-                <img 
-                    src={product.image} 
-                    alt={product.name} 
-                    style={{ width: "60px", height: "60px", borderRadius: "50%", objectFit: "cover", border: "2px solid #ffca28" }} 
-                />
-            )}
-            <div>
-                <h3 style={{ margin: 0, fontSize: "18px" }}>{product.name}</h3>
-                <div style={{ fontWeight: "bold", color: "#2e7d32" }}>
-                    {product.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
-                </div>
+    <ModalBase title="Personalizar pedido" onClose={closeModal}>
+      <div className={styles.wrap}>
+        <div className={styles.product}>
+          <img src={product.image} alt={product.name} />
+          <div><span className={styles.kicker}>SEU PEDIDO</span><h3>{product.name}</h3><p>{product.description}</p><strong>{money(product.price)}</strong></div>
+        </div>
+
+        {allowAddons && (
+          <section className={styles.section}>
+            <div className={styles.sectionTitle}><div><strong>Adicionais</strong><span>Escolha quantos quiser</span></div>{selectedAddons.length > 0 && <b>{selectedAddons.length}</b>}</div>
+            <div className={styles.addons}>
+              {ADDONS.map((addon) => {
+                const selected = selectedAddons.some((item) => item.id === addon.id);
+                return <button type="button" key={addon.id} className={selected ? styles.addonSelected : styles.addon} onClick={() => toggleAddon(addon)}><span className={styles.check}>{selected ? "✓" : "+"}</span><span className={styles.addonName}>{addon.name}</span><strong>+ {money(addon.price)}</strong></button>;
+              })}
             </div>
-        </div>
+          </section>
+        )}
 
-        {/* Lista de Adicionais Estilo "Checklist" */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "50vh", overflowY: "auto", marginBottom: "20px" }}>
-            {addonsList.map((addon) => {
-                const isSelected = selectedAddons.find(a => a.id === addon.id);
-                return (
-                    <div 
-                        key={addon.id} 
-                        onClick={() => handleToggleAddon(addon)}
-                        style={{ 
-                            display: "flex", justifyContent: "space-between", alignItems: "center",
-                            padding: "12px", borderRadius: "8px", 
-                            border: "1px solid #eee",
-                            background: "#fff", 
-                            cursor: "pointer"
-                        }}
-                    >
-                        <span style={{ fontWeight: "600", color: "#333" }}>
-                            {addon.name} <span style={{color: "#d32f2f"}}>— {addon.price.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
-                        </span>
-                        
-                        {/* Caixinha de Seleção (Checkbox Visual) */}
-                        <div style={{ 
-                            width: "20px", height: "20px", borderRadius: "4px", border: "2px solid #ccc",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            background: isSelected ? "#2e7d32" : "#fff",
-                            borderColor: isSelected ? "#2e7d32" : "#ccc"
-                        }}>
-                            {isSelected && <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>✓</span>}
-                        </div>
-                    </div>
-                )
-            })}
-        </div>
+        <section className={styles.section}>
+          <label className={styles.observation}>
+            <strong>Observação</strong><span>Ex.: sem cebola, molho separado...</span>
+            <textarea value={observation} onChange={(event) => setObservation(event.target.value)} maxLength={180} placeholder="Algum detalhe para a cozinha?" />
+            <small>{observation.length}/180</small>
+          </label>
+        </section>
 
-        {/* Botão Final Flutuante (Estilo iFood) */}
-        <div style={{ borderTop: "1px solid #eee", paddingTop: "15px" }}>
-            <button 
-                onClick={handleAddToCart}
-                style={{ 
-                    width: "100%", background: "#2e7d32", color: "#fff", padding: "16px", 
-                    borderRadius: "12px", border: "none", fontWeight: "bold", fontSize: "16px", 
-                    cursor: "pointer", display: "flex", justifyContent: "space-between" 
-                }}
-            >
-                <span>Adicionar ao Pedido</span>
-                <span>{finalPrice.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
-            </button>
+        <div className={styles.bottom}>
+          <div className={styles.quantity}><button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>−</button><span>{quantity}</span><button type="button" onClick={() => setQuantity((q) => q + 1)}>+</button></div>
+          <button type="button" className={styles.confirm} onClick={handleAdd}><span>Adicionar</span><strong>{money(total)}</strong></button>
         </div>
-
       </div>
     </ModalBase>
   );

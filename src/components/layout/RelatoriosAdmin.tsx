@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { normalizarStatus } from "@/lib/orderUtils";
+import { normalizePaymentMethod, orderDateToDate } from "@/lib/orderCompat";
 
 export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
   const [filtroDias, setFiltroDias] = useState(0); // 0 = Hoje, 1 = Ontem, 7 = Semana
@@ -10,9 +11,8 @@ export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
     const filtrarPorData = (pedidoData: any) => {
     if (!pedidoData) return false;
     
-    const dataDoPedido = pedidoData.seconds 
-      ? new Date(pedidoData.seconds * 1000) 
-      : new Date(pedidoData);
+    const dataDoPedido = orderDateToDate(pedidoData);
+    if (!dataDoPedido) return false;
       
     const agora = new Date();
     const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).getTime();
@@ -35,8 +35,8 @@ export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
 
   // Separação por método com TRADUÇÃO VISUAL
   const porMetodo = pedidosFiltrados.reduce((acc: any, p) => {
-    const m = p.metodoPagamento || "Outro";
-    acc[m] = (acc[m] || 0) + (p.total || 0);
+    const m = normalizePaymentMethod(p.metodoPagamento);
+    acc[m] = (acc[m] || 0) + Number(p.total || 0);
     return acc;
   }, {});
 
@@ -46,8 +46,8 @@ export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
       dinheiro: "💵 Dinheiro",
       cash: "💵 Dinheiro",
       cartao: "💳 Cartão",
-      card: "💳 Cartão",
-      pix: "💠 Pix"
+      pix: "💠 Pix",
+      outro: "Outro"
     };
     return labels[m] || m;
   };

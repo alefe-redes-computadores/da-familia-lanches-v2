@@ -19,39 +19,6 @@ export const products: Product[] = [
   // =========================================
 
   // --- NOVAS PROMOÇÕES (EM DESTAQUE) ---
-  {
-    id: "promo-casal-campeao",
-    name: "Combo Casal Campeão",
-    description: "Amor, futebol e um lanche incrível! 2 Burgers Cadim + 1 Fanta 1L geladinha.",
-    price: 39.99,
-    oldPrice: 49.99,
-    image: "/img/promo-casal-campeao.png",
-    category: "promocoes",
-    disponivel: true,
-    isSuggestion: true
-  },
-  {
-    id: "promo-paixao-em-dobro",
-    name: "Combo Paixão em Dobro",
-    description: "Pra torcer junto, namorar junto e matar a fome junto! 2 Burgers Armaria + 1 Fanta 1L.",
-    price: 41.99,
-    oldPrice: 51.00,
-    image: "/img/promo-paixao-em-dobro.png",
-    category: "promocoes",
-    disponivel: true,
-    isSuggestion: true
-  },
-  {
-    id: "promo-torcida-do-amor",
-    name: "Combo Torcida do Amor",
-    description: "O jogo fica melhor quando a torcida está completa! 2 Uai + 2 Bão + 1 Kuat 2L.",
-    price: 49.99,
-    oldPrice: 61.00,
-    image: "/img/promo-torcida-do-amor.png",
-    category: "promocoes",
-    disponivel: true,
-    isSuggestion: true
-  },
 
   // --- PROMOÇÕES EXISTENTES ---
   {

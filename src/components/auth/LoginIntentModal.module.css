@@ -1,0 +1,5 @@
+.wrap{padding:24px;display:flex;flex-direction:column;gap:16px;background:linear-gradient(180deg,#fff 0%,#fbfaf7 100%)}
+.icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:#111;color:#ffca28;font-size:24px;font-weight:900;box-shadow:0 10px 26px rgba(0,0,0,.12)}
+.copy{display:flex;flex-direction:column;gap:7px}.eyebrow{font-size:10px;font-weight:900;letter-spacing:.14em;color:#9a7410}.copy h3{margin:0;font-size:22px;line-height:1.08;letter-spacing:-.035em;color:#171717}.copy p{margin:0;color:#666;font-size:13px;line-height:1.55}
+.benefits{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid #eee9de;border-radius:16px;background:#fff}.benefits span{display:flex;align-items:center;gap:10px;font-size:12px;color:#444}.benefits b{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:#fff4c5;color:#705400;font-size:10px}
+.primary,.secondary{width:100%;border-radius:13px;padding:14px 16px;font-weight:800;cursor:pointer}.primary{border:0;background:#111;color:#fff}.secondary{border:1px solid #dedbd5;background:#fff;color:#333}.wrap small{text-align:center;color:#999;font-size:10px}

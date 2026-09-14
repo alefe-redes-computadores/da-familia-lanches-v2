@@ -1,159 +1,50 @@
 "use client";
 
+import { useMemo } from "react";
 import { ModalBase } from "./ModalBase";
+import { useCustomerOrderCount } from "@/hooks/useCustomerOrderCount";
 import { useCartStore } from "@/store/cart.store";
 import { useUIStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth.store";
-import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { products } from "@/data/products";
+import styles from "./CartModal.module.css";
+
+const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const milestones = [5, 10, 20, 50];
 
 export function CartModal() {
   const { closeModal, openModal } = useUIStore();
-  const currentUser = useAuthStore((s) => s.currentUser);
+  const currentUser = useAuthStore((state) => state.currentUser);
+  const { count: ordersCount, loading: loadingHistory } = useCustomerOrderCount();
   const { items, increaseQtd, decreaseQtd, removeItem, clearCart, getCartTotal, addItem } = useCartStore();
-  const [points, setPoints] = useState(0);
-
   const total = getCartTotal();
-
-  // --- BUSCA PONTOS PARA CÁLCULO DE PROGRESSO ---
-  useEffect(() => {
-    async function fetchPoints() {
-      if (!currentUser) return;
-      const snap = await getDoc(doc(db, "Usuarios", currentUser.uid));
-      if (snap.exists()) setPoints(snap.data().pedidosFeitos || 0);
-    }
-    fetchPoints();
-  }, [currentUser]);
-
-  // Configuração de Metas
-  const goals = [
-    { target: 5, title: "Nível Bronze", reward: "10% OFF" },
-    { target: 10, title: "Nível Prata", reward: "Coca-Cola Grátis" },
-    { target: 20, title: "Nível Ouro", reward: "Burger Grátis" },
-    { target: 50, title: "Nível Diamante", reward: "Combo Família" },
-  ];
-
-  const nextGoal = goals.find(g => g.target > points) || goals[goals.length - 1];
-  const progressAfterOrder = Math.min(100, ((points + 1) / nextGoal.target) * 100);
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const nextMilestone = useMemo(() => milestones.find((target) => target > ordersCount) ?? milestones[milestones.length - 1], [ordersCount]);
+  const progress = Math.min(100, (ordersCount / nextMilestone) * 100);
+  const suggestions = useMemo(() => products.filter((product) => product.isSuggestion && product.disponivel !== false && !items.some((item) => item.id === product.id)).slice(0, 6), [items]);
 
   const handleFinish = () => {
-    closeModal();
+    if (!currentUser) { openModal("login", { returnTo: "checkout" }); return; }
     openModal("checkout");
   };
 
   return (
-    <ModalBase title="Seu Carrinho 🛒" onClose={closeModal}>
-      <div style={{ padding: "20px", display: "flex", flexDirection: "column", height: "100%" }}>
-        
-        {/* LISTA DE ITENS */}
-        <div style={{ flex: 1, overflowY: "auto", marginBottom: "20px" }}>
-          {items.length === 0 ? (
-            <p style={{ textAlign: "center", color: "#666", marginTop: "20px" }}>
-              Seu carrinho está vazio 😢
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-              {items.map((item) => (
-                <div key={item.cartId} style={{ 
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  borderBottom: "1px solid #eee", paddingBottom: "10px"
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: "bold", fontSize: "15px" }}>{item.name}</div>
-                    {(item.selectedAddons || []).length > 0 && (
-                      <div style={{ fontSize: "11px", color: "#666" }}>
-                        + {(item.selectedAddons || []).map(a => a.name).join(", ")}
-                      </div>
-                    )}
-                    <div style={{ fontSize: "13px", color: "#333", marginTop: "2px" }}>
-                      {item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </div>
-                  </div>
+    <ModalBase title={`Seu carrinho${itemCount ? ` · ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}`} onClose={closeModal}>
+      <div className={styles.body}>
+        {items.length === 0 ? (
+          <div className={styles.empty}><span>🛒</span><strong>Seu carrinho está vazio</strong><p>Escolha seus favoritos e volte aqui para finalizar.</p><button type="button" onClick={closeModal}>Explorar cardápio</button></div>
+        ) : <>
+          <div className={styles.items}>{items.map((item) => <article className={styles.item} key={item.cartId}>
+            <div className={styles.itemInfo}><strong>{item.name}</strong>{item.selectedAddons?.length > 0 && <small>+ {item.selectedAddons.map((addon) => addon.name).join(", ")}</small>}{item.observation?.trim() && <small>Obs.: {item.observation.trim()}</small>}<b>{money(item.price * item.quantity)}</b>{item.quantity > 1 && <i>{money(item.price)} cada</i>}</div>
+            <div className={styles.itemActions}><div className={styles.stepper}><button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => decreaseQtd(item.cartId)}>−</button><span>{item.quantity}</span><button type="button" aria-label={`Aumentar ${item.name}`} onClick={() => increaseQtd(item.cartId)}>+</button></div><button className={styles.remove} type="button" onClick={() => removeItem(item.cartId)}>Remover</button></div>
+          </article>)}</div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", background: "#f5f5f5", borderRadius: "8px" }}>
-                        <button onClick={() => decreaseQtd(item.cartId)} style={{ width: "30px", height: "30px", border: "none", background: "transparent", cursor: "pointer", fontWeight: "bold", fontSize: "16px", color: "#d32f2f" }}>-</button>
-                        <span style={{ width: "20px", textAlign: "center", fontSize: "14px", fontWeight: "600" }}>{item.quantity}</span>
-                        <button onClick={() => increaseQtd(item.cartId)} style={{ width: "30px", height: "30px", border: "none", background: "transparent", cursor: "pointer", fontWeight: "bold", fontSize: "16px", color: "#388e3c" }}>+</button>
-                    </div>
-                    <button onClick={() => removeItem(item.cartId)} style={{ background: "#ffebee", border: "none", borderRadius: "8px", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>🗑️</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          {!currentUser ? <div className={styles.loginCard}><strong>Seu pedido fica melhor conectado à sua conta.</strong><p>O login com Google leva poucos segundos, vincula o histórico e facilita seus próximos pedidos.</p><button type="button" onClick={() => openModal("login", { returnTo: "cart" })}>Entrar com Google</button></div> : <button className={styles.progress} type="button" onClick={() => openModal("rewards")}><div><strong>Seu histórico na casa</strong><span>{loadingHistory ? "…" : `${ordersCount}/${nextMilestone} pedidos`}</span></div><div className={styles.track}><i style={{ width: `${progress}%` }} /></div><small>Veja seus marcos. Benefícios só aparecem quando estiverem realmente configurados.</small></button>}
 
-        {/* RODAPÉ */}
-        {items.length > 0 && (
-          <div style={{ borderTop: "1px solid #eee", paddingTop: "15px" }}>
-            
-            {/* CARD DE INCENTIVO */}
-            {currentUser && points < nextGoal.target && (
-              <div style={{ 
-                background: "#fff9c4", padding: "12px", borderRadius: "12px", 
-                marginBottom: "15px", border: "1px solid #fbc02d" 
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                  <span style={{ fontSize: "12px", fontWeight: "bold", color: "#e65100" }}>🚀 Próxima Recompensa: {nextGoal.reward}</span>
-                  <span style={{ fontSize: "11px", fontWeight: "900" }}>{points + 1}/{nextGoal.target}</span>
-                </div>
-                <div style={{ width: "100%", height: "6px", background: "rgba(0,0,0,0.05)", borderRadius: "3px", overflow: "hidden" }}>
-                  <div style={{ width: `${progressAfterOrder}%`, height: "100%", background: "#fbc02d" }} />
-                </div>
-                <p style={{ fontSize: "10px", margin: "5px 0 0 0", color: "#666" }}>
-                  Ao finalizar, você ficará a apenas <b>{nextGoal.target - (points + 1)}</b> pedidos do seu prêmio!
-                </p>
-              </div>
-            )}
+          {suggestions.length > 0 && <section className={styles.suggestions}><strong>Que tal completar o pedido?</strong><div>{suggestions.map((product) => <article key={product.id}><img src={product.image} alt={product.name} loading="lazy" /><b>{product.name}</b><span>{money(product.price)}</span><button type="button" onClick={() => addItem(product)}>Adicionar</button></article>)}</div></section>}
 
-            {/* SEÇÃO DE UPSELLING */}
-            <div style={{ marginTop: "10px", marginBottom: "20px" }}>
-              <p style={{ fontSize: "13px", fontWeight: "bold", color: "#111", marginBottom: "10px" }}>
-                Que tal um acompanhamento? 🥤🍟
-              </p>
-              <div style={{ display: "flex", gap: "12px", overflowX: "auto", paddingBottom: "10px", scrollbarWidth: "none" }}>
-                {products
-                  .filter(p => p.isSuggestion && p.disponivel && !items.find(item => item.id === p.id))
-                  .map(p => (
-                    <div key={p.id} style={{ 
-                      minWidth: "130px", background: "#fff", borderRadius: "12px", padding: "10px", border: "1px solid #eee",
-                      display: "flex", flexDirection: "column", alignItems: "center", boxShadow: "0 2px 5px rgba(0,0,0,0.03)"
-                    }}>
-                      <img src={p.image} alt={p.name} style={{ width: "50px", height: "50px", objectFit: "contain", marginBottom: "8px" }} />
-                      <span style={{ fontSize: "10px", fontWeight: "bold", textAlign: "center", height: "24px", overflow: "hidden" }}>{p.name}</span>
-                      <span style={{ fontSize: "12px", color: "#388e3c", fontWeight: "900", marginTop: "5px" }}>
-                        {p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </span>
-                      <button 
-                        onClick={() => addItem(p)}
-                        style={{ marginTop: "8px", width: "100%", background: "#111", color: "#fff", border: "none", borderRadius: "8px", padding: "7px", fontSize: "10px", fontWeight: "bold", cursor: "pointer" }}
-                      >
-                        ADICIONAR +
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: "center" }}>
-              <span style={{ color: "#666" }}>Total do Pedido:</span>
-              <span style={{ fontSize: "20px", fontWeight: "800", color: "#111" }}>
-                {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </span>
-            </div>
-
-            <button onClick={handleFinish} style={{ width: "100%", background: "#111", color: "#fff", padding: "16px", borderRadius: "12px", border: "none", fontWeight: "bold", fontSize: "16px", cursor: "pointer", marginBottom: "10px" }}>
-              Finalizar Pedido →
-            </button>
-
-            <button onClick={() => confirm("Esvaziar carrinho?") && clearCart()} style={{ width: "100%", background: "transparent", color: "#d32f2f", padding: "10px", borderRadius: "12px", border: "1px solid #ffcdd2", fontWeight: "600", fontSize: "14px", cursor: "pointer" }}>
-                Esvaziar Carrinho
-            </button>
-          </div>
-        )}
+          <div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish}>Continuar para finalizar</button><button className={styles.clear} type="button" onClick={() => window.confirm("Esvaziar carrinho?") && clearCart()}>Esvaziar carrinho</button></div>
+        </>}
       </div>
     </ModalBase>
   );

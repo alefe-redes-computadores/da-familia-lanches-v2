@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { updateDoc, doc, increment, onSnapshot, writeBatch } from "firebase/firestore";
 import { useAuthStore } from "@/store/auth.store";
@@ -24,17 +24,6 @@ export default function AdminPage() {
   const [storeOpen, setStoreOpen] = useState(true);
   const [dadosRodrigo, setDadosRodrigo] = useState<any>(null);
   const [modalLogistica, setModalLogistica] = useState({ isOpen: false, pedidoId: "", pedidoData: null as any });
-
-  // --- LÓGICA DE UNIFICAÇÃO PARA RELATÓRIOS (v4.5.3) ---
-  // Isso garante que 'cash'/'dinheiro' e 'card'/'cartao' sejam somados juntos no gráfico
-  const pedidosFormatadosParaRelatorio = useMemo(() => {
-    return pedidos.map(p => ({
-      ...p,
-      metodoPagamento: p.metodoPagamento === 'cash' ? 'dinheiro' : 
-                       (p.metodoPagamento === 'card' || p.metodoPagamento === 'cartao') ? 'cartao' : 
-                       p.metodoPagamento
-    }));
-  }, [pedidos]);
 
   // --- CONTAGEM DINÂMICA ---
   const countCozinha = pedidos.filter(p => ["Pendente", "Em Produção"].includes(normalizarStatus(p.status))).length;
@@ -151,7 +140,7 @@ export default function AdminPage() {
           <section>
             <h2 style={{ fontSize: "18px", fontWeight: "900", marginBottom: "15px" }}>📈 Relatórios & Histórico</h2>
             {/* USANDO OS PEDIDOS FORMATADOS PARA UNIFICAR O GRÁFICO */}
-            <RelatoriosAdmin pedidos={pedidosFormatadosParaRelatorio} />
+            <RelatoriosAdmin pedidos={pedidos} />
           </section>
         </div>
       ) : (

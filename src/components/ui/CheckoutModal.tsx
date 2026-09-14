@@ -1,637 +1,414 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
+import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc } from "firebase/firestore";
 import { ModalBase } from "./ModalBase";
 import { useUIStore } from "@/store/ui";
 import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, addDoc, serverTimestamp, increment, setDoc } from "firebase/firestore";
-import { getShopStatus } from "@/lib/openingHours";
+import { getEffectiveShopStatus } from "@/lib/shopStatus";
 
 type PaymentMethod = "pix" | "cartao" | "dinheiro";
 type DeliveryMode = "delivery" | "pickup";
 
+type DeliveryRate = { nome?: string; taxa?: number | string };
+
+const PIX_KEY = "34997178336";
+const WHATSAPP_NUMBER = "5534997178336";
+const DEFAULT_DELIVERY_FEE = 6;
+
+const money = (value: number) =>
+  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const normalizeText = (value: string) =>
+  value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
 export function CheckoutModal() {
-    const { closeModal } = useUIStore();
-    const { items, getCartTotal, clearCart } = useCartStore();
-    const { currentUser } = useAuthStore();
+  const { closeModal } = useUIStore();
+  const { items, getCartTotal, clearCart } = useCartStore();
+  const currentUser = useAuthStore((s) => s.currentUser);
 
-    // Passos: 1 = Endereço, 2 = Pagamento
-    const [step, setStep] = useState(1);
-    const [loading, setLoading] = useState(false);
-    const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("delivery");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [loading, setLoading] = useState(false);
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("delivery");
+  const [userPhone, setUserPhone] = useState("");
+  const [cep, setCep] = useState("");
+  const [rua, setRua] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [numero, setNumero] = useState("");
+  const [complemento, setComplemento] = useState("");
+  const [manualMode, setManualMode] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState(DEFAULT_DELIVERY_FEE);
+  const [deliveryStatus, setDeliveryStatus] = useState("");
+  const [method, setMethod] = useState<PaymentMethod>("pix");
+  const [troco, setTroco] = useState("");
+  const [pixCopied, setPixCopied] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-    // Telefone do usuário
-    const [userPhone, setUserPhone] = useState("");
+  const subtotal = getCartTotal();
+  const isPickup = deliveryMode === "pickup";
+  const hasFreeDelivery = subtotal >= 80;
+  const finalFee = isPickup || hasFreeDelivery ? 0 : deliveryFee;
+  const safeDiscount = Math.min(Math.max(0, discount), subtotal);
+  const total = Math.max(0, subtotal + finalFee - safeDiscount);
 
-    // Endereço e Frete
-    const [cep, setCep] = useState("");
-    const [rua, setRua] = useState("");
-    const [bairro, setBairro] = useState("");
-    const [numero, setNumero] = useState("");
-    const [complemento, setComplemento] = useState("");
-    const [manualMode, setManualMode] = useState(false);
+  const phoneDigits = userPhone.replace(/\D/g, "");
+  const addressReady = isPickup || Boolean(rua.trim() && numero.trim() && bairro.trim());
+  const phoneReady = phoneDigits.length === 10 || phoneDigits.length === 11;
 
-    const [deliveryFee, setDeliveryFee] = useState(6.00); // Padrão
-    const [deliveryStatus, setDeliveryStatus] = useState("");
-    
-    // Pagamento
-    const [method, setMethod] = useState<PaymentMethod>("pix");
-    const [troco, setTroco] = useState("");
-    const [pixCopied, setPixCopied] = useState(false);
+  const canAdvance = phoneReady && addressReady && items.length > 0;
 
-    // Estados do Cupom
-    const [couponCode, setCouponCode] = useState("");
-    const [discount, setDiscount] = useState(0);
-    const [couponMessage, setCouponMessage] = useState("");
+  const changeCouponCode = (value: string) => {
+    const next = value.toUpperCase();
+    setCouponCode(next);
+    if (appliedCouponCode && next.trim() !== appliedCouponCode) {
+      setAppliedCouponCode("");
+      setDiscount(0);
+      setCouponMessage("Cupom alterado. Valide novamente para aplicar o desconto.");
+    }
+  };
 
-    // 🎁 ESTADOS DA GAMIFICAÇÃO (RESGATE DE ABANDONO)
-    const [showExitModal, setShowExitModal] = useState(false);
-    const [tentativasBau, setTentativasBau] = useState(2);
-    const [bauStatus, setBauStatus] = useState<"inicio" | "erro1" | "ganhou">("inicio");
-    const [cupomCopiado, setCupomCopiado] = useState(false);
+  const formatPhone = (value: string) => {
+    let digits = value.replace(/\D/g, "").slice(0, 11);
+    digits = digits.replace(/^(\d{2})(\d)/g, "($1) $2");
+    digits = digits.replace(/(\d)(\d{4})$/, "$1-$2");
+    return digits;
+  };
 
-    // Totais
-    const subtotal = getCartTotal();
-    const isFreteGratis = subtotal >= 80.00;
-    const isRetirada = deliveryMode === "pickup";
-    const finalFee = (isFreteGratis || isRetirada) ? 0 : deliveryFee;
+  const formatCEP = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+    return digits.replace(/^(\d{5})(\d)/, "$1-$2");
+  };
 
-    // Cálculo final (evita negativo)
-    const total = Math.max(0, subtotal + finalFee - discount);
+  const calculateDeliveryFee = async (district: string) => {
+    const cleanedDistrict = normalizeText(district);
+    if (!cleanedDistrict) return;
 
-    const PIX_KEY = "34997178336";
+    try {
+      const snap = await getDoc(doc(db, "TaxasDeEntrega", "bairros", "lista", "tabela"));
+      if (!snap.exists()) {
+        setDeliveryFee(DEFAULT_DELIVERY_FEE);
+        setDeliveryStatus(`Taxa padrão: ${money(DEFAULT_DELIVERY_FEE)}`);
+        return;
+      }
 
-    // --- FUNÇÕES DE MÁSCARA (Ajustes de Formatação) ---
-    const formatPhone = (v: string) => {
-        v = v.replace(/\D/g, "");
-        if (v.length > 11) v = v.slice(0, 11);
-        v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
-        v = v.replace(/(\d)(\d{4})$/, "$1-$2");
-        return v;
-    };
+      const list = Array.isArray(snap.data()?.data) ? (snap.data().data as DeliveryRate[]) : [];
+      const found = list.find((item) => {
+        const name = typeof item.nome === "string" ? normalizeText(item.nome) : "";
+        return name === cleanedDistrict || name.includes(cleanedDistrict) || cleanedDistrict.includes(name);
+      });
 
-    const formatCEP = (v: string) => {
-        v = v.replace(/\D/g, "");
-        if (v.length > 8) v = v.slice(0, 8);
-        return v.replace(/^(\d{5})(\d)/, "$1-$2");
-    };
+      const rate = Number(found?.taxa);
+      if (found && Number.isFinite(rate) && rate >= 0) {
+        setDeliveryFee(rate);
+        setDeliveryStatus(`Taxa para ${found.nome || district}: ${money(rate)}`);
+      } else {
+        setDeliveryFee(DEFAULT_DELIVERY_FEE);
+        setDeliveryStatus(`Bairro fora da tabela. Taxa padrão: ${money(DEFAULT_DELIVERY_FEE)}`);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar taxas", error);
+      setDeliveryFee(DEFAULT_DELIVERY_FEE);
+      setDeliveryStatus(`Não foi possível consultar a tabela. Taxa padrão: ${money(DEFAULT_DELIVERY_FEE)}`);
+    }
+  };
 
-    // --- LÓGICA DE CUPONS (BUSCA REAL NO FIREBASE) ---
-    const applyCoupon = async (overrideCode?: string) => {
-        const code = (overrideCode || couponCode).trim().toUpperCase();
-        if (!code) return;
+  const handleSearchCep = async () => {
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8) {
+      setDeliveryStatus("Digite um CEP com 8 números.");
+      return;
+    }
 
-        setLoading(true);
-        try {
-            const docRef = doc(db, "Cupons", code);
-            const snap = await getDoc(docRef);
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      if (!response.ok) throw new Error(`ViaCEP respondeu ${response.status}`);
+      const data = await response.json();
+      if (data.erro) {
+        setManualMode(true);
+        setDeliveryStatus("CEP não encontrado. Preencha o endereço manualmente.");
+        return;
+      }
+      const nextStreet = typeof data.logradouro === "string" ? data.logradouro : "";
+      const nextDistrict = typeof data.bairro === "string" ? data.bairro : "";
+      setRua(nextStreet);
+      setBairro(nextDistrict);
+      setManualMode(!nextStreet || !nextDistrict);
+      setDeliveryStatus("Endereço encontrado.");
+      if (nextDistrict) await calculateDeliveryFee(nextDistrict);
+    } catch (error) {
+      console.error("Erro ao consultar CEP", error);
+      setManualMode(true);
+      setDeliveryStatus("Não foi possível consultar o CEP. Preencha manualmente.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            if (snap.exists() && snap.data().ativo) {
-                const data = snap.data();
-                let valorDesconto = 0;
+  const applyCoupon = async () => {
+    const code = couponCode.trim().toUpperCase();
+    setCouponMessage("");
+    setAppliedCouponCode("");
+    setDiscount(0);
 
-                if (data.tipo === "percent" || data.tipo === "porcentagem") {
-                    const p = data.percent !== undefined ? data.percent : data.valor;
-                    valorDesconto = (subtotal * p) / 100;
-                } else {
-                    valorDesconto = data.valor;
-                }
+    if (!code) {
+      setCouponMessage("Digite um cupom antes de validar.");
+      return;
+    }
 
-                setDiscount(valorDesconto);
-                setCouponMessage(`✅ Desconto de ${valorDesconto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} aplicado!`);
-            } else {
-                setDiscount(0);
-                setCouponMessage("❌ Cupom inválido ou expirado.");
-            }
-        } catch (e) {
-            setCouponMessage("Erro ao validar cupom.");
-        }
-        setLoading(false);
-    };
+    setLoading(true);
+    try {
+      const snap = await getDoc(doc(db, "Cupons", code));
+      if (!snap.exists() || snap.data().ativo !== true) {
+        setCouponMessage("Cupom inválido, inativo ou expirado.");
+        return;
+      }
 
-    // --- LÓGICA 1: VIACEP (Atualizada para aceitar busca automática) ---
-    const handleBuscarCep = async (cepOpcional?: string) => {
-        const valorCep = (cepOpcional || cep).replace(/\D/g, "");
-        if (valorCep.length !== 8) return;
+      const data = snap.data();
+      const rawValue = Number(data.valor ?? data.percent ?? 0);
+      if (!Number.isFinite(rawValue) || rawValue <= 0) {
+        setCouponMessage("Este cupom está configurado de forma inválida.");
+        return;
+      }
 
-        setLoading(true);
-        try {
-            const res = await fetch(`https://viacep.com.br/ws/${valorCep}/json/`);
-            const data = await res.json();
-            if (data.erro) {
-                setManualMode(true);
-                setDeliveryStatus("CEP não achado. Digite manualmente.");
-            } else {
-                setRua(data.logradouro);
-                setBairro(data.bairro);
-                setDeliveryStatus("Endereço encontrado!");
-                await calcularTaxaEntrega(data.bairro);
-            }
-        } catch (error) {
-            setManualMode(true);
-        }
-        setLoading(false);
-    };
+      const calculated = data.tipo === "percent" || data.tipo === "porcentagem"
+        ? (subtotal * rawValue) / 100
+        : rawValue;
+      const bounded = Math.min(subtotal, Math.max(0, calculated));
 
-    // --- LÓGICA 2: TAXA DINÂMICA ---
-    const calcularTaxaEntrega = async (nomeBairro: string) => {
-        try {
-            const docRef = doc(db, "TaxasDeEntrega", "bairros", "lista", "tabela");
-            const snap = await getDoc(docRef);
+      setCouponCode(code);
+      setAppliedCouponCode(code);
+      setDiscount(bounded);
+      setCouponMessage(`${money(bounded)} de desconto aplicado.`);
+    } catch (error) {
+      console.error("Erro ao validar cupom", error);
+      setCouponMessage("Não foi possível validar o cupom agora.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            if (snap.exists()) {
-                const lista = snap.data()?.data || [];
-                const bairroLimpo = nomeBairro.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const cashValue = useMemo(() => {
+    if (!troco.trim()) return null;
+    const normalized = troco.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+    const value = Number(normalized);
+    return Number.isFinite(value) ? value : null;
+  }, [troco]);
 
-                const achou = lista.find((item: any) => {
-                    const itemNome = item.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-                    return itemNome === bairroLimpo || itemNome.includes(bairroLimpo);
-                });
+  const finishOrder = async () => {
+    setErrorMessage("");
+    if (!currentUser) {
+      setErrorMessage("Sua sessão expirou. Entre novamente para finalizar.");
+      return;
+    }
+    if (items.length === 0) {
+      setErrorMessage("Seu carrinho está vazio.");
+      return;
+    }
+    if (!phoneReady) {
+      setStep(1);
+      setErrorMessage("Informe um WhatsApp válido com DDD.");
+      return;
+    }
+    if (!addressReady) {
+      setStep(1);
+      setErrorMessage("Preencha rua, número e bairro para entrega.");
+      return;
+    }
+    if (method === "dinheiro" && cashValue !== null && cashValue < total) {
+      setErrorMessage(`O valor para troco precisa ser pelo menos ${money(total)}.`);
+      return;
+    }
 
-                if (achou) {
-                    setDeliveryFee(Number(achou.taxa));
-                    setDeliveryStatus(`Taxa para ${achou.nome}: R$ ${achou.taxa}`);
-                } else {
-                    setDeliveryFee(6.00);
-                    setDeliveryStatus("Bairro não tabelado. Taxa padrão aplicada.");
-                }
-            }
-        } catch (e) {
-            console.error("Erro ao buscar taxas", e);
-        }
-    };
+    setLoading(true);
+    try {
+      const shopStatus = await getEffectiveShopStatus();
+      const isClosed = !shopStatus.isOpen;
+      const finalAddress = isPickup
+        ? "RETIRADA NO LOCAL"
+        : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}`;
 
-    // --- LÓGICA 3: FINALIZAR PEDIDO ---
-    const handleFinish = async () => {
-        if (deliveryMode === "delivery" && (!rua || !numero || !bairro)) {
-            return alert("Preencha o endereço completo!");
-        }
-        if (!currentUser) return alert("Você precisa estar logado!");
+      const orderData = {
+        userId: currentUser.uid,
+        userName: currentUser.displayName,
+        userEmail: currentUser.email,
+        userPhone: userPhone.trim(),
+        itens: items,
+        subtotal,
+        taxaEntrega: finalFee,
+        desconto: safeDiscount,
+        cupom: safeDiscount > 0 && appliedCouponCode ? appliedCouponCode : null,
+        total,
+        metodoPagamento: method,
+        trocoPara: method === "dinheiro" ? (troco.trim() || null) : null,
+        endereco: finalAddress,
+        tipoEntrega: deliveryMode,
+        data: serverTimestamp(),
+        status: isClosed ? "Agendado" : "Pendente",
+        isAgendamento: isClosed,
+      };
 
-        setLoading(true);
+      const orderRef = await addDoc(collection(db, "Pedidos"), orderData);
 
-        const statusLoja = getShopStatus();
-        const isClosed = !statusLoja.isOpen;
+      try {
+        await setDoc(doc(db, "Usuarios", currentUser.uid), {
+          pedidosFeitos: increment(1),
+          email: currentUser.email,
+        }, { merge: true });
+      } catch (profileError) {
+        console.error("Pedido salvo, mas falhou ao atualizar fidelidade", profileError);
+      }
 
-        const enderecoFinal = deliveryMode === "pickup"
-            ? "🛍️ RETIRADA NO LOCAL"
-            : `${rua}, ${numero} - ${bairro} ${complemento ? `(${complemento})` : ''}`;
+      const itemsMessage = items.map((item) => {
+        const addons = item.selectedAddons?.length ? `\n   + ${item.selectedAddons.map((addon) => addon.name).join(", ")}` : "";
+        const observation = item.observation?.trim() ? `\n   Obs.: ${item.observation.trim()}` : "";
+        return `• ${item.quantity}x ${item.name} — ${money(item.price * item.quantity)}${addons}${observation}`;
+      }).join("\n");
 
-        try {
-            const pedidoData = {
-                userId: currentUser.uid,
-                userName: currentUser.displayName,
-                userEmail: currentUser.email,
-                userPhone: userPhone,
-                itens: items,
-                subtotal,
-                taxaEntrega: finalFee,
-                desconto: discount,
-                cupom: discount > 0 ? couponCode : null,
-                total,
-                metodoPagamento: method,
-                trocoPara: method === 'dinheiro' ? troco : null,
-                endereco: enderecoFinal,
-                tipoEntrega: deliveryMode,
-                data: serverTimestamp(),
-                status: isClosed ? "Agendado" : "Pendente",
-                isAgendamento: isClosed
-            };
+      const paymentText = method === "pix"
+        ? "PIX"
+        : method === "cartao"
+          ? "Cartão — levar maquininha"
+          : `Dinheiro${troco.trim() ? ` — troco para ${troco.trim()}` : " — sem troco informado"}`;
 
-            await addDoc(collection(db, "Pedidos"), pedidoData);
+      const message = [
+        isClosed ? "🕒 *PEDIDO AGENDADO — Da Família*" : "🍔 *NOVO PEDIDO — Da Família*",
+        `Pedido: *#${orderRef.id.slice(-8).toUpperCase()}*`,
+        "",
+        itemsMessage,
+        "",
+        `📍 ${isPickup ? "Retirada no balcão" : finalAddress}`,
+        `📱 ${userPhone.trim()}`,
+        "",
+        `Subtotal: ${money(subtotal)}`,
+        `Entrega: ${finalFee === 0 ? "Grátis" : money(finalFee)}`,
+        safeDiscount > 0 ? `Desconto${appliedCouponCode ? ` (${appliedCouponCode})` : ""}: -${money(safeDiscount)}` : null,
+        `*TOTAL: ${money(total)}*`,
+        `Pagamento: ${paymentText}`,
+        isClosed ? "\nLoja fechada neste momento: pedido registrado como agendado." : null,
+      ].filter(Boolean).join("\n");
 
-            const userRef = doc(db, "Usuarios", currentUser.uid);
-            await setDoc(userRef, {
-                pedidosFeitos: increment(1),
-                email: currentUser.email
-            }, { merge: true });
+      clearCart();
+      closeModal();
+      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Erro ao salvar pedido", error);
+      setErrorMessage("Não conseguimos registrar o pedido. Seu carrinho foi preservado. Tente novamente antes de enviar pelo WhatsApp.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        } catch (error) {
-            console.error("Erro ao salvar pedido", error);
-        }
-        
-        const itensMsg = items.map(i =>
-            `• ${i.quantity}x ${i.name} ${i.selectedAddons?.length ? `(${i.selectedAddons.map(a => a.name).join('+')})` : ''}`
-        ).join("\n");
+  const fieldStyle = { width: "100%", boxSizing: "border-box" as const, padding: "13px 14px", borderRadius: 11, border: "1px solid #ddd", outline: "none", fontSize: 14, background: "#fff" };
 
-        let pagtoTexto = "";
-        if (method === "pix") pagtoTexto = "💠 PIX (Comprovante em anexo)";
-        if (method === "cartao") pagtoTexto = "💳 Cartão (Levar maquininha)";
-        if (method === "dinheiro") pagtoTexto = `💵 Dinheiro (Troco para: ${troco || 'Sem troco'})`;
+  return (
+    <ModalBase title={step === 1 ? "Entrega ou retirada" : "Revise e pague"} onClose={closeModal}>
+      <div style={{ padding: 18 }}>
+        <div style={{ display: "flex", gap: 7, marginBottom: 18 }}>
+          <div style={{ flex: 1, height: 5, borderRadius: 99, background: "#111" }} />
+          <div style={{ flex: 1, height: 5, borderRadius: 99, background: step === 2 ? "#111" : "#e5e5e5" }} />
+        </div>
 
-        const titulo = isClosed
-            ? `🕒 *PEDIDO AGENDADO (Loja Fechada)*`
-            : `🍔 *NOVO PEDIDO - Da Família*`;
+        {errorMessage && <div style={{ background: "#fff1f0", color: "#a61b1b", border: "1px solid #ffd0cc", borderRadius: 12, padding: 12, marginBottom: 14, fontSize: 12, lineHeight: 1.45 }}>{errorMessage}</div>}
 
-        const zapText = `
-${titulo}
---------------------------------
-${itensMsg}
---------------------------------
-📍 *Modo:* ${deliveryMode === "pickup" ? "🛍️ Retirada" : "🛵 Entrega"}
-${deliveryMode === "delivery" ? `🏠 *Endereço:* ${enderecoFinal}` : "🏢 Retirar no Balcão"}
+        {step === 1 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 5, padding: 4, background: "#f3f3f3", borderRadius: 12 }}>
+              <button onClick={() => setDeliveryMode("delivery")} style={{ flex: 1, padding: 12, border: 0, borderRadius: 9, background: deliveryMode === "delivery" ? "#111" : "transparent", color: deliveryMode === "delivery" ? "#fff" : "#555", fontWeight: 900, cursor: "pointer" }}>Entrega</button>
+              <button onClick={() => setDeliveryMode("pickup")} style={{ flex: 1, padding: 12, border: 0, borderRadius: 9, background: deliveryMode === "pickup" ? "#111" : "transparent", color: deliveryMode === "pickup" ? "#fff" : "#555", fontWeight: 900, cursor: "pointer" }}>Retirada</button>
+            </div>
 
-💰 Subtotal: ${subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-🛵 Entrega: ${finalFee === 0 ? "Grátis" : finalFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-${discount > 0 ? `🔻 Desconto (${couponCode}): - ${discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : ''}
-*TOTAL: ${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*
+            <label style={{ fontSize: 11, fontWeight: 900 }}>WHATSAPP COM DDD
+              <input placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => setUserPhone(formatPhone(event.target.value))} inputMode="tel" style={{ ...fieldStyle, marginTop: 6, borderColor: phoneReady || !userPhone ? "#ddd" : "#ef9a9a" }} />
+            </label>
 
-Pagamento: ${pagtoTexto}
-`.trim();
+            {deliveryMode === "delivery" ? (
+              <>
+                {!manualMode && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input placeholder="CEP" value={cep} onChange={(event) => setCep(formatCEP(event.target.value))} onBlur={() => { if (cep.replace(/\D/g, "").length === 8) void handleSearchCep(); }} inputMode="numeric" style={fieldStyle} />
+                    <button onClick={() => void handleSearchCep()} disabled={loading} style={{ border: 0, borderRadius: 11, background: "#ffca28", padding: "0 15px", fontWeight: 900, cursor: "pointer" }}>{loading ? "…" : "Buscar"}</button>
+                  </div>
+                )}
 
-        window.open(`https://wa.me/5534997178336?text=${encodeURIComponent(zapText)}`, "_blank");
-
-        clearCart();
-        closeModal();
-        setLoading(false);
-    };
-
-    // 🎁 LÓGICA DE INTERCEPTAÇÃO DE SAÍDA (RESGATE)
-    const handleAttemptClose = () => {
-        // Se a pessoa já resgatou o baú ou já aplicou desconto, fecha normal
-        if (localStorage.getItem("dfl_bau_resgate") || discount > 0) {
-            closeModal();
-        } else {
-            // Se não, joga o Baú na tela dela!
-            setShowExitModal(true);
-        }
-    };
-
-    // 🎁 LÓGICA DO CLIQUE NO BAÚ DE RESGATE
-    const handleEscolherBau = (e: React.SyntheticEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        if (bauStatus === "ganhou") return;
-
-        if (tentativasBau === 2) {
-            setTentativasBau(1);
-            setBauStatus("erro1");
-        } else if (tentativasBau === 1) {
-            setTentativasBau(0);
-            setBauStatus("ganhou");
-            localStorage.setItem("dfl_bau_resgate", "true");
-        }
-    };
-
-    const handleResgatarCupom = () => {
-        setCouponCode("BEMVINDO10");
-        applyCoupon("BEMVINDO10");
-        setCupomCopiado(true);
-        setTimeout(() => {
-            setCupomCopiado(false);
-            setShowExitModal(false); // Fecha o modal e joga ela pro carrinho com desconto!
-        }, 1500);
-    };
-
-    return (
-        <>
-            <ModalBase title={step === 1 ? "Finalizando... 🛵" : "Pagamento 💸"} onClose={handleAttemptClose}>
-                
-                {/* 📊 BARRA DE PROGRESSO VISUAL */}
-                <div style={{ background: "#f8f9fa", padding: "10px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #eee" }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", opacity: 0.5 }}>
-                        <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#4caf50", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "bold" }}>✓</div>
-                        <span style={{ fontSize: "10px", fontWeight: "bold", marginTop: "4px" }}>Sacola</span>
-                    </div>
-                    <div style={{ flex: 1, height: "2px", background: "#4caf50", margin: "0 10px", opacity: 0.5, marginBottom: "15px" }}></div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", opacity: step >= 1 ? 1 : 0.5 }}>
-                        <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: step >= 1 ? "#ffca28" : "#ccc", color: step >= 1 ? "#111" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "bold" }}>2</div>
-                        <span style={{ fontSize: "10px", fontWeight: "bold", marginTop: "4px" }}>Endereço</span>
-                    </div>
-                    <div style={{ flex: 1, height: "2px", background: step === 2 ? "#ffca28" : "#eee", margin: "0 10px", marginBottom: "15px", transition: "background 0.3s" }}></div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", opacity: step === 2 ? 1 : 0.5 }}>
-                        <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: step === 2 ? "#ffca28" : "#ccc", color: step === 2 ? "#111" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "bold" }}>3</div>
-                        <span style={{ fontSize: "10px", fontWeight: "bold", marginTop: "4px" }}>Pagamento</span>
-                    </div>
+                <input placeholder="Rua" value={rua} onChange={(event) => setRua(event.target.value)} readOnly={!manualMode} style={{ ...fieldStyle, background: manualMode ? "#fff" : "#f7f7f7" }} />
+                <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 8 }}>
+                  <input placeholder="Número" value={numero} onChange={(event) => setNumero(event.target.value)} inputMode="numeric" style={fieldStyle} />
+                  <input placeholder="Bairro" value={bairro} onChange={(event) => setBairro(event.target.value)} onBlur={() => { if (manualMode && bairro.trim()) void calculateDeliveryFee(bairro); }} readOnly={!manualMode} style={{ ...fieldStyle, background: manualMode ? "#fff" : "#f7f7f7" }} />
                 </div>
+                <input placeholder="Complemento (opcional)" value={complemento} onChange={(event) => setComplemento(event.target.value)} style={fieldStyle} />
 
-                <div style={{ padding: "20px" }}>
-
-                    {/* --- PASSO 1: ENDEREÇO / MODO --- */}
-                    {step === 1 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-
-                            {/* SELETOR MODO DE RECEBIMENTO */}
-                            <div style={{ display: "flex", background: "#f5f5f5", padding: "4px", borderRadius: "10px", marginBottom: "15px" }}>
-                                <button
-                                    onClick={() => setDeliveryMode("delivery")}
-                                    style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: deliveryMode === "delivery" ? "#111" : "transparent", color: deliveryMode === "delivery" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}
-                                >
-                                    🛵 Entrega
-                                </button>
-                                <button
-                                    onClick={() => setDeliveryMode("pickup")}
-                                    style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "none", background: deliveryMode === "pickup" ? "#111" : "transparent", color: deliveryMode === "pickup" ? "#fff" : "#666", fontWeight: "bold", cursor: "pointer" }}
-                                >
-                                    🛍️ Retirada
-                                </button>
-                            </div>
-
-                            {/* CAMPO WHATSAPP COM MÁSCARA */}
-                            <div style={{ marginBottom: "10px" }}>
-                                <label style={{ fontSize: "12px", fontWeight: "bold", color: "#111" }}>SEU WHATSAPP (PARA AVISOS):</label>
-                                <input
-                                    placeholder="(00) 00000-0000"
-                                    value={userPhone}
-                                    onChange={e => setUserPhone(formatPhone(e.target.value))}
-                                    style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "2px solid #ffca28", fontSize: "16px", outline: "none", marginTop: "5px" }}
-                                />
-                            </div>
-
-                            {deliveryMode === "delivery" ? (
-                                <>
-                                    {!manualMode && (
-                                        <div style={{ display: "flex", gap: "10px" }}>
-                                            <input
-                                                placeholder="CEP: 00000-000"
-                                                value={cep}
-                                                onChange={e => setCep(formatCEP(e.target.value))}
-                                                onBlur={() => handleBuscarCep()} 
-                                                maxLength={9}
-                                                style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }}
-                                            />
-                                            <button onClick={() => handleBuscarCep()} disabled={loading} style={{ background: "#ffca28", border: "none", borderRadius: "8px", padding: "0 15px", fontWeight: "bold" }}>
-                                                {loading ? "..." : "Buscar"}
-                                            </button>
-                                        </div>
-                                    )}
-                                    <input placeholder="Rua" value={rua} onChange={e => setRua(e.target.value)} disabled={!manualMode} style={{ padding: "12px", borderRadius: "8px", border: "1px solid #eee", background: manualMode ? "#fff" : "#f9f9f9" }} />
-
-                                    <div style={{ display: "flex", gap: "10px" }}>
-                                        <input placeholder="Número" value={numero} onChange={e => setNumero(e.target.value)} style={{ width: "80px", padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }} />
-                                        <input placeholder="Bairro" value={bairro} onChange={e => setBairro(e.target.value)} disabled={!manualMode} style={{ flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #eee", background: manualMode ? "#fff" : "#f9f9f9" }} />
-                                    </div>
-
-                                    <input placeholder="Complemento (Opcional)" value={complemento} onChange={e => setComplemento(e.target.value)} style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }} />
-
-                                    <div style={{ fontSize: "12px", color: deliveryFee === 6 ? "#666" : "green", marginTop: "5px" }}>
-                                        {deliveryStatus}
-                                    </div>
-
-                                    <div style={{ marginTop: "10px", textAlign: "right" }}>
-                                        <button onClick={() => setManualMode(!manualMode)} style={{ background: "none", border: "none", color: "#888", textDecoration: "underline", fontSize: "12px", cursor: "pointer" }}>
-                                            {manualMode ? "Tentar buscar CEP" : "Não sei meu CEP / Digitar Manual"}
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <div style={{ padding: "30px 20px", background: "#fff9c4", borderRadius: "12px", textAlign: "center", border: "1px solid #fbc02d", marginBottom: "15px" }}>
-                                    <p style={{ fontSize: "16px", fontWeight: "bold", color: "#827717", marginBottom: "5px" }}>📍 Retirada no Balcão</p>
-                                    <p style={{ fontSize: "13px", color: "#827717" }}>Preparemos seu pedido e te avisamos pelo WhatsApp!</p>
-                                </div>
-                            )}
-
-                            <button
-                                onClick={() => setStep(2)}
-                                disabled={deliveryMode === "delivery" && (!rua || !numero)}
-                                style={{
-                                    marginTop: "15px", background: "#111", color: "#fff", padding: "16px",
-                                    borderRadius: "12px", border: "none", fontWeight: "bold", cursor: "pointer",
-                                    opacity: (deliveryMode === "delivery" && (!rua || !numero)) ? 0.5 : 1
-                                }}
-                            >
-                                Ir para Pagamento →
-                            </button>
-                        </div>
-                    )}
-                    {/* --- PASSO 2: PAGAMENTO --- */}
-                    {step === 2 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-
-                            {/* CONTAINER DO CUPOM */}
-                            <div style={{
-                                display: "flex",
-                                alignItems: "center",
-                                border: "2px dashed #2196f3",
-                                borderRadius: "12px",
-                                padding: "10px 15px",
-                                marginTop: "10px",
-                                background: "#f9fcff",
-                                gap: "10px"
-                            }}>
-                                <input
-                                    type="text"
-                                    placeholder="Possui cupom? Digite aqui"
-                                    value={couponCode}
-                                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                                    style={{
-                                        border: "none",
-                                        background: "transparent",
-                                        outline: "none",
-                                        flex: 1,
-                                        fontSize: "14px",
-                                        fontWeight: "500",
-                                        color: "#333",
-                                        padding: 0,
-                                        margin: 0,
-                                        width: "100%"
-                                    }}
-                                />
-                                <button
-                                    onClick={() => applyCoupon()}
-                                    disabled={loading}
-                                    style={{
-                                        background: "none",
-                                        border: "none",
-                                        color: loading ? "#ccc" : "#2196f3",
-                                        fontWeight: "900",
-                                        fontSize: "13px",
-                                        cursor: "pointer",
-                                        padding: 0,
-                                        margin: 0,
-                                        textTransform: "uppercase",
-                                        whiteSpace: "nowrap",
-                                        flexShrink: 0
-                                    }}
-                                >
-                                    {loading ? "..." : "APLICAR"}
-                                </button>
-                            </div>
-
-                            {couponMessage && <div style={{ fontSize: "12px", color: discount > 0 ? "green" : "red", marginTop: "-10px" }}>{couponMessage}</div>}
-
-                            {/* Resumo Valores */}
-                            <div style={{ background: "#f9f9f9", padding: "15px", borderRadius: "12px" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
-                                    <span>Subtotal:</span>
-                                    <span>{subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                </div>
-                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: (isFreteGratis || isRetirada) ? "green" : "#666" }}>
-                                    <span>Entrega {deliveryMode === "delivery" ? `(${bairro})` : "(Retirada)"}:</span>
-                                    <span>{(isFreteGratis || isRetirada) ? "GRÁTIS" : deliveryFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                </div>
-
-                                {discount > 0 && (
-                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#2e7d32", fontWeight: "bold" }}>
-                                        <span>Desconto ({couponCode}):</span>
-                                        <span>- {discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                    </div>
-                                )}
-
-                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "20px", fontWeight: "bold", marginTop: "10px", borderTop: "1px solid #ddd", paddingTop: "10px" }}>
-                                    <span>Total:</span>
-                                    <span>{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                </div>
-                            </div>
-                            {/* Seletor Pagamento corrigido */}
-                            <div style={{ display: "flex", background: "#eee", padding: "4px", borderRadius: "8px" }}>
-                                {['pix', 'cartao', 'dinheiro'].map((m) => (
-                                    <button
-                                        key={m}
-                                        onClick={() => setMethod(m as PaymentMethod)}
-                                        style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "none", background: method === m ? "#fff" : "transparent", fontWeight: "bold", cursor: "pointer", transition: "0.2s" }}
-                                    >
-                                        {m === 'pix' ? '💠 PIX' : m === 'cartao' ? '💳 Cartão' : '💵 Dinheiro'}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {method === "pix" && (
-                                <div style={{
-                                    textAlign: "center",
-                                    padding: "15px",
-                                    border: "1px solid #ffca28",
-                                    borderRadius: "12px",
-                                    background: "#fff9c433",
-                                    width: "100%",
-                                    boxSizing: "border-box",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "center"
-                                }}>
-                                    <p style={{ fontSize: "12px", color: "#666", marginBottom: "10px", width: "100%" }}>
-                                        Copie a chave e pague no app do seu banco:
-                                    </p>
-                                    <div style={{
-                                        display: "flex",
-                                        gap: "8px",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        width: "100%"
-                                    }}>
-                                        <input
-                                            readOnly
-                                            value={PIX_KEY}
-                                            style={{
-                                                flex: 1,
-                                                maxWidth: "200px",
-                                                padding: "12px",
-                                                borderRadius: "10px",
-                                                border: "1px solid #ddd",
-                                                fontSize: "14px",
-                                                textAlign: "center",
-                                                fontWeight: "bold",
-                                                background: "#fff"
-                                            }}
-                                        />
-                                        <button
-                                            onClick={() => { navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }}
-                                            style={{
-                                                background: pixCopied ? "#388e3c" : "#ffca28",
-                                                border: "none",
-                                                borderRadius: "10px",
-                                                padding: "12px 15px",
-                                                color: "#000",
-                                                fontWeight: "bold",
-                                                cursor: "pointer",
-                                                whiteSpace: "nowrap"
-                                            }}
-                                        >
-                                            {pixCopied ? "OK" : "Copiar"}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {method === "dinheiro" && (
-                                <input
-                                    placeholder="Troco para quanto?"
-                                    value={troco}
-                                    onChange={e => setTroco(e.target.value)}
-                                    style={{ padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }}
-                                />
-                            )}
-
-                            {/* Botões Finais */}
-                            <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
-                                <button onClick={() => setStep(1)} style={{ flex: 1, background: "transparent", border: "1px solid #ccc", borderRadius: "12px", padding: "16px", fontWeight: "bold", cursor: "pointer" }}>Voltar</button>
-                                <button onClick={handleFinish} disabled={loading} style={{ flex: 2, background: "#25D366", color: "#fff", border: "none", borderRadius: "12px", padding: "16px", fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>
-                                    {loading ? "Salvando..." : "Finalizar Pedido 💬"}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </ModalBase>
-
-            {/* 🎁 MODAL GAMIFICAÇÃO: BAÚ DE RESGATE (ABANDONO) */}
-            {showExitModal && (
-                <div style={{
-                    position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
-                    backgroundColor: "rgba(0,0,0,0.9)", zIndex: 99999, display: "flex",
-                    alignItems: "center", justifyContent: "center", padding: "20px", fontFamily: "sans-serif"
-                }}>
-                    <div style={{
-                        background: "#111", border: "2px solid #ffca28", borderRadius: "24px",
-                        padding: "30px 25px", maxWidth: "340px", width: "100%", textAlign: "center", color: "#fff",
-                        boxShadow: "0 10px 40px rgba(255, 202, 40, 0.2)", position: "relative"
-                    }}>
-                        
-                        <h2 style={{ fontSize: "22px", fontWeight: "900", color: "#ffca28", margin: "0 0 10px 0" }}>
-                            {bauStatus === "ganhou" ? "🎉 VOCÊ GANHOU! 🎉" : "ESPERA AÍ! ✋"}
-                        </h2>
-
-                        <p style={{ fontSize: "15px", color: "#ccc", margin: "0 0 25px 0", lineHeight: "1.4" }}>
-                            {bauStatus === "inicio" && `Antes de ir, escolha um Baú da Família e tente ganhar um desconto para fechar o pedido agora!`}
-                            {bauStatus === "erro1" && `❌ Poxa, esse estava vazio! Mas não desista. Tente o outro!`}
-                            {bauStatus === "ganhou" && "Incrível! Você ganhou 10% OFF. Vamos aplicar no seu carrinho agora mesmo!"}
-                        </p>
-
-                        {/* AREA DOS BAÚS COM RESPOSTA RÁPIDA */}
-                        {bauStatus !== "ganhou" ? (
-                            <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "25px" }}>
-                                {[1, 2, 3].map((num) => (
-                                    <div 
-                                        key={num}
-                                        onTouchStart={(e) => handleEscolherBau(e)}
-                                        onClick={(e) => handleEscolherBau(e)}
-                                        style={{
-                                            fontSize: "50px", cursor: "pointer", background: "#222", 
-                                            padding: "15px", borderRadius: "15px", border: "1px solid #333",
-                                            WebkitTapHighlightColor: "transparent"
-                                        }}
-                                    >
-                                        📦
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            /* BOTÃO MÁGICO DE APLICAR O CUPOM AUTOMÁTICO */
-                            <button 
-                                onClick={handleResgatarCupom}
-                                style={{
-                                    background: cupomCopiado ? "#4caf50" : "linear-gradient(135deg, #ffca28 0%, #ff6f00 100%)", 
-                                    color: cupomCopiado ? "#fff" : "#111", border: "none", padding: "15px 20px", 
-                                    borderRadius: "12px", fontWeight: "900", fontSize: "16px", cursor: "pointer", 
-                                    width: "100%", marginBottom: "20px", boxShadow: "0 4px 15px rgba(255, 202, 40, 0.3)"
-                                }}
-                            >
-                                {cupomCopiado ? "APLICANDO..." : "RESGATAR 10% OFF AGORA"}
-                            </button>
-                        )}
-
-                        <button 
-                            onClick={() => { setShowExitModal(false); closeModal(); }}
-                            style={{ background: "none", border: "none", color: "#888", fontWeight: "bold", fontSize: "13px", cursor: "pointer", textDecoration: "underline" }}
-                        >
-                            {bauStatus === "ganhou" ? "Não quero o desconto, sair." : "Sair sem desconto mesmo."}
-                        </button>
-                    </div>
-                </div>
+                {deliveryStatus && <div style={{ fontSize: 11, color: "#666", lineHeight: 1.4 }}>{deliveryStatus}</div>}
+                <button onClick={() => setManualMode((value) => !value)} style={{ alignSelf: "flex-start", border: 0, background: "transparent", padding: 0, color: "#666", textDecoration: "underline", fontSize: 11, cursor: "pointer" }}>{manualMode ? "Voltar para busca por CEP" : "Preencher endereço manualmente"}</button>
+              </>
+            ) : (
+              <div style={{ background: "#fff8d7", border: "1px solid #ffe082", borderRadius: 14, padding: 16 }}>
+                <strong style={{ display: "block", fontSize: 13 }}>Retirada no balcão</strong>
+                <span style={{ display: "block", marginTop: 4, color: "#6d5b00", fontSize: 11, lineHeight: 1.45 }}>Você recebe o aviso pelo WhatsApp quando o pedido estiver em andamento.</span>
+              </div>
             )}
-        </>
-    );
+
+            <button onClick={() => { setErrorMessage(""); if (canAdvance) setStep(2); else setErrorMessage(!phoneReady ? "Informe um WhatsApp válido com DDD." : "Complete o endereço para continuar."); }} style={{ marginTop: 5, width: "100%", border: 0, borderRadius: 13, background: "#111", color: "#fff", padding: 16, fontWeight: 900, cursor: "pointer", opacity: canAdvance ? 1 : 0.65 }}>Continuar</button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 14, background: "#fafafa" }}>
+              <strong style={{ display: "block", fontSize: 12 }}>Recebimento</strong>
+              <span style={{ display: "block", marginTop: 5, color: "#666", fontSize: 11, lineHeight: 1.45 }}>{isPickup ? "Retirada no local" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}`}</span>
+              <span style={{ display: "block", marginTop: 3, color: "#666", fontSize: 11 }}>{userPhone}</span>
+            </div>
+
+            <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 14 }}>
+              <strong style={{ display: "block", fontSize: 12, marginBottom: 9 }}>Cupom</strong>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters" style={fieldStyle} />
+                <button onClick={() => void applyCoupon()} disabled={loading || !couponCode.trim()} style={{ border: 0, borderRadius: 11, background: "#ffca28", padding: "0 14px", fontWeight: 900, cursor: "pointer" }}>Aplicar</button>
+              </div>
+              {couponMessage && <span style={{ display: "block", marginTop: 7, fontSize: 10, color: safeDiscount > 0 ? "#2e7d32" : "#777" }}>{couponMessage}</span>}
+            </div>
+
+            <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 8 }}><span>Subtotal</span><span>{money(subtotal)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 8 }}><span>Entrega</span><span style={{ color: finalFee === 0 ? "#2e7d32" : "inherit" }}>{finalFee === 0 ? "Grátis" : money(finalFee)}</span></div>
+              {safeDiscount > 0 && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#2e7d32", marginBottom: 8 }}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><span>-{money(safeDiscount)}</span></div>}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid #eee", paddingTop: 10, marginTop: 4 }}><strong>Total</strong><strong style={{ fontSize: 22 }}>{money(total)}</strong></div>
+              {hasFreeDelivery && !isPickup && <span style={{ display: "block", marginTop: 7, color: "#2e7d32", fontSize: 10 }}>Frete grátis aplicado para pedidos a partir de R$ 80.</span>}
+            </div>
+
+            <div style={{ display: "flex", gap: 5, padding: 4, background: "#f3f3f3", borderRadius: 12 }}>
+              {(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => (
+                <button key={option} onClick={() => setMethod(option)} style={{ flex: 1, padding: 11, border: 0, borderRadius: 9, background: method === option ? "#fff" : "transparent", boxShadow: method === option ? "0 1px 4px rgba(0,0,0,.08)" : "none", fontWeight: 900, fontSize: 11, cursor: "pointer" }}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>
+              ))}
+            </div>
+
+            {method === "pix" && (
+              <div style={{ border: "1px solid #ffe082", background: "#fffdf3", borderRadius: 14, padding: 14 }}>
+                <span style={{ display: "block", fontSize: 11, color: "#666" }}>Chave PIX</span>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <input readOnly value={PIX_KEY} style={fieldStyle} />
+                  <button onClick={() => { void navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }} style={{ border: 0, borderRadius: 11, background: pixCopied ? "#2e7d32" : "#ffca28", color: pixCopied ? "#fff" : "#111", padding: "0 14px", fontWeight: 900, cursor: "pointer" }}>{pixCopied ? "Copiado" : "Copiar"}</button>
+                </div>
+              </div>
+            )}
+
+            {method === "dinheiro" && <input placeholder="Troco para quanto? Ex.: 100,00" value={troco} onChange={(event) => setTroco(event.target.value)} inputMode="decimal" style={fieldStyle} />}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 8 }}>
+              <button onClick={() => { setErrorMessage(""); setStep(1); }} disabled={loading} style={{ border: "1px solid #ddd", borderRadius: 13, background: "#fff", padding: 15, fontWeight: 800, cursor: "pointer" }}>Voltar</button>
+              <button onClick={() => void finishOrder()} disabled={loading} style={{ border: 0, borderRadius: 13, background: "#25D366", color: "#fff", padding: 15, fontWeight: 900, cursor: "pointer", opacity: loading ? 0.7 : 1 }}>{loading ? "Registrando pedido…" : "Registrar e abrir WhatsApp"}</button>
+            </div>
+
+            <span style={{ textAlign: "center", color: "#888", fontSize: 10, lineHeight: 1.45 }}>O WhatsApp só abre depois que o pedido for salvo com sucesso. Se ocorrer erro, seu carrinho permanece intacto.</span>
+          </div>
+        )}
+      </div>
+    </ModalBase>
+  );
 }
