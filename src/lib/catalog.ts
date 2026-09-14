@@ -106,7 +106,7 @@ export function mergeProducts(remote: Product[]): Product[] {
   return Array.from(byId.values());
 }
 
-export function mergeAddons(remote: Addon[]): Addon[] {
+export function mergeAllAddons(remote: Addon[]): Addon[] {
   if (!remote.length) return fallbackAddons;
 
   const byId = new Map(fallbackAddons.map((addon) => [addon.id, addon]));
@@ -116,8 +116,11 @@ export function mergeAddons(remote: Addon[]): Addon[] {
   }
 
   return Array.from(byId.values())
-    .filter((addon) => addon.disponivel !== false)
     .sort((a, b) => (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER));
+}
+
+export function mergeAddons(remote: Addon[]): Addon[] {
+  return mergeAllAddons(remote).filter((addon) => addon.disponivel !== false);
 }
 
 export function availableAddonsForProduct(product: Product, addons: Addon[]): Addon[] {

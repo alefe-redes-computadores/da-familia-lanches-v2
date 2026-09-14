@@ -7,6 +7,7 @@ import {
   CATALOG_ADDONS_COLLECTION,
   CATALOG_PRODUCTS_COLLECTION,
   mergeAddons,
+  mergeAllAddons,
   mergeProducts,
   normalizeRemoteAddon,
   normalizeRemoteProduct,
@@ -55,12 +56,14 @@ export function useCatalog() {
   }, []);
 
   const products = useMemo(() => mergeProducts(remoteProducts), [remoteProducts]);
+  const allAddons = useMemo(() => mergeAllAddons(remoteAddons), [remoteAddons]);
   const addons = useMemo(() => mergeAddons(remoteAddons), [remoteAddons]);
   const source: CatalogSource = remoteProducts.length || remoteAddons.length ? "hybrid" : "fallback";
 
   return {
     products,
     addons,
+    allAddons,
     source,
     loading: !productsReady || !addonsReady,
     remoteProducts: remoteProducts.length,

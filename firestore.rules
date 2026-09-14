@@ -1,35 +1,62 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
+
     function isAdmin() {
-      return signedIn() && request.auth.token.email in [
-        "alefejohsefe@gmail.com",
-        "kalebhstanley650@gmail.com",
-        "contato@dafamilialanches.com.br"
-      ];
+      return request.auth != null && (
+        request.auth.token.email.matches("(?i)alefejohsefe@gmail.com") ||
+        request.auth.token.email.matches("(?i)kalebhstanley650@gmail.com") ||
+        request.auth.token.email.matches("(?i)contato@dafamilialanches.com.br") ||
+        request.auth.token.email.matches("(?i)carols2maite@gmail.com") ||
+        request.auth.token.email.matches("(?i)degustbolosnopote@gmail.com")
+      );
     }
 
-    match /CatalogoProdutos/{id} { allow read: if true; allow write: if isAdmin(); }
-    match /CatalogoAdicionais/{id} { allow read: if true; allow write: if isAdmin(); }
-
-    match /Pedidos/{id} {
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow update, delete: if isAdmin();
+    match /Pedidos/{documentId} {
+      allow create: if request.auth != null;
+      allow read, list: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.userId);
+      allow update: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.userId);
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
-    match /Usuarios/{uid} {
-      allow read, create, update: if signedIn() && request.auth.uid == uid;
-      allow delete: if false;
+    match /Entregadores/{entregadorId} { allow read, write: if isAdmin(); }
+    match /settings/{documentId} { allow read: if true; allow write: if isAdmin(); }
+    match /Cupons/{cupomId} { allow read: if true; allow create, update, delete: if isAdmin(); }
+    match /RecompensasConfig/{documentId} { allow read: if true; allow write: if isAdmin(); }
+    match /CuponsUsuarios/{documentId} { allow read, write: if request.auth != null && request.auth.uid == documentId; }
+
+    match /Usuarios/{userId}/RecompensasRecebidas/{documentId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
     }
 
-    match /settings/{id} { allow read: if true; allow write: if isAdmin(); }
-    match /Cupons/{id} { allow read: if true; allow write: if isAdmin(); }
-    match /TaxasDeEntrega/{document=**} { allow read: if true; allow write: if isAdmin(); }
+    match /Usuarios/{userId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
 
-    // Compatibilidade temporária com coleções legadas ainda não auditadas.
-    // Somente administradores autenticados podem acessá-las por esta regra.
-    match /{document=**} { allow read, write: if isAdmin(); }
+    match /TaxasDeEntrega/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+      match /{subCollection}/{subDoc} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    match /CatalogoProdutos/{documentId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /CatalogoAdicionais/{documentId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }
