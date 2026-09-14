@@ -46,13 +46,25 @@ const integrationDocumentId = (
   return encoded;
 };
 
+/**
+ * Cria o evento de outbox dentro da MESMA transaction do domínio.
+ *
+ * Importante:
+ * o cliente do Site não possui permissão de leitura em integration_outbox.
+ * Portanto o cliente não deve fazer leitura transacional da outbox aqui.
+ *
+ * A proteção contra sobrescrever evento existente fica nas Firestore Rules:
+ * o cliente pode CREATE, mas não UPDATE. Se o mesmo event_id já existir,
+ * uma tentativa de set será tratada como update e será recusada, impedindo
+ * reset acidental de evento já processado.
+ */
 export async function ensureIntegrationEventInTransaction<
   TPayload,
 >(
   transaction: Transaction,
   event: IntegrationEventEnvelope<TPayload>,
 ): Promise<{
-  created: boolean;
+  created: true;
   record: IntegrationOutboxRecord<TPayload>;
 }> {
   const ref = doc(
@@ -60,17 +72,6 @@ export async function ensureIntegrationEventInTransaction<
     INTEGRATION_COLLECTIONS.outbox,
     integrationDocumentId(event.event_id),
   );
-
-  const snapshot =
-    await transaction.get(ref);
-
-  if (snapshot.exists()) {
-    return {
-      created: false,
-      record:
-        snapshot.data() as IntegrationOutboxRecord<TPayload>,
-    };
-  }
 
   const record =
     buildOutboxRecord(event);
