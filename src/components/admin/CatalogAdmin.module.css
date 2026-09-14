@@ -18,3 +18,4 @@
 .choiceList button[data-active="true"] i{border:5px solid #ffca28;background:#111}
 .formChoice{min-width:0}.formChoice .choiceButton{height:100%;min-height:50px}
 @media(max-width:520px){.choiceOverlay{padding:8px}.choiceSheet{border-radius:20px}.choiceList button{min-height:52px;font-size:12px}}
+.photoUpload{grid-column:1/-1;display:flex;align-items:center;gap:10px;border:1px dashed #d8d1c5;border-radius:13px;padding:10px;background:#faf9f7}.photoButton{flex:0 0 auto!important;border:0!important;border-radius:10px!important;background:#111!important;color:#fff!important;padding:11px 13px!important;font-size:9px!important;font-weight:900!important;cursor:pointer}.photoButton input{display:none}.photoUpload small{color:#888;font-size:8px;line-height:1.4}@media(max-width:520px){.photoUpload{align-items:stretch;flex-direction:column}}

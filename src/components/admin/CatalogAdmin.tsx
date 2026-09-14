@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { db, storage } from "@/lib/firebase";
 import { products as fallbackProducts, type Product, type ProductCategory } from "@/data/products";
 import { ADDONS as fallbackAddons, type Addon } from "@/data/addons";
 import { useCatalog } from "@/hooks/useCatalog";
@@ -119,6 +120,7 @@ export function CatalogAdmin() {
   const [categoryFilter, setCategoryFilter] = useState<"all" | ProductCategory>("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "active" | "paused">("all");
   const [confirmSeed, setConfirmSeed] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const filteredProducts = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
@@ -145,6 +147,22 @@ export function CatalogAdmin() {
     setProductMode("edit");
     setProductDraft(draftFromProduct(product));
     setMessage("");
+  };
+
+  const uploadProductImage = async (file: File) => {
+    if (!productDraft) return;
+    if (!file.type.startsWith("image/")) return setMessage("Escolha uma imagem.");
+    if (file.size > 6 * 1024 * 1024) return setMessage("A foto deve ter no máximo 6 MB.");
+    setUploadingImage(true); setMessage("");
+    try {
+      const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg";
+      const base=(productDraft.id||productDraft.name||"produto").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"produto";
+      const objectRef=ref(storage,`catalog/products/${base}-${Date.now()}.${ext}`);
+      await uploadBytes(objectRef,file,{contentType:file.type,customMetadata:{scope:"catalog-product"}});
+      const url=await getDownloadURL(objectRef);
+      setProductDraft(d=>d?{...d,image:url}:d); setMessage("Foto enviada. Agora salve o produto.");
+    } catch(error){console.error(error);setMessage("Falha no upload. Confira se as regras do Storage foram publicadas.");}
+    finally{setUploadingImage(false);}
   };
 
   const saveProduct = async () => {
@@ -401,6 +419,7 @@ export function CatalogAdmin() {
           <label className={styles.full}>Descrição<textarea value={productDraft.description} onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })} placeholder="Ingredientes e descrição comercial" /></label>
           <label>Preço<input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: e.target.value })} placeholder="0,00" /></label>
           <label>Preço anterior<input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: e.target.value })} placeholder="Opcional" /></label>
+          <div className={styles.photoUpload}><label className={styles.photoButton}>{uploadingImage ? "Enviando..." : "Escolher foto do celular"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingImage} onChange={(e)=>{const file=e.target.files?.[0];if(file)void uploadProductImage(file);e.currentTarget.value="";}} /></label><small>JPG, PNG ou WebP · até 6 MB. O campo de URL continua funcionando.</small></div>
           <div className={styles.formChoice}><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={CATEGORIES} /></div>
           <label>Ordem<input inputMode="numeric" value={productDraft.sortOrder} onChange={(e) => setProductDraft({ ...productDraft, sortOrder: e.target.value })} placeholder="Opcional" /></label>
           <label className={styles.full}>Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /></label>

@@ -79,7 +79,7 @@ export default function Home() {
       <main className={styles.content}>
         {!shopStatus.isOpen && (
           <div className={styles.closedNotice}>
-            <strong>A loja está fechada agora.</strong>
+            <strong>{shopStatus.message || "A loja está fechada agora."}</strong>
             <span>Você ainda pode explorar o cardápio e montar seu pedido para agendamento.</span>
           </div>
         )}

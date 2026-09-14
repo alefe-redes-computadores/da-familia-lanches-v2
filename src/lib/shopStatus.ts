@@ -1,35 +1,6 @@
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { getShopStatus } from "@/lib/openingHours";
-
-export type ShopStatus = {
-  isOpen: boolean;
-  message: string;
-  source: "settings" | "schedule";
-};
-
-export function statusFromSetting(value: unknown): ShopStatus | null {
-  if (typeof value !== "boolean") return null;
-  return {
-    isOpen: value,
-    message: value ? "Aberto agora" : "Fechado agora",
-    source: "settings",
-  };
-}
-
-export function getScheduleShopStatus(): ShopStatus {
-  const status = getShopStatus();
-  return { ...status, source: "schedule" };
-}
-
-export async function getEffectiveShopStatus(): Promise<ShopStatus> {
-  const fallback = getScheduleShopStatus();
-  try {
-    const snap = await getDoc(doc(db, "settings", "loja"));
-    if (!snap.exists()) return fallback;
-    return statusFromSetting(snap.data().isOpen) ?? fallback;
-  } catch (error) {
-    console.warn("Falha ao ler status remoto da loja; usando horário local.", error);
-    return fallback;
-  }
-}
+import{doc,getDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
+import{DEFAULT_STORE_SETTINGS,evaluateStoreStatus,normalizeStoreSettings}from"@/lib/storeSchedule";
+export type ShopStatus={isOpen:boolean;message:string;nextOpenLabel?:string;mode?:string;source?:string};
+export const getScheduleShopStatus=():ShopStatus=>evaluateStoreStatus(DEFAULT_STORE_SETTINGS);
+export function statusFromSetting(raw:unknown):ShopStatus|null{if(raw==null)return null;return evaluateStoreStatus(normalizeStoreSettings(typeof raw==="boolean"?{isOpen:raw}:raw));}
+export async function getEffectiveShopStatus():Promise<ShopStatus>{try{const s=await getDoc(doc(db,"settings","loja"));return s.exists()?evaluateStoreStatus(normalizeStoreSettings(s.data())):getScheduleShopStatus()}catch(e){console.warn("Status remoto indisponível",e);return getScheduleShopStatus()}}

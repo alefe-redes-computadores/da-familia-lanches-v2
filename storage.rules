@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email.matches("(?i)alefejohsefe@gmail.com") ||
+        request.auth.token.email.matches("(?i)kalebhstanley650@gmail.com") ||
+        request.auth.token.email.matches("(?i)contato@dafamilialanches.com.br") ||
+        request.auth.token.email.matches("(?i)carols2maite@gmail.com") ||
+        request.auth.token.email.matches("(?i)degustbolosnopote@gmail.com")
+      );
+    }
+    match /catalog/products/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.size < 6 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if isAdmin();
+    }
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}

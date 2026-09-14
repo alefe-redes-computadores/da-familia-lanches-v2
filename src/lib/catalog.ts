@@ -17,11 +17,13 @@ const categories = new Set<ProductCategory>([
 ]);
 
 function finiteMoney(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
 function finiteOrder(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === "") return undefined;
   const number = Number(value);
   return Number.isFinite(number) ? number : undefined;
 }

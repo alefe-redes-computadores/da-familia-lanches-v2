@@ -8,13 +8,15 @@ import { useAdminOrders } from "@/hooks/useAdminOrders";
 import { OrderCard } from "@/components/layout/OrderCard";
 import { RelatoriosAdmin } from "@/components/layout/RelatoriosAdmin";
 import { CatalogAdmin } from "@/components/admin/CatalogAdmin";
+import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";
+import { evaluateStoreStatus, normalizeStoreSettings } from "@/lib/storeSchedule";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
 import styles from "./admin.module.css";
 
 const ADMINS = ["alefejohsefe@gmail.com", "kalebhstanley650@gmail.com", "contato@dafamilialanches.com.br", "carols2maite@gmail.com", "degustbolosnopote@gmail.com"];
 
-type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "gestao";
+type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "gestao";
 
 const normalizeSearch = (value: unknown) =>
   String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -32,7 +34,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authorized) return;
     return onSnapshot(doc(db, "settings", "loja"), (snapshot) => {
-      if (snapshot.exists() && typeof snapshot.data().isOpen === "boolean") setStoreOpen(snapshot.data().isOpen);
+      if (snapshot.exists()) setStoreOpen(evaluateStoreStatus(normalizeStoreSettings(snapshot.data())).isOpen);
     });
   }, [authorized]);
 
@@ -55,15 +57,7 @@ export default function AdminPage() {
     }
   };
 
-  const toggleStore = async () => {
-    try {
-      await updateDoc(doc(db, "settings", "loja"), { isOpen: !storeOpen });
-      setFeedback("");
-    } catch (error) {
-      console.error(error);
-      setFeedback("Nao foi possivel alterar o status da loja.");
-    }
-  };
+  const openStoreOperation = () => setTab("operacao");
 
   const counts = useMemo(() => ({
     cozinha: pedidos.filter((p) => ["Pendente", "Em Produção", "Agendado"].includes(normalizarStatus(p.status))).length,
@@ -106,6 +100,7 @@ export default function AdminPage() {
     ["concluidos", "Concluidos", counts.concluidos],
     ["cancelados", "Cancelados", counts.cancelados],
     ["catalogo", "Cardápio", null],
+    ["operacao", "Funcionamento", null],
     ["gestao", "Relatórios", null],
   ];
 
@@ -125,7 +120,7 @@ export default function AdminPage() {
             <h1>Central de pedidos</h1>
             <p>{counts.cozinha} aguardando cozinha · {counts.expedicao} na expedicao</p>
           </div>
-          <button className={styles.store} data-open={storeOpen} onClick={toggleStore}>
+          <button className={styles.store} data-open={storeOpen} onClick={openStoreOperation}>
             <i />
             {storeOpen ? "Loja aberta" : "Loja fechada"}
           </button>
@@ -150,6 +145,11 @@ export default function AdminPage() {
             <p>Edite o catálogo remoto sem alterar pedidos já realizados.</p>
           </div>
           <CatalogAdmin />
+        </section>
+      ) : tab === "operacao" ? (
+        <section className={styles.management}>
+          <div className={styles.sectionHeading}><div><span>OPERAÇÃO</span><h2>Funcionamento da loja</h2></div><p>Agenda automática, controle manual e exceções.</p></div>
+          <StoreOperationAdmin />
         </section>
       ) : tab === "gestao" ? (
         <section className={styles.management}>

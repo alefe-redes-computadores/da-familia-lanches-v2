@@ -1,38 +1,7 @@
 "use client";
-
-import { useEffect, useMemo, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import {
-  getScheduleShopStatus,
-  statusFromSetting,
-  type ShopStatus,
-} from "@/lib/shopStatus";
-
-export function useShopStatus(): ShopStatus {
-  const [scheduled, setScheduled] = useState<ShopStatus>(() => getScheduleShopStatus());
-  const [remote, setRemote] = useState<ShopStatus | null>(null);
-
-  useEffect(() => {
-    const updateSchedule = () => setScheduled(getScheduleShopStatus());
-    updateSchedule();
-    const interval = window.setInterval(updateSchedule, 60_000);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    return onSnapshot(
-      doc(db, "settings", "loja"),
-      (snap) => {
-        if (!snap.exists()) {
-          setRemote(null);
-          return;
-        }
-        setRemote(statusFromSetting(snap.data().isOpen));
-      },
-      () => setRemote(null)
-    );
-  }, []);
-
-  return useMemo(() => remote ?? scheduled, [remote, scheduled]);
-}
+import{useEffect,useState}from"react";import{doc,onSnapshot}from"firebase/firestore";import{db}from"@/lib/firebase";
+import{getScheduleShopStatus,type ShopStatus}from"@/lib/shopStatus";import{evaluateStoreStatus,normalizeStoreSettings,type StoreSettings}from"@/lib/storeSchedule";
+export function useShopStatus():ShopStatus{const[status,setStatus]=useState<ShopStatus>(()=>getScheduleShopStatus());
+ useEffect(()=>{let settings:StoreSettings|null=null;const refresh=()=>setStatus(settings?evaluateStoreStatus(settings):getScheduleShopStatus());const timer=window.setInterval(refresh,30000);
+ const unsub=onSnapshot(doc(db,"settings","loja"),s=>{settings=s.exists()?normalizeStoreSettings(s.data()):null;refresh()},()=>{settings=null;refresh()});
+ return()=>{clearInterval(timer);unsub()}},[]);return status}
