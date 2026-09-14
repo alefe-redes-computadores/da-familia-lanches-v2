@@ -28,6 +28,60 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+
+    match /integration_outbox/{eventId} {
+      allow create: if request.auth != null
+        && eventId == request.resource.data.event_id
+        && request.resource.data.event_id is string
+        && request.resource.data.event_type in ["order.created", "order.updated"]
+        && request.resource.data.occurred_at is string
+        && request.resource.data.source_system == "dfl_site"
+        && request.resource.data.entity_type == "order"
+        && request.resource.data.entity_id is string
+        && request.resource.data.schema_version == 1
+        && request.resource.data.payload is map
+        && request.resource.data.status == "pending"
+        && request.resource.data.attempts == 0
+        && request.resource.data.created_at is string
+        && request.resource.data.updated_at is string
+        && request.resource.data.payload.orderId == request.resource.data.entity_id
+        && request.resource.data.payload.sourceSystem == "dfl_site"
+        && request.resource.data.payload.userId is string
+        && request.resource.data.payload.orderSchemaVersion is number
+        && (
+          (
+            request.resource.data.event_type == "order.created"
+            && request.resource.data.payload.userId == request.auth.uid
+            && getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.userId == request.auth.uid
+            && request.resource.data.payload.orderSchemaVersion
+              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.orderSchemaVersion
+            && request.resource.data.payload.tipoEntrega
+              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.tipoEntrega
+            && request.resource.data.payload.status
+              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.status
+            && request.resource.data.payload.subtotal
+              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.subtotal
+            && request.resource.data.payload.taxaEntrega
+              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.taxaEntrega
+            && request.resource.data.payload.desconto
+              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.desconto
+            && request.resource.data.payload.total
+              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.total
+            && request.resource.data.payload.metodoPagamento
+              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.metodoPagamento
+            && request.resource.data.payload.itens
+              == getAfter(/databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)).data.itens
+          )
+          ||
+          (
+            request.resource.data.event_type == "order.updated"
+            && isAdmin()
+          )
+        );
+
+      allow read, list, update, delete: if isAdmin();
+    }
+
     match /Entregadores/{entregadorId} { allow read, write: if isAdmin(); }
     match /settings/{documentId} { allow read: if true; allow write: if isAdmin(); }
     match /Cupons/{cupomId} { allow get: if true; allow list: if isAdmin(); allow create, update, delete: if isAdmin(); }
