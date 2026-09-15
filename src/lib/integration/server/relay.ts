@@ -1,7 +1,13 @@
 import "server-only";
 import { isIntegrationEventEnvelope, type IntegrationEventEnvelope } from "../contracts";
 import { assertRelayRuntimeReady, getRelayConfig } from "./config";
-import { claimOutboxBatch, markOutboxFailed, markOutboxSent } from "./outboxRepository";
+import {
+  claimOutboxBatch,
+  claimOutboxEvent,
+  markOutboxFailed,
+  markOutboxSent,
+  type ClaimedOutboxEvent,
+} from "./outboxRepository";
 import { integrationSignature } from "./signature";
 
 export interface RelayDrainResult {
@@ -55,10 +61,17 @@ async function sendEvent(targetUrl: string, signingSecret: string, event: Integr
   }
 }
 
-export async function drainIntegrationOutbox(): Promise<RelayDrainResult> {
-  const config = assertRelayRuntimeReady(getRelayConfig());
-  const claimed = await claimOutboxBatch(config);
-  const result: RelayDrainResult = { claimed: claimed.length, sent: 0, failed: 0, deadLetterCandidates: 0, results: [] };
+async function processClaimed(
+  claimed: ClaimedOutboxEvent[],
+  config: ReturnType<typeof assertRelayRuntimeReady>,
+): Promise<RelayDrainResult> {
+  const result: RelayDrainResult = {
+    claimed: claimed.length,
+    sent: 0,
+    failed: 0,
+    deadLetterCandidates: 0,
+    results: [],
+  };
 
   for (const item of claimed) {
     const eventId = item.record.event_id;
@@ -78,4 +91,29 @@ export async function drainIntegrationOutbox(): Promise<RelayDrainResult> {
   }
 
   return result;
+}
+
+export async function drainIntegrationOutbox(): Promise<RelayDrainResult> {
+  const config = assertRelayRuntimeReady(getRelayConfig());
+  const claimed = await claimOutboxBatch(config);
+  return processClaimed(claimed, config);
+}
+
+export async function drainIntegrationOutboxEvent(eventId: string): Promise<RelayDrainResult> {
+  const config = assertRelayRuntimeReady(getRelayConfig());
+  const claimed = await claimOutboxEvent(eventId, config);
+
+  // Fundamental para commissioning: ID inexistente/não claimable NÃO pode cair
+  // silenciosamente para o drain em lote.
+  if (!claimed) {
+    return {
+      claimed: 0,
+      sent: 0,
+      failed: 0,
+      deadLetterCandidates: 0,
+      results: [{ eventId, ok: false, error: "Evento não encontrado ou não está disponível para claim." }],
+    };
+  }
+
+  return processClaimed([claimed], config);
 }

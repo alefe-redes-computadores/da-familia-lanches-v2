@@ -29,6 +29,98 @@ async function candidates(limit: number) {
   return [...pending.docs, ...failed.docs, ...processing.docs];
 }
 
+async function claimOutboxRef(
+  ref: DocumentReference<DocumentData>,
+  options: {
+    workerId: string;
+    maxAttempts: number;
+    lockTimeoutMs: number;
+  },
+): Promise<ClaimedOutboxEvent | null> {
+  const nowMs = Date.now();
+  const staleCutoff = nowMs - options.lockTimeoutMs;
+
+  const result = await adminDb.runTransaction(async (tx) => {
+    const snapshot = await tx.get(ref);
+    if (!snapshot.exists) return null;
+
+    const record = snapshot.data() as IntegrationOutboxRecord;
+    const attempts = Number(record.attempts || 0);
+
+    if (attempts >= options.maxAttempts && record.status !== "sent") {
+      tx.update(ref, {
+        status: "dead_letter",
+        updated_at: isoNow(),
+        last_error: record.last_error || "Máximo de tentativas excedido antes do claim.",
+      });
+      return null;
+    }
+
+    const claimable =
+      (record.status === "pending" && due(record.next_attempt_at, nowMs)) ||
+      (record.status === "failed" && due(record.next_attempt_at, nowMs)) ||
+      (record.status === "processing" && stale(record.locked_at, staleCutoff));
+
+    if (!claimable) return null;
+
+    const now = isoNow();
+    const next: IntegrationOutboxRecord = {
+      ...record,
+      status: "processing",
+      attempts: attempts + 1,
+      locked_by: options.workerId,
+      locked_at: now,
+      updated_at: now,
+    };
+
+    tx.update(ref, {
+      status: next.status,
+      attempts: next.attempts,
+      locked_by: next.locked_by,
+      locked_at: next.locked_at,
+      updated_at: next.updated_at,
+    });
+
+    return next;
+  });
+
+  return result ? { ref, record: result } : null;
+}
+
+export async function claimOutboxEvent(
+  eventId: string,
+  options: {
+    workerId: string;
+    maxAttempts: number;
+    lockTimeoutMs: number;
+  },
+): Promise<ClaimedOutboxEvent | null> {
+  const normalized = eventId.trim();
+  if (!normalized || normalized.length > 1400) {
+    throw new Error("event_id inválido para commissioning seletivo.");
+  }
+
+  const collection = adminDb.collection(INTEGRATION_COLLECTIONS.outbox);
+
+  // V1 grava a outbox com document ID == event_id. O fallback por campo mantém
+  // compatibilidade caso um registro legado não siga esse detalhe físico.
+  const directRef = collection.doc(normalized);
+  const directSnapshot = await directRef.get();
+  if (directSnapshot.exists) {
+    const record = directSnapshot.data() as IntegrationOutboxRecord;
+    if (record.event_id !== normalized) {
+      throw new Error("Documento de outbox diverge do event_id solicitado.");
+    }
+    return claimOutboxRef(directRef, options);
+  }
+
+  const query = await collection.where("event_id", "==", normalized).limit(2).get();
+  if (query.empty) return null;
+  if (query.size > 1) throw new Error("event_id duplicado na outbox; commissioning abortado.");
+
+  return claimOutboxRef(query.docs[0].ref, options);
+}
+
 export async function claimOutboxBatch(options: {
   workerId: string;
   batchSize: number;
@@ -37,56 +129,11 @@ export async function claimOutboxBatch(options: {
 }): Promise<ClaimedOutboxEvent[]> {
   const docs = await candidates(options.batchSize);
   const claimed: ClaimedOutboxEvent[] = [];
-  const nowMs = Date.now();
-  const staleCutoff = nowMs - options.lockTimeoutMs;
 
   for (const candidate of docs) {
     if (claimed.length >= options.batchSize) break;
-
-    const result = await adminDb.runTransaction(async (tx) => {
-      const snapshot = await tx.get(candidate.ref);
-      if (!snapshot.exists) return null;
-      const record = snapshot.data() as IntegrationOutboxRecord;
-      const attempts = Number(record.attempts || 0);
-
-      if (attempts >= options.maxAttempts && record.status !== "sent") {
-        tx.update(candidate.ref, {
-          status: "dead_letter",
-          updated_at: isoNow(),
-          last_error: record.last_error || "Máximo de tentativas excedido antes do claim.",
-        });
-        return null;
-      }
-
-      const claimable =
-        (record.status === "pending" && due(record.next_attempt_at, nowMs)) ||
-        (record.status === "failed" && due(record.next_attempt_at, nowMs)) ||
-        (record.status === "processing" && stale(record.locked_at, staleCutoff));
-
-      if (!claimable) return null;
-
-      const now = isoNow();
-      const next: IntegrationOutboxRecord = {
-        ...record,
-        status: "processing",
-        attempts: attempts + 1,
-        locked_by: options.workerId,
-        locked_at: now,
-        updated_at: now,
-      };
-
-      tx.update(candidate.ref, {
-        status: next.status,
-        attempts: next.attempts,
-        locked_by: next.locked_by,
-        locked_at: next.locked_at,
-        updated_at: next.updated_at,
-      });
-
-      return next;
-    });
-
-    if (result) claimed.push({ ref: candidate.ref, record: result });
+    const result = await claimOutboxRef(candidate.ref, options);
+    if (result) claimed.push(result);
   }
 
   return claimed;

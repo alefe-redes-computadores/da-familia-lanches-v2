@@ -50,3 +50,18 @@ Antes de trocar `DFL_INTEGRATION_RELAY_ENABLED` para `true`:
 - sincronização reversa `delivery.*`;
 - mudança automática de status comercial do Site;
 - cron/worker permanente. O endpoint está preparado para um scheduler/VPS posterior.
+
+## V19D.1 — commissioning seletivo
+
+Durante o commissioning, `POST /api/integration/outbox/drain` aceita opcionalmente:
+
+```json
+{"event_id":"<event_id exato>"}
+```
+
+Quando `event_id` é informado, somente esse evento pode ser claimed e enviado. Evento
+inexistente ou não disponível retorna conflito e **nunca** faz fallback para drenagem em
+lote. Sem `event_id`, o comportamento V19C de lote permanece inalterado.
+
+Esse modo existe para validar a ponte com um `order.created` conhecido antes de liberar
+eventos históricos ou tipos ainda não consumidos, como `order.updated`.
