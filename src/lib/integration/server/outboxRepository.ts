@@ -26,7 +26,14 @@ async function candidates(limit: number) {
     collection.where("status", "==", "failed").limit(perStatus).get(),
     collection.where("status", "==", "processing").limit(perStatus).get(),
   ]);
-  return [...pending.docs, ...failed.docs, ...processing.docs];
+  return [...pending.docs, ...failed.docs, ...processing.docs].sort((a, b) => {
+    const left = a.data() as IntegrationOutboxRecord;
+    const right = b.data() as IntegrationOutboxRecord;
+    const leftTime = Date.parse(left.occurred_at || left.created_at || "") || 0;
+    const rightTime = Date.parse(right.occurred_at || right.created_at || "") || 0;
+    if (leftTime !== rightTime) return leftTime - rightTime;
+    return String(left.event_id || a.id).localeCompare(String(right.event_id || b.id));
+  });
 }
 
 async function claimOutboxRef(
