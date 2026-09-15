@@ -1,5 +1,5 @@
 import "server-only";
-import { FieldValue } from "firebase-admin/firestore";
+import { Timestamp, type DocumentReference } from "firebase-admin/firestore";
 import { adminDb } from "./admin";
 import type { IntegrationEventEnvelope } from "../contracts";
 
@@ -55,6 +55,25 @@ function optionalCount(value: unknown) {
   return value == null || (Number.isInteger(value) && Number(value) >= 0);
 }
 
+type CommercialStatus = "Agendado" | "Pendente" | "Em Produção" | "Pronto" | "Saiu para Entrega" | "Finalizado" | "Cancelado";
+const STATUS_RANK: Record<CommercialStatus, number> = { Agendado:0, Pendente:1, "Em Produção":2, Pronto:3, "Saiu para Entrega":4, Finalizado:5, Cancelado:99 };
+function commercialStatus(value: unknown): CommercialStatus {
+  if (typeof value !== "string" || !value.trim()) return "Pendente";
+  const s=value.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim();
+  if(s.includes("agend"))return "Agendado"; if(s.includes("pendente"))return "Pendente";
+  if(s.includes("producao"))return "Em Produção"; if(s.includes("pronto"))return "Pronto";
+  if(s.includes("saiu")||s.includes("entrega"))return "Saiu para Entrega";
+  if(s.includes("final")||s.includes("conclu"))return "Finalizado"; if(s.includes("cancel"))return "Cancelado";
+  return "Pendente";
+}
+function projectedStatus(type: ReverseEventType): CommercialStatus | null {
+  if (["delivery.out_for_delivery","delivery.position_changed","delivery.next_stop","route.started"].includes(type)) return "Saiu para Entrega";
+  if (type === "delivery.completed") return "Finalizado";
+  return null;
+}
+function rewardCode(userId:string,milestone:number){return `DFL${userId.replace(/[^a-z0-9]/gi,"").slice(0,5).toUpperCase()}${String(milestone).padStart(2,"0")}`;}
+function positive(value:unknown,fallback:number,min=0){const n=Number(value);return Number.isFinite(n)&&n>=min?n:fallback;}
+
 export function assertReverseIntegrationEvent(
   event: IntegrationEventEnvelope,
 ): asserts event is ReverseIntegrationEvent {
@@ -109,6 +128,33 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       incoming.time > currentTime ||
       (incoming.time === currentTime && event.event_id.localeCompare(currentEventId) > 0);
 
+    const beforeStatus = commercialStatus(order.status);
+    const targetStatus = wins ? projectedStatus(event.event_type) : null;
+    const pickup = order.tipoEntrega === "pickup";
+    const statusChanged = Boolean(targetStatus && !pickup && beforeStatus !== "Cancelado" && beforeStatus !== "Finalizado" && STATUS_RANK[targetStatus] > STATUS_RANK[beforeStatus]);
+
+    let rewardWrite: { ref: DocumentReference; data: Record<string, unknown> } | null = null;
+    if (statusChanged && targetStatus === "Finalizado") {
+      const userId=String(order.userId??"").trim();
+      if(userId){
+        const configRef=adminDb.collection("RecompensasConfig").doc("loyalty");
+        const configSnap=await tx.get(configRef); const cfg=configSnap.exists?(configSnap.data()||{}):{};
+        if(configSnap.exists&&cfg.active===true){
+          const every=Math.max(1,Math.floor(positive(cfg.everyOrders,5,1)));
+          const ordersSnap=await tx.get(adminDb.collection("Pedidos").where("userId","==",userId));
+          const completed=ordersSnap.docs.filter(d=>d.id!==event.payload.externalOrderId&&commercialStatus(d.data().status)==="Finalizado").length+1;
+          if(completed>0&&completed%every===0){
+            const milestone=completed/every; const ref=adminDb.collection("Usuarios").doc(userId).collection("RecompensasRecebidas").doc(`loyalty-${milestone}`);
+            const old=await tx.get(ref);
+            if(!old.exists){
+              const days=Math.max(0,Math.floor(positive(cfg.expiresDays,30,0)));
+              rewardWrite={ref,data:{campaignId:"loyalty",code:rewardCode(userId,milestone),title:String(cfg.title??"Fidelidade Da Família"),description:String(cfg.description??"Benefício liberado por pedidos finalizados."),discountType:cfg.discountType==="percent"?"percent":"fixed",discountValue:positive(cfg.discountValue,10,.01),minOrder:positive(cfg.minOrder,0),milestone,completedOrdersAtAward:completed,used:false,usedOrderId:null,usedAt:null,earnedAt:Timestamp.fromMillis(incoming.time),expiresAt:days?Timestamp.fromMillis(Date.now()+days*86400000):null}};
+            }
+          }
+        }
+      }
+    }
+
     if (wins) {
       const p = event.payload;
       tx.update(orderRef, {
@@ -128,7 +174,14 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         deliveryIsNextStop: p.nextStop === true,
         deliveryCompletedAt: p.completedAt ?? null,
         deliveryFailedReason: p.failedReason ?? null,
+        ...(statusChanged && targetStatus ? {
+          status: targetStatus,
+          statusUpdatedAt: Timestamp.fromMillis(incoming.time),
+          statusHistory: [...(Array.isArray(order.statusHistory)?order.statusHistory:[]), {status:targetStatus,at:Timestamp.fromMillis(incoming.time),source:"dfl_entregas",sourceEventId:event.event_id}],
+          statusProjectionSource: "dfl_entregas", statusProjectionEventId:event.event_id, statusProjectionEventType:event.event_type, statusProjectionAt:Timestamp.fromMillis(incoming.time),
+        } : {}),
       });
+      if(rewardWrite) tx.set(rewardWrite.ref, rewardWrite.data);
     }
 
     if (wins) {
@@ -171,6 +224,10 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       local_entity_id: event.payload.externalOrderId,
       processing_outcome: wins ? "applied" : "ignored_stale",
       incoming_event_at: incoming.iso,
+      commercial_status_before: beforeStatus,
+      commercial_status_after: statusChanged ? targetStatus : beforeStatus,
+      commercial_status_changed: statusChanged,
+      reward_awarded: Boolean(rewardWrite),
       ...(currentIso ? { previous_event_at: currentIso } : {}),
       ...(currentEventId ? { previous_event_id: currentEventId } : {}),
       updated_at: now,
@@ -181,6 +238,9 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       orderId: event.payload.externalOrderId,
       applied: wins,
       stale_ignored: !wins,
+      commercial_status_changed: statusChanged,
+      commercial_status: statusChanged ? targetStatus : beforeStatus,
+      reward_awarded: Boolean(rewardWrite),
     };
   });
 }
