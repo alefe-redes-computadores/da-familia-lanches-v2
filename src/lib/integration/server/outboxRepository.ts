@@ -182,3 +182,20 @@ export async function markOutboxFailed(
     });
   });
 }
+
+export async function readSentOutboxEvent(eventId: string): Promise<IntegrationOutboxRecord | null> {
+  const normalized = eventId.trim();
+  if (!normalized || normalized.length > 1400) throw new Error("event_id inválido para replay.");
+  const collection = adminDb.collection(INTEGRATION_COLLECTIONS.outbox);
+  const direct = await collection.doc(normalized).get();
+  let record: IntegrationOutboxRecord | null = direct.exists ? (direct.data() as IntegrationOutboxRecord) : null;
+  if (!record) {
+    const query = await collection.where("event_id", "==", normalized).limit(2).get();
+    if (query.size > 1) throw new Error("event_id duplicado na outbox; replay abortado.");
+    record = query.empty ? null : (query.docs[0].data() as IntegrationOutboxRecord);
+  }
+  if (!record) return null;
+  if (record.event_id !== normalized) throw new Error("Outbox diverge do event_id solicitado.");
+  if (record.status !== "sent") throw new Error("Replay controlado exige evento com status sent.");
+  return record;
+}

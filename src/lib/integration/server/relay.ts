@@ -4,6 +4,7 @@ import { assertRelayRuntimeReady, getRelayConfig } from "./config";
 import {
   claimOutboxBatch,
   claimOutboxEvent,
+  readSentOutboxEvent,
   markOutboxFailed,
   markOutboxSent,
   type ClaimedOutboxEvent,
@@ -116,4 +117,13 @@ export async function drainIntegrationOutboxEvent(eventId: string): Promise<Rela
   }
 
   return processClaimed([claimed], config);
+}
+
+export async function replaySentIntegrationOutboxEvent(eventId: string) {
+  const config = assertRelayRuntimeReady(getRelayConfig());
+  const record = await readSentOutboxEvent(eventId);
+  if (!record) return { replayed: false, eventId, status: 404, error: "Evento sent não encontrado." };
+  const event = eventFromOutbox(record as unknown as Record<string, unknown>);
+  const status = await sendEvent(config.targetUrl!, config.signingSecret!, event, config.requestTimeoutMs);
+  return { replayed: true, eventId, status };
 }
