@@ -35,7 +35,7 @@ export function getRelayConfig(): RelayConfig {
     workerId: clean(process.env.DFL_RELAY_WORKER_ID) || `dfl-site-${process.env.VERCEL_REGION || "server"}`,
     batchSize: intEnv("DFL_RELAY_BATCH_SIZE", 10, 1, 25),
     maxAttempts: intEnv("DFL_RELAY_MAX_ATTEMPTS", 8, 1, 20),
-    requestTimeoutMs: intEnv("DFL_RELAY_TIMEOUT_MS", 8000, 1000, 30000),
+    requestTimeoutMs: intEnv("DFL_RELAY_TIMEOUT_MS", 20000, 1000, 60000),
     lockTimeoutMs: intEnv("DFL_RELAY_LOCK_TIMEOUT_MS", 120000, 30000, 900000),
   };
 }
