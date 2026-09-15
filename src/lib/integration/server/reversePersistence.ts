@@ -131,6 +131,32 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       });
     }
 
+    if (wins) {
+      const intentType = event.event_type === "delivery.next_stop" ? "delivery_next_stop"
+        : event.event_type === "delivery.completed" ? "delivery_completed"
+        : event.event_type === "delivery.failed" ? "delivery_failed"
+        : event.event_type === "delivery.assigned" ? "delivery_assigned"
+        : event.event_type === "delivery.position_changed" ? "delivery_position_changed"
+        : null;
+      if (intentType) {
+        const intentId = encodeURIComponent(`intent-v1__${event.event_id}`);
+        tx.set(adminDb.collection("integration_notification_intents").doc(intentId), {
+          intent_id: `intent-v1__${event.event_id}`,
+          intent_type: intentType,
+          source_event_id: event.event_id,
+          source_event_type: event.event_type,
+          order_id: event.payload.externalOrderId,
+          delivery_id: event.payload.deliveryId,
+          stops_ahead: event.payload.stopsAhead ?? null,
+          is_next_stop: event.payload.nextStop === true,
+          status: "pending",
+          schema_version: 1,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+    }
+
     tx.set(inboxRef, {
       event_id: event.event_id,
       event_type: event.event_type,
