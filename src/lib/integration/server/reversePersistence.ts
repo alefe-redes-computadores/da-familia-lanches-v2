@@ -2,7 +2,6 @@ import "server-only";
 import { Timestamp, type DocumentReference } from "firebase-admin/firestore";
 import { adminDb } from "./admin";
 import type { IntegrationEventEnvelope } from "../contracts";
-import { canTransitionOrderStatus } from "../../orderStatus";
 
 type ReverseEventType =
   | "delivery.assigned"
@@ -57,21 +56,33 @@ function optionalCount(value: unknown) {
 }
 
 type CommercialStatus = "Agendado" | "Pendente" | "Em Produção" | "Pronto" | "Saiu para Entrega" | "Finalizado" | "Cancelado";
-function projectionDecision(before: CommercialStatus, target: CommercialStatus | null, pickup: boolean) {
-  if (!target || pickup || before === "Cancelado" || before === "Finalizado" || target === before) {
-    return { apply: false, deferred: false };
+function projectionDecision(
+  before: CommercialStatus,
+  target: CommercialStatus | null,
+  pickup: boolean,
+) {
+  if (
+    !target ||
+    pickup ||
+    before === "Cancelado" ||
+    before === "Finalizado" ||
+    target === before
+  ) {
+    return { apply: false, deferred: false, reason: "not_applicable" as const };
   }
 
-  // A integração reversa só pode executar a próxima transição comercial oficial.
-  // Isso permite Saiu para Entrega -> Finalizado, mas continua bloqueando
-  // Em Produção -> Saiu para Entrega/Finalizado e Pronto -> Finalizado.
-  const canonicalAllowed = canTransitionOrderStatus(before, target, pickup);
-
-  if (canonicalAllowed) {
-    return { apply: true, deferred: false };
+  // Os valores recebidos aqui já foram convertidos para CommercialStatus.
+  // A projeção reversa é propositalmente mais restrita que a máquina manual:
+  // logística só pode avançar as duas fronteiras que ela realmente comprova.
+  if (before === "Pronto" && target === "Saiu para Entrega") {
+    return { apply: true, deferred: false, reason: "ready_to_dispatch" as const };
   }
 
-  return { apply: false, deferred: true };
+  if (before === "Saiu para Entrega" && target === "Finalizado") {
+    return { apply: true, deferred: false, reason: "delivery_completed" as const };
+  }
+
+  return { apply: false, deferred: true, reason: "commercial_step_pending" as const };
 }
 function commercialStatus(value: unknown): CommercialStatus {
   if (typeof value !== "string" || !value.trim()) return "Pendente";
@@ -254,6 +265,8 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       commercial_status_changed: statusChanged,
       commercial_projection_deferred: projectionDeferred,
       commercial_projection_target: projectionDeferred ? targetStatus : null,
+      commercial_projection_decision: projection.reason,
+      commercial_projection_pickup: pickup,
       reward_awarded: Boolean(rewardWrite),
       ...(currentIso ? { previous_event_at: currentIso } : {}),
       ...(currentEventId ? { previous_event_id: currentEventId } : {}),
@@ -269,6 +282,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       commercial_status: statusChanged ? targetStatus : beforeStatus,
       commercial_projection_deferred: projectionDeferred,
       commercial_projection_target: projectionDeferred ? targetStatus : null,
+      commercial_projection_decision: projection.reason,
       reward_awarded: Boolean(rewardWrite),
     };
   });
