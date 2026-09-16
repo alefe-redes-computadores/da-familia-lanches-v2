@@ -62,9 +62,12 @@ function projectionDecision(before: CommercialStatus, target: CommercialStatus |
     return { apply: false, deferred: false };
   }
 
-  // DFL Entregas informa a verdade logística, mas não pode pular etapas
-  // comerciais do Site. Ex.: Em Produção -> Finalizado continua proibido.
-  if (canTransitionOrderStatus(before, target, pickup)) {
+  // A integração reversa só pode executar a próxima transição comercial oficial.
+  // Isso permite Saiu para Entrega -> Finalizado, mas continua bloqueando
+  // Em Produção -> Saiu para Entrega/Finalizado e Pronto -> Finalizado.
+  const canonicalAllowed = canTransitionOrderStatus(before, target, pickup);
+
+  if (canonicalAllowed) {
     return { apply: true, deferred: false };
   }
 
