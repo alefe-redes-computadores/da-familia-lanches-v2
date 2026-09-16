@@ -137,16 +137,14 @@ export default function AdminPage() {
       {alarmeAtivo && <button className={styles.alarm} onClick={pararAlarme}>NOVO PEDIDO <span>toque para silenciar</span></button>}
 
       <header className={styles.hero}>
-        <div className={styles.brandRow}>
-          <div className={styles.adminMark}><span>DFL</span><b>OPERAÇÃO</b></div>
-          <div className={styles.account}>{currentUser.email}</div>
-        </div>
-
         <div className={styles.heroTop}>
-          <div>
-            <span className={styles.eyebrow}>CENTRAL ADMINISTRATIVA</span>
-            <h1>Operação de hoje</h1>
-            <p>{counts.cozinha} na cozinha · {counts.expedicao} na expedição</p>
+          <div className={styles.identity}>
+            <div className={styles.adminMark}><span>DFL</span><b>OPERAÇÃO</b></div>
+            <div className={styles.heroCopy}>
+              <span className={styles.eyebrow}>CENTRAL ADMINISTRATIVA</span>
+              <h1>Operação de hoje</h1>
+              <p>{counts.cozinha} na cozinha · {counts.expedicao} na expedição</p>
+            </div>
           </div>
           <button className={styles.store} data-open={storeOpen} onClick={() => setTab("operacao")}>
             <i />{storeOpen ? "Loja aberta" : "Loja fechada"}
