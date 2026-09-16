@@ -28,6 +28,7 @@ type ProductDraft = {
   detailsTitle: string;
   detailsItems: string;
   includedExtras: string;
+  bundleItems: Array<{ productId: string; quantity: number; note: string }>;
 };
 
 type AddonDraft = {
@@ -98,6 +99,7 @@ const draftFromProduct = (product: Product): ProductDraft => ({
   detailsTitle: product.detailsTitle ?? "",
   detailsItems: product.detailsItems?.join("\n") ?? "",
   includedExtras: product.includedExtras ?? "",
+  bundleItems: (product.bundleItems ?? []).map((item) => ({ productId: item.productId, quantity: item.quantity, note: item.note ?? "" })),
 });
 
 const draftFromAddon = (addon: Addon): AddonDraft => ({
@@ -149,7 +151,7 @@ export function CatalogAdmin() {
 
   const openCreateProduct = () => {
     setProductMode("create");
-    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "" });
+    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [] });
     setMessage("");
   };
 
@@ -206,6 +208,7 @@ export function CatalogAdmin() {
         detailsTitle: productDraft.detailsTitle.trim() || deleteField(),
         detailsItems: productDraft.detailsItems.split("\n").map((item) => item.trim()).filter(Boolean),
         includedExtras: productDraft.includedExtras.trim() || deleteField(),
+        bundleItems: productDraft.bundleItems.length ? productDraft.bundleItems.map((item) => ({ productId: item.productId, quantity: Math.max(1, Math.trunc(item.quantity || 1)), ...(item.note.trim() ? { note: item.note.trim() } : {}) })) : deleteField(),
         updatedAt: serverTimestamp(),
       };
 
@@ -485,6 +488,15 @@ export function CatalogAdmin() {
           <label className={styles.full}>Título dos detalhes<input value={productDraft.detailsTitle} onChange={(e) => setProductDraft({ ...productDraft, detailsTitle: e.target.value })} placeholder="Ex.: O que vem no Uai?" /></label>
           <label className={styles.full}>Ingredientes / composição<textarea value={productDraft.detailsItems} onChange={(e) => setProductDraft({ ...productDraft, detailsItems: e.target.value })} placeholder={"Um item por linha\nPão\nHambúrguer\nBacon"} /></label>
           <label className={styles.full}>Acompanha<textarea value={productDraft.includedExtras} onChange={(e) => setProductDraft({ ...productDraft, includedExtras: e.target.value })} placeholder="Maionese temperada da casa, molho verde e ketchup sachê" /></label>
+          <div className={`${styles.full} ${styles.bundleEditor}`}>
+            <div className={styles.bundleEditorHead}><div><strong>Composição por produtos</strong><small>Ideal para combos e promoções. Ingredientes vêm do cadastro do lanche vinculado.</small></div><button type="button" onClick={() => { const candidate=products.find((item)=>item.id!==productDraft.id); if(candidate)setProductDraft({...productDraft,bundleItems:[...productDraft.bundleItems,{productId:candidate.id,quantity:1,note:""}]}); }}>+ Adicionar item</button></div>
+            {productDraft.bundleItems.length ? <div className={styles.bundleRows}>{productDraft.bundleItems.map((item,index)=><div className={styles.bundleRow} key={`${item.productId}-${index}`}>
+              <select value={item.productId} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],productId:e.target.value};setProductDraft({...productDraft,bundleItems:next});}}>{products.filter((candidate)=>candidate.id!==productDraft.id).map((candidate)=><option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select>
+              <input aria-label="Quantidade" type="number" min="1" value={item.quantity} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],quantity:Math.max(1,Number(e.target.value)||1)};setProductDraft({...productDraft,bundleItems:next});}} />
+              <input aria-label="Observação do item" value={item.note} placeholder="Ex.: Brinde" onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],note:e.target.value};setProductDraft({...productDraft,bundleItems:next});}} />
+              <button type="button" aria-label="Remover item" onClick={()=>setProductDraft({...productDraft,bundleItems:productDraft.bundleItems.filter((_,i)=>i!==index)})}>×</button>
+            </div>)}</div> : <p className={styles.bundleEmpty}>Sem vínculos. O formato antigo em texto continua compatível.</p>}
+          </div>
           <label>Preço<input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: e.target.value })} placeholder="0,00" /></label>
           <label>Preço anterior<input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: e.target.value })} placeholder="Opcional" /></label>
           <div className={styles.photoUpload}><label className={styles.photoButton}>{uploadingImage ? "Enviando..." : "Escolher foto do celular"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingImage} onChange={(e)=>{const file=e.target.files?.[0];if(file)void uploadProductImage(file);e.currentTarget.value="";}} /></label><small>JPG, PNG ou WebP · até 6 MB. O campo de URL continua funcionando.</small></div>

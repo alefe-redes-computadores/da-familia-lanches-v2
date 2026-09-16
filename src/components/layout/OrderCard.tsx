@@ -16,6 +16,14 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
   const total = Number(pedido.total || 0);
   const troco = Number(String(pedido.trocoPara ?? pedido.troco ?? "").replace(",", "."));
   const attention = operationalAttention(pedido);
+  const logisticsCompleted =
+    !pickup &&
+    (pedido.deliveryTrackingEvent === "delivery.completed" ||
+      Boolean(pedido.deliveryTrackingCompletedAt));
+  const commercialCompletionPending =
+    logisticsCompleted &&
+    statusAtual !== "Finalizado" &&
+    statusAtual !== "Cancelado";
 
   const openWhatsApp = () => {
     let d = telefone.replace(/\D/g, "");
@@ -50,6 +58,13 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
           <b>{ageLabel(pedido)}</b>
         </div>
       </div>
+
+      {commercialCompletionPending && (
+        <div className={styles.logisticsDoneNotice}>
+          <strong>Entrega concluída no DFL Entregas</strong>
+          <span>As etapas comerciais ainda estão pendentes. Avance o pedido normalmente até Finalizado.</span>
+        </div>
+      )}
 
       {attention && <div className={styles.attention} data-level={attention.level}>{attention.label}</div>}
 

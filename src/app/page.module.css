@@ -76,3 +76,5 @@
 }
 
 .detailsLink{display:inline-flex;align-items:center;gap:5px;margin-top:7px;font-size:10px;font-weight:800;color:#d97706}.detailsLink b{font-size:14px;line-height:1}
+
+.cardDescription{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}

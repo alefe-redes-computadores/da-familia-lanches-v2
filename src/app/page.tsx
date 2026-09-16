@@ -115,8 +115,8 @@ export default function Home() {
                       </div>
                       <div className={styles.cardBody}>
                         <h3>{product.name}</h3>
-                        <p>{product.description}</p>
-                        {(product.detailsItems?.length || product.includedExtras) && available && <span className={styles.detailsLink}>Ver o que vem <b>›</b></span>}
+                        <p className={styles.cardDescription}>{product.description}</p>
+                        {(product.bundleItems?.length || product.detailsItems?.length || product.includedExtras) && available && <span className={styles.detailsLink}>Ver o que vem <b>›</b></span>}
                         <div className={styles.cardFooter}>
                           <div className={styles.priceBlock}>
                             {hasDiscount && <span className={styles.oldPrice}>{money(product.oldPrice!)}</span>}

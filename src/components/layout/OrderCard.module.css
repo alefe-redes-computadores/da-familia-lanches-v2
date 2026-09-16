@@ -1,1 +1,23 @@
 .card{--status-color:#888;position:relative;overflow:hidden;border:1px solid #dedbd4;border-top:4px solid var(--status-color);border-radius:18px;background:#fff;box-shadow:0 7px 24px rgba(20,20,20,.055);padding:15px;display:flex;flex-direction:column;gap:12px}.card[data-attention="medium"]{box-shadow:0 0 0 2px rgba(245,158,11,.16),0 8px 25px rgba(20,20,20,.06)}.card[data-attention="high"]{box-shadow:0 0 0 2px rgba(220,38,38,.16),0 8px 25px rgba(20,20,20,.06)}.top,.person,.money,.actions{display:flex;align-items:center;justify-content:space-between;gap:10px}.status{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.045em;color:var(--status-color)}.orderId{margin-top:3px;font-size:10px;color:#8a8a8a;font-weight:800}.time{text-align:right;display:flex;flex-direction:column;gap:2px}.time span{font-size:9px;color:#888}.time b{font-size:9px;color:#4b4b4b}.attention{margin-top:-3px;border-radius:9px;padding:7px 9px;font-size:9px;font-weight:900;background:#fff7df;color:#8a5a00}.attention[data-level="high"]{background:#fff0f0;color:#a11}.person{border-top:1px solid #eeeae4;padding-top:11px}.person h3{margin:0;font-size:17px;line-height:1.1}.phone{margin-top:4px;font-size:10px;color:#777}.metaActions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.iconBtn{border:1px solid #e2ded7;background:#f8f7f4;border-radius:9px;padding:7px 9px;font-size:8px;font-weight:900;color:#444}.delivery{border-radius:12px;background:#f5f4f0;padding:10px;display:flex;flex-direction:column;gap:4px}.delivery b{font-size:8px;letter-spacing:.08em;color:#777}.delivery span{font-size:10px;line-height:1.35;color:#333}.itemsToggle{width:100%;border:0;border-radius:11px;background:#f7f6f3;padding:10px 11px;display:flex;align-items:center;justify-content:space-between;color:#333}.itemsToggle span{font-size:10px}.itemsToggle span b{font-size:13px}.itemsToggle strong{font-size:9px;color:#826900}.items{display:flex;flex-direction:column;gap:8px;border-left:2px solid #ece7dc;padding-left:10px}.item{font-size:10px;line-height:1.4}.item>b{font-size:11px}.addon{color:#777}.obs{margin-top:3px;padding:5px 7px;border-radius:7px;background:#fff7dd;color:#6c5711}.money{border-top:1px solid #eeeae4;padding-top:11px;align-items:flex-end}.money>div{display:flex;flex-direction:column}.money small{font-size:7px;text-transform:uppercase;letter-spacing:.08em;color:#999}.money b{font-size:10px}.cash{font-size:9px;color:#6d5b20;margin-top:3px}.total{text-align:right}.total strong{font-size:18px}.actions{padding-top:2px;align-items:stretch}.primary,.cancel{min-height:42px;border:0;border-radius:11px;font-size:9px;font-weight:950;letter-spacing:.035em}.primary{flex:1;background:#181818;color:#fff}.primary[data-tone="warm"]{background:#c48c00}.primary[data-tone="green"]{background:#247a3b}.primary[data-tone="blue"]{background:#1769aa}.cancel{padding:0 13px;background:#f7eeee;color:#9e2d2d;border:1px solid #efd6d6}@media(max-width:420px){.card{padding:13px;border-radius:15px}.person{align-items:flex-start}.metaActions{max-width:45%}.iconBtn{padding:7px}.actions{flex-direction:column}.cancel{min-height:38px}}
+
+/* V24 — verdade logística sem atropelar o fluxo comercial */
+.logisticsDoneNotice{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  margin:10px 0;
+  padding:10px 12px;
+  border:1px solid rgba(34,197,94,.22);
+  border-radius:12px;
+  background:rgba(34,197,94,.07);
+}
+.logisticsDoneNotice strong{
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.02em;
+}
+.logisticsDoneNotice span{
+  font-size:10px;
+  line-height:1.4;
+  opacity:.78;
+}

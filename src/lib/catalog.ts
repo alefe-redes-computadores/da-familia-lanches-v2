@@ -34,6 +34,20 @@ function stringArray(value: unknown): string[] | undefined {
   return Array.from(new Set(value.map((item) => text(item)).filter(Boolean)));
 }
 
+function bundleItems(value: unknown): Product["bundleItems"] {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    const productId = text(raw.productId ?? raw.product_id);
+    if (!productId) return [];
+    const quantity = Math.max(1, Math.trunc(Number(raw.quantity ?? raw.quantidade) || 1));
+    const note = text(raw.note ?? raw.observacao);
+    return [{ productId, quantity, ...(note ? { note } : {}) }];
+  });
+  return items.length ? items : undefined;
+}
+
 export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentData>): Product | null {
   const raw = snapshot.data();
   const id = text(raw.id) || snapshot.id;
@@ -55,6 +69,7 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
   const detailsTitle = text(raw.detailsTitle ?? raw.tituloDetalhes) || undefined;
   const detailsItems = stringArray(raw.detailsItems ?? raw.itensDetalhes);
   const includedExtras = text(raw.includedExtras ?? raw.acompanha) || undefined;
+  const normalizedBundleItems = bundleItems(raw.bundleItems ?? raw.itensCombo);
 
   return {
     id,
@@ -71,6 +86,7 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
     ...(detailsTitle ? { detailsTitle } : {}),
     ...(detailsItems !== undefined ? { detailsItems } : {}),
     ...(includedExtras ? { includedExtras } : {}),
+    ...(normalizedBundleItems ? { bundleItems: normalizedBundleItems } : {}),
   };
 }
 

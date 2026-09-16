@@ -5,6 +5,7 @@ import type { Addon } from "@/data/addons";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
 import { availableAddonsForProduct } from "@/lib/catalog";
+import { resolveBundleItems } from "@/lib/catalogComposition";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import { useUIStore } from "@/store/ui";
@@ -24,7 +25,7 @@ export function ProductDetailsModal() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const authLoading = useAuthStore((s) => s.loading);
   const addItem = useCartStore((s) => s.addItem);
-  const { addons } = useCatalog();
+  const { addons, products } = useCatalog();
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [observation, setObservation] = useState("");
@@ -38,6 +39,8 @@ export function ProductDetailsModal() {
   const savings = hasDiscount ? product.oldPrice! - product.price : 0;
   const productAddons = availableAddonsForProduct(product, addons);
   const allowAddons = productAddons.length > 0;
+  const bundleItems = resolveBundleItems(product, products);
+  const hasBundle = bundleItems.length > 0;
 
   const toggleAddon = (addon: Addon) => {
     setSelectedAddons((current) => current.some((item) => item.id === addon.id) ? current.filter((item) => item.id !== addon.id) : [...current, addon]);
@@ -64,7 +67,16 @@ export function ProductDetailsModal() {
           <div><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div></div>
         </div>
 
-        {(product.detailsItems?.length || product.includedExtras) && <section className={styles.composition}><div className={styles.compositionHead}><span>POR DENTRO DO PEDIDO</span><strong>{product.detailsTitle || `O que vem no ${product.name}?`}</strong></div>{product.detailsItems?.length ? <div className={styles.detailChips}>{product.detailsItems.map((item) => <span key={item}>{item}</span>)}</div> : null}{product.includedExtras && <p><b>Acompanha:</b> {product.includedExtras}</p>}</section>}
+        {(hasBundle || product.detailsItems?.length || product.includedExtras) && <section className={styles.composition}>
+          <div className={styles.compositionHead}><span>POR DENTRO DO PEDIDO</span><strong>{product.detailsTitle || `O que vem no ${product.name}?`}</strong></div>
+          {hasBundle ? <div className={styles.bundleList}>{bundleItems.map((item) =>
+            <details className={styles.bundleItem} key={item.key}>
+              <summary><span className={styles.bundleQty}>{item.quantity}×</span><span className={styles.bundleName}>{item.product?.name || item.label}</span>{item.note && <span className={styles.bundleNote}>{item.note}</span>}{item.product?.detailsItems?.length ? <b>›</b> : null}</summary>
+              {item.product?.detailsItems?.length ? <div className={styles.bundleInside}><small>{item.product.detailsTitle || `O que vem no ${item.product.name}?`}</small><div className={styles.detailChips}>{item.product.detailsItems.map((detail) => <span key={detail}>{detail}</span>)}</div>{item.product.includedExtras && <p><b>Acompanha:</b> {item.product.includedExtras}</p>}</div> : null}
+            </details>)}</div>
+          : product.detailsItems?.length ? <div className={styles.detailChips}>{product.detailsItems.map((item) => <span key={item}>{item}</span>)}</div> : null}
+          {product.includedExtras && !hasBundle && <p><b>Acompanha:</b> {product.includedExtras}</p>}
+        </section>}
 
         {allowAddons && (
           <section className={styles.section}>

@@ -2,6 +2,7 @@ import "server-only";
 import { Timestamp, type DocumentReference } from "firebase-admin/firestore";
 import { adminDb } from "./admin";
 import type { IntegrationEventEnvelope } from "../contracts";
+import { canTransitionOrderStatus } from "../../orderStatus";
 
 type ReverseEventType =
   | "delivery.assigned"
@@ -56,7 +57,19 @@ function optionalCount(value: unknown) {
 }
 
 type CommercialStatus = "Agendado" | "Pendente" | "Em Produção" | "Pronto" | "Saiu para Entrega" | "Finalizado" | "Cancelado";
-const STATUS_RANK: Record<CommercialStatus, number> = { Agendado:0, Pendente:1, "Em Produção":2, Pronto:3, "Saiu para Entrega":4, Finalizado:5, Cancelado:99 };
+function projectionDecision(before: CommercialStatus, target: CommercialStatus | null, pickup: boolean) {
+  if (!target || pickup || before === "Cancelado" || before === "Finalizado" || target === before) {
+    return { apply: false, deferred: false };
+  }
+
+  // DFL Entregas informa a verdade logística, mas não pode pular etapas
+  // comerciais do Site. Ex.: Em Produção -> Finalizado continua proibido.
+  if (canTransitionOrderStatus(before, target, pickup)) {
+    return { apply: true, deferred: false };
+  }
+
+  return { apply: false, deferred: true };
+}
 function commercialStatus(value: unknown): CommercialStatus {
   if (typeof value !== "string" || !value.trim()) return "Pendente";
   const s=value.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim();
@@ -131,7 +144,9 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
     const beforeStatus = commercialStatus(order.status);
     const targetStatus = wins ? projectedStatus(event.event_type) : null;
     const pickup = order.tipoEntrega === "pickup";
-    const statusChanged = Boolean(targetStatus && !pickup && beforeStatus !== "Cancelado" && beforeStatus !== "Finalizado" && STATUS_RANK[targetStatus] > STATUS_RANK[beforeStatus]);
+    const projection = projectionDecision(beforeStatus, targetStatus, pickup);
+    const statusChanged = projection.apply;
+    const projectionDeferred = Boolean(wins && projection.deferred);
 
     let rewardWrite: { ref: DocumentReference; data: Record<string, unknown> } | null = null;
     if (statusChanged && targetStatus === "Finalizado") {
@@ -174,6 +189,13 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         deliveryIsNextStop: p.nextStop === true,
         deliveryCompletedAt: p.completedAt ?? null,
         deliveryFailedReason: p.failedReason ?? null,
+        deliveryOperationalCompleted: event.event_type === "delivery.completed" ? true : (order.deliveryOperationalCompleted === true),
+        deliveryOperationalCompletedAt: event.event_type === "delivery.completed" ? (p.completedAt ?? incoming.iso) : (order.deliveryOperationalCompletedAt ?? null),
+        deliveryCommercialProjectionPending: projectionDeferred,
+        deliveryCommercialProjectionTarget: projectionDeferred ? targetStatus : null,
+        deliveryCommercialProjectionEventId: projectionDeferred ? event.event_id : null,
+        deliveryCommercialProjectionEventType: projectionDeferred ? event.event_type : null,
+        deliveryCommercialProjectionAt: projectionDeferred ? Timestamp.fromMillis(incoming.time) : null,
         ...(statusChanged && targetStatus ? {
           status: targetStatus,
           statusUpdatedAt: Timestamp.fromMillis(incoming.time),
@@ -227,6 +249,8 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       commercial_status_before: beforeStatus,
       commercial_status_after: statusChanged ? targetStatus : beforeStatus,
       commercial_status_changed: statusChanged,
+      commercial_projection_deferred: projectionDeferred,
+      commercial_projection_target: projectionDeferred ? targetStatus : null,
       reward_awarded: Boolean(rewardWrite),
       ...(currentIso ? { previous_event_at: currentIso } : {}),
       ...(currentEventId ? { previous_event_id: currentEventId } : {}),
@@ -240,6 +264,8 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       stale_ignored: !wins,
       commercial_status_changed: statusChanged,
       commercial_status: statusChanged ? targetStatus : beforeStatus,
+      commercial_projection_deferred: projectionDeferred,
+      commercial_projection_target: projectionDeferred ? targetStatus : null,
       reward_awarded: Boolean(rewardWrite),
     };
   });

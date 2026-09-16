@@ -18,6 +18,7 @@ export type Product = {
   detailsTitle?: string;
   detailsItems?: string[];
   includedExtras?: string;
+  bundleItems?: Array<{ productId: string; quantity: number; note?: string }>;
 };
 
 export const products: Product[] = [
