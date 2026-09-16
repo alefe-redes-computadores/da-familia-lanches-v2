@@ -162,10 +162,20 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         ? order.deliveryTrackingLastEventId
         : "";
 
-    const wins =
+    const winsByClock =
       !Number.isFinite(currentTime) ||
       incoming.time > currentTime ||
       (incoming.time === currentTime && event.event_id.localeCompare(currentEventId) > 0);
+
+    // Conclusão logística é terminal para o tracking desta entrega.
+    // Evento tardio de posição/próxima parada não pode ressuscitá-la.
+    const operationalAlreadyCompleted =
+      order.deliveryOperationalCompleted === true ||
+      nonEmpty(order.deliveryOperationalCompletedAt) ||
+      order.deliveryTrackingEvent === "delivery.completed";
+    const trackingResurrection =
+      operationalAlreadyCompleted && event.event_type !== "delivery.completed";
+    const wins = winsByClock && !trackingResurrection;
 
     const beforeStatus = commercialStatus(order.status);
     const targetStatus = wins ? projectedStatus(event.event_type) : null;
@@ -270,7 +280,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       status: "processed",
       local_entity_type: "order",
       local_entity_id: event.payload.externalOrderId,
-      processing_outcome: wins ? "applied" : "ignored_stale",
+      processing_outcome: wins ? "applied" : (trackingResurrection ? "ignored_after_delivery_completed" : "ignored_stale"),
       incoming_event_at: incoming.iso,
       commercial_status_before: beforeStatus,
       commercial_status_after: statusChanged ? targetStatus : beforeStatus,
