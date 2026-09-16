@@ -8,6 +8,12 @@ import {
   integrationEventId,
 } from "./idempotency";
 
+export type DflSiteOrderItemSnapshotV1 = {
+  id: string; name: string; quantity: number; unitPrice: number; lineTotal: number;
+  detailsTitle: string | null; detailsItems: string[]; includedExtras: string | null;
+  selectedAddons: { id: string; name: string; price: number }[]; observation: string | null;
+};
+
 export type DflSiteOrderEventPayloadV1 = {
   orderId: string;
   sourceSystem: "dfl_site";
@@ -29,7 +35,7 @@ export type DflSiteOrderEventPayloadV1 = {
     complement: string;
     reference: string;
   } | null;
-  itens: unknown[];
+  itens: DflSiteOrderItemSnapshotV1[];
   subtotal: number;
   taxaEntrega: number;
   desconto: number;
@@ -70,6 +76,22 @@ const nullableText = (
 ) => {
   const normalized = text(value);
   return normalized || null;
+};
+
+const orderItemsSnapshot = (value: unknown): DflSiteOrderItemSnapshotV1[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    const item = objectValue(raw); const id = text(item.id); const name = text(item.name);
+    if (!id || !name) return [];
+    const quantity = Math.max(1, Math.trunc(money(item.quantity) || 1));
+    const unitPrice = Math.max(0, money(item.price));
+    const detailsItems = Array.isArray(item.detailsItems) ? item.detailsItems.map(text).filter(Boolean) : [];
+    const selectedAddons = Array.isArray(item.selectedAddons) ? item.selectedAddons.flatMap((rawAddon) => {
+      const addon = objectValue(rawAddon); const addonId = text(addon.id); const addonName = text(addon.name);
+      return addonId && addonName ? [{ id: addonId, name: addonName, price: Math.max(0, money(addon.price)) }] : [];
+    }) : [];
+    return [{ id, name, quantity, unitPrice, lineTotal: unitPrice * quantity, detailsTitle: nullableText(item.detailsTitle), detailsItems, includedExtras: nullableText(item.includedExtras), selectedAddons, observation: nullableText(item.observation) }];
+  });
 };
 
 const customerSnapshotFromOrder = (
@@ -151,9 +173,7 @@ export function buildDflSiteOrderPayloadV1(
         rawOrder,
         tipoEntrega,
       ),
-    itens: Array.isArray(rawOrder.itens)
-      ? rawOrder.itens
-      : [],
+    itens: orderItemsSnapshot(rawOrder.itens),
     subtotal: money(rawOrder.subtotal),
     taxaEntrega:
       money(rawOrder.taxaEntrega),

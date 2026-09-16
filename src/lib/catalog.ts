@@ -52,6 +52,9 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
   const suggestion = booleanOrUndefined(raw.isSuggestion ?? raw.sugestao);
   const sortOrder = finiteOrder(raw.sortOrder ?? raw.ordem);
   const addonIds = stringArray(raw.addonIds ?? raw.adicionaisIds);
+  const detailsTitle = text(raw.detailsTitle ?? raw.tituloDetalhes) || undefined;
+  const detailsItems = stringArray(raw.detailsItems ?? raw.itensDetalhes);
+  const includedExtras = text(raw.includedExtras ?? raw.acompanha) || undefined;
 
   return {
     id,
@@ -65,6 +68,9 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
     ...(suggestion !== undefined ? { isSuggestion: suggestion } : {}),
     ...(sortOrder !== undefined ? { sortOrder } : {}),
     ...(addonIds !== undefined ? { addonIds } : {}),
+    ...(detailsTitle ? { detailsTitle } : {}),
+    ...(detailsItems !== undefined ? { detailsItems } : {}),
+    ...(includedExtras ? { includedExtras } : {}),
   };
 }
 

@@ -10,6 +10,7 @@ import { useCartStore } from "@/store/cart.store";
 import { useUIStore } from "@/store/ui";
 import { ModalBase } from "./ModalBase";
 import styles from "./ProductDetailsModal.module.css";
+import { haptic } from "@/lib/haptics";
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -18,6 +19,7 @@ function money(value: number) {
 export function ProductDetailsModal() {
   const closeModal = useUIStore((s) => s.closeModal);
   const openModal = useUIStore((s) => s.openModal);
+  const showCartToast = useUIStore((s) => s.showCartToast);
   const modalData = useUIStore((s) => s.modalData);
   const currentUser = useAuthStore((s) => s.currentUser);
   const authLoading = useAuthStore((s) => s.loading);
@@ -32,6 +34,8 @@ export function ProductDetailsModal() {
   if (!product) return null;
 
   const total = (product.price + addonsTotal) * quantity;
+  const hasDiscount = typeof product.oldPrice === "number" && product.oldPrice > product.price;
+  const savings = hasDiscount ? product.oldPrice! - product.price : 0;
   const productAddons = availableAddonsForProduct(product, addons);
   const allowAddons = productAddons.length > 0;
 
@@ -41,6 +45,8 @@ export function ProductDetailsModal() {
 
   const handleAdd = () => {
     addItem(product, quantity, selectedAddons, observation.trim());
+    haptic("add");
+    showCartToast({ title: `${product.name} adicionado`, message: quantity > 1 ? `${quantity} unidades entraram no carrinho.` : "Seu carrinho foi atualizado.", kind: "add", actionLabel: "Ver carrinho", onAction: () => openModal("cart") });
     const alreadyPrompted = typeof window !== "undefined" && window.sessionStorage.getItem("dfl_login_intent_shown") === "1";
     if (!authLoading && !currentUser && !alreadyPrompted) {
       window.sessionStorage.setItem("dfl_login_intent_shown", "1");
@@ -55,8 +61,10 @@ export function ProductDetailsModal() {
       <div className={styles.wrap}>
         <div className={styles.product}>
           <img src={product.image} alt={product.name} />
-          <div><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <span>{money(product.oldPrice)}</span>}<strong>{money(product.price)}</strong></div></div>
+          <div><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div></div>
         </div>
+
+        {(product.detailsItems?.length || product.includedExtras) && <section className={styles.composition}><div className={styles.compositionHead}><span>POR DENTRO DO PEDIDO</span><strong>{product.detailsTitle || `O que vem no ${product.name}?`}</strong></div>{product.detailsItems?.length ? <div className={styles.detailChips}>{product.detailsItems.map((item) => <span key={item}>{item}</span>)}</div> : null}{product.includedExtras && <p><b>Acompanha:</b> {product.includedExtras}</p>}</section>}
 
         {allowAddons && (
           <section className={styles.section}>

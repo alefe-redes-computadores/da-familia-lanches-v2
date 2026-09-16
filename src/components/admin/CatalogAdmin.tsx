@@ -25,6 +25,9 @@ type ProductDraft = {
   isSuggestion: boolean;
   sortOrder: string;
   addonIds?: string[];
+  detailsTitle: string;
+  detailsItems: string;
+  includedExtras: string;
 };
 
 type AddonDraft = {
@@ -92,6 +95,9 @@ const draftFromProduct = (product: Product): ProductDraft => ({
   isSuggestion: Boolean(product.isSuggestion),
   sortOrder: product.sortOrder == null ? "" : String(product.sortOrder),
   addonIds: product.addonIds,
+  detailsTitle: product.detailsTitle ?? "",
+  detailsItems: product.detailsItems?.join("\n") ?? "",
+  includedExtras: product.includedExtras ?? "",
 });
 
 const draftFromAddon = (addon: Addon): AddonDraft => ({
@@ -127,6 +133,9 @@ export function CatalogAdmin() {
       if (availabilityFilter === "paused" && product.disponivel) return false;
       if (!term) return true;
       return product.name.toLocaleLowerCase("pt-BR").includes(term) || product.description.toLocaleLowerCase("pt-BR").includes(term) || product.id.toLocaleLowerCase("pt-BR").includes(term);
+    }).sort((a, b) => {
+      if (availabilityFilter === "all" && a.disponivel !== b.disponivel) return a.disponivel ? -1 : 1;
+      return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER);
     });
   }, [products, search, categoryFilter, availabilityFilter]);
 
@@ -140,7 +149,7 @@ export function CatalogAdmin() {
 
   const openCreateProduct = () => {
     setProductMode("create");
-    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, sortOrder: "", addonIds: undefined });
+    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "" });
     setMessage("");
   };
 
@@ -194,6 +203,9 @@ export function CatalogAdmin() {
         disponivel: productDraft.disponivel,
         isSuggestion: productDraft.isSuggestion,
         sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : deleteField(),
+        detailsTitle: productDraft.detailsTitle.trim() || deleteField(),
+        detailsItems: productDraft.detailsItems.split("\n").map((item) => item.trim()).filter(Boolean),
+        includedExtras: productDraft.includedExtras.trim() || deleteField(),
         updatedAt: serverTimestamp(),
       };
 
@@ -469,7 +481,10 @@ export function CatalogAdmin() {
         {productMode === "edit" && <div className={styles.idBox}><span>ID permanente</span><strong>{productDraft.id}</strong></div>}
         <div className={styles.form}>
           <label className={styles.full}>Nome<input value={productDraft.name} onChange={(e) => setProductDraft({ ...productDraft, name: e.target.value })} placeholder="Ex.: Burger Mineirin" /></label>
-          <label className={styles.full}>Descrição<textarea value={productDraft.description} onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })} placeholder="Ingredientes e descrição comercial" /></label>
+          <label className={styles.full}>Descrição curta<textarea value={productDraft.description} onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })} placeholder="Texto curto para o card" /></label>
+          <label className={styles.full}>Título dos detalhes<input value={productDraft.detailsTitle} onChange={(e) => setProductDraft({ ...productDraft, detailsTitle: e.target.value })} placeholder="Ex.: O que vem no Uai?" /></label>
+          <label className={styles.full}>Ingredientes / composição<textarea value={productDraft.detailsItems} onChange={(e) => setProductDraft({ ...productDraft, detailsItems: e.target.value })} placeholder={"Um item por linha\nPão\nHambúrguer\nBacon"} /></label>
+          <label className={styles.full}>Acompanha<textarea value={productDraft.includedExtras} onChange={(e) => setProductDraft({ ...productDraft, includedExtras: e.target.value })} placeholder="Maionese temperada da casa, molho verde e ketchup sachê" /></label>
           <label>Preço<input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: e.target.value })} placeholder="0,00" /></label>
           <label>Preço anterior<input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: e.target.value })} placeholder="Opcional" /></label>
           <div className={styles.photoUpload}><label className={styles.photoButton}>{uploadingImage ? "Enviando..." : "Escolher foto do celular"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingImage} onChange={(e)=>{const file=e.target.files?.[0];if(file)void uploadProductImage(file);e.currentTarget.value="";}} /></label><small>JPG, PNG ou WebP · até 6 MB. O campo de URL continua funcionando.</small></div>

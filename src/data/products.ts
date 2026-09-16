@@ -15,6 +15,9 @@ export type Product = {
   isSuggestion?: boolean;
   sortOrder?: number;
   addonIds?: string[];
+  detailsTitle?: string;
+  detailsItems?: string[];
+  includedExtras?: string;
 };
 
 export const products: Product[] = [
@@ -32,7 +35,10 @@ export const products: Product[] = [
     price: 29.99,
     image: "/img/promo10.png",
     category: "promocoes",
-    disponivel: false
+    disponivel: false,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["2 Burgers Uai", "1 Coca-Cola 600ml"],
+    includedExtras: 'Os Burgers Uai acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "promo-2",
@@ -42,7 +48,10 @@ export const products: Product[] = [
     image: "/img/promo9.jpg",
     category: "promocoes",
     disponivel: true,
-    isSuggestion: true
+    isSuggestion: true,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["5 Burgers Uai", "1 Kuat 2L (brinde)"],
+    includedExtras: 'Os Burgers Uai acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "promo-3",
@@ -52,7 +61,10 @@ export const products: Product[] = [
     image: "/img/promo8.jpg",
     category: "promocoes",
     disponivel: true,
-    isSuggestion: true
+    isSuggestion: true,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["4 Burgers Armaria"],
+    includedExtras: 'Os Burgers Armaria acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "promo-4",
@@ -61,7 +73,10 @@ export const products: Product[] = [
     price: 54.00,
     image: "/img/promo6.jpg",
     category: "promocoes",
-    disponivel: false
+    disponivel: false,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["5 Burgers Uai"],
+    includedExtras: 'Os Burgers Uai acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "promo-5",
@@ -70,7 +85,10 @@ export const products: Product[] = [
     price: 49.99,
     image: "/img/promo5.jpg",
     category: "promocoes",
-    disponivel: false
+    disponivel: false,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["4 Burgers Trem", "1 Fanta 1L"],
+    includedExtras: 'Os Burgers Trem acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "promo-6",
@@ -79,7 +97,10 @@ export const products: Product[] = [
     price: 44.99,
     image: "/img/promo4.jpg",
     category: "promocoes",
-    disponivel: true
+    disponivel: true,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["3 Burgers Trem", "1 Fanta 1L"],
+    includedExtras: 'Os Burgers Trem acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "promo-7",
@@ -88,7 +109,9 @@ export const products: Product[] = [
     price: 59.99,
     image: "/img/promo7.jpg",
     category: "promocoes",
-    disponivel: false
+    disponivel: false,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["4 TremBão", "1 Fanta 1L"]
   },
   {
     id: "promo-8",
@@ -97,7 +120,10 @@ export const products: Product[] = [
     price: 39.99,
     image: "/img/promo3.jpg",
     category: "promocoes",
-    disponivel: false
+    disponivel: false,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["2 Burgers Peleja"],
+    includedExtras: 'Os Burgers Peleja acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "promo-9",
@@ -106,7 +132,9 @@ export const products: Product[] = [
     price: 37.99,
     image: "/img/promo2.jpg",
     category: "promocoes",
-    disponivel: false
+    disponivel: false,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["3 Hot Dogs Padaná"]
   },
   {
     id: "promo-10",
@@ -115,7 +143,9 @@ export const products: Product[] = [
     price: 34.99,
     image: "/img/promo1.jpg",
     category: "promocoes",
-    disponivel: false
+    disponivel: false,
+    detailsTitle: 'O que vem nesta promoção?',
+    detailsItems: ["2 Hot Dogs Purizin", "1 Fanta 1L"]
   },
 
   // =========================================
@@ -129,7 +159,10 @@ export const products: Product[] = [
     image: "/img/combo1.png",
     category: "combos",
     disponivel: true,
-    isSuggestion: true
+    isSuggestion: true,
+    detailsTitle: 'O que vem no Combo Casal Tradicional?',
+    detailsItems: ["2 Burgers Trem", "1 Fanta 1L"],
+    includedExtras: 'Os Burgers Trem acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "combo-casal-art",
@@ -139,7 +172,10 @@ export const products: Product[] = [
     image: "/img/combo2.png",
     category: "combos",
     disponivel: true,
-    isSuggestion: true
+    isSuggestion: true,
+    detailsTitle: 'O que vem no Combo Casal Artesanal?',
+    detailsItems: ["2 Burgers Peleja", "1 Fanta 1L"],
+    includedExtras: 'Os Burgers Peleja acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "combo-familia-trad",
@@ -149,7 +185,10 @@ export const products: Product[] = [
     image: "/img/combo3.png",
     category: "combos",
     disponivel: true,
-    isSuggestion: true
+    isSuggestion: true,
+    detailsTitle: 'O que vem no Combo Família Tradicional?',
+    detailsItems: ["4 Burgers Trem", "1 Kuat 2L"],
+    includedExtras: 'Os Burgers Trem acompanham molho verde da casa e ketchup em sachê.'
   },
   {
     id: "combo-familia-art",
@@ -159,7 +198,10 @@ export const products: Product[] = [
     image: "/img/combo4.png",
     category: "combos",
     disponivel: true,
-    isSuggestion: true
+    isSuggestion: true,
+    detailsTitle: 'O que vem no Combo Família Artesanal?',
+    detailsItems: ["4 Burgers Peleja", "1 Kuat 2L"],
+    includedExtras: 'Os Burgers Peleja acompanham molho verde da casa e ketchup em sachê.'
   },
 
   // =========================================
@@ -181,7 +223,13 @@ export const products: Product[] = [
     price: 13.00,
     image: "/img/uai.png",
     category: "tradicionais",
-    disponivel: true
+    disponivel: true,
+
+    detailsTitle: "O que vem no Uai?",
+
+    detailsItems: ["Pão", "Hambúrguer", "Milho", "Bacon", "Alface", "Tomate", "Presunto", "Mussarela"],
+
+    includedExtras: "Nossa maionese temperada — o famoso molho verde da casa — e ketchup em sachê.",
   },
   {
     id: "trem",
@@ -190,7 +238,13 @@ export const products: Product[] = [
     price: 14.00,
     image: "/img/trem.png",
     category: "tradicionais",
-    disponivel: true
+    disponivel: true,
+
+    detailsTitle: "O que vem no Trem?",
+
+    detailsItems: ["Pão", "Hambúrguer", "Salsicha", "Bacon", "Milho", "Alface", "Tomate", "Presunto", "Mussarela"],
+
+    includedExtras: "Nossa maionese temperada — o famoso molho verde da casa — e ketchup em sachê.",
   },
   {
     id: "cadim",
@@ -208,7 +262,13 @@ export const products: Product[] = [
     price: 18.00,
     image: "/img/armaria.png",
     category: "tradicionais",
-    disponivel: true
+    disponivel: true,
+
+    detailsTitle: "O que vem no Armaria?",
+
+    detailsItems: ["Pão", "Hambúrguer", "Filé de frango", "Bacon", "Milho", "Batata palha", "Alface", "Tomate", "Salsicha", "Presunto", "Mussarela"],
+
+    includedExtras: "Nossa maionese temperada — o famoso molho verde da casa — e ketchup em sachê.",
   },
   {
     id: "bitela",
@@ -217,7 +277,13 @@ export const products: Product[] = [
     price: 22.00,
     image: "/img/bitela.png",
     category: "tradicionais",
-    disponivel: true
+    disponivel: true,
+
+    detailsTitle: "O que vem no Bitela?",
+
+    detailsItems: ["Pão", "2 hambúrgueres", "Filé de frango", "Bacon", "Milho", "Batata palha", "Alface", "Salsicha", "Tomate", "Presunto", "Mussarela"],
+
+    includedExtras: "Nossa maionese temperada — o famoso molho verde da casa — e ketchup em sachê.",
   },
   {
     id: "apruma",
@@ -226,7 +292,13 @@ export const products: Product[] = [
     price: 25.00,
     image: "/img/apruma.png",
     category: "tradicionais",
-    disponivel: true
+    disponivel: true,
+
+    detailsTitle: "O que vem no Apruma?",
+
+    detailsItems: ["Pão", "3 hambúrgueres", "Filé de frango", "Bacon", "Salsicha", "Milho", "Batata palha", "Alface", "Tomate", "2 presuntos", "2 mussarelas"],
+
+    includedExtras: "Nossa maionese temperada — o famoso molho verde da casa — e ketchup em sachê.",
   },
 
   // =========================================
@@ -239,7 +311,13 @@ export const products: Product[] = [
     price: 26.00,
     image: "/img/peleja.png",
     category: "artesanais",
-    disponivel: true
+    disponivel: true,
+
+    detailsTitle: "O que vem no Peleja?",
+
+    detailsItems: ["Pão", "Hambúrguer artesanal", "Filé de frango", "Bacon", "Milho", "Batata palha"],
+
+    includedExtras: "Nossa maionese temperada — o famoso molho verde da casa — e ketchup em sachê.",
   },
   {
     id: "tudibom",

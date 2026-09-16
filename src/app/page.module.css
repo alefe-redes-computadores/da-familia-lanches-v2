@@ -74,3 +74,5 @@
   .card{grid-template-columns:104px minmax(0,1fr)}
   .hero h1{font-size:30px}
 }
+
+.detailsLink{display:inline-flex;align-items:center;gap:5px;margin-top:7px;font-size:10px;font-weight:800;color:#d97706}.detailsLink b{font-size:14px;line-height:1}

@@ -18,6 +18,7 @@ interface CartState {
   addItem: (product: Product, quantity?: number, addons?: Addon[], obs?: string) => void;
   
   removeItem: (cartId: string) => void; // Remove pelo ID único
+  restoreItem: (item: CartItem) => void;
   increaseQtd: (cartId: string) => void;
   decreaseQtd: (cartId: string) => void;
   clearCart: () => void;
@@ -71,6 +72,11 @@ export const useCartStore = create<CartState>()(
       removeItem: (cartId) =>
         set((state) => ({
           items: state.items.filter((i) => i.cartId !== cartId),
+        })),
+
+      restoreItem: (item) =>
+        set((state) => ({
+          items: state.items.some((current) => current.cartId === item.cartId) ? state.items : [...state.items, item],
         })),
 
       increaseQtd: (cartId) =>

@@ -18,7 +18,18 @@ export type ModalType =
   | "outros"
   | null;
 
+export type CartToastState = {
+  title: string;
+  message?: string;
+  kind?: "add" | "remove" | "restore";
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
 interface UIStore {
+  cartToast: CartToastState | null;
+  showCartToast: (toast: CartToastState) => void;
+  hideCartToast: () => void;
   isMobileMenuOpen: boolean;
   toggleMobileMenu: () => void;
   closeMobileMenu: () => void;
@@ -29,6 +40,9 @@ interface UIStore {
 }
 
 export const useUIStore = create<UIStore>((set) => ({
+  cartToast: null,
+  showCartToast: (toast) => set({ cartToast: toast }),
+  hideCartToast: () => set({ cartToast: null }),
   isMobileMenuOpen: false,
   toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
   closeMobileMenu: () => set({ isMobileMenuOpen: false }),

@@ -19,6 +19,7 @@ import { RewardsModal } from "@/components/ui/RewardsModal";
 import { AccountModal } from "@/components/ui/AccountModal";
 import { PixModal } from "@/components/ui/PixModal";
 import { TermsModal } from "@/components/ui/TermsModal";
+import { CartToast } from "@/components/ui/CartToast";
 import { useUIStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { auth } from "@/lib/firebase";
@@ -81,6 +82,7 @@ export function AppShell({ children }: Props) {
       <MobileBottomNav />
       <PrivacyBanner />
       {modal}
+      <CartToast />
     </div>
   );
 }

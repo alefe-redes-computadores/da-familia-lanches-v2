@@ -11,6 +11,7 @@ import { CatalogAdmin } from "@/components/admin/CatalogAdmin";
 import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";
 import { RewardsAdmin } from "@/components/admin/RewardsAdmin";
 import { CouponsAdmin } from "@/components/admin/CouponsAdmin";
+import { PublicPromotionsAdmin } from "@/components/admin/PublicPromotionsAdmin";
 import { prepareRewardForFinalizedOrder } from "@/lib/rewards";
 import { updateOrderStatus } from "@/lib/orderRepository";
 import { evaluateStoreStatus, normalizeStoreSettings } from "@/lib/storeSchedule";
@@ -177,7 +178,7 @@ export default function AdminPage() {
       ) : tab === "operacao" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>OPERAÇÃO</span><h2>Funcionamento da loja</h2></div><p>Agenda automática, controle manual e exceções.</p></div><StoreOperationAdmin /></section>
       ) : tab === "cupons" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>PROMOÇÕES</span><h2>Cupons de desconto</h2></div><p>Crie, agende, pause e edite cupons sem mexer diretamente no banco.</p></div><CouponsAdmin /></section>
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>PROMOÇÕES</span><h2>Cupons de desconto</h2></div><p>Crie, agende, pause e edite cupons sem mexer diretamente no banco.</p></div><CouponsAdmin /><PublicPromotionsAdmin /></section>
       ) : tab === "fidelidade" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><RewardsAdmin /></section>
       ) : tab === "gestao" ? (
