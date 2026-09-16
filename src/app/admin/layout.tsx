@@ -1,3 +1,3 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { manifest: "/admin-manifest.json", applicationName: "Da Família Lanches — Admin", appleWebApp: { capable: true, title: "DFL Admin", statusBarStyle: "black-translucent" } };
+export const metadata: Metadata = { manifest: "/admin-manifest.json?v=23", applicationName: "Da Família Lanches — Admin", appleWebApp: { capable: true, title: "DFL Admin", statusBarStyle: "black-translucent" }, icons: { icon: [{ url: "/favicon.ico?v=23", sizes: "any" }, { url: "/icon-192x192.png?v=23", sizes: "192x192", type: "image/png" }], shortcut: "/favicon.ico?v=23", apple: [{ url: "/apple-touch-icon.png?v=23", sizes: "180x180", type: "image/png" }] } };
 export default function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) { return children; }

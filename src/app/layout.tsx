@@ -8,13 +8,17 @@ const poppins = Poppins({ subsets: ["latin"], weight: ["400", "600", "700", "800
 export const metadata: Metadata = {
   title: { default: "Da Família Lanches", template: "%s | Da Família Lanches" },
   description: "Cardápio Da Família Lanches. Escolha, personalize e faça seu pedido.",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=23",
   applicationName: "Da Família Lanches",
   appleWebApp: { capable: true, title: "Da Família", statusBarStyle: "black-translucent" },
   icons: {
-    icon: [{ url: "/icon-192x192.png", sizes: "192x192", type: "image/png" }, { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" }],
-    shortcut: "/icon-192x192.png",
-    apple: [{ url: "/icon-192x192.png", sizes: "192x192", type: "image/png" }],
+    icon: [
+      { url: "/favicon.ico?v=23", sizes: "any" },
+      { url: "/icon-192x192.png?v=23", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512x512.png?v=23", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico?v=23",
+    apple: [{ url: "/apple-touch-icon.png?v=23", sizes: "180x180", type: "image/png" }],
   },
 };
 
