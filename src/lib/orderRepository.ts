@@ -193,6 +193,14 @@ export async function updateOrderStatus(input: {
       event,
     );
 
+    const deferredTarget =
+      typeof orderData.deliveryCommercialProjectionTarget === "string"
+        ? normalizarStatus(orderData.deliveryCommercialProjectionTarget)
+        : null;
+    const clearsDeferredProjection =
+      orderData.deliveryCommercialProjectionPending === true &&
+      deferredTarget === next;
+
     transaction.update(orderRef, {
       status: next,
       statusUpdatedAt: now,
@@ -200,6 +208,13 @@ export async function updateOrderStatus(input: {
         ...history,
         { status: next, at: now },
       ],
+      ...(clearsDeferredProjection ? {
+        deliveryCommercialProjectionPending: false,
+        deliveryCommercialProjectionTarget: null,
+        deliveryCommercialProjectionEventId: null,
+        deliveryCommercialProjectionEventType: null,
+        deliveryCommercialProjectionAt: null,
+      } : {}),
     });
 
     if (

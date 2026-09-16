@@ -44,6 +44,7 @@ export default function AdminPage() {
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("todos");
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   const authorized = Boolean(currentUser?.email && ADMINS.includes(currentUser.email));
@@ -61,6 +62,8 @@ export default function AdminPage() {
   }, [authorized]);
 
   const updateStatus = async (id: string, status: string, pedido?: Record<string, unknown>) => {
+    if (updatingOrderId === id) return;
+    setUpdatingOrderId(id);
     try {
       const rewardPlan = status === "Finalizado" && pedido
         ? await prepareRewardForFinalizedOrder(pedido)
@@ -73,10 +76,14 @@ export default function AdminPage() {
       });
       setFeedback(result.rewardAwarded
         ? "Pedido concluído e benefício de fidelidade liberado."
-        : `Pedido atualizado para ${normalizarStatus(status)}.`);
+        : result.changed
+          ? `Pedido atualizado para ${normalizarStatus(status)}.`
+          : "Este pedido já estava nesta etapa.");
     } catch (error) {
       console.error(error);
       setFeedback("Não foi possível atualizar o pedido. O status pode ter mudado em outro aparelho.");
+    } finally {
+      setUpdatingOrderId((current) => current === id ? null : current);
     }
   };
 
@@ -98,8 +105,9 @@ export default function AdminPage() {
     return pedidos
       .filter((pedido) => {
         const status = normalizarStatus(pedido.status);
-        const inTab =
-          tab === "cozinha" ? ["Pendente", "Em Produção", "Agendado"].includes(status) :
+        const inTab = attentionOnly
+          ? ["Pendente", "Em Produção", "Pronto", "Saiu para Entrega"].includes(status)
+          : tab === "cozinha" ? ["Pendente", "Em Produção", "Agendado"].includes(status) :
           tab === "expedicao" ? ["Pronto", "Saiu para Entrega"].includes(status) :
           tab === "concluidos" ? status === "Finalizado" :
           tab === "cancelados" ? status === "Cancelado" :
@@ -194,7 +202,7 @@ export default function AdminPage() {
         <>
           <div className={styles.toolbar}>
             <div className={styles.toolbarTitle}>
-              <strong>{tabItems.find(([key]) => key === tab)?.[1]}</strong>
+              <strong>{attentionOnly ? "Precisam de atenção" : tabItems.find(([key]) => key === tab)?.[1]}</strong>
               <span>{filtered.length} pedido{filtered.length === 1 ? "" : "s"} nesta visualização</span>
             </div>
             <label className={styles.search}>
@@ -209,7 +217,7 @@ export default function AdminPage() {
             <button data-active={serviceFilter === "delivery"} onClick={() => setServiceFilter("delivery")}>Entrega</button>
             <button data-active={serviceFilter === "pickup"} onClick={() => setServiceFilter("pickup")}>Retirada</button>
             <button className={styles.attentionFilter} data-active={attentionOnly} onClick={() => setAttentionOnly((value) => !value)}>
-              Sem atualização {counts.attention > 0 && <b>{counts.attention}</b>}
+              {attentionOnly ? "Voltar à etapa" : "Sem atualização"} {counts.attention > 0 && <b>{counts.attention}</b>}
             </button>
           </div>
 

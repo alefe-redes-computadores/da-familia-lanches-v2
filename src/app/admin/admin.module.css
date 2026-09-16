@@ -4,3 +4,19 @@
 .navGroups{position:relative;z-index:1}.managementTabs{display:flex;gap:5px;margin-top:5px;overflow-x:auto;scrollbar-width:none}.managementTabs::-webkit-scrollbar{display:none}.managementTab{flex:0 0 auto;min-height:27px;border:0;background:transparent;color:#777;padding:5px 8px;font-size:7px;font-weight:900}.managementTab[data-active="true"]{color:#ffca28;background:#211f18;border-radius:8px}
 @media(max-width:680px){.hero{padding:11px 10px 9px}.hero h1{font-size:17px}.hero p{font-size:7.5px}.store{font-size:7.5px}.pulse{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;gap:5px}.pulse button{flex:auto;padding:7px 8px;min-height:42px}.pulse span{font-size:5.7px}.pulse b{font-size:15px;margin-top:3px}.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible;gap:4px}.tab{width:100%;min-width:0;padding:5px 4px}.tab span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.managementTabs{margin-top:4px;padding-top:4px;border-top:1px solid #252525}.managementTab{min-height:25px;padding:4px 7px;color:#858585}.toolbar{margin-top:2px}.search input{height:39px;border-radius:11px}.filters{gap:4px;margin-bottom:8px}.filters button{min-height:28px;padding:5px 8px}.empty{min-height:145px}}
 @media(max-width:380px){.tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.pulse{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+
+/* SUPER B operation/admin polish */
+.attentionFilter[data-active="true"]{border-color:#8b2f20!important;background:#8b2f20!important;color:#fff!important}
+.attentionFilter[data-active="true"] b{color:#fff}
+.pulse button:active,.tab:active,.managementTab:active,.filters button:active,.store:active{transform:scale(.985)}
+.pulse button,.tab,.managementTab,.filters button,.store{transition:transform .12s ease,border-color .16s ease,background-color .16s ease,color .16s ease}
+@media(max-width:680px){
+  .page{padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right));padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+  .hero{position:relative}
+  .managementTabs{padding-bottom:2px}
+  .managementTab{font-size:7.5px}
+  .toolbarTitle span{line-height:1.25}
+  .filters{overscroll-behavior-inline:contain}
+  .grid{padding-bottom:4px}
+}

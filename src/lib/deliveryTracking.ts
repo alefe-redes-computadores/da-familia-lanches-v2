@@ -26,7 +26,7 @@ export function deliveryTrackingPresentation(order:OrderLike):DeliveryTrackingPr
   const stopsAhead=n(order.deliveryStopsAhead); const totalStops=n(order.deliveryTotalStops);
   const operationalCompleted=order.deliveryOperationalCompleted===true||Boolean(s(order.deliveryOperationalCompletedAt))||event==="delivery.completed";
   const isNext=!operationalCompleted&&(order.deliveryIsNextStop===true||event==="delivery.next_stop"||stopsAhead===0);
-  if(pickup||status==="Cancelado"||!event) return {visible:false,terminal:false,tone:"route",eyebrow:"",title:"",description:"",detail:null,stopsAhead,totalStops,isNext:false};
+  if(pickup||status==="Cancelado"||(!event&&!operationalCompleted)) return {visible:false,terminal:false,tone:"route",eyebrow:"",title:"",description:"",detail:null,stopsAhead,totalStops,isNext:false};
   if(operationalCompleted) return {visible:true,terminal:true,tone:"done",eyebrow:"ENTREGA CONCLUÍDA",title:"Pedido entregue ✓",description:"A operação marcou esta entrega como concluída.",detail:null,stopsAhead,totalStops,isNext:false};
   if(event==="delivery.failed") return {visible:true,terminal:false,tone:"issue",eyebrow:"ATENÇÃO NA ENTREGA",title:"A entrega precisa de atenção",description:s(order.deliveryFailedReason)||"A equipe registrou uma ocorrência na entrega.",detail:null,stopsAhead,totalStops,isNext:false};
   if(isNext) return {visible:true,terminal:false,tone:"next",eyebrow:"VOCÊ É O PRÓXIMO",title:"Prepare-se para receber seu pedido",description:"Sua parada é a próxima pendente na rota de entrega.",detail:paymentGuidance(order),stopsAhead,totalStops,isNext:true};
