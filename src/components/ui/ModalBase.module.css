@@ -81,3 +81,12 @@
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+/* V27 — viewport mobile determinístico */
+.modal{max-height:min(88dvh,820px)}
+.body{min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+@media(max-width:560px){
+  .root{align-items:flex-end}
+  .modal{width:100%;max-width:none;max-height:calc(100dvh - max(10px,env(safe-area-inset-top)));border-radius:22px 22px 0 0}
+  .header{flex:0 0 auto;padding:13px 16px}
+  .body{overflow-y:auto}
+}

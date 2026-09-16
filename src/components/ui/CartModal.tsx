@@ -10,6 +10,7 @@ import { useCatalog } from "@/hooks/useCatalog";
 import styles from "./CartModal.module.css";
 import { haptic } from "@/lib/haptics";
 import { CartPromotionInsight } from "@/components/ui/CartPromotionInsight";
+import { selectSmartCartSuggestions } from "@/lib/smartCart";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -23,7 +24,7 @@ export function CartModal() {
   const [clearArmed, setClearArmed] = useState(false);
   const total = getCartTotal();
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const suggestions = useMemo(() => products.filter((product) => product.isSuggestion && product.disponivel !== false && !items.some((item) => item.id === product.id)).slice(0, 6), [items]);
+  const suggestions = useMemo(() => selectSmartCartSuggestions(items, products, 3), [items, products]);
 
   const handleRemoveItem = (cartId: string) => {
     const removed = items.find((item) => item.cartId === cartId);
@@ -53,7 +54,7 @@ export function CartModal() {
 
           {!currentUser ? <div className={styles.loginCard}><strong>Seu pedido fica melhor conectado à sua conta.</strong><p>O login com Google leva poucos segundos, vincula o histórico e facilita seus próximos pedidos.</p><button type="button" onClick={() => openModal("login", { returnTo: "cart" })}>Entrar com Google</button></div> : <button className={styles.progress} type="button" onClick={() => openModal("rewards")}><div><strong>Seu histórico na casa</strong><span>{orderStats.loading ? "..." : `${orderStats.completed} concluído${orderStats.completed === 1 ? "" : "s"}`}</span></div><small>{orderStats.active > 0 ? `${orderStats.active} pedido${orderStats.active === 1 ? "" : "s"} em andamento. ` : ""}A fidelidade será baseada em pedidos realmente concluídos.</small></button>}
 
-          {suggestions.length > 0 && <section className={styles.suggestions}><strong>Que tal completar o pedido?</strong><div>{suggestions.map((product) => <article key={product.id}><img src={product.image} alt={product.name} loading="lazy" /><b>{product.name}</b><span>{money(product.price)}</span><button type="button" onClick={() => openModal("product-details", product)}>Ver opções</button></article>)}</div></section>}
+          {suggestions.length > 0 && <section className={styles.smartSuggestions}><div className={styles.smartHead}><strong>Seu pedido, um pouco mais esperto</strong><span>Sugestões baseadas no que já está no carrinho.</span></div><div className={styles.smartList}>{suggestions.map((suggestion) => <button type="button" className={styles.smartCard} key={`${suggestion.kind}-${suggestion.product.id}`} onClick={() => openModal("product-details", suggestion.product)}><img src={suggestion.product.image} alt="" loading="lazy" /><span className={styles.smartCopy}><small>{suggestion.eyebrow}</small><b>{suggestion.title}</b><em>{suggestion.description}</em>{suggestion.saving && suggestion.saving > 0 ? <strong>Economia potencial de {money(suggestion.saving)}</strong> : null}</span><span className={styles.smartPrice}>{money(suggestion.product.price)}<i>Adicionar ›</i></span></button>)}</div></section>}
 
           <CartPromotionInsight /><div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish}>Continuar para finalizar</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Toque novamente para esvaziar" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
         </>}

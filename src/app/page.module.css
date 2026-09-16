@@ -78,3 +78,11 @@
 .detailsLink{display:inline-flex;align-items:center;gap:5px;margin-top:7px;font-size:10px;font-weight:800;color:#d97706}.detailsLink b{font-size:14px;line-height:1}
 
 .cardDescription{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+
+/* V27 — catálogo mobile */
+@media(max-width:560px){
+  .heroInner{padding-top:20px;padding-bottom:18px}.hero h1{max-width:330px;font-size:31px}.heroText{max-width:330px}
+  .content{padding-top:15px}.sectionHeader h2{font-size:21px}
+  .card{grid-template-columns:112px minmax(0,1fr);box-shadow:0 3px 14px rgba(28,24,18,.045)}
+  .cardBody{padding:12px 11px}.cardBody p{font-size:10px}.detailsLink{margin-top:6px;font-size:9px}
+}
