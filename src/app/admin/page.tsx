@@ -160,13 +160,22 @@ export default function AdminPage() {
           <button data-alert={counts.attention > 0} onClick={() => { setTab("cozinha"); setAttentionOnly(true); }}><span>Sem atualização</span><b>{counts.attention}</b></button>
         </div>
 
-        <nav className={styles.tabs} aria-label="Etapas da operação">
-          {tabItems.map(([key, label, count]) => (
-            <button key={key} className={styles.tab} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
-              <span>{label}</span>{count !== null && <b>{count}</b>}
-            </button>
-          ))}
-        </nav>
+        <div className={styles.navGroups}>
+          <nav className={styles.tabs} aria-label="Etapas da operação">
+            {tabItems.filter(([key]) => ["cozinha", "expedicao", "concluidos", "cancelados"].includes(key)).map(([key, label, count]) => (
+              <button key={key} className={styles.tab} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
+                <span>{label}</span>{count !== null && <b>{count}</b>}
+              </button>
+            ))}
+          </nav>
+          <nav className={styles.managementTabs} aria-label="Gestão da loja">
+            {tabItems.filter(([key]) => ["catalogo", "operacao", "cupons", "fidelidade", "gestao"].includes(key)).map(([key, label]) => (
+              <button key={key} className={styles.managementTab} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
+                {label}
+              </button>
+            ))}
+          </nav>
+        </div>
       </header>
 
       {feedback && <div className={styles.feedback}>{feedback}<button onClick={() => setFeedback("")}>Fechar</button></div>}
