@@ -86,11 +86,23 @@ function projectionDecision(
 }
 function commercialStatus(value: unknown): CommercialStatus {
   if (typeof value !== "string" || !value.trim()) return "Pendente";
-  const s=value.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim();
-  if(s.includes("agend"))return "Agendado"; if(s.includes("pendente"))return "Pendente";
-  if(s.includes("producao"))return "Em Produção"; if(s.includes("pronto"))return "Pronto";
-  if(s.includes("saiu")||s.includes("entrega"))return "Saiu para Entrega";
-  if(s.includes("final")||s.includes("conclu"))return "Finalizado"; if(s.includes("cancel"))return "Cancelado";
+
+  // Mesma regra semântica usada pelo cliente, inclusive remoção correta
+  // dos diacríticos de "Produção". Mantida local ao módulo server-only
+  // para não puxar dependências client/Firebase para o runtime Admin.
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (normalized.includes("agend")) return "Agendado";
+  if (normalized.includes("pendente")) return "Pendente";
+  if (normalized.includes("producao")) return "Em Produção";
+  if (normalized.includes("pronto")) return "Pronto";
+  if (normalized.includes("saiu") || normalized.includes("entrega")) return "Saiu para Entrega";
+  if (normalized.includes("final") || normalized.includes("conclu")) return "Finalizado";
+  if (normalized.includes("cancel")) return "Cancelado";
   return "Pendente";
 }
 function projectedStatus(type: ReverseEventType): CommercialStatus | null {
