@@ -1,0 +1,51 @@
+name: Build Evolution Pairing Patch
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Evolution PR 2727
+        uses: actions/checkout@v4
+        with:
+          repository: cloviscoli/evolution-api
+          ref: dffeac4fe2bf67855deb4881a4a492588f2b70d7
+
+      - name: Confirmar patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Commit:"
+          git rev-parse HEAD
+          echo
+          echo "Baileys:"
+          node -e 'const p=require("./package.json"); console.log(p.dependencies?.baileys || p.devDependencies?.baileys)'
+          echo
+          test -s patches/baileys+7.0.0-rc14.patch
+          echo "Patch rc14 encontrado:"
+          wc -l patches/baileys+7.0.0-rc14.patch
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build e publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/alefe-redes-computadores/dfl-evolution-pairing:2.3.7-pr2727
+          provenance: false
+          sbom: false
