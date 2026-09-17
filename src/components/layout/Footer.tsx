@@ -8,7 +8,7 @@ export function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>
-        <div className={styles.brand}><span>DA FAMÍLIA LANCHES</span><strong>Feito para matar a fome de verdade.</strong><p>Rua dos Caiçaras, 212 · Caramuru · Patos de Minas/MG</p></div>
+        <div className={styles.brand}><span>DA FAMÍLIA LANCHES</span><strong>Feito para matar a fome de verdade.</strong><p>Rua Lázaro Martins Marciel (Rua 7), 164 - Jardim Quebec, Patos de Minas/MG</p></div>
         <div className={styles.links}>
           <a href="https://wa.me/5534997178336" target="_blank" rel="noopener noreferrer">WhatsApp</a>
           <a href="https://www.instagram.com/dafamilia_patos?igsh=MTdxdDczNno4ZHRrZw==" target="_blank" rel="noopener noreferrer">Instagram</a>
@@ -17,6 +17,6 @@ export function Footer() {
         </div>
         <div className={styles.legal}><span>© {new Date().getFullYear()} Da Família Lanches</span><button type="button" onClick={() => openModal("terms")}>Termos e privacidade</button></div>
       </div>
-    </footer>
+    <p className={styles.developer}>Desenvolvido com carinho por Álefe Jôhsefe ❤️</p></footer>
   );
 }

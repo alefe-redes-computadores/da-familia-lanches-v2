@@ -24,3 +24,5 @@
 .summary{z-index:3}
 @media(max-width:560px){.body{min-height:auto;padding-bottom:0}.summary{margin-bottom:0;padding-bottom:calc(12px + env(safe-area-inset-bottom))}}
 @media(max-width:360px){.smartCard{grid-template-columns:48px minmax(0,1fr)}.smartCard>img{width:48px;height:48px}.smartPrice{grid-column:2;align-items:flex-start;flex-direction:row}}
+
+/* DFL-V30-CART */ .savings{display:flex!important;align-items:center;justify-content:space-between;gap:10px;margin:5px 0 10px;padding:10px 11px!important;border-radius:12px;background:#ecfdf3;color:#166534}.savings span{font-size:9px;font-weight:850}.savings strong{font-size:12px!important;color:#15803d}@media(max-width:520px){.summary{padding-bottom:calc(12px + env(safe-area-inset-bottom))}}

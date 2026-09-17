@@ -24,6 +24,11 @@ export function CartModal() {
   const [clearArmed, setClearArmed] = useState(false);
   const total = getCartTotal();
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const productSavings = useMemo(() => items.reduce((sum, item) => {
+    const current = products.find((product) => product.id === item.id);
+    return current && typeof current.oldPrice === "number" && current.oldPrice > current.price
+      ? sum + (current.oldPrice - current.price) * item.quantity : sum;
+  }, 0), [items, products]);
   const suggestions = useMemo(() => selectSmartCartSuggestions(items, products, 3), [items, products]);
 
   const handleRemoveItem = (cartId: string) => {
@@ -56,7 +61,7 @@ export function CartModal() {
 
           {suggestions.length > 0 && <section className={styles.smartSuggestions}><div className={styles.smartHead}><strong>Seu pedido, um pouco mais esperto</strong><span>Sugestões baseadas no que já está no carrinho.</span></div><div className={styles.smartList}>{suggestions.map((suggestion) => <button type="button" className={styles.smartCard} key={`${suggestion.kind}-${suggestion.product.id}`} onClick={() => openModal("product-details", suggestion.product)}><img src={suggestion.product.image} alt="" loading="lazy" /><span className={styles.smartCopy}><small>{suggestion.eyebrow}</small><b>{suggestion.title}</b><em>{suggestion.description}</em>{suggestion.saving && suggestion.saving > 0 ? <strong>Economia potencial de {money(suggestion.saving)}</strong> : null}</span><span className={styles.smartPrice}>{money(suggestion.product.price)}<i>Adicionar ›</i></span></button>)}</div></section>}
 
-          <CartPromotionInsight /><div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish}>Continuar para finalizar</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Toque novamente para esvaziar" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
+          <CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish}>Continuar para finalizar</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Toque novamente para esvaziar" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
         </>}
       </div>
     </ModalBase>

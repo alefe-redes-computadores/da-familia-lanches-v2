@@ -86,3 +86,5 @@
   .card{grid-template-columns:112px minmax(0,1fr);box-shadow:0 3px 14px rgba(28,24,18,.045)}
   .cardBody{padding:12px 11px}.cardBody p{font-size:10px}.detailsLink{margin-top:6px;font-size:9px}
 }
+
+/* DFL-V30-HOME */ .card{overflow:hidden}.media img{width:100%;height:100%;object-fit:cover}@media(max-width:640px){.content{padding-bottom:18px!important}.grid{align-items:stretch}.card{height:100%}.cardFooter{margin-top:auto}}

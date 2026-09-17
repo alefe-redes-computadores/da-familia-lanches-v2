@@ -28,3 +28,5 @@
 .bundleEditorHead button{border:0;border-radius:10px;padding:9px 10px;font-weight:800}.bundleRows{display:grid;gap:8px;margin-top:12px}
 .bundleRow{display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(90px,.7fr) 38px;gap:7px}.bundleRow select,.bundleRow input{min-width:0;width:100%;border-radius:10px}.bundleRow>button{border:0;border-radius:10px;font-size:20px}.bundleEmpty{font-size:11px;color:rgba(255,255,255,.45)}
 @media(max-width:620px){.bundleEditorHead{display:grid}.bundleEditorHead button{width:100%}.bundleRow{grid-template-columns:minmax(0,1fr) 58px 38px}.bundleRow input[aria-label="Observação do item"]{grid-column:1/-1;grid-row:2}}
+
+/* DFL-V30-CATALOG */ @media(max-width:600px){.grid{grid-template-columns:1fr}.product img,.image img,.preview img{aspect-ratio:1/1;object-fit:cover}.actions{flex-wrap:wrap;gap:7px}.actions button{min-height:40px}.editor,.panel,.modal{max-width:100%;box-sizing:border-box}}

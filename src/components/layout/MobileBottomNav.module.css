@@ -5,3 +5,5 @@
   .nav button{min-height:48px}
   .nav button>b{font-size:8px}
 }
+
+/* DFL-V30-NAV */ @media(max-width:760px){.nav,.root{padding-bottom:max(8px,env(safe-area-inset-bottom));height:auto;min-height:64px}}

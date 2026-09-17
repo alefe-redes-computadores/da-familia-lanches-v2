@@ -9,6 +9,7 @@ import { useShopStatus } from "@/hooks/useShopStatus";
 import { useUIStore } from "@/store/ui";
 import { ActiveOrderBanner } from "@/components/ui/ActiveOrderBanner";
 import styles from "./page.module.css";
+import { LastOrderCard } from "@/components/home/LastOrderCard";
 
 
 
@@ -50,7 +51,7 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
-      <section className={styles.hero}>
+      <LastOrderCard /><section className={styles.hero}>
         <div className={styles.heroGlow} />
         <div className={styles.heroInner}>
           <div className={styles.statusRow}>

@@ -20,3 +20,5 @@
   .filters{overscroll-behavior-inline:contain}
   .grid{padding-bottom:4px}
 }
+
+/* DFL-V30-ADMIN */ @media(max-width:720px){.page{overflow-x:hidden}.hero{padding:14px 12px}.pulse,.pulseGrid,.statsGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}.tabs,.managementTabs,.filters{overflow-x:auto!important;flex-wrap:nowrap!important;scrollbar-width:none;-webkit-overflow-scrolling:touch}.tabs>*,.managementTabs>*,.filters>*{flex:0 0 auto!important;white-space:nowrap}.toolbar{align-items:stretch!important;flex-direction:column!important}.search{width:100%!important;box-sizing:border-box}.grid{grid-template-columns:1fr!important}.management{padding-left:10px!important;padding-right:10px!important}.sectionHeading{align-items:flex-start!important;flex-direction:column!important}}
