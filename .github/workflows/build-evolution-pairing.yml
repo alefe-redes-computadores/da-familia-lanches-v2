@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: evolution-foundation/evolution-api
-          ref: cd800f2
+          ref: cd800f2976e1e5b682fbf86a01ee4d85ae61f370
           path: evolution
 
       - name: Checkout PR 2727 patch source
