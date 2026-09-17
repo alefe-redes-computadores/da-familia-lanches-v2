@@ -29,9 +29,10 @@ jobs:
           cd evolution
 
           echo '=== LOCALIZANDO COMMIT 2.3.7 ==='
-          git fetch origin cd800f2 --depth=1
-          FULL_SHA="$(git rev-parse FETCH_HEAD)"
-          git checkout --detach "$FULL_SHA"
+          # SHA completo da release 2.3.7, resolvido previamente.
+          FULL_SHA="cd800f2976e1e5b682fbf86a01ee4d85ae61f370"
+          git fetch origin "$FULL_SHA" --depth=1
+          git checkout --detach FETCH_HEAD
 
           VERSION="$(node -p 'require("./package.json").version')"
           echo "commit=$FULL_SHA"
