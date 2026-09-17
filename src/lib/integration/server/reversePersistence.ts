@@ -243,7 +243,8 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
     }
 
     if (wins) {
-      const intentType = event.event_type === "delivery.next_stop" ? "delivery_next_stop"
+      const intentType = event.event_type === "delivery.out_for_delivery" ? "delivery_started"
+        : event.event_type === "delivery.next_stop" ? "delivery_next_stop"
         : event.event_type === "delivery.completed" ? "delivery_completed"
         : event.event_type === "delivery.failed" ? "delivery_failed"
         : event.event_type === "delivery.assigned" ? "delivery_assigned"
