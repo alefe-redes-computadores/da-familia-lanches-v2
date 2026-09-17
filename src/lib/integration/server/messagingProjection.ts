@@ -92,7 +92,10 @@ function reverseType(v: unknown): DflMessagingEventType | null {
   switch (text(v)) {
     case "delivery_started": return "delivery.started";
     case "delivery_next_stop": return "delivery.next_stop";
-    case "delivery_position_changed": return "delivery.position_changed";
+    // Mudança interna de posição continua sendo persistida para tracking,
+    // mas não vira mensagem automática. Isso evita spam a cada reordenação
+    // ou conclusão anterior. O aviso especial é exclusivamente next_stop.
+    case "delivery_position_changed": return null;
     case "delivery_completed": return "delivery.completed";
     case "delivery_failed": return "delivery.failed";
     default: return null;
