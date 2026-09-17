@@ -1,4 +1,4 @@
-name: Build Evolution Pairing Patch
+name: Build Evolution 2.3.7 Pairing Patch
 
 on:
   workflow_dispatch:
@@ -10,26 +10,74 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Evolution PR 2727
+      - name: Checkout Evolution v2.3.7
+        uses: actions/checkout@v4
+        with:
+          repository: evolution-foundation/evolution-api
+          ref: v2.3.7
+          path: evolution
+
+      - name: Checkout PR 2727 patch source
         uses: actions/checkout@v4
         with:
           repository: cloviscoli/evolution-api
           ref: dffeac4fe2bf67855deb4881a4a492588f2b70d7
+          path: patched
 
-      - name: Confirmar patch
+      - name: Preparar Evolution 2.3.7 + patch
         shell: bash
         run: |
           set -euo pipefail
-          echo "Commit:"
-          git rev-parse HEAD
-          echo
-          echo "Baileys:"
-          node -e 'const p=require("./package.json"); console.log(p.dependencies?.baileys || p.devDependencies?.baileys)'
-          echo
+
+          cd evolution
+
+          echo "=== BASE ==="
+          echo "commit=$(git rev-parse HEAD)"
+          echo "evolution=$(node -p 'require("./package.json").version')"
+
+          test "$(node -p 'require("./package.json").version')" = "2.3.7"
+
+          echo "=== TRAZENDO PATCH VALIDADO DO PR 2727 ==="
+          mkdir -p patches
+          cp ../patched/patches/baileys+7.0.0-rc14.patch \
+             patches/baileys+7.0.0-rc14.patch
+
+          echo "=== ALTERANDO SOMENTE BAILEYS ==="
+          npm pkg set 'dependencies.baileys=7.0.0-rc14'
+
+          # Gera lock coerente com a base 2.3.7 sem executar scripts ainda.
+          npm install --package-lock-only --ignore-scripts
+
+          echo "=== GARANTINDO PATCH-PACKAGE ==="
+          node -e '
+            const fs=require("fs");
+            const p=require("./package.json");
+            const old=p.scripts?.postinstall || "";
+            if (!old.includes("patch-package")) {
+              p.scripts = p.scripts || {};
+              p.scripts.postinstall = old
+                ? old + " && patch-package"
+                : "patch-package";
+            }
+            if (!(p.dependencies?.["patch-package"] || p.devDependencies?.["patch-package"])) {
+              p.devDependencies = p.devDependencies || {};
+              p.devDependencies["patch-package"] = "^8.0.0";
+            }
+            fs.writeFileSync("package.json", JSON.stringify(p,null,2)+"\n");
+          '
+
+          npm install --package-lock-only --ignore-scripts
+
+          echo "=== CONTRATO ANTES DO BUILD ==="
+          test "$(node -p 'require("./package.json").version')" = "2.3.7"
+          test "$(node -p 'require("./package.json").dependencies.baileys')" = "7.0.0-rc14"
           test -s patches/baileys+7.0.0-rc14.patch
-          echo "Patch rc14 encontrado:"
-          wc -l patches/baileys+7.0.0-rc14.patch
+
+          echo "evolution=2.3.7"
+          echo "baileys=7.0.0-rc14"
+          echo "patch=$(wc -l < patches/baileys+7.0.0-rc14.patch) linhas"
 
       - name: Login GHCR
         uses: docker/login-action@v3
@@ -44,8 +92,8 @@ jobs:
       - name: Build e publicar
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: evolution
           push: true
-          tags: ghcr.io/alefe-redes-computadores/dfl-evolution-pairing:2.3.7-pr2727
+          tags: ghcr.io/alefe-redes-computadores/dfl-evolution-pairing:2.3.7-pr2727-v2
           provenance: false
           sbom: false
