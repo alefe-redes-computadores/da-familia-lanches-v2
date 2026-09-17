@@ -84,6 +84,25 @@ jobs:
 
           echo 'fonte=APROVADA'
 
+      - name: Injetar patch no Docker builder V4
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd evolution
+
+          test "$(node -p 'require("./package.json").version')" = "2.3.7"
+          test "$(node -p 'require("./package.json").dependencies.baileys')" = "7.0.0-rc14"
+          test -s patches/baileys+7.0.0-rc14.patch
+          grep -Fq "RUN npm ci --silent" Dockerfile
+
+          sed -i '/RUN npm ci --silent/i COPY ./patches ./patches' Dockerfile
+          sed -i '/RUN npm ci --silent/a RUN npx --yes patch-package@8.0.0 baileys \&\& grep -R -q "companion_reg_refresh" /evolution/node_modules/baileys/lib \&\& echo "DFL_PAIRING_PATCH_BUILDER=APROVADO"' Dockerfile
+
+          grep -Fq "COPY ./patches ./patches" Dockerfile
+          grep -Fq "patch-package@8.0.0 baileys" Dockerfile
+          grep -Fq "companion_reg_refresh" Dockerfile
+          echo "dockerfile_v4=APROVADO"
+
       - name: Login GHCR
         uses: docker/login-action@v3
         with:
