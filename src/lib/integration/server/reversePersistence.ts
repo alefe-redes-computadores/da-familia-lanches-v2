@@ -262,6 +262,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
           stops_ahead: event.payload.stopsAhead ?? null,
           is_next_stop: event.payload.nextStop === true,
           status: "pending",
+          messaging_eligible: true,
           schema_version: 1,
           created_at: now,
           updated_at: now,
