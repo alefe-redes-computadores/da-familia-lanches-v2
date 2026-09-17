@@ -33,6 +33,7 @@ export default function Home() {
     const term = normalize(search);
     const visibleCategories = new Set(categories.map((category) => category.id));
     return products.filter((product) => {
+      if (product.disponivel === false) return false;
       if (!visibleCategories.has(product.category)) return false;
       const categoryOk = activeCategory === "todos" || product.category === activeCategory;
       const searchOk = !term || normalize(product.name).includes(term) || normalize(product.description || "").includes(term);
@@ -51,7 +52,7 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
-      <LastOrderCard /><section className={styles.hero}>
+      <section className={styles.hero}>
         <div className={styles.heroGlow} />
         <div className={styles.heroInner}>
           <div className={styles.statusRow}>
@@ -80,7 +81,10 @@ export default function Home() {
       </div>
 
       <main className={styles.content}>
-        <ActiveOrderBanner />
+        <div className={styles.orderSlot}>
+          <ActiveOrderBanner />
+          <LastOrderCard />
+        </div>
         {!shopStatus.isOpen && (
           <div className={styles.closedNotice}>
             <strong>{shopStatus.message || "A loja está fechada agora."}</strong>
