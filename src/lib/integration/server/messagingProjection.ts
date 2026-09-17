@@ -1,4 +1,6 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
+import type { IntegrationEventEnvelope } from "../contracts";
 import { adminDb } from "./admin";
 
 export type DflMessagingEventType =
@@ -6,8 +8,9 @@ export type DflMessagingEventType =
   | "delivery.started" | "delivery.next_stop" | "delivery.position_changed"
   | "delivery.completed" | "delivery.failed";
 
-export type DflMessagingProjection = {
-  event_id: string;
+type Projection = {
+  intent_id: string;
+  source_event_id: string;
   source: "site" | "entregas";
   event_type: DflMessagingEventType;
   order_id: string;
@@ -16,26 +19,58 @@ export type DflMessagingProjection = {
   payload: Record<string, unknown>;
 };
 
+const COLLECTION="integration_notification_intents";
 const text=(v:unknown)=>String(v??"").trim();
-const objectValue=(v:unknown):Record<string,unknown> =>
+const obj=(v:unknown):Record<string,unknown> =>
   v && typeof v==="object" && !Array.isArray(v) ? v as Record<string,unknown> : {};
 
-function phoneFromOrder(order:Record<string,unknown>){
-  const c=objectValue(order.customerSnapshot);
-  return text(c.phoneE164)||text(c.phone)||text(order.userPhone);
-}
-function nameFromOrder(order:Record<string,unknown>){
-  const c=objectValue(order.customerSnapshot);
-  return text(c.name)||text(order.userName)||null;
-}
-function statusEvent(status:unknown):DflMessagingEventType|null{
-  const n=text(status).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+function commercialType(event:IntegrationEventEnvelope):DflMessagingEventType|null{
+  if(event.event_type==="order.created") return "order.created";
+  if(event.event_type!=="order.updated") return null;
+  const payload=obj(event.payload);
+  const n=text(payload.status).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   if(n.includes("producao")) return "order.production";
   if(n==="pronto") return "order.ready";
   if(n.includes("cancel")) return "order.cancelled";
   return null;
 }
-function intentEvent(v:unknown):DflMessagingEventType|null{
+
+export async function ensureCommercialMessagingIntent(event:IntegrationEventEnvelope){
+  const eventType=commercialType(event);
+  if(!eventType) return {created:false,reason:"not_messaging_event" as const};
+
+  const payload=obj(event.payload);
+  const customer=obj(payload.customerSnapshot);
+  const orderId=text(payload.orderId)||text(event.entity_id);
+  if(!orderId) return {created:false,reason:"missing_order" as const};
+
+  const ref=adminDb.collection(COLLECTION).doc(
+    encodeURIComponent(`intent-msg-v1__${event.event_id}`)
+  );
+  const snapshot=await ref.get();
+  if(snapshot.exists) return {created:false,reason:"exists" as const};
+
+  const now=new Date().toISOString();
+  await ref.create({
+    intent_id:`intent-msg-v1__${event.event_id}`,
+    intent_type:"commercial_message",
+    source_event_id:event.event_id,
+    source_event_type:event.event_type,
+    messaging_event_type:eventType,
+    messaging_source:"site",
+    order_id:orderId,
+    customer_phone:text(customer.phoneE164)||text(customer.phone)||null,
+    customer_name:text(customer.name)||null,
+    total:Number(payload.total)||0,
+    status:"pending",
+    schema_version:2,
+    created_at:now,
+    updated_at:now,
+  });
+  return {created:true};
+}
+
+function reverseType(v:unknown):DflMessagingEventType|null{
   switch(text(v)){
     case "delivery_started": return "delivery.started";
     case "delivery_next_stop": return "delivery.next_stop";
@@ -45,65 +80,95 @@ function intentEvent(v:unknown):DflMessagingEventType|null{
     default:return null;
   }
 }
-function iso(v:unknown){
-  if(typeof v==="string"&&v.trim()) return v;
-  if(v&&typeof v==="object"&&"toDate" in v){
-    const fn=(v as {toDate?:unknown}).toDate;
-    if(typeof fn==="function"){try{return (fn as ()=>Date)().toISOString();}catch{}}
+
+async function hydrate(docId:string, data:Record<string,unknown>):Promise<Projection|null>{
+  const source=text(data.messaging_source)==="site" ? "site" : "entregas";
+  const eventType=(text(data.messaging_event_type) as DflMessagingEventType)||reverseType(data.intent_type);
+  if(!eventType) return null;
+  const orderId=text(data.order_id);
+  if(!orderId) return null;
+
+  let phone=text(data.customer_phone);
+  let name=text(data.customer_name)||null;
+  let total=Number(data.total)||0;
+
+  if(!phone || source==="entregas"){
+    const orderSnap=await adminDb.collection("Pedidos").doc(orderId).get();
+    if(!orderSnap.exists) return null;
+    const order=orderSnap.data() as Record<string,unknown>;
+    const customer=obj(order.customerSnapshot);
+    phone=phone||text(customer.phoneE164)||text(customer.phone)||text(order.userPhone);
+    name=name||text(customer.name)||text(order.userName)||null;
+    total=total||Number(order.total)||0;
   }
-  return null;
+  if(!phone) return null;
+
+  return {
+    intent_id:docId,
+    source_event_id:text(data.source_event_id)||text(data.intent_id)||docId,
+    source,
+    event_type:eventType,
+    order_id:orderId,
+    customer_phone:phone,
+    customer_name:name,
+    payload:{
+      customer_name:name,
+      order_number:orderId.slice(-8).toUpperCase(),
+      total,
+      delivery_id:data.delivery_id??null,
+      stops_ahead:data.stops_ahead??null,
+      is_next_stop:data.is_next_stop===true,
+    },
+  };
 }
 
-export async function collectMessagingProjections(limit=100){
-  const safeLimit=Math.max(1,Math.min(200,Math.trunc(limit)));
-  const ordersSnap=await adminDb.collection("Pedidos").limit(safeLimit).get();
-  const orders=new Map(ordersSnap.docs.map(d=>[d.id,d.data() as Record<string,unknown>]));
-  const result:DflMessagingProjection[]=[];
+export async function claimMessagingProjections(limit=20){
+  const safeLimit=Math.max(1,Math.min(50,Math.trunc(limit)));
+  const workerId=randomUUID();
+  const snap=await adminDb.collection(COLLECTION).where("status","==","pending").limit(safeLimit*2).get();
+  const claimed:Projection[]=[];
 
-  for(const [orderId,order] of orders){
-    const phone=phoneFromOrder(order); if(!phone) continue;
-    const customerName=nameFromOrder(order);
-    const createdAt=iso(order.createdAt)||iso(order.data)||iso(order.created_at);
-    result.push({
-      event_id:`msg-site-order-created-v1__${orderId}`, source:"site",
-      event_type:"order.created", order_id:orderId, customer_phone:phone,
-      customer_name:customerName,
-      payload:{customer_name:customerName,order_number:orderId.slice(-8).toUpperCase(),total:Number(order.total)||0,occurred_at:createdAt},
-    });
-    const eventType=statusEvent(order.status);
-    if(eventType){
-      const statusAt=iso(order.statusUpdatedAt)||iso(order.updatedAt)||null;
-      result.push({
-        event_id:`msg-site-status-v1__${orderId}__${eventType}__${statusAt||"current"}`,
-        source:"site",event_type:eventType,order_id:orderId,customer_phone:phone,
-        customer_name:customerName,
-        payload:{customer_name:customerName,order_number:orderId.slice(-8).toUpperCase(),total:Number(order.total)||0,occurred_at:statusAt},
+  for(const candidate of snap.docs){
+    if(claimed.length>=safeLimit) break;
+    const lock=await adminDb.runTransaction(async tx=>{
+      const fresh=await tx.get(candidate.ref);
+      if(!fresh.exists) return null;
+      const data=fresh.data() as Record<string,unknown>;
+      if(data.status!=="pending") return null;
+      const projection=await hydrate(candidate.id,data);
+      if(!projection) return null;
+      tx.update(candidate.ref,{
+        status:"processing",locked_by:workerId,locked_at:new Date().toISOString(),
+        attempts:Number(data.attempts||0)+1,updated_at:new Date().toISOString(),
       });
-    }
+      return projection;
+    });
+    if(lock) claimed.push(lock);
   }
+  return {worker_id:workerId,events:claimed};
+}
 
-  const intentsSnap=await adminDb.collection("integration_notification_intents")
-    .where("status","==","pending").limit(safeLimit).get();
-  for(const doc of intentsSnap.docs){
-    const intent=doc.data() as Record<string,unknown>;
-    const eventType=intentEvent(intent.intent_type); if(!eventType) continue;
-    const orderId=text(intent.order_id); if(!orderId) continue;
-    let order=orders.get(orderId);
-    if(!order){
-      const snap=await adminDb.collection("Pedidos").doc(orderId).get();
-      if(!snap.exists) continue;
-      order=snap.data() as Record<string,unknown>; orders.set(orderId,order);
-    }
-    const phone=phoneFromOrder(order); if(!phone) continue;
-    const customerName=nameFromOrder(order);
-    result.push({
-      event_id:text(intent.source_event_id)||text(intent.intent_id)||doc.id,
-      source:"entregas",event_type:eventType,order_id:orderId,customer_phone:phone,
-      customer_name:customerName,
-      payload:{customer_name:customerName,order_number:orderId.slice(-8).toUpperCase(),
-        delivery_id:intent.delivery_id??null,stops_ahead:intent.stops_ahead??null,
-        is_next_stop:intent.is_next_stop===true},
+export async function settleMessagingProjections(
+  workerId:string,
+  results:Array<{intent_id:string;ok:boolean;error?:string}>,
+){
+  let settled=0;
+  for(const result of results){
+    const ref=adminDb.collection(COLLECTION).doc(result.intent_id);
+    await adminDb.runTransaction(async tx=>{
+      const snap=await tx.get(ref);
+      if(!snap.exists) return;
+      const data=snap.data() as Record<string,unknown>;
+      if(data.status!=="processing"||data.locked_by!==workerId) return;
+      const now=new Date().toISOString();
+      tx.update(ref,result.ok?{
+        status:"sent",processed_at:now,updated_at:now,locked_by:null,locked_at:null,last_error:null,
+      }:{
+        status:"pending",updated_at:now,locked_by:null,locked_at:null,
+        last_error:text(result.error).slice(0,500)||"Falha no relay de mensageria.",
+      });
+      settled+=1;
     });
   }
-  return result.slice(0,safeLimit);
+  return {settled};
 }

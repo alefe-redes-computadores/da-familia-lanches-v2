@@ -10,6 +10,7 @@ import {
   type ClaimedOutboxEvent,
 } from "./outboxRepository";
 import { integrationSignature } from "./signature";
+import { ensureCommercialMessagingIntent } from "./messagingProjection";
 
 export interface RelayDrainResult {
   claimed: number;
@@ -79,6 +80,7 @@ async function processClaimed(
     try {
       const event = eventFromOutbox(item.record as unknown as Record<string, unknown>);
       const status = await sendEvent(config.targetUrl!, config.signingSecret!, event, config.requestTimeoutMs);
+      await ensureCommercialMessagingIntent(event);
       await markOutboxSent(item, config.workerId);
       result.sent += 1;
       result.results.push({ eventId, ok: true, status });
