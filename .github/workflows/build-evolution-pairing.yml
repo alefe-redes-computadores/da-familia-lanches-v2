@@ -10,74 +10,78 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout Evolution v2.3.7
+      - name: Checkout DFL
         uses: actions/checkout@v4
-        with:
-          repository: evolution-foundation/evolution-api
-          ref: cd800f2976e1e5b682fbf86a01ee4d85ae61f370
-          path: evolution
 
-      - name: Checkout PR 2727 patch source
-        uses: actions/checkout@v4
-        with:
-          repository: cloviscoli/evolution-api
-          ref: dffeac4fe2bf67855deb4881a4a492588f2b70d7
-          path: patched
-
-      - name: Preparar Evolution 2.3.7 + patch
+      - name: Obter Evolution 2.3.7 e patch PR2727
         shell: bash
         run: |
           set -euo pipefail
 
+          echo '=== CLONANDO EVOLUTION ==='
+          git clone --filter=blob:none \
+            https://github.com/evolution-foundation/evolution-api.git \
+            evolution
+
           cd evolution
 
-          echo "=== BASE ==="
-          echo "commit=$(git rev-parse HEAD)"
-          echo "evolution=$(node -p 'require("./package.json").version')"
+          echo '=== LOCALIZANDO COMMIT 2.3.7 ==='
+          git fetch origin cd800f2 --depth=1
+          FULL_SHA="$(git rev-parse FETCH_HEAD)"
+          git checkout --detach "$FULL_SHA"
 
-          test "$(node -p 'require("./package.json").version')" = "2.3.7"
+          VERSION="$(node -p 'require("./package.json").version')"
+          echo "commit=$FULL_SHA"
+          echo "evolution=$VERSION"
 
-          echo "=== TRAZENDO PATCH VALIDADO DO PR 2727 ==="
+          test "$VERSION" = '2.3.7'
+
+          cd ..
+
+          echo '=== OBTENDO PATCH VALIDADO PR2727 ==='
+          git clone --filter=blob:none \
+            https://github.com/cloviscoli/evolution-api.git \
+            patched
+
+          cd patched
+          git fetch origin dffeac4fe2bf67855deb4881a4a492588f2b70d7 --depth=1
+          git checkout --detach dffeac4fe2bf67855deb4881a4a492588f2b70d7
+
+          test -s patches/baileys+7.0.0-rc14.patch
+
+          echo "patch_linhas=$(wc -l < patches/baileys+7.0.0-rc14.patch)"
+
+      - name: Preparar 2.3.7 com Baileys rc14
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd evolution
+
+          npm pkg set 'dependencies.baileys=7.0.0-rc14'
+
+          echo '=== GERANDO LOCK RC14 ==='
+          npm install --package-lock-only --ignore-scripts
+
+          echo '=== COPIANDO PATCH PARA O BUILD ==='
           mkdir -p patches
           cp ../patched/patches/baileys+7.0.0-rc14.patch \
              patches/baileys+7.0.0-rc14.patch
 
-          echo "=== ALTERANDO SOMENTE BAILEYS ==="
-          npm pkg set 'dependencies.baileys=7.0.0-rc14'
-
-          # Gera lock coerente com a base 2.3.7 sem executar scripts ainda.
-          npm install --package-lock-only --ignore-scripts
-
-          echo "=== GARANTINDO PATCH-PACKAGE ==="
-          node -e '
-            const fs=require("fs");
-            const p=require("./package.json");
-            const old=p.scripts?.postinstall || "";
-            if (!old.includes("patch-package")) {
-              p.scripts = p.scripts || {};
-              p.scripts.postinstall = old
-                ? old + " && patch-package"
-                : "patch-package";
-            }
-            if (!(p.dependencies?.["patch-package"] || p.devDependencies?.["patch-package"])) {
-              p.devDependencies = p.devDependencies || {};
-              p.devDependencies["patch-package"] = "^8.0.0";
-            }
-            fs.writeFileSync("package.json", JSON.stringify(p,null,2)+"\n");
-          '
+          echo '=== GARANTINDO PATCH-PACKAGE NO BUILD ==='
+          npm pkg set 'scripts.postinstall=patch-package'
+          npm pkg set 'devDependencies.patch-package=^8.0.0'
 
           npm install --package-lock-only --ignore-scripts
 
-          echo "=== CONTRATO ANTES DO BUILD ==="
-          test "$(node -p 'require("./package.json").version')" = "2.3.7"
-          test "$(node -p 'require("./package.json").dependencies.baileys')" = "7.0.0-rc14"
+          echo '=== CONTRATO FONTE ==='
+          test "$(node -p 'require("./package.json").version')" = '2.3.7'
+          test "$(node -p 'require("./package.json").dependencies.baileys')" = '7.0.0-rc14'
           test -s patches/baileys+7.0.0-rc14.patch
 
-          echo "evolution=2.3.7"
-          echo "baileys=7.0.0-rc14"
-          echo "patch=$(wc -l < patches/baileys+7.0.0-rc14.patch) linhas"
+          echo 'fonte=APROVADA'
 
       - name: Login GHCR
         uses: docker/login-action@v3
@@ -86,14 +90,89 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker Buildx
+      - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build e publicar
-        uses: docker/build-push-action@v6
-        with:
-          context: evolution
-          push: true
-          tags: ghcr.io/alefe-redes-computadores/dfl-evolution-pairing:2.3.7-pr2727-v2
-          provenance: false
-          sbom: false
+      - name: Construir imagem local para auditoria
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker build \
+            -t dfl-evolution-pairing:audit \
+            evolution
+
+      - name: Auditar imagem final sem executar Evolution
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo '============================================'
+          echo ' AUDITORIA DA IMAGEM FINAL'
+          echo '============================================'
+
+          CID="$(docker create --entrypoint /bin/true dfl-evolution-pairing:audit)"
+          TMP="$(mktemp -d)"
+
+          cleanup() {
+            docker rm -f "$CID" >/dev/null 2>&1 || true
+            rm -rf "$TMP"
+          }
+          trap cleanup EXIT
+
+          docker cp "$CID:/evolution/package.json" \
+            "$TMP/evolution.json"
+
+          docker cp "$CID:/evolution/node_modules/baileys/package.json" \
+            "$TMP/baileys.json"
+
+          docker cp "$CID:/evolution/node_modules/baileys/lib" \
+            "$TMP/lib"
+
+          EVOLUTION="$(
+            node -p "require('$TMP/evolution.json').version"
+          )"
+
+          BAILEYS="$(
+            node -p "require('$TMP/baileys.json').version"
+          )"
+
+          echo "evolution=$EVOLUTION"
+          echo "baileys=$BAILEYS"
+
+          test "$EVOLUTION" = '2.3.7'
+          test "$BAILEYS" = '7.0.0-rc14'
+
+          echo
+          echo '=== PROCURANDO companion_reg_refresh ==='
+
+          MATCHES="$(
+            grep -R -n -m 10 \
+              'companion_reg_refresh' \
+              "$TMP/lib" || true
+          )"
+
+          if [ -z "$MATCHES" ]; then
+            echo 'companion_reg_refresh=AUSENTE'
+            echo 'IMAGEM=REPROVADA'
+            exit 91
+          fi
+
+          echo "$MATCHES"
+          echo 'companion_reg_refresh=PRESENTE'
+          echo 'IMAGEM=APROVADA'
+
+      - name: Publicar somente imagem aprovada
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE='ghcr.io/alefe-redes-computadores/dfl-evolution-pairing:2.3.7-pr2727-v3'
+
+          docker tag dfl-evolution-pairing:audit "$IMAGE"
+          docker push "$IMAGE"
+
+          echo '============================================'
+          echo ' V3 PUBLICADA APOS AUDITORIA'
+          echo '============================================'
+          echo "imagem=$IMAGE"
