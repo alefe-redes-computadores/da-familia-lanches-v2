@@ -63,10 +63,6 @@ export default function Home() {
       <section className={styles.hero}>
         <div className={styles.heroGlow} />
         <div className={styles.heroInner}>
-          <div className={styles.statusRow}>
-            <span className={`${styles.statusDot} ${shopStatus.isOpen ? styles.open : styles.closed}`} />
-            <span>{shopStatus.isOpen ? "Aberto para pedidos" : "Fechado agora"}</span>
-          </div>
           <p className={styles.eyebrow}>DA FAMÍLIA LANCHES</p>
           <h1>O que vai matar sua fome hoje?</h1>
           <p className={styles.heroText}>Encontre rápido, personalize do seu jeito e acompanhe o pedido por aqui.</p>

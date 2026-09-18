@@ -38,7 +38,7 @@ export function Header() {
         <strong className={styles.logo}>Da Família <span>Lanches</span></strong>
         <span className={styles.status}>
           <i className={shopStatus.isOpen ? styles.open : styles.closed} />
-          <span>{shopStatus.isOpen ? "Aberto agora" : "Fechado agora"}</span>
+          <span>{shopStatus.isOpen ? "Aberto agora" : shopStatus.mode === "test_open" ? "Em manutenção" : "Fechado agora"}</span>
         </span>
       </button>
 
