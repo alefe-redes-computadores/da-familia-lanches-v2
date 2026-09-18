@@ -25,7 +25,8 @@ export function FreeDeliveryAdmin() {
   };
   return <section className={styles.card}>
     <div className={styles.head}><div><span>ENTREGA GRÁTIS</span><strong>Regra comercial</strong></div><label><input type="checkbox" checked={draft.freeDeliveryEnabled} onChange={(e)=>setDraft(v=>({...v,freeDeliveryEnabled:e.target.checked}))}/> Ativa</label></div>
-    <p>Configure o mínimo geral e bairros com regra especial. Sem configuração, o comportamento seguro continua em R$ 80.</p>
+    <p>Configure o mínimo geral e bairros com regra especial. O carrinho usa esta mesma configuração para mostrar quanto falta para o benefício.</p>
+    <div className={styles.preview} data-active={draft.freeDeliveryEnabled}><span>PRÉVIA DA CAMPANHA</span><strong>{draft.freeDeliveryEnabled ? `Frete grátis a partir de R$ ${Number(draft.globalMinimum || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Campanha pausada"}</strong><i /></div>
     <div className={styles.grid}>
       <label><span>Mínimo geral (R$)</span><input inputMode="decimal" value={draft.globalMinimum} onChange={(e)=>setDraft(v=>({...v,globalMinimum:Number(e.target.value.replace(",","."))||0}))}/></label>
       <label><span>Mínimo nos bairros selecionados (R$)</span><input inputMode="decimal" value={draft.neighborhoodMinimum} onChange={(e)=>setDraft(v=>({...v,neighborhoodMinimum:Number(e.target.value.replace(",","."))||0}))}/></label>

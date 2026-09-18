@@ -84,6 +84,25 @@ function nextId(name: string, used: Set<string>) {
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+function parseMoneyInput(value: string) {
+  const cleaned = value.replace(/[^\d,.-]/g, "").trim();
+  if (!cleaned) return null;
+  const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned;
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : null;
+}
+function moneyDraft(value: string) {
+  const number = parseMoneyInput(value);
+  return number == null ? "" : number.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function promoMetrics(priceText: string, oldPriceText: string) {
+  const price = parseMoneyInput(priceText);
+  const oldPrice = parseMoneyInput(oldPriceText);
+  if (price == null || oldPrice == null || oldPrice <= price || oldPrice <= 0) return null;
+  const saving = oldPrice - price;
+  return { price, oldPrice, saving, percent: Math.round((saving / oldPrice) * 100) };
+}
+
 const draftFromProduct = (product: Product): ProductDraft => ({
   id: product.id,
   name: product.name,
@@ -179,15 +198,16 @@ export function CatalogAdmin() {
 
   const saveProduct = async () => {
     if (!productDraft || !productMode) return;
-    const price = Number(productDraft.price.replace(",", "."));
-    const oldPrice = productDraft.oldPrice.trim() ? Number(productDraft.oldPrice.replace(",", ".")) : null;
+    const price = parseMoneyInput(productDraft.price);
+    const oldPrice = productDraft.oldPrice.trim() ? parseMoneyInput(productDraft.oldPrice) : null;
     const sortOrder = productDraft.sortOrder.trim() ? Number(productDraft.sortOrder) : null;
 
     if (!productDraft.name.trim()) return setMessage("Informe o nome do produto.");
     if (!productDraft.description.trim()) return setMessage("Informe a descrição do produto.");
     if (!productDraft.image.trim()) return setMessage("Informe a imagem ou caminho do produto.");
-    if (!Number.isFinite(price) || price < 0) return setMessage("Informe um preço válido.");
-    if (oldPrice !== null && (!Number.isFinite(oldPrice) || oldPrice < 0)) return setMessage("Preço anterior inválido.");
+    if (price === null || price < 0) return setMessage("Informe um preço válido.");
+    if (oldPrice !== null && oldPrice < 0) return setMessage("Preço anterior inválido.");
+    if (oldPrice !== null && oldPrice <= price) return setMessage("Para criar promoção, o preço anterior precisa ser maior que o preço atual.");
 
     const usedIds = new Set(products.map((product) => product.id));
     const id = productMode === "edit" ? productDraft.id : nextId(productDraft.name, usedIds);
@@ -342,10 +362,10 @@ export function CatalogAdmin() {
 
   const saveAddon = async () => {
     if (!addonDraft || !addonMode) return;
-    const price = Number(addonDraft.price.replace(",", "."));
+    const price = parseMoneyInput(addonDraft.price);
     const sortOrder = addonDraft.sortOrder.trim() ? Number(addonDraft.sortOrder) : null;
     if (!addonDraft.name.trim()) return setMessage("Informe o nome do adicional.");
-    if (!Number.isFinite(price) || price < 0) return setMessage("Informe um preço válido para o adicional.");
+    if (price === null || price < 0) return setMessage("Informe um preço válido para o adicional.");
 
     const usedIds = new Set(allAddons.map((addon) => addon.id));
     const id = addonMode === "edit" ? addonDraft.id : nextId(addonDraft.name, usedIds);
@@ -442,7 +462,7 @@ export function CatalogAdmin() {
             {product.isSuggestion && <b>Sugestão</b>}
           </div>
           <p>{product.description}</p>
-          <div className={styles.productBottom}><strong>{money(product.price)}</strong><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
+          <div className={styles.productBottom}><div className={styles.adminPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <small>{money(product.oldPrice)}</small>}<strong>{money(product.price)}</strong>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <b>-{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%</b>}</div><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
         </div>
         <div className={styles.actions}>
           <div className={styles.orderActions}><button title="Subir produto" onClick={() => moveProduct(product, -1)} disabled={busy.startsWith("product-order-")}>↑</button><button title="Descer produto" onClick={() => moveProduct(product, 1)} disabled={busy.startsWith("product-order-")}>↓</button></div>
@@ -497,8 +517,14 @@ export function CatalogAdmin() {
               <button type="button" aria-label="Remover item" onClick={()=>setProductDraft({...productDraft,bundleItems:productDraft.bundleItems.filter((_,i)=>i!==index)})}>×</button>
             </div>)}</div> : <p className={styles.bundleEmpty}>Sem vínculos. O formato antigo em texto continua compatível.</p>}
           </div>
-          <label>Preço<input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: e.target.value })} placeholder="0,00" /></label>
-          <label>Preço anterior<input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: e.target.value })} placeholder="Opcional" /></label>
+          <div className={`${styles.full} ${styles.commercialBlock}`}>
+            <div className={styles.commercialHead}><div><span>PREÇO & PROMOÇÃO</span><strong>Venda do produto</strong></div>{promoMetrics(productDraft.price, productDraft.oldPrice) ? <b>OFERTA ATIVA</b> : <small>Preço anterior é opcional</small>}</div>
+            <div className={styles.priceFields}>
+              <label>Preço atual<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: e.target.value })} onBlur={(e) => setProductDraft({ ...productDraft, price: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
+              <label>Preço anterior<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: e.target.value })} onBlur={(e) => setProductDraft({ ...productDraft, oldPrice: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
+            </div>
+            {(() => { const promo=promoMetrics(productDraft.price,productDraft.oldPrice); return promo ? <div className={styles.promoPreview}><div><span>CLIENTE ECONOMIZA</span><strong>{money(promo.saving)}</strong></div><b>-{promo.percent}%</b><small>De {money(promo.oldPrice)} por {money(promo.price)}</small></div> : <p className={styles.promoHint}>Informe um preço anterior maior que o atual para ativar a apresentação promocional no cardápio.</p>; })()}
+          </div>
           <div className={styles.photoUpload}><label className={styles.photoButton}>{uploadingImage ? "Enviando..." : "Escolher foto do celular"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingImage} onChange={(e)=>{const file=e.target.files?.[0];if(file)void uploadProductImage(file);e.currentTarget.value="";}} /></label><small>JPG, PNG ou WebP · até 6 MB. O campo de URL continua funcionando.</small></div>
           <div className={styles.formChoice}><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={categoryOptions} /></div>
           <label>Ordem<input inputMode="numeric" value={productDraft.sortOrder} onChange={(e) => setProductDraft({ ...productDraft, sortOrder: e.target.value })} placeholder="Opcional" /></label>
@@ -522,7 +548,7 @@ export function CatalogAdmin() {
         <div className={styles.editorHead}><div><span>{addonMode === "create" ? "NOVO ADICIONAL" : "EDITAR ADICIONAL"}</span><h3>{addonMode === "create" ? "Cadastrar adicional" : addonDraft.name}</h3></div><button onClick={() => { setAddonDraft(null); setAddonMode(null); }}>×</button></div>
         {addonMode === "edit" && <div className={styles.idBox}><span>ID permanente</span><strong>{addonDraft.id}</strong></div>}
         <label>Nome<input value={addonDraft.name} onChange={(e) => setAddonDraft({ ...addonDraft, name: e.target.value })} /></label>
-        <label>Preço<input inputMode="decimal" value={addonDraft.price} onChange={(e) => setAddonDraft({ ...addonDraft, price: e.target.value })} /></label>
+        <label>Preço<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={addonDraft.price} onChange={(e) => setAddonDraft({ ...addonDraft, price: e.target.value })} onBlur={(e) => setAddonDraft({ ...addonDraft, price: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
         <label>Ordem<input inputMode="numeric" value={addonDraft.sortOrder} onChange={(e) => setAddonDraft({ ...addonDraft, sortOrder: e.target.value })} placeholder="Opcional" /></label>
         <button className={styles.availability} data-on={addonDraft.disponivel} onClick={() => setAddonDraft({ ...addonDraft, disponivel: !addonDraft.disponivel })}><i />{addonDraft.disponivel ? "Disponível" : "Pausado"}</button>
         <div className={styles.editorActions}><button onClick={() => { setAddonDraft(null); setAddonMode(null); }}>Cancelar</button><button className={styles.save} onClick={saveAddon} disabled={busy.startsWith("addon-")}>{busy.startsWith("addon-") ? "Salvando..." : addonMode === "create" ? "Criar adicional" : "Salvar alterações"}</button></div>

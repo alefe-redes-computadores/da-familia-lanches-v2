@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ModalBase } from "./ModalBase";
 import { useCustomerOrderStats } from "@/hooks/useCustomerOrderStats";
 import { useCartStore } from "@/store/cart.store";
@@ -11,6 +11,7 @@ import styles from "./CartModal.module.css";
 import { haptic } from "@/lib/haptics";
 import { CartPromotionInsight } from "@/components/ui/CartPromotionInsight";
 import { selectSmartCartSuggestions } from "@/lib/smartCart";
+import { DEFAULT_COMMERCIAL_SETTINGS, getCommercialSettings, type CommercialSettings } from "@/lib/commercialSettings";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -22,7 +23,12 @@ export function CartModal() {
   const { products } = useCatalog();
   const { items, increaseQtd, decreaseQtd, removeItem, restoreItem, clearCart, getCartTotal } = useCartStore();
   const [clearArmed, setClearArmed] = useState(false);
+  const [commercial, setCommercial] = useState<CommercialSettings>(DEFAULT_COMMERCIAL_SETTINGS);
+  useEffect(() => { void getCommercialSettings().then(setCommercial).catch(() => setCommercial(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
   const total = getCartTotal();
+  const freeDeliveryTarget = commercial.freeDeliveryEnabled ? commercial.globalMinimum : null;
+  const freeDeliveryMissing = freeDeliveryTarget === null ? 0 : Math.max(0, freeDeliveryTarget - total);
+  const freeDeliveryProgress = freeDeliveryTarget && freeDeliveryTarget > 0 ? Math.min(100, (total / freeDeliveryTarget) * 100) : 100;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const productSavings = useMemo(() => items.reduce((sum, item) => {
     const current = products.find((product) => product.id === item.id);
@@ -61,6 +67,7 @@ export function CartModal() {
 
           {suggestions.length > 0 && <section className={styles.smartSuggestions}><div className={styles.smartHead}><strong>Seu pedido, um pouco mais esperto</strong><span>Sugestões baseadas no que já está no carrinho.</span></div><div className={styles.smartList}>{suggestions.map((suggestion) => <button type="button" className={styles.smartCard} key={`${suggestion.kind}-${suggestion.product.id}`} onClick={() => openModal("product-details", suggestion.product)}><img src={suggestion.product.image} alt="" loading="lazy" /><span className={styles.smartCopy}><small>{suggestion.eyebrow}</small><b>{suggestion.title}</b><em>{suggestion.description}</em>{suggestion.saving && suggestion.saving > 0 ? <strong>Economia potencial de {money(suggestion.saving)}</strong> : null}</span><span className={styles.smartPrice}>{money(suggestion.product.price)}<i>Adicionar ›</i></span></button>)}</div></section>}
 
+          {freeDeliveryTarget !== null && <section className={styles.freeDeliveryProgress} data-earned={freeDeliveryMissing <= 0}><div className={styles.freeDeliveryCopy}><span>{freeDeliveryMissing <= 0 ? "FRETE GRÁTIS LIBERADO" : "META DE FRETE GRÁTIS"}</span><strong>{freeDeliveryMissing <= 0 ? "Benefício alcançado" : `Faltam ${money(freeDeliveryMissing)}`}</strong></div><div className={styles.freeDeliveryTrack}><i style={{ width: `${freeDeliveryProgress}%` }} /></div><small>{freeDeliveryMissing <= 0 ? "A regra final considera o bairro informado no checkout." : `Regra geral: entrega grátis a partir de ${money(freeDeliveryTarget)}.`}</small></section>}
           <CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish}>Continuar para finalizar</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Toque novamente para esvaziar" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
         </>}
       </div>

@@ -48,3 +48,6 @@
 .ingredients{margin:2px 0 4px;padding:12px 14px;border:1px solid #ece7de;border-radius:15px;background:#faf9f6}
 .ingredients .compositionHead span{color:#777}.ingredients .detailChips span{background:#fff}.bottom{z-index:3}
 @media(max-width:560px){.wrap{padding-bottom:0}.bottom{margin-bottom:0}}
+
+/* V32 PRODUCT DETAIL */
+.content{border-radius:24px 24px 0 0!important}.price{font-weight:950!important;letter-spacing:-.035em!important}.addButton{min-height:52px!important;border-radius:15px!important;box-shadow:0 9px 24px rgba(0,0,0,.16)!important}

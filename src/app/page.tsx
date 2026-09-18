@@ -45,6 +45,14 @@ export default function Home() {
     if (activeCategory !== "todos" && !categories.some((category) => category.id === activeCategory)) setActiveCategory("todos");
   }, [activeCategory, categories]);
 
+  const promoProducts = useMemo(
+    () => products
+      .filter((product) => product.disponivel !== false && typeof product.oldPrice === "number" && product.oldPrice > product.price)
+      .sort((a, b) => (((b.oldPrice! - b.price) / b.oldPrice!) * 100) - (((a.oldPrice! - a.price) / a.oldPrice!) * 100))
+      .slice(0, 6),
+    [products],
+  );
+
   const openProduct = (product: Product) => {
     if (product.disponivel === false) return;
     openModal("product-details", product);
@@ -85,6 +93,24 @@ export default function Home() {
           <ActiveOrderBanner />
           <LastOrderCard />
         </div>
+        {activeCategory === "todos" && !search.trim() && promoProducts.length > 0 && (
+          <section className={styles.promoShowcase}>
+            <div className={styles.promoShowcaseHead}>
+              <div><span>OFERTAS DA FAMÍLIA</span><h2>Preço bom pra pedir agora</h2><p>Promoções ativas no cardápio, sem precisar de cupom.</p></div>
+              <b>{promoProducts.length} oferta{promoProducts.length === 1 ? "" : "s"}</b>
+            </div>
+            <div className={styles.promoRail}>
+              {promoProducts.map((product) => {
+                const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
+                return <button type="button" className={styles.promoHeroCard} key={`promo-${product.id}`} onClick={() => openProduct(product)}>
+                  <div className={styles.promoHeroMedia}><img src={product.image} alt="" loading="lazy" /><span>-{discount}%</span></div>
+                  <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em></div>
+                </button>;
+              })}
+            </div>
+          </section>
+        )}
+
         {!shopStatus.isOpen && (
           <div className={styles.closedNotice}>
             <strong>{shopStatus.message || "A loja está fechada agora."}</strong>
