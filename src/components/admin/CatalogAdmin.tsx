@@ -343,7 +343,7 @@ export function CatalogAdmin() {
   };
 
   const moveProduct = async (product: Product, direction: -1 | 1) => {
-    const ordered=products.filter((item)=>item.category===product.category).sort((a,b)=>(a.sortOrder??Number.MAX_SAFE_INTEGER)-(b.sortOrder??Number.MAX_SAFE_INTEGER)||a.name.localeCompare(b.name,"pt-BR")); const index=ordered.findIndex((item)=>item.id===product.id); const target=index+direction; if(index<0||target<0||target>=ordered.length)return;
+    const ordered=products.filter((item)=>item.category===product.category&&item.disponivel!==false).sort((a,b)=>(a.sortOrder??Number.MAX_SAFE_INTEGER)-(b.sortOrder??Number.MAX_SAFE_INTEGER)||a.name.localeCompare(b.name,"pt-BR")); const index=ordered.findIndex((item)=>item.id===product.id); const target=index+direction; if(index<0||target<0||target>=ordered.length)return;
     [ordered[index],ordered[target]]=[ordered[target],ordered[index]]; setBusy(`product-order-${product.id}`);
     try{const batch=writeBatch(db);ordered.forEach((item,pos)=>batch.set(doc(db,CATALOG_PRODUCTS_COLLECTION,item.id),{sortOrder:pos*10,updatedAt:serverTimestamp()},{merge:true}));await batch.commit();setMessage(`Ordem de ${categoryLabel(product.category)} atualizada.`);}catch(error){console.error(error);setMessage("Não foi possível reordenar os produtos.");}finally{setBusy("");}
   };
@@ -465,7 +465,7 @@ export function CatalogAdmin() {
           <div className={styles.productBottom}><div className={styles.adminPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <small>{money(product.oldPrice)}</small>}<strong>{money(product.price)}</strong>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <b>-{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%</b>}</div><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
         </div>
         <div className={styles.actions}>
-          <div className={styles.orderActions}><button title="Subir produto" onClick={() => moveProduct(product, -1)} disabled={busy.startsWith("product-order-")}>↑</button><button title="Descer produto" onClick={() => moveProduct(product, 1)} disabled={busy.startsWith("product-order-")}>↓</button></div>
+          {product.disponivel ? <div className={styles.orderActions}><button title="Subir produto" onClick={() => moveProduct(product, -1)} disabled={busy.startsWith("product-order-")}>↑</button><button title="Descer produto" onClick={() => moveProduct(product, 1)} disabled={busy.startsWith("product-order-")}>↓</button></div> : <div className={styles.orderPlaceholder}>Fora da ordem pública</div>}
           <button onClick={() => toggleProduct(product)} disabled={busy === `toggle-${product.id}`}>{product.disponivel ? "Pausar" : "Reativar"}</button>
           <button className={styles.primary} onClick={() => openEditProduct(product)}>Editar</button>
         </div>
@@ -474,7 +474,7 @@ export function CatalogAdmin() {
     </div>
 
     <section className={styles.categoryPanel}>
-      <div className={styles.sectionBar}><div><span>CATEGORIAS</span><strong>{categories.length} cadastradas</strong></div><button onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Nova categoria</button></div>
+      <div className={styles.sectionBar}><div><span>CATEGORIAS & ORDEM DA HOME</span><strong>{categories.length} cadastradas</strong><small className={styles.sectionHint}>Use ↑ ↓ para definir a sequência pública.</small></div><button onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Nova categoria</button></div>
       <div className={styles.categoryGrid}>{categories.map((category,index)=>{const count=productsInCategory(category.id).length;return <article key={category.id} className={styles.categoryCard} data-off={!category.active}><div className={styles.categoryMain}><div><strong>{category.label}</strong><span>{category.id} · {count} produto{count===1?"":"s"}</span></div><b>{category.active?"VISÍVEL":"OCULTA"}</b></div><div className={styles.categoryActions}><button disabled={index===0||busy.startsWith("category-order-")} onClick={()=>moveCategory(category,-1)}>↑</button><button disabled={index===categories.length-1||busy.startsWith("category-order-")} onClick={()=>moveCategory(category,1)}>↓</button><button onClick={()=>setCategoryDraft({id:category.id,label:category.label,mode:"edit"})}>Renomear</button><button onClick={()=>toggleCategory(category)} disabled={busy===`category-toggle-${category.id}`}>{category.active?"Ocultar":"Reativar"}</button><button className={styles.dangerAction} data-confirm={categoryDeleteConfirm===category.id} onClick={()=>removeCategory(category)} disabled={busy===`category-delete-${category.id}`}>{categoryDeleteConfirm===category.id?"Confirmar":"Excluir"}</button></div></article>})}</div>
     </section>
 

@@ -11,6 +11,7 @@ import { formatCEPBR, formatPhoneBR, saveUserProfile } from "@/lib/userProfile";
 import { db } from "@/lib/firebase";
 import { createCustomerOrder } from "@/lib/orderRepository";
 import { getEffectiveShopStatus } from "@/lib/shopStatus";
+import { canPlaceImmediateTestOrder, normalizeStoreSettings } from "@/lib/storeSchedule";
 import { findCustomerRewardByCode, rewardDiscount, rewardIsExpired } from "@/lib/rewards";
 import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupons";
 import styles from "./CheckoutModal.module.css";
@@ -25,6 +26,15 @@ import { getOrderScheduleSlots, scheduleHumanLabel, type OrderScheduleSlot } fro
 const PIX_KEY = "34997178336";
 const WHATSAPP_NUMBER = "5534997178336";
 const DEFAULT_DELIVERY_FEE = SAFE_DEFAULT_DELIVERY_FEE;
+
+const getTestAccess = async (email: string | null | undefined) => {
+  try {
+    const snapshot = await getDoc(doc(db, "settings", "loja"));
+    return snapshot.exists() && canPlaceImmediateTestOrder(normalizeStoreSettings(snapshot.data()), email);
+  } catch {
+    return false;
+  }
+};
 
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -85,7 +95,7 @@ export function CheckoutModal() {
   const canAdvance = nameReady && phoneReady && addressReady && items.length > 0;
 
   useEffect(() => { void getCommercialSettings().then(setCommercialSettings).catch(() => setCommercialSettings(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
-  useEffect(() => { let alive=true; void (async()=>{ try{const status=await getEffectiveShopStatus();if(!alive)return;setShopClosed(!status.isOpen);if(!status.isOpen){const slots=await getOrderScheduleSlots();if(!alive)return;setScheduleSlots(slots);setScheduledFor(v=>v||slots[0]?.value||"")}}catch(error){console.error("Falha ao preparar agendamento",error)}finally{if(alive)setScheduleLoading(false)}})();return()=>{alive=false}}, []);
+  useEffect(() => { let alive=true; void (async()=>{ try{const [status,testAccess]=await Promise.all([getEffectiveShopStatus(),getTestAccess(currentUser?.email)]);if(!alive)return;const closedForUser=!status.isOpen&&!testAccess;setShopClosed(closedForUser);if(closedForUser){const slots=await getOrderScheduleSlots();if(!alive)return;setScheduleSlots(slots);setScheduledFor(v=>v||slots[0]?.value||"")}}catch(error){console.error("Falha ao preparar agendamento",error)}finally{if(alive)setScheduleLoading(false)}})();return()=>{alive=false}}, []);
 
   useEffect(() => {
     if (!currentUser || profileLoading) return;
@@ -309,8 +319,8 @@ export function CheckoutModal() {
 
     setLoading(true);
     try {
-      const shopStatus = await getEffectiveShopStatus();
-      const isClosed = !shopStatus.isOpen;
+      const [shopStatus, testAccess] = await Promise.all([getEffectiveShopStatus(), getTestAccess(currentUser.email)]);
+      const isClosed = !shopStatus.isOpen && !testAccess;
       const selectedSchedule = isClosed ? scheduledFor : "";
       if (isClosed && !selectedSchedule) { setStep(1); throw new Error("SCHEDULE_REQUIRED"); }
       const finalAddress = isPickup
