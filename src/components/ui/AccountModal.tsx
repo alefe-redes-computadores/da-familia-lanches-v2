@@ -9,7 +9,10 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import {
   formatCEPBR,
   formatPhoneBR,
+  MAX_SAVED_ADDRESSES,
+  saveUserAddresses,
   saveUserProfile,
+  type SavedAddress,
 } from "@/lib/userProfile";
 import styles from "./AccountModal.module.css";
 
@@ -33,6 +36,8 @@ export function AccountModal() {
   const [manualAddress, setManualAddress] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState("");
+  const [addressLabel, setAddressLabel] = useState("Casa");
   const [saving, setSaving] = useState(false);
   const [searchingCep, setSearchingCep] = useState(false);
   const [message, setMessage] = useState("");
@@ -138,6 +143,18 @@ export function AccountModal() {
     }
   };
 
+  const openAddress = (a: SavedAddress) => { setEditingAddressId(a.id); setAddressLabel(a.label); setCep(a.cep); setStreet(a.street); setNumber(a.number); setDistrict(a.district); setComplement(a.complement); setReference(a.reference); setManualAddress(true); setAddressOpen(true); };
+  const startNewAddress = () => { if ((profile?.addresses?.length || 0) >= MAX_SAVED_ADDRESSES) return; setEditingAddressId(""); setAddressLabel((profile?.addresses?.length || 0) ? "Outro" : "Casa"); setCep(""); setStreet(""); setNumber(""); setDistrict(""); setComplement(""); setReference(""); setManualAddress(false); setAddressOpen(true); };
+  const persistAddress = async () => {
+    if (!currentUser || !street.trim() || !number.trim() || !district.trim()) return setError("Preencha rua, número e bairro.");
+    const list=profile?.addresses || []; const old=list.find(a=>a.id===editingAddressId);
+    if (!old && list.length>=MAX_SAVED_ADDRESSES) return setError("Limite de 3 endereços atingido.");
+    const next: SavedAddress={id:editingAddressId||`address-${Date.now()}`,label:addressLabel.trim()||"Endereço",cep,street:street.trim(),number:number.trim(),district:district.trim(),complement:complement.trim(),reference:reference.trim(),isDefault:old?.isDefault ?? list.length===0};
+    setSaving(true); try { await saveUserAddresses(currentUser,old?list.map(a=>a.id===old.id?next:a):[...list,next]); setMessage("Endereço salvo."); setAddressOpen(false); } catch(e){console.error(e);setError("Não foi possível salvar o endereço.");} finally{setSaving(false);}
+  };
+  const makeDefault = async (id:string) => { if(currentUser&&profile?.addresses) await saveUserAddresses(currentUser,profile.addresses.map(a=>({...a,isDefault:a.id===id}))); };
+  const removeAddress = async (id:string) => { if(!currentUser||!profile?.addresses)return; let list=profile.addresses.filter(a=>a.id!==id); if(list.length&&!list.some(a=>a.isDefault))list=list.map((a,i)=>({...a,isDefault:i===0})); await saveUserAddresses(currentUser,list); setAddressOpen(false); };
+
   const logout = async () => {
     try {
       await auth.signOut();
@@ -180,18 +197,7 @@ export function AccountModal() {
           </div>
         </section>
 
-        <div className={styles.quickActions}>
-          <button className={styles.ordersAction} type="button" onClick={() => openModal("orders")}>
-            <i aria-hidden="true">01</i>
-            <span><strong>Pedidos</strong><small>Acompanhar e repetir</small></span>
-            <b aria-hidden="true">›</b>
-          </button>
-          <button className={styles.rewardsAction} type="button" onClick={() => openModal("rewards")}>
-            <i aria-hidden="true">★</i>
-            <span><strong>Fidelidade</strong><small>Progresso e benefícios</small></span>
-            <b aria-hidden="true">›</b>
-          </button>
-        </div>
+        <nav className={styles.accountNav}><button type="button" onClick={() => openModal("orders")}><span>Pedidos</span><small>Acompanhar seus pedidos</small><b>›</b></button><button type="button" onClick={() => openModal("rewards")}><span>Recompensas</span><small>Cupons e fidelidade</small><b>›</b></button></nav>
 
         {error && <div className={styles.error}>{error}</div>}
         {message && <div className={styles.success}>{message}</div>}
@@ -235,62 +241,9 @@ export function AccountModal() {
         </section>
 
         <section className={styles.section}>
-          <div className={styles.sectionHead}>
-            <div><span>ENTREGA</span><strong>Meus endereços</strong></div>
-            <small>Carteira preparada</small>
-          </div>
-
-          <button className={styles.addressCard} data-empty={!hasSavedAddress} type="button" onClick={() => setAddressOpen((value) => !value)}>
-            <span className={styles.addressIcon} aria-hidden="true">⌂</span>
-            <span className={styles.addressCopy}>
-              <span className={styles.addressTags}>
-                <b>Casa</b>
-                {hasSavedAddress && <em>Padrão</em>}
-              </span>
-              <strong>{addressLine}</strong>
-              <small>{addressMeta}</small>
-            </span>
-            <b className={styles.chevron} aria-hidden="true">{addressOpen ? "⌃" : "›"}</b>
-          </button>
-
-          {addressOpen && (
-            <div className={styles.addressEditor}>
-              <div className={styles.editorTitle}>
-                <div><span>CASA</span><strong>Endereço padrão</strong></div>
-                <small>Abra somente quando quiser consultar ou editar.</small>
-              </div>
-
-              <div className={styles.cepRow}>
-                <input value={cep} onChange={(event) => setCep(formatCEPBR(event.target.value))} onBlur={() => { if (digits(cep).length === 8 && !street.trim()) void searchCep(); }} inputMode="numeric" autoComplete="postal-code" placeholder="CEP" />
-                <button type="button" onClick={() => void searchCep()} disabled={searchingCep}>{searchingCep ? "Buscando…" : "Buscar CEP"}</button>
-              </div>
-
-              <label className={styles.label}>Rua<input value={street} onChange={(event) => setStreet(event.target.value)} readOnly={!manualAddress && Boolean(street)} className={!manualAddress && street ? styles.readonly : ""} autoComplete="address-line1" placeholder="Rua" /></label>
-
-              <div className={styles.twoColumns}>
-                <label className={styles.label}>Número<input value={number} onChange={(event) => setNumber(event.target.value)} inputMode="numeric" placeholder="Nº" /></label>
-                <label className={styles.label}>Bairro<input value={district} onChange={(event) => setDistrict(event.target.value)} readOnly={!manualAddress && Boolean(district)} className={!manualAddress && district ? styles.readonly : ""} placeholder="Bairro" /></label>
-              </div>
-
-              <label className={styles.label}>Complemento <span>(opcional)</span><input value={complement} onChange={(event) => setComplement(event.target.value)} autoComplete="address-line2" placeholder="Apto, bloco, fundos…" /></label>
-              <label className={styles.label}>Referência <span>(opcional)</span><input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Ex.: portão preto, ao lado da praça" /></label>
-
-              <div className={styles.addressEditorActions}>
-                <button className={styles.manualButton} type="button" onClick={() => setManualAddress((value) => !value)}>
-                  {manualAddress ? "Usar endereço do CEP" : "Editar rua e bairro"}
-                </button>
-                <button className={styles.save} type="button" onClick={() => void save()} disabled={!canSave}>
-                  {saving ? "Salvando…" : "Salvar endereço"}
-                </button>
-              </div>
-              <p className={styles.futureDelete}>Editar e excluir cada endereço será habilitado quando ativarmos a carteira múltipla.</p>
-            </div>
-          )}
-
-          <button className={styles.newAddress} type="button" disabled>
-            <span><b>+</b><strong>Adicionar novo endereço</strong></span>
-            <small>Em breve</small>
-          </button>
+          <div className={styles.sectionHead}><div><span>ENTREGA</span><strong>Meus endereços</strong></div><small>{profile?.addresses?.length || 0}/{MAX_SAVED_ADDRESSES}</small></div>
+          <div className={styles.wallet}>{(profile?.addresses || []).map(a=><article className={styles.walletCard} key={a.id}><button className={styles.walletMain} type="button" onClick={()=>openAddress(a)}><span className={styles.addressIcon}>⌂</span><span className={styles.addressCopy}><span className={styles.addressTags}><b>{a.label}</b>{a.isDefault&&<em>Padrão</em>}</span><strong>{a.street}, {a.number}</strong><small>{a.district}{a.cep?` · CEP ${a.cep}`:""}</small></span><b className={styles.chevron}>›</b></button>{!a.isDefault&&<button className={styles.defaultAction} type="button" onClick={()=>void makeDefault(a.id)}>Tornar padrão</button>}</article>)}{(profile?.addresses?.length||0)<MAX_SAVED_ADDRESSES&&<button className={styles.newAddress} type="button" onClick={startNewAddress}><span><b>+</b><strong>Adicionar endereço</strong></span><small>Até 3</small></button>}</div>
+          {addressOpen&&<div className={styles.addressEditor}><div className={styles.editorTitle}><div><span>ENDEREÇO</span><strong>{editingAddressId?"Editar endereço":"Novo endereço"}</strong></div></div><label className={styles.label}>Nome<input value={addressLabel} onChange={e=>setAddressLabel(e.target.value)} placeholder="Casa, Trabalho, Mãe…"/></label><div className={styles.cepRow}><input value={cep} onChange={e=>setCep(formatCEPBR(e.target.value))} placeholder="CEP"/><button type="button" onClick={()=>void searchCep()} disabled={searchingCep}>{searchingCep?"Buscando…":"Buscar CEP"}</button></div><label className={styles.label}>Rua<input value={street} onChange={e=>setStreet(e.target.value)} readOnly={!manualAddress&&Boolean(street)} className={!manualAddress&&street?styles.readonly:""}/></label><div className={styles.twoColumns}><label className={styles.label}>Número<input value={number} onChange={e=>setNumber(e.target.value)}/></label><label className={styles.label}>Bairro<input value={district} onChange={e=>setDistrict(e.target.value)} readOnly={!manualAddress&&Boolean(district)} className={!manualAddress&&district?styles.readonly:""}/></label></div><label className={styles.label}>Complemento <span>(opcional)</span><input value={complement} onChange={e=>setComplement(e.target.value)}/></label><label className={styles.label}>Referência <span>(opcional)</span><input value={reference} onChange={e=>setReference(e.target.value)}/></label><div className={styles.addressEditorActions}><button className={styles.manualButton} type="button" onClick={()=>setManualAddress(v=>!v)}>{manualAddress?"Usar CEP":"Editar manualmente"}</button><button className={styles.save} type="button" onClick={()=>void persistAddress()} disabled={saving}>{saving?"Salvando…":"Salvar endereço"}</button></div>{editingAddressId&&<button className={styles.deleteAddress} type="button" onClick={()=>void removeAddress(editingAddressId)}>Excluir este endereço</button>}</div>}
         </section>
 
         <button className={styles.logout} type="button" onClick={() => void logout()} disabled={saving}>Sair da conta</button>

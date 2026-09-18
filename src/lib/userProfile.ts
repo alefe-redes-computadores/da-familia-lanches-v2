@@ -3,12 +3,15 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export type SavedAddress = {
+  id: string;
+  label: string;
   cep: string;
   street: string;
   number: string;
   district: string;
   complement: string;
   reference: string;
+  isDefault: boolean;
 };
 
 export type UserProfile = {
@@ -19,6 +22,7 @@ export type UserProfile = {
   phoneE164: string;
   phoneVerified: boolean;
   address: SavedAddress;
+  addresses: SavedAddress[];
   profileVersion: number;
   authProviders: string[];
 };
@@ -35,6 +39,7 @@ export type UserProfileInput = {
 };
 
 export type ProfileSource = "checkout" | "account";
+export const MAX_SAVED_ADDRESSES = 3;
 
 const clean = (value: unknown) => String(value ?? "").trim();
 
@@ -73,14 +78,31 @@ export function normalizeProfile(data: unknown): UserProfile | null {
     phone: formatPhoneBR(clean(raw.phone ?? raw.telefone)),
     phoneE164: clean(raw.phoneE164),
     phoneVerified: raw.phoneVerified === true,
-    address: {
-      cep: formatCEPBR(clean(addressRaw.cep ?? raw.cep)),
-      street: clean(addressRaw.street ?? addressRaw.rua ?? raw.rua),
-      number: clean(addressRaw.number ?? addressRaw.numero ?? raw.numero),
-      district: clean(addressRaw.district ?? addressRaw.bairro ?? raw.bairro),
-      complement: clean(addressRaw.complement ?? addressRaw.complemento ?? raw.complemento),
-      reference: clean(addressRaw.reference ?? addressRaw.referencia ?? raw.referencia),
-    },
+    address: (() => {
+      const list = Array.isArray(raw.addresses) ? raw.addresses : [];
+      const parsed = list.map((item, index) => {
+        const a = item && typeof item === "object" ? item as Record<string, unknown> : {};
+        return { id: clean(a.id) || `address-${index + 1}`, label: clean(a.label) || (index === 0 ? "Casa" : `Endereço ${index + 1}`), cep: formatCEPBR(clean(a.cep)), street: clean(a.street ?? a.rua), number: clean(a.number ?? a.numero), district: clean(a.district ?? a.bairro), complement: clean(a.complement ?? a.complemento), reference: clean(a.reference ?? a.referencia), isDefault: a.isDefault === true };
+      }).filter((a) => a.street || a.district || a.number || a.cep).slice(0, 3);
+      const legacy = { id: "address-1", label: "Casa", cep: formatCEPBR(clean(addressRaw.cep ?? raw.cep)), street: clean(addressRaw.street ?? addressRaw.rua ?? raw.rua), number: clean(addressRaw.number ?? addressRaw.numero ?? raw.numero), district: clean(addressRaw.district ?? addressRaw.bairro ?? raw.bairro), complement: clean(addressRaw.complement ?? addressRaw.complemento ?? raw.complemento), reference: clean(addressRaw.reference ?? addressRaw.referencia ?? raw.referencia), isDefault: true };
+      const normalized = parsed.length ? parsed : (legacy.street || legacy.district || legacy.number || legacy.cep ? [legacy] : []);
+      if (normalized.length && !normalized.some((a) => a.isDefault)) normalized[0] = { ...normalized[0], isDefault: true };
+      return normalized.find((a) => a.isDefault) || normalized[0] || { ...legacy, isDefault: false };
+    })(),
+    addresses: (() => {
+      const list = Array.isArray(raw.addresses) ? raw.addresses : [];
+      let parsed = list.map((item, index) => {
+        const a = item && typeof item === "object" ? item as Record<string, unknown> : {};
+        return { id: clean(a.id) || `address-${index + 1}`, label: clean(a.label) || (index === 0 ? "Casa" : `Endereço ${index + 1}`), cep: formatCEPBR(clean(a.cep)), street: clean(a.street ?? a.rua), number: clean(a.number ?? a.numero), district: clean(a.district ?? a.bairro), complement: clean(a.complement ?? a.complemento), reference: clean(a.reference ?? a.referencia), isDefault: a.isDefault === true };
+      }).filter((a) => a.street || a.district || a.number || a.cep).slice(0, 3);
+      if (!parsed.length) {
+        const legacy = { id: "address-1", label: "Casa", cep: formatCEPBR(clean(addressRaw.cep ?? raw.cep)), street: clean(addressRaw.street ?? addressRaw.rua ?? raw.rua), number: clean(addressRaw.number ?? addressRaw.numero ?? raw.numero), district: clean(addressRaw.district ?? addressRaw.bairro ?? raw.bairro), complement: clean(addressRaw.complement ?? addressRaw.complemento ?? raw.complemento), reference: clean(addressRaw.reference ?? addressRaw.referencia ?? raw.referencia), isDefault: true };
+        if (legacy.street || legacy.district || legacy.number || legacy.cep) parsed = [legacy];
+      }
+      if (parsed.length && !parsed.some((a) => a.isDefault)) parsed[0] = { ...parsed[0], isDefault: true };
+      let seen = false;
+      return parsed.map((a) => a.isDefault && !seen ? (seen = true, a) : ({ ...a, isDefault: false })).sort((a,b)=>Number(b.isDefault)-Number(a.isDefault));
+    })(),
     profileVersion: Number(raw.profileVersion) || 1,
     authProviders: Array.isArray(raw.authProviders)
       ? raw.authProviders.map(clean).filter(Boolean)
@@ -104,7 +126,7 @@ export async function ensureUserBaseProfile(user: User) {
     email: clean(user.email),
     photoURL: clean(user.photoURL),
     authProviders: userProviders(user),
-    profileVersion: 3,
+    profileVersion: 4,
     updatedAt: serverTimestamp(),
   };
 
@@ -116,14 +138,8 @@ export async function ensureUserBaseProfile(user: User) {
       phone: "",
       phoneE164: "",
       phoneVerified: false,
-      address: {
-        cep: "",
-        street: "",
-        number: "",
-        district: "",
-        complement: "",
-        reference: "",
-      },
+      address: { id: "", label: "Casa", cep: "", street: "", number: "", district: "", complement: "", reference: "", isDefault: false },
+      addresses: [],
       createdAt: serverTimestamp(),
     }, { merge: true });
   }
@@ -153,16 +169,21 @@ export async function saveUserProfile(
     phoneE164,
     phoneVerified,
     phoneSource: source,
-    address: {
-      cep: formatCEPBR(input.cep),
-      street: clean(input.street),
-      number: clean(input.number),
-      district: clean(input.district),
-      complement: clean(input.complement),
-      reference: clean(input.reference),
-    },
     authProviders: userProviders(user),
-    profileVersion: 3,
+    profileVersion: 4,
     updatedAt: serverTimestamp(),
   }, { merge: true });
+}
+
+export async function saveUserAddresses(user: User, input: SavedAddress[]) {
+  let addresses = input.slice(0, MAX_SAVED_ADDRESSES).map((a, index) => ({
+    id: clean(a.id) || `address-${index + 1}`, label: clean(a.label) || (index === 0 ? "Casa" : `Endereço ${index + 1}`),
+    cep: formatCEPBR(a.cep), street: clean(a.street), number: clean(a.number), district: clean(a.district),
+    complement: clean(a.complement), reference: clean(a.reference), isDefault: a.isDefault === true,
+  })).filter((a) => a.street || a.district || a.number || a.cep);
+  if (addresses.length && !addresses.some((a) => a.isDefault)) addresses[0] = { ...addresses[0], isDefault: true };
+  let seen = false;
+  addresses = addresses.map((a) => a.isDefault && !seen ? (seen = true, a) : ({ ...a, isDefault: false })).sort((a,b)=>Number(b.isDefault)-Number(a.isDefault));
+  const address = addresses.find((a) => a.isDefault) || addresses[0] || { id:"",label:"Casa",cep:"",street:"",number:"",district:"",complement:"",reference:"",isDefault:false };
+  await setDoc(doc(db, "Usuarios", user.uid), { addresses, address, profileVersion: 4, updatedAt: serverTimestamp() }, { merge: true });
 }

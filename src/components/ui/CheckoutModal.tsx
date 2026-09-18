@@ -7,7 +7,7 @@ import { useUIStore } from "@/store/ui";
 import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { formatCEPBR, formatPhoneBR, saveUserProfile } from "@/lib/userProfile";
+import { formatCEPBR, formatPhoneBR, saveUserAddresses, saveUserProfile, type SavedAddress } from "@/lib/userProfile";
 import { db } from "@/lib/firebase";
 import { createCustomerOrder } from "@/lib/orderRepository";
 import { getEffectiveShopStatus } from "@/lib/shopStatus";
@@ -61,6 +61,9 @@ export function CheckoutModal() {
   const [complemento, setComplemento] = useState("");
   const [referencia, setReferencia] = useState("");
   const [manualMode, setManualMode] = useState(false);
+  const [addressPickerOpen, setAddressPickerOpen] = useState(false);
+  const [addressEditorOpen, setAddressEditorOpen] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(DEFAULT_DELIVERY_FEE);
   const [deliveryStatus, setDeliveryStatus] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("pix");
@@ -105,27 +108,22 @@ export function CheckoutModal() {
       name: profile?.name ?? "",
       phone: profile?.phone ?? "",
       address: profile?.address ?? null,
+      addresses: profile?.addresses ?? [],
     });
     if (hydratedProfileRef.current === hydrationKey) return;
     hydratedProfileRef.current = hydrationKey;
 
     setCustomerName(profile?.name || currentUser.displayName || "");
     setUserPhone(profile?.phone || "");
-    setCep(profile?.address.cep || "");
-    setRua(profile?.address.street || "");
-    setNumero(profile?.address.number || "");
-    setBairro(profile?.address.district || "");
-    setComplemento(profile?.address.complement || "");
-    setReferencia(profile?.address.reference || "");
-
-    const hasSavedAddress = Boolean(profile?.address.street || profile?.address.district);
-    if (hasSavedAddress) {
-      setManualMode(true);
-      if (profile?.address.district) void calculateDeliveryFee(profile.address.district);
-    }
+    const saved=profile?.addresses?.find(a=>a.isDefault)||profile?.addresses?.[0]||profile?.address;
+    setCep(saved?.cep||""); setRua(saved?.street||""); setNumero(saved?.number||""); setBairro(saved?.district||""); setComplemento(saved?.complement||""); setReferencia(saved?.reference||"");
+    if(saved?.street||saved?.district){setSelectedAddressId(saved.id||"address-1");setManualMode(true);setAddressEditorOpen(false);if(saved.district)void calculateDeliveryFee(saved.district);}else setAddressEditorOpen(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, profile, profileLoading]);
 
+
+  const selectSavedAddress=(a:SavedAddress)=>{setSelectedAddressId(a.id);setCep(a.cep);setRua(a.street);setNumero(a.number);setBairro(a.district);setComplemento(a.complement);setReferencia(a.reference);setManualMode(true);setAddressPickerOpen(false);setAddressEditorOpen(false);if(a.district)void calculateDeliveryFee(a.district);};
+  const startNewCheckoutAddress=()=>{setSelectedAddressId("");setCep("");setRua("");setNumero("");setBairro("");setComplemento("");setReferencia("");setManualMode(false);setAddressPickerOpen(false);setAddressEditorOpen(true);setDeliveryStatus("");};
 
   const changeCouponCode = (value: string) => {
     const next = value.toUpperCase();
@@ -380,16 +378,12 @@ export function CheckoutModal() {
       });
 
       try {
-        await saveUserProfile(currentUser, {
-          name: customerName,
-          phone: userPhone,
-          cep,
-          street: rua,
-          number: numero,
-          district: bairro,
-          complement: complemento,
-          reference: referencia,
-        });
+        await saveUserProfile(currentUser, { name: customerName, phone: userPhone, cep, street: rua, number: numero, district: bairro, complement: complemento, reference: referencia });
+        if (!isPickup) {
+          const list=profile?.addresses||[]; const i=list.findIndex(a=>a.id===selectedAddressId); const old=i>=0?list[i]:null;
+          const next:SavedAddress={id:selectedAddressId||`address-${Date.now()}`,label:old?.label||(list.length?"Outro":"Casa"),cep:cep.trim(),street:rua.trim(),number:numero.trim(),district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim(),isDefault:old?.isDefault??list.length===0};
+          await saveUserAddresses(currentUser,i>=0?list.map((a,n)=>n===i?next:a):(list.length<3?[...list,next]:list));
+        }
         await setDoc(doc(db, "Usuarios", currentUser.uid), {
           pedidosFeitos: increment(1),
         }, { merge: true });
@@ -471,16 +465,7 @@ export function CheckoutModal() {
             <label className={styles.label}>Nome para o pedido<input className={styles.input} data-invalid={Boolean(customerName && !nameReady)} placeholder="Seu nome" value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoComplete="name" /></label>
             <label className={styles.label}>WhatsApp para contato e atualizações <span>(obrigatório)</span><input className={styles.input} data-invalid={Boolean(userPhone && !phoneReady)} placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => setUserPhone(formatPhoneBR(event.target.value))} inputMode="tel" autoComplete="tel" /></label>
             {deliveryMode === "delivery" ? <>
-              <section className={styles.card}>
-                <div className={styles.cardTitle}><div><strong>Endereço de entrega</strong><span>{profile?.address.street ? "Endereço recuperado da sua conta. Confira ou edite antes de continuar." : "Busque pelo CEP ou preencha manualmente."}</span></div></div>
-                {!manualMode && <div className={styles.inline}><input className={styles.input} placeholder="CEP" value={cep} onChange={(event) => setCep(formatCEPBR(event.target.value))} onBlur={() => { if (cep.replace(/\D/g, "").length === 8) void handleSearchCep(); }} inputMode="numeric" autoComplete="postal-code"/><button className={styles.yellowButton} type="button" onClick={() => void handleSearchCep()} disabled={loading}>{loading ? "Buscando…" : "Buscar"}</button></div>}
-                <input className={styles.input} placeholder="Rua" value={rua} onChange={(event) => setRua(event.target.value)} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
-                <div className={styles.addressGrid}><input className={styles.input} placeholder="Número" value={numero} onChange={(event) => setNumero(event.target.value)} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={(event) => setBairro(event.target.value)} onBlur={() => { if (manualMode && bairro.trim()) void calculateDeliveryFee(bairro); }} readOnly={!manualMode} data-readonly={!manualMode}/></div>
-                <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={(event) => setComplemento(event.target.value)} autoComplete="address-line2"/>
-                <input className={styles.input} placeholder="Referência (opcional) · Ex.: portão preto" value={referencia} onChange={(event) => setReferencia(event.target.value)} />
-                {deliveryStatus && <div className={styles.info}>{deliveryStatus}</div>}
-                <button className={styles.linkButton} type="button" onClick={() => setManualMode((value) => !value)}>{manualMode ? "Usar busca por CEP" : "Preencher endereço manualmente"}</button>
-              </section>
+              <section className={styles.addressChoice}><div className={styles.cardTitle}><div><strong>Endereço de entrega</strong><span>{rua?"Endereço selecionado para este pedido.":"Escolha onde vamos entregar."}</span></div></div>{rua&&!addressEditorOpen&&<div className={styles.selectedAddress}><div><b>{profile?.addresses?.find(a=>a.id===selectedAddressId)?.label||"Endereço"}</b><strong>{rua}, {numero}</strong><span>{bairro}{cep?` · CEP ${cep}`:""}</span></div><button type="button" onClick={()=>setAddressPickerOpen(v=>!v)}>Trocar</button></div>}{addressPickerOpen&&<div className={styles.addressPicker}>{(profile?.addresses||[]).map(a=><button type="button" key={a.id} data-active={a.id===selectedAddressId} onClick={()=>selectSavedAddress(a)}><span><b>{a.label}</b>{a.isDefault&&<em>Padrão</em>}</span><strong>{a.street}, {a.number}</strong><small>{a.district}</small></button>)}{(profile?.addresses?.length||0)<3&&<button type="button" className={styles.addAddressChoice} onClick={startNewCheckoutAddress}>+ Cadastrar novo endereço</button>}</div>}{(!rua||addressEditorOpen)&&<div className={styles.addressForm}>{!manualMode&&<div className={styles.inline}><input className={styles.input} placeholder="CEP" value={cep} onChange={e=>setCep(formatCEPBR(e.target.value))} onBlur={()=>{if(cep.replace(/\D/g,"").length===8)void handleSearchCep();}}/><button className={styles.yellowButton} type="button" onClick={()=>void handleSearchCep()} disabled={loading}>{loading?"Buscando…":"Buscar"}</button></div>}<input className={styles.input} placeholder="Rua" value={rua} onChange={e=>setRua(e.target.value)} readOnly={!manualMode} data-readonly={!manualMode}/><div className={styles.addressGrid}><input className={styles.input} placeholder="Número" value={numero} onChange={e=>setNumero(e.target.value)}/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={e=>setBairro(e.target.value)} onBlur={()=>{if(manualMode&&bairro.trim())void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div><input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>setComplemento(e.target.value)}/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>setReferencia(e.target.value)}/>{deliveryStatus&&<div className={styles.info}>{deliveryStatus}</div>}<div className={styles.addressFormActions}><button className={styles.linkButton} type="button" onClick={()=>setManualMode(v=>!v)}>{manualMode?"Usar busca por CEP":"Preencher manualmente"}</button>{rua&&<button className={styles.linkButton} type="button" onClick={()=>setAddressEditorOpen(false)}>Usar este endereço</button>}</div></div>}</section>
               {!isPickup && freeThreshold !== null && !hasFreeDelivery && <div className={styles.freightProgress}>Faltam <strong>{money(missingForFreeDelivery)}</strong> para ganhar entrega grátis.</div>}{hasFreeDelivery && <div className={styles.successHint}>Entrega grátis conquistada para este pedido.</div>}
             </> : <div className={styles.pickupCard}><strong>Retirada no balcão</strong><span>Sem taxa de entrega. O pedido ficará identificado pelo seu nome e referência.</span></div>}
             {shopClosed && <section className={styles.scheduleCard}><div><span>LOJA FECHADA AGORA</span><strong>Agende seu pedido</strong><small>Escolha um horário disponível. O horário é uma previsão e pode variar conforme o movimento.</small></div>{scheduleLoading ? <p>Carregando horários…</p> : scheduleSlots.length ? <select value={scheduledFor} onChange={e=>setScheduledFor(e.target.value)}>{scheduleSlots.map(slot=><option key={slot.value} value={slot.value} disabled={slot.disabled}>{slot.label}</option>)}</select> : <p>Nenhum horário disponível nos próximos dias.</p>}</section>}
