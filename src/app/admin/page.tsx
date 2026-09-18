@@ -33,7 +33,7 @@ const ADMINS = [
   "viniciusrdefreitas@gmail.com",
 ];
 
-type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "cupons" | "fidelidade" | "gestao";
+type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons" | "fidelidade" | "gestao";
 type ServiceFilter = "todos" | "delivery" | "pickup";
 
 const normalizeSearch = (value: unknown) =>
@@ -56,6 +56,16 @@ export default function AdminPage() {
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest("button")) return;
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(8);
+    };
+    document.addEventListener("click", onClick, { passive: true });
+    return () => document.removeEventListener("click", onClick);
   }, []);
 
   useEffect(() => {
@@ -137,6 +147,8 @@ export default function AdminPage() {
     ["cancelados", "Cancelados", counts.cancelados],
     ["catalogo", "Cardápio", null],
     ["operacao", "Funcionamento", null],
+    ["agendamentos", "Agendamentos", null],
+    ["frete", "Entrega & frete", null],
     ["cupons", "Cupons", null],
     ["fidelidade", "Fidelidade", null],
     ["gestao", "Relatórios", null],
@@ -181,7 +193,7 @@ export default function AdminPage() {
             ))}
           </nav>
           <nav className={styles.managementTabs} aria-label="Gestão da loja">
-            {tabItems.filter(([key]) => ["catalogo", "operacao", "cupons", "fidelidade", "gestao"].includes(key)).map(([key, label]) => (
+            {tabItems.filter(([key]) => ["catalogo", "operacao", "agendamentos", "frete", "cupons", "fidelidade", "gestao"].includes(key)).map(([key, label]) => (
               <button key={key} className={styles.managementTab} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
                 {label}
               </button>
@@ -195,9 +207,13 @@ export default function AdminPage() {
       {tab === "catalogo" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogOrganizerAdmin /><CatalogAdmin /></section>
       ) : tab === "operacao" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>OPERAÇÃO</span><h2>Central da loja</h2></div><p>Funcionamento, agenda e entrega em blocos independentes.</p></div><div className={styles.operationStack}><div className={styles.operationBlock}><div className={styles.operationBlockTitle}><span>01</span><div><strong>Funcionamento</strong><small>Horários da loja, abertura manual e exceções.</small></div></div><StoreOperationAdmin /></div><div className={styles.operationBlock}><div className={styles.operationBlockTitle}><span>02</span><div><strong>Agendamentos</strong><small>Horários oferecidos, antecedência e capacidade.</small></div></div><SchedulingAdmin /></div><div className={styles.operationBlock}><div className={styles.operationBlockTitle}><span>03</span><div><strong>Entrega & frete</strong><small>Taxa padrão e tabela de bairros usada no checkout.</small></div></div><DeliveryRatesAdmin /></div></div></section>
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>FUNCIONAMENTO</span><h2>Loja agora & horários</h2></div><p>Abertura automática, forçada, modo de teste e agenda semanal.</p></div><StoreOperationAdmin /></section>
+      ) : tab === "agendamentos" ? (
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>AGENDAMENTOS</span><h2>Pedidos futuros</h2></div><p>Intervalo, antecedência, horários disponíveis e capacidade por faixa.</p></div><SchedulingAdmin /></section>
+      ) : tab === "frete" ? (
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>ENTREGA & FRETE</span><h2>Taxas e benefícios de entrega</h2></div><p>Taxa padrão, bairros e regras de frete grátis em um único lugar.</p></div><DeliveryRatesAdmin /><FreeDeliveryAdmin /></section>
       ) : tab === "cupons" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>PROMOÇÕES</span><h2>Cupons de desconto</h2></div><p>Crie, agende, pause e edite cupons sem mexer diretamente no banco.</p></div><CouponsAdmin /><PublicPromotionsAdmin /><FreeDeliveryAdmin /></section>
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>PROMOÇÕES</span><h2>Cupons de desconto</h2></div><p>Crie, agende, pause e edite cupons sem mexer diretamente no banco.</p></div><CouponsAdmin /><PublicPromotionsAdmin /></section>
       ) : tab === "fidelidade" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><RewardsAdmin /></section>
       ) : tab === "gestao" ? (

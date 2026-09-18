@@ -13,6 +13,7 @@ export type Product = {
   category: ProductCategory;
   disponivel: boolean;
   isSuggestion?: boolean;
+  promoPlacement?: "home_showcase" | "none";
   sortOrder?: number;
   addonIds?: string[];
   detailsTitle?: string;

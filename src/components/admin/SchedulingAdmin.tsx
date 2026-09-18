@@ -13,7 +13,7 @@ export function SchedulingAdmin(){
  return <section className={styles.card}>
   <div className={styles.head}><div><span>AGENDA DE PEDIDOS</span><strong>Agendamentos</strong><p>Defina horários, intervalo, antecedência e capacidade por faixa.</p></div><button type="button" className={styles.status} data-enabled={c.enabled} onClick={()=>setC(v=>({...v,enabled:!v.enabled}))}>{c.enabled?"Ativado":"Desativado"}</button></div>
   <div className={styles.settings}>
-   <label><span>INTERVALO</span><select value={c.intervalMinutes} onChange={e=>setC(v=>({...v,intervalMinutes:Number(e.target.value),enabledTimes:[]}))}><option value={30}>30 min</option><option value={60}>60 min</option></select></label>
+   <label><span>INTERVALO</span><div className={styles.segmented}><button type="button" data-active={c.intervalMinutes===30} onClick={()=>setC(v=>({...v,intervalMinutes:30,enabledTimes:[]}))}>30 min</button><button type="button" data-active={c.intervalMinutes===60} onClick={()=>setC(v=>({...v,intervalMinutes:60,enabledTimes:[]}))}>60 min</button></div></label>
    <label><span>CAPACIDADE PADRÃO</span><input type="number" min={1} max={50} value={c.defaultCapacity} onChange={e=>setC(v=>({...v,defaultCapacity:Math.max(1,Number(e.target.value)||1)}))}/></label>
    <label><span>ANTECEDÊNCIA</span><div className={styles.suffix}><input type="number" min={0} step={15} value={c.leadMinutes} onChange={e=>setC(v=>({...v,leadMinutes:Math.max(0,Number(e.target.value)||0)}))}/><b>min</b></div></label>
   </div>

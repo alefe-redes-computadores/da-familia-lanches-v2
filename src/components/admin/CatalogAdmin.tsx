@@ -23,6 +23,7 @@ type ProductDraft = {
   category: ProductCategory;
   disponivel: boolean;
   isSuggestion: boolean;
+  showInOffers: boolean;
   sortOrder: string;
   addonIds?: string[];
   detailsTitle: string;
@@ -113,6 +114,7 @@ const draftFromProduct = (product: Product): ProductDraft => ({
   category: product.category,
   disponivel: product.disponivel,
   isSuggestion: Boolean(product.isSuggestion),
+  showInOffers: product.promoPlacement === "home_showcase" || (product.promoPlacement == null && Boolean(product.isSuggestion) && typeof product.oldPrice === "number" && product.oldPrice > product.price),
   sortOrder: product.sortOrder == null ? "" : String(product.sortOrder),
   addonIds: product.addonIds,
   detailsTitle: product.detailsTitle ?? "",
@@ -160,6 +162,19 @@ export function CatalogAdmin() {
     });
   }, [products, search, categoryFilter, availabilityFilter]);
 
+  const groupedProducts = useMemo(() => {
+    const order = new Map(categories.map((category, index) => [category.id, index]));
+    const groups = new Map<string, Product[]>();
+    for (const product of filteredProducts) {
+      const list = groups.get(product.category) ?? [];
+      list.push(product);
+      groups.set(product.category, list);
+    }
+    return [...groups.entries()]
+      .sort(([a], [b]) => (order.get(a) ?? 9999) - (order.get(b) ?? 9999) || a.localeCompare(b, "pt-BR"))
+      .map(([categoryId, items]) => ({ categoryId, label: categories.find((category) => category.id === categoryId)?.label ?? categoryId, items }));
+  }, [filteredProducts, categories]);
+
   const activeProducts = products.filter((product) => product.disponivel).length;
   const pausedProducts = products.length - activeProducts;
   const activeAddons = allAddons.filter((addon) => addon.disponivel !== false).length;
@@ -170,7 +185,7 @@ export function CatalogAdmin() {
 
   const openCreateProduct = () => {
     setProductMode("create");
-    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [] });
+    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [] });
     setMessage("");
   };
 
@@ -224,6 +239,7 @@ export function CatalogAdmin() {
         category: productDraft.category,
         disponivel: productDraft.disponivel,
         isSuggestion: productDraft.isSuggestion,
+        promoPlacement: productDraft.showInOffers ? "home_showcase" : "none",
         sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : deleteField(),
         detailsTitle: productDraft.detailsTitle.trim() || deleteField(),
         detailsItems: productDraft.detailsItems.split("\n").map((item) => item.trim()).filter(Boolean),
@@ -253,7 +269,7 @@ export function CatalogAdmin() {
       await setDoc(doc(db, CATALOG_PRODUCTS_COLLECTION, product.id), {
         id: product.id, name: product.name, description: product.description, price: product.price,
         oldPrice: product.oldPrice ?? deleteField(), image: product.image, category: product.category,
-        disponivel: !product.disponivel, isSuggestion: Boolean(product.isSuggestion),
+        disponivel: !product.disponivel, isSuggestion: Boolean(product.isSuggestion), promoPlacement: product.promoPlacement ?? deleteField(),
         sortOrder: product.sortOrder ?? deleteField(), addonIds: product.addonIds ?? deleteField(), updatedAt: serverTimestamp(),
       }, { merge: true });
       setMessage(product.disponivel ? "Produto pausado." : "Produto reativado.");
@@ -453,23 +469,25 @@ export function CatalogAdmin() {
       {(search || categoryFilter !== "all" || availabilityFilter !== "all") && <button onClick={() => { setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); }}>Limpar filtros</button>}
     </div>
 
-    <div className={styles.products}>
-      {filteredProducts.map((product) => <article className={styles.product} key={product.id} data-off={!product.disponivel}>
-        <img src={product.image} alt="" />
-        <div className={styles.productInfo}>
-          <div className={styles.productTitle}>
-            <div><strong>{product.name}</strong><span>{categoryLabel(product.category)} · {product.id}</span></div>
-            {product.isSuggestion && <b>Destaque na vitrine</b>}
-          </div>
-          <p>{product.description}</p>
-          <div className={styles.productBottom}><div className={styles.adminPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <small>{money(product.oldPrice)}</small>}<strong>{money(product.price)}</strong>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <b>-{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%</b>}</div><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
+    <div className={styles.productGroups}>
+      {groupedProducts.map((group) => <details className={styles.productGroup} key={group.categoryId} open={Boolean(search || categoryFilter !== "all" || availabilityFilter !== "all")}>
+        <summary><div><span>CATEGORIA</span><strong>{group.label}</strong></div><b>{group.items.length} produto{group.items.length===1?"":"s"}</b><i>⌄</i></summary>
+        <div className={styles.products}>
+          {group.items.map((product) => <article className={styles.product} key={product.id} data-off={!product.disponivel}>
+            <img src={product.image} alt="" />
+            <div className={styles.productInfo}>
+              <div className={styles.productTitle}><div><strong>{product.name}</strong><span>{product.id}</span></div><div className={styles.productBadges}>{product.isSuggestion && <b>Sugestão da casa</b>}{(product.promoPlacement === "home_showcase" || (product.promoPlacement == null && product.isSuggestion && typeof product.oldPrice === "number" && product.oldPrice > product.price)) && <b>Ofertas da Família</b>}</div></div>
+              <p>{product.description}</p>
+              <div className={styles.productBottom}><div className={styles.adminPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <small>{money(product.oldPrice)}</small>}<strong>{money(product.price)}</strong>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <b>-{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%</b>}</div><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
+            </div>
+            <div className={styles.actions}>
+              {product.disponivel ? <div className={styles.orderActions}><button title="Subir produto" onClick={() => moveProduct(product, -1)} disabled={busy.startsWith("product-order-")}>↑</button><button title="Descer produto" onClick={() => moveProduct(product, 1)} disabled={busy.startsWith("product-order-")}>↓</button></div> : <div className={styles.orderPlaceholder}>Fora da ordem pública</div>}
+              <button onClick={() => toggleProduct(product)} disabled={busy === `toggle-${product.id}`}>{product.disponivel ? "Pausar" : "Reativar"}</button>
+              <button className={styles.primary} onClick={() => openEditProduct(product)}>Editar</button>
+            </div>
+          </article>)}
         </div>
-        <div className={styles.actions}>
-          {product.disponivel ? <div className={styles.orderActions}><button title="Subir produto" onClick={() => moveProduct(product, -1)} disabled={busy.startsWith("product-order-")}>↑</button><button title="Descer produto" onClick={() => moveProduct(product, 1)} disabled={busy.startsWith("product-order-")}>↓</button></div> : <div className={styles.orderPlaceholder}>Fora da ordem pública</div>}
-          <button onClick={() => toggleProduct(product)} disabled={busy === `toggle-${product.id}`}>{product.disponivel ? "Pausar" : "Reativar"}</button>
-          <button className={styles.primary} onClick={() => openEditProduct(product)}>Editar</button>
-        </div>
-      </article>)}
+      </details>)}
       {!filteredProducts.length && <div className={styles.empty}><strong>Nenhum produto encontrado</strong><span>Altere os filtros ou crie um novo produto.</span></div>}
     </div>
 
@@ -533,7 +551,8 @@ export function CatalogAdmin() {
         {productDraft.image.trim() && <div className={styles.preview}><img src={productDraft.image} alt="" /><div><span>PRÉVIA</span><strong>{productDraft.name || "Novo produto"}</strong><small>{productDraft.image}</small></div></div>}
         <div className={styles.switches}>
           <button type="button" data-on={productDraft.disponivel} onClick={() => setProductDraft({ ...productDraft, disponivel: !productDraft.disponivel })}><i />Disponível</button>
-          <button type="button" data-on={productDraft.isSuggestion} onClick={() => setProductDraft({ ...productDraft, isSuggestion: !productDraft.isSuggestion })}><i />Destaque na vitrine da casa</button>
+          <button type="button" data-on={productDraft.isSuggestion} onClick={() => setProductDraft({ ...productDraft, isSuggestion: !productDraft.isSuggestion })}><i />Sugestão da casa</button>
+          <button type="button" data-on={productDraft.showInOffers} onClick={() => setProductDraft({ ...productDraft, showInOffers: !productDraft.showInOffers })}><i />Exibir em Ofertas da Família</button>
         </div>
         {productDraft.category !== "bebidas" && <div className={styles.addonPicker}>
           <div className={styles.addonPickerHead}><div><strong>Adicionais permitidos</strong><span>{productDraft.addonIds === undefined ? "Todos os adicionais ativos" : `${productDraft.addonIds.length} selecionados`}</span></div><button type="button" onClick={() => setProductDraft({ ...productDraft, addonIds: undefined })}>Permitir todos</button></div>

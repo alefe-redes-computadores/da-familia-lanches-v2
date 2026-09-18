@@ -18,6 +18,13 @@ const parseMoney = (value: string | number | undefined) => {
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 };
 
+const moneyDraft = (value: string | number | undefined) =>
+  parseMoney(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const moneyTyping = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+  return digits ? (Number(digits) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+};
+
 export function DeliveryRatesAdmin() {
   const [rates, setRates] = useState<EditableRate[]>([]);
   const [defaultFee, setDefaultFee] = useState(String(SAFE_DEFAULT_DELIVERY_FEE).replace(".", ","));
@@ -27,6 +34,7 @@ export function DeliveryRatesAdmin() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [removeConfirmKey, setRemoveConfirmKey] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -39,7 +47,7 @@ export function DeliveryRatesAdmin() {
       const rateData = snap.data()?.data;
       const list = Array.isArray(rateData) ? (rateData as DeliveryRate[]) : [];
       setRates(list.map((item, index) => ({ ...item, _key: `${normalize(String(item.nome ?? ""))}-${index}` })));
-      setDefaultFee(String(fallback).replace(".", ","));
+      setDefaultFee(moneyDraft(fallback));
     } catch (error) {
       console.error("Erro ao carregar taxas", error);
       setMessage("Não foi possível carregar a tabela de bairros.");
@@ -60,8 +68,14 @@ export function DeliveryRatesAdmin() {
     setRates((current) => current.map((item) => item._key === key ? { ...item, ...patch } : item));
 
   const removeRate = (key: string, name: string) => {
-    if (!window.confirm(`Remover "${name}" da tabela de entrega? Pedidos desse bairro passarão a usar a taxa padrão.`)) return;
+    if (removeConfirmKey !== key) {
+      setRemoveConfirmKey(key);
+      setMessage(`Toque novamente em excluir para remover ${name}.`);
+      return;
+    }
     setRates((current) => current.filter((item) => item._key !== key));
+    setRemoveConfirmKey("");
+    setMessage(`${name} removido da edição. Salve para publicar.`);
   };
 
   const addRate = () => {
@@ -89,7 +103,7 @@ export function DeliveryRatesAdmin() {
         setDoc(doc(db, "settings", "delivery"), { schemaVersion: 1, defaultFee: fallback, updatedAt: serverTimestamp() }, { merge: true }),
       ]);
       setRates(clean.map((item, index) => ({ ...item, _key: `${normalize(item.nome || "")}-${index}` })));
-      setDefaultFee(String(fallback).replace(".", ","));
+      setDefaultFee(moneyDraft(fallback));
       setMessage("Taxas de entrega publicadas.");
     } catch (error) {
       console.error("Erro ao salvar taxas", error);
@@ -104,7 +118,7 @@ export function DeliveryRatesAdmin() {
     </div>
 
     <div className={styles.summary}>
-      <label><span>TAXA PADRÃO / FALLBACK</span><div className={styles.moneyInput}><i>R$</i><input inputMode="decimal" value={defaultFee} onChange={(e) => setDefaultFee(e.target.value)} /></div><small>Usada quando o bairro não está na tabela ou a consulta falha.</small></label>
+      <label><span>TAXA PADRÃO / FALLBACK</span><div className={styles.moneyInput}><i>R$</i><input inputMode="decimal" value={defaultFee} onChange={(e) => setDefaultFee(moneyTyping(e.target.value))} onBlur={() => setDefaultFee(moneyDraft(defaultFee))} placeholder="0,00" /></div><small>Usada quando o bairro não está na tabela ou a consulta falha.</small></label>
       <div className={styles.health} data-warning={invalidCount > 0}><span>QUALIDADE DA TABELA</span><strong>{invalidCount ? `${invalidCount} item(ns) para revisar` : "Tudo certo"}</strong><small>{invalidCount ? "Há nome ou taxa inválida." : "Bairros prontos para cobrança."}</small></div>
     </div>
 
@@ -117,8 +131,8 @@ export function DeliveryRatesAdmin() {
       <div className={styles.list}>
         {sorted.map((item) => <div className={styles.row} key={item._key}>
           <input className={styles.name} value={String(item.nome ?? "")} onChange={(e) => updateRate(item._key, { nome: e.target.value })} aria-label="Nome do bairro" />
-          <div className={styles.rate}><span>R$</span><input inputMode="decimal" value={String(item.taxa ?? "")} onChange={(e) => updateRate(item._key, { taxa: e.target.value })} aria-label={`Taxa de ${item.nome ?? "bairro"}`} /></div>
-          <button type="button" className={styles.remove} onClick={() => removeRate(item._key, String(item.nome ?? "Bairro"))} aria-label={`Remover ${item.nome ?? "bairro"}`}>×</button>
+          <div className={styles.rate}><span>R$</span><input inputMode="decimal" value={typeof item.taxa === "string" ? item.taxa : moneyDraft(item.taxa)} onChange={(e) => updateRate(item._key, { taxa: moneyTyping(e.target.value) })} onBlur={() => updateRate(item._key, { taxa: moneyDraft(item.taxa) })} aria-label={`Taxa de ${item.nome ?? "bairro"}`} /></div>
+          <button type="button" className={styles.remove} data-confirm={removeConfirmKey===item._key} onClick={() => removeRate(item._key, String(item.nome ?? "Bairro"))} aria-label={`Remover ${item.nome ?? "bairro"}`}>{removeConfirmKey===item._key ? "Confirmar" : "Excluir"}</button>
         </div>)}
         {!sorted.length && <div className={styles.empty}>Nenhum bairro encontrado.</div>}
       </div>
@@ -126,7 +140,7 @@ export function DeliveryRatesAdmin() {
 
     <div className={styles.add}>
       <div><span>NOVO BAIRRO</span><strong>Adicionar à tabela</strong></div>
-      <div className={styles.addFields}><input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome do bairro" /><div className={styles.rate}><span>R$</span><input inputMode="decimal" value={newFee} onChange={(e) => setNewFee(e.target.value)} placeholder="0,00" /></div><button type="button" onClick={addRate}>Adicionar</button></div>
+      <div className={styles.addFields}><input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome do bairro" /><div className={styles.rate}><span>R$</span><input inputMode="decimal" value={newFee} onChange={(e) => setNewFee(moneyTyping(e.target.value))} onBlur={() => newFee && setNewFee(moneyDraft(newFee))} placeholder="0,00" /></div><button type="button" onClick={addRate}>Adicionar</button></div>
     </div>
 
     {message && <div className={styles.feedback}>{message}</div>}

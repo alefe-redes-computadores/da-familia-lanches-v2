@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { auth } from "@/lib/firebase";
 import { ModalBase } from "./ModalBase";
 import { useUIStore } from "@/store/ui";
@@ -66,10 +66,6 @@ export function AccountModal() {
   const nameReady = name.trim().length >= 2;
   const canSave = nameReady && phoneReady && addressReady && cepReady && !saving;
 
-  const completion = useMemo(() => {
-    const checks = [nameReady, phoneReady, Boolean(street.trim()), Boolean(number.trim()), Boolean(district.trim())];
-    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
-  }, [nameReady, phoneReady, street, number, district]);
 
   const searchCep = async () => {
     const value = digits(cep);
@@ -172,10 +168,6 @@ export function AccountModal() {
             <span>CONTA DA FAMÍLIA</span>
             <strong>{displayName}</strong>
             <small>{currentUser.email}</small>
-          </div>
-          <div className={styles.completion} title="Completude dos dados úteis para entrega">
-            <b>{completion}%</b>
-            <span>perfil</span>
           </div>
         </section>
 
