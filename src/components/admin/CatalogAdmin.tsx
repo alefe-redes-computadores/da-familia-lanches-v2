@@ -281,6 +281,66 @@ export function CatalogAdmin() {
     }
   };
 
+  const publishFamilyOffers = async () => {
+    const familyOfferIds = new Set([
+      "combo-familia-uai",
+      "combo-bitela-oferta",
+      "combo-apruma-oferta",
+      "combo-4-uai",
+      "combo-armaria-oferta",
+      "combo-7-uai",
+    ]);
+
+    const offers = fallbackProducts.filter((product) =>
+      familyOfferIds.has(product.id)
+    );
+
+    if (offers.length !== familyOfferIds.size) {
+      setMessage(
+        `Publicação cancelada: encontrei ${offers.length} de ${familyOfferIds.size} ofertas no catálogo-base.`
+      );
+      return;
+    }
+
+    setBusy("publish-family-offers");
+    setMessage("");
+
+    try {
+      const batch = writeBatch(db);
+
+      offers.forEach((product) => {
+        batch.set(
+          doc(db, CATALOG_PRODUCTS_COLLECTION, product.id),
+          {
+            ...product,
+            oldPrice: product.oldPrice ?? null,
+            isSuggestion: Boolean(product.isSuggestion),
+            promoPlacement: product.promoPlacement ?? "home_showcase",
+            sortOrder: product.sortOrder ?? null,
+            addonIds: product.addonIds ?? null,
+            migratedFromFallback: true,
+            familyOfferV35: true,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      });
+
+      await batch.commit();
+
+      setMessage(
+        `${offers.length} Ofertas da Família publicadas na nuvem. Agora você pode editar cada promoção normalmente.`
+      );
+    } catch (error) {
+      console.error(error);
+      setMessage(
+        "Não foi possível publicar as Ofertas da Família. Os demais produtos não foram enviados."
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
   const seedCatalog = async () => {
     if (!confirmSeed) {
       setConfirmSeed(true);
@@ -508,7 +568,17 @@ export function CatalogAdmin() {
 
     <section className={styles.maintenance}>
       <div><span>MANUTENÇÃO</span><strong>Fallback local</strong><p>Reaplica categorias, produtos e adicionais-base no Firestore sem remover itens criados pelo Admin.</p></div>
-      <button data-confirm={confirmSeed} onClick={seedCatalog} disabled={busy === "seed"}>{busy === "seed" ? "Sincronizando..." : confirmSeed ? "Confirmar sincronização" : "Sincronizar catálogo-base"}</button>
+      <button
+          type="button"
+          className={styles.secondaryAction}
+          disabled={Boolean(busy)}
+          onClick={() => void publishFamilyOffers()}
+        >
+          {busy === "publish-family-offers"
+            ? "Publicando ofertas…"
+            : "Publicar 6 novas ofertas"}
+        </button>
+        <button data-confirm={confirmSeed} onClick={seedCatalog} disabled={busy === "seed"}>{busy === "seed" ? "Sincronizando..." : confirmSeed ? "Confirmar sincronização" : "Sincronizar catálogo-base"}</button>
       {confirmSeed && <button className={styles.cancelSeed} onClick={() => setConfirmSeed(false)}>Cancelar</button>}
     </section>
 

@@ -23,6 +23,150 @@ export type Product = {
 };
 
 export const products: Product[] = [
+
+  {
+    id: "combo-7-uai",
+    name: "Combo 7 Uai",
+    description: "Sete Uai caprichados para reunir a família e dividir com a turma, com preço especial.",
+    price: 69.99,
+    oldPrice: 90.00,
+    image: "/img/uai.png",
+    category: "promocoes",
+    disponivel: true,
+    isSuggestion: false,
+    promoPlacement: "home_showcase",
+    sortOrder: 6,
+    detailsTitle: "O que vem no Combo 7 Uai?",
+    detailsItems: [
+      "7 lanches Uai",
+    ],
+    includedExtras: "Acompanha ketchup e molho verde da casa.",
+    bundleItems: [
+      { productId: "uai", quantity: 7 },
+    ],
+  },
+
+
+  // ==========================================================
+  // V35.1 — OFERTAS DA FAMÍLIA
+  // Imagens temporárias: produto-base.
+  // As artes oficiais podem ser enviadas posteriormente no Admin.
+  // ==========================================================
+
+  {
+    id: "combo-familia-uai",
+    name: "Combo Família Uai",
+    description: "Pra reunir a família: 5 Uai caprichados + 1 Kuat 2L por um preço especial.",
+    price: 59.99,
+    oldPrice: 82.00,
+    image: "/img/uai.png",
+    category: "promocoes",
+    disponivel: true,
+    isSuggestion: false,
+    promoPlacement: "home_showcase",
+    sortOrder: 1,
+    detailsTitle: "O que vem no Combo Família Uai?",
+    detailsItems: [
+      "5 lanches Uai",
+      "1 Kuat 2L",
+    ],
+    includedExtras: "Acompanha molho verde da casa.",
+    bundleItems: [
+      { productId: "uai", quantity: 5 },
+    ],
+  },
+
+  {
+    id: "combo-bitela-oferta",
+    name: "Combo Bitela",
+    description: "Quatro Bitelas gigantes e bem recheados + 1 Kuat 2L para dividir com a galera.",
+    price: 72.99,
+    oldPrice: 105.00,
+    image: "/img/bitela.png",
+    category: "promocoes",
+    disponivel: true,
+    isSuggestion: false,
+    promoPlacement: "home_showcase",
+    sortOrder: 2,
+    detailsTitle: "O que vem no Combo Bitela?",
+    detailsItems: [
+      "4 lanches Bitela",
+      "1 Kuat 2L",
+    ],
+    includedExtras: "Acompanha molho verde da casa.",
+    bundleItems: [
+      { productId: "bitela", quantity: 4 },
+    ],
+  },
+
+  {
+    id: "combo-apruma-oferta",
+    name: "Combo Apruma",
+    description: "Quatro Apruma completos + 1 Fanta 1L, num combo reforçado para compartilhar.",
+    price: 79.98,
+    oldPrice: 110.00,
+    image: "/img/apruma.png",
+    category: "promocoes",
+    disponivel: true,
+    isSuggestion: false,
+    promoPlacement: "home_showcase",
+    sortOrder: 3,
+    detailsTitle: "O que vem no Combo Apruma?",
+    detailsItems: [
+      "4 lanches Apruma",
+      "1 Fanta 1L",
+    ],
+    includedExtras: "Acompanha molho verde da casa.",
+    bundleItems: [
+      { productId: "apruma", quantity: 4 },
+    ],
+  },
+
+  {
+    id: "combo-4-uai",
+    name: "Combo 4 Uai",
+    description: "Quatro Uai caprichados para dividir, com preço especial.",
+    price: 41.99,
+    oldPrice: 52.00,
+    image: "/img/uai.png",
+    category: "promocoes",
+    disponivel: true,
+    isSuggestion: false,
+    promoPlacement: "home_showcase",
+    sortOrder: 4,
+    detailsTitle: "O que vem no Combo 4 Uai?",
+    detailsItems: [
+      "4 lanches Uai",
+    ],
+    includedExtras: "Acompanha ketchup e molho verde da casa.",
+    bundleItems: [
+      { productId: "uai", quantity: 4 },
+    ],
+  },
+
+  {
+    id: "combo-armaria-oferta",
+    name: "Combo Armaria",
+    description: "Quatro Armaria reforçados + 1 Kuat 2L, num combo completo para compartilhar.",
+    price: 67.99,
+    oldPrice: 86.00,
+    image: "/img/armaria.png",
+    category: "promocoes",
+    disponivel: true,
+    isSuggestion: false,
+    promoPlacement: "home_showcase",
+    sortOrder: 5,
+    detailsTitle: "O que vem no Combo Armaria?",
+    detailsItems: [
+      "4 lanches Armaria",
+      "1 Kuat 2L",
+    ],
+    includedExtras: "Acompanha molho verde da casa.",
+    bundleItems: [
+      { productId: "armaria", quantity: 4 },
+    ],
+  },
+
   // =========================================
   // 🔥 PROMOÇÕES
   // =========================================
