@@ -31,6 +31,8 @@ export function AccountModal() {
   const [complement, setComplement] = useState("");
   const [reference, setReference] = useState("");
   const [manualAddress, setManualAddress] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [addressOpen, setAddressOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchingCep, setSearchingCep] = useState(false);
   const [message, setMessage] = useState("");
@@ -65,6 +67,13 @@ export function AccountModal() {
   const cepReady = !cep.trim() || digits(cep).length === 8;
   const nameReady = name.trim().length >= 2;
   const canSave = nameReady && phoneReady && addressReady && cepReady && !saving;
+  const hasSavedAddress = Boolean(street.trim() || district.trim());
+  const addressLine = hasSavedAddress
+    ? [street.trim(), number.trim()].filter(Boolean).join(", ")
+    : "Nenhum endereço cadastrado";
+  const addressMeta = hasSavedAddress
+    ? [district.trim(), cep.trim() ? `CEP ${cep.trim()}` : ""].filter(Boolean).join(" · ")
+    : "Cadastre seu endereço para agilizar o checkout.";
 
 
   const searchCep = async () => {
@@ -172,11 +181,15 @@ export function AccountModal() {
         </section>
 
         <div className={styles.quickActions}>
-          <button type="button" onClick={() => openModal("orders")}>
-            <span>Pedidos</span><small>Acompanhar e repetir</small>
+          <button className={styles.ordersAction} type="button" onClick={() => openModal("orders")}>
+            <i aria-hidden="true">01</i>
+            <span><strong>Pedidos</strong><small>Acompanhar e repetir</small></span>
+            <b aria-hidden="true">›</b>
           </button>
-          <button type="button" onClick={() => openModal("rewards")}>
-            <span>Fidelidade</span><small>Progresso e benefícios</small>
+          <button className={styles.rewardsAction} type="button" onClick={() => openModal("rewards")}>
+            <i aria-hidden="true">★</i>
+            <span><strong>Fidelidade</strong><small>Progresso e benefícios</small></span>
+            <b aria-hidden="true">›</b>
           </button>
         </div>
 
@@ -185,65 +198,103 @@ export function AccountModal() {
 
         <section className={styles.section}>
           <div className={styles.sectionHead}>
-            <div><span>SEUS DADOS</span><strong>Contato do pedido</strong></div>
-            <small>Usado no checkout</small>
+            <div><span>SEUS DADOS</span><strong>Dados pessoais</strong></div>
+            <button className={styles.textAction} type="button" onClick={() => setEditingProfile((value) => !value)}>
+              {editingProfile ? "Fechar" : "Editar"}
+            </button>
           </div>
 
-          <label className={styles.label}>
-            Nome
-            <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" placeholder="Seu nome" />
-          </label>
-
-          <label className={styles.label}>
-            WhatsApp
-            <input value={phone} onChange={(event) => setPhone(formatPhoneBR(event.target.value))} inputMode="tel" autoComplete="tel" placeholder="(34) 99999-9999" />
-            <small className={profile?.phoneVerified ? styles.verified : styles.unverified}>
-              {profile?.phoneVerified ? "Número verificado" : "Número informado · ainda não verificado"}
-            </small>
-          </label>
-
-          <label className={styles.label}>
-            E-mail da conta Google
-            <input value={currentUser.email || ""} readOnly className={styles.readonly} />
-            <small>O e-mail vem do seu login e não é alterado aqui.</small>
-          </label>
+          {!editingProfile ? (
+            <div className={styles.profileSummary}>
+              <div><span>Nome</span><strong>{name || displayName}</strong></div>
+              <div><span>WhatsApp</span><strong>{phone || "Não informado"}</strong></div>
+              <div className={styles.emailSummary}><span>E-mail</span><strong>{currentUser.email}</strong></div>
+              <small className={profile?.phoneVerified ? styles.verified : styles.unverified}>
+                {profile?.phoneVerified ? "WhatsApp verificado" : "WhatsApp informado · ainda não verificado"}
+              </small>
+            </div>
+          ) : (
+            <div className={styles.editor}>
+              <label className={styles.label}>
+                Nome
+                <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" placeholder="Seu nome" />
+              </label>
+              <label className={styles.label}>
+                WhatsApp
+                <input value={phone} onChange={(event) => setPhone(formatPhoneBR(event.target.value))} inputMode="tel" autoComplete="tel" placeholder="(34) 99999-9999" />
+              </label>
+              <label className={styles.label}>
+                E-mail da conta Google
+                <input value={currentUser.email || ""} readOnly className={styles.readonly} />
+              </label>
+              <button className={styles.save} type="button" onClick={() => void save()} disabled={!canSave}>
+                {saving ? "Salvando…" : "Salvar dados pessoais"}
+              </button>
+            </div>
+          )}
         </section>
 
         <section className={styles.section}>
           <div className={styles.sectionHead}>
-            <div><span>ENTREGA</span><strong>Endereço salvo</strong></div>
-            <small>Você ainda pode editar no checkout</small>
+            <div><span>ENTREGA</span><strong>Meus endereços</strong></div>
+            <small>Carteira preparada</small>
           </div>
 
-          <div className={styles.cepRow}>
-            <input value={cep} onChange={(event) => setCep(formatCEPBR(event.target.value))} onBlur={() => { if (digits(cep).length === 8 && !street.trim()) void searchCep(); }} inputMode="numeric" autoComplete="postal-code" placeholder="CEP" />
-            <button type="button" onClick={() => void searchCep()} disabled={searchingCep}>{searchingCep ? "Buscando…" : "Buscar CEP"}</button>
-          </div>
+          <button className={styles.addressCard} data-empty={!hasSavedAddress} type="button" onClick={() => setAddressOpen((value) => !value)}>
+            <span className={styles.addressIcon} aria-hidden="true">⌂</span>
+            <span className={styles.addressCopy}>
+              <span className={styles.addressTags}>
+                <b>Casa</b>
+                {hasSavedAddress && <em>Padrão</em>}
+              </span>
+              <strong>{addressLine}</strong>
+              <small>{addressMeta}</small>
+            </span>
+            <b className={styles.chevron} aria-hidden="true">{addressOpen ? "⌃" : "›"}</b>
+          </button>
 
-          <label className={styles.label}>
-            Rua
-            <input value={street} onChange={(event) => setStreet(event.target.value)} readOnly={!manualAddress && Boolean(street)} className={!manualAddress && street ? styles.readonly : ""} autoComplete="address-line1" placeholder="Rua" />
-          </label>
+          {addressOpen && (
+            <div className={styles.addressEditor}>
+              <div className={styles.editorTitle}>
+                <div><span>CASA</span><strong>Endereço padrão</strong></div>
+                <small>Abra somente quando quiser consultar ou editar.</small>
+              </div>
 
-          <div className={styles.twoColumns}>
-            <label className={styles.label}>Número<input value={number} onChange={(event) => setNumber(event.target.value)} inputMode="numeric" placeholder="Nº" /></label>
-            <label className={styles.label}>Bairro<input value={district} onChange={(event) => setDistrict(event.target.value)} readOnly={!manualAddress && Boolean(district)} className={!manualAddress && district ? styles.readonly : ""} placeholder="Bairro" /></label>
-          </div>
+              <div className={styles.cepRow}>
+                <input value={cep} onChange={(event) => setCep(formatCEPBR(event.target.value))} onBlur={() => { if (digits(cep).length === 8 && !street.trim()) void searchCep(); }} inputMode="numeric" autoComplete="postal-code" placeholder="CEP" />
+                <button type="button" onClick={() => void searchCep()} disabled={searchingCep}>{searchingCep ? "Buscando…" : "Buscar CEP"}</button>
+              </div>
 
-          <label className={styles.label}>Complemento <span>(opcional)</span><input value={complement} onChange={(event) => setComplement(event.target.value)} autoComplete="address-line2" placeholder="Apto, bloco, fundos…" /></label>
-          <label className={styles.label}>Referência <span>(opcional)</span><input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Ex.: portão preto, ao lado da praça" /></label>
+              <label className={styles.label}>Rua<input value={street} onChange={(event) => setStreet(event.target.value)} readOnly={!manualAddress && Boolean(street)} className={!manualAddress && street ? styles.readonly : ""} autoComplete="address-line1" placeholder="Rua" /></label>
 
-          <button className={styles.manualButton} type="button" onClick={() => setManualAddress((value) => !value)}>
-            {manualAddress ? "Usar endereço encontrado pelo CEP" : "Editar rua e bairro manualmente"}
+              <div className={styles.twoColumns}>
+                <label className={styles.label}>Número<input value={number} onChange={(event) => setNumber(event.target.value)} inputMode="numeric" placeholder="Nº" /></label>
+                <label className={styles.label}>Bairro<input value={district} onChange={(event) => setDistrict(event.target.value)} readOnly={!manualAddress && Boolean(district)} className={!manualAddress && district ? styles.readonly : ""} placeholder="Bairro" /></label>
+              </div>
+
+              <label className={styles.label}>Complemento <span>(opcional)</span><input value={complement} onChange={(event) => setComplement(event.target.value)} autoComplete="address-line2" placeholder="Apto, bloco, fundos…" /></label>
+              <label className={styles.label}>Referência <span>(opcional)</span><input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Ex.: portão preto, ao lado da praça" /></label>
+
+              <div className={styles.addressEditorActions}>
+                <button className={styles.manualButton} type="button" onClick={() => setManualAddress((value) => !value)}>
+                  {manualAddress ? "Usar endereço do CEP" : "Editar rua e bairro"}
+                </button>
+                <button className={styles.save} type="button" onClick={() => void save()} disabled={!canSave}>
+                  {saving ? "Salvando…" : "Salvar endereço"}
+                </button>
+              </div>
+              <p className={styles.futureDelete}>Editar e excluir cada endereço será habilitado quando ativarmos a carteira múltipla.</p>
+            </div>
+          )}
+
+          <button className={styles.newAddress} type="button" disabled>
+            <span><b>+</b><strong>Adicionar novo endereço</strong></span>
+            <small>Em breve</small>
           </button>
         </section>
 
-        <div className={styles.footerActions}>
-          <button className={styles.logout} type="button" onClick={() => void logout()} disabled={saving}>Sair da conta</button>
-          <button className={styles.save} type="button" onClick={() => void save()} disabled={!canSave}>{saving ? "Salvando…" : "Salvar alterações"}</button>
-        </div>
-
-        <p className={styles.privacy}>Seus dados salvos servem para agilizar seus pedidos. O telefone só é tratado como verificado quando houver uma verificação real; informar o número aqui não o verifica.</p>
+        <button className={styles.logout} type="button" onClick={() => void logout()} disabled={saving}>Sair da conta</button>
+        <p className={styles.privacy}>Seus dados salvos agilizam seus próximos pedidos.</p>
       </div>
     </ModalBase>
   );
