@@ -46,6 +46,9 @@ export type DflSiteOrderEventPayloadV1 = {
   trocoPara: string | null;
   status: string;
   isAgendamento: boolean;
+  scheduledFor: string | null;
+  scheduledLabel: string | null;
+  scheduleWindowMinutes: number | null;
   statusUpdatedAt: string | null;
 };
 
@@ -191,6 +194,9 @@ export function buildDflSiteOrderPayloadV1(
       text(rawOrder.status),
     isAgendamento:
       rawOrder.isAgendamento === true,
+    scheduledFor: nullableText(rawOrder.scheduledFor),
+    scheduledLabel: nullableText(rawOrder.scheduledLabel),
+    scheduleWindowMinutes: rawOrder.isAgendamento === true ? Math.max(0, Math.trunc(money(rawOrder.scheduleWindowMinutes) || 30)) : null,
     statusUpdatedAt:
       overrides?.statusUpdatedAt ??
       null,

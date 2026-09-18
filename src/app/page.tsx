@@ -47,7 +47,7 @@ export default function Home() {
 
   const promoProducts = useMemo(
     () => products
-      .filter((product) => product.disponivel !== false && typeof product.oldPrice === "number" && product.oldPrice > product.price)
+      .filter((product) => product.disponivel !== false && product.isSuggestion === true && typeof product.oldPrice === "number" && product.oldPrice > product.price)
       .sort((a, b) => (((b.oldPrice! - b.price) / b.oldPrice!) * 100) - (((a.oldPrice! - a.price) / a.oldPrice!) * 100))
       .slice(0, 6),
     [products],

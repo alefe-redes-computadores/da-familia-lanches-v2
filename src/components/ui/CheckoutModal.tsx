@@ -19,11 +19,12 @@ import { DEFAULT_COMMERCIAL_SETTINGS, freeDeliveryThreshold, getCommercialSettin
 type PaymentMethod = "pix" | "cartao" | "dinheiro";
 type DeliveryMode = "delivery" | "pickup";
 
-type DeliveryRate = { nome?: string; taxa?: number | string };
+import { getDefaultDeliveryFee, SAFE_DEFAULT_DELIVERY_FEE, type DeliveryRate } from "@/lib/deliveryRates";
+import { getOrderScheduleSlots, scheduleHumanLabel, type OrderScheduleSlot } from "@/lib/orderScheduling";
 
 const PIX_KEY = "34997178336";
 const WHATSAPP_NUMBER = "5534997178336";
-const DEFAULT_DELIVERY_FEE = 6;
+const DEFAULT_DELIVERY_FEE = SAFE_DEFAULT_DELIVERY_FEE;
 
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -62,6 +63,10 @@ export function CheckoutModal() {
   const [couponMessage, setCouponMessage] = useState("");
   const [commercialSettings, setCommercialSettings] = useState<CommercialSettings>(DEFAULT_COMMERCIAL_SETTINGS);
   const [errorMessage, setErrorMessage] = useState("");
+  const [shopClosed, setShopClosed] = useState(false);
+  const [scheduleSlots, setScheduleSlots] = useState<OrderScheduleSlot[]>([]);
+  const [scheduledFor, setScheduledFor] = useState("");
+  const [scheduleLoading, setScheduleLoading] = useState(true);
 
   const subtotal = getCartTotal();
   const isPickup = deliveryMode === "pickup";
@@ -80,6 +85,7 @@ export function CheckoutModal() {
   const canAdvance = nameReady && phoneReady && addressReady && items.length > 0;
 
   useEffect(() => { void getCommercialSettings().then(setCommercialSettings).catch(() => setCommercialSettings(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
+  useEffect(() => { let alive=true; void (async()=>{ try{const status=await getEffectiveShopStatus();if(!alive)return;setShopClosed(!status.isOpen);if(!status.isOpen){const slots=await getOrderScheduleSlots();if(!alive)return;setScheduleSlots(slots);setScheduledFor(v=>v||slots[0]?.value||"")}}catch(error){console.error("Falha ao preparar agendamento",error)}finally{if(alive)setScheduleLoading(false)}})();return()=>{alive=false}}, []);
 
   useEffect(() => {
     if (!currentUser || profileLoading) return;
@@ -127,10 +133,13 @@ export function CheckoutModal() {
     if (!cleanedDistrict) return;
 
     try {
-      const snap = await getDoc(doc(db, "TaxasDeEntrega", "bairros", "lista", "tabela"));
+      const [snap, configuredDefaultFee] = await Promise.all([
+        getDoc(doc(db, "TaxasDeEntrega", "bairros", "lista", "tabela")),
+        getDefaultDeliveryFee(),
+      ]);
       if (!snap.exists()) {
-        setDeliveryFee(DEFAULT_DELIVERY_FEE);
-        setDeliveryStatus(`Taxa padrão: ${money(DEFAULT_DELIVERY_FEE)}`);
+        setDeliveryFee(configuredDefaultFee);
+        setDeliveryStatus(`Taxa padrão: ${money(configuredDefaultFee)}`);
         return;
       }
 
@@ -145,8 +154,8 @@ export function CheckoutModal() {
         setDeliveryFee(rate);
         setDeliveryStatus(`Taxa para ${found.nome || district}: ${money(rate)}`);
       } else {
-        setDeliveryFee(DEFAULT_DELIVERY_FEE);
-        setDeliveryStatus(`Bairro fora da tabela. Taxa padrão: ${money(DEFAULT_DELIVERY_FEE)}`);
+        setDeliveryFee(configuredDefaultFee);
+        setDeliveryStatus(`Bairro fora da tabela. Taxa padrão: ${money(configuredDefaultFee)}`);
       }
     } catch (error) {
       console.error("Erro ao buscar taxas", error);
@@ -302,6 +311,8 @@ export function CheckoutModal() {
     try {
       const shopStatus = await getEffectiveShopStatus();
       const isClosed = !shopStatus.isOpen;
+      const selectedSchedule = isClosed ? scheduledFor : "";
+      if (isClosed && !selectedSchedule) { setStep(1); throw new Error("SCHEDULE_REQUIRED"); }
       const finalAddress = isPickup
         ? "RETIRADA NO LOCAL"
         : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}${referencia.trim() ? ` · Ref.: ${referencia.trim()}` : ""}`;
@@ -325,6 +336,9 @@ export function CheckoutModal() {
         data: serverTimestamp(),
         status: isClosed ? "Agendado" : "Pendente",
         isAgendamento: isClosed,
+        scheduledFor: isClosed ? selectedSchedule : null,
+        scheduledLabel: isClosed ? scheduleHumanLabel(selectedSchedule) : null,
+        scheduleWindowMinutes: isClosed ? 30 : null,
         sourceSystem: "dfl_site",
         orderSchemaVersion: 2,
         customerSnapshot: {
@@ -399,7 +413,7 @@ export function CheckoutModal() {
         safeDiscount > 0 ? `Desconto${appliedCouponCode ? ` (${appliedCouponCode})` : ""}: -${money(safeDiscount)}` : null,
         `*TOTAL: ${money(total)}*`,
         `Pagamento: ${paymentText}`,
-        isClosed ? "\nLoja fechada neste momento: pedido registrado como agendado." : null,
+        isClosed ? `\n🕒 Agendado para *${scheduleHumanLabel(selectedSchedule)}*.\nEsse horário é uma previsão operacional; faremos o possível para atender o mais próximo dele.` : null,
       ].filter(Boolean).join("\n");
 
       const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
@@ -414,7 +428,7 @@ export function CheckoutModal() {
     } catch (error) {
       console.error("Erro ao salvar pedido", error);
       const code = error instanceof Error ? error.message : "";
-      if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {
+      if (code === "SCHEDULE_REQUIRED") { setErrorMessage("Escolha um horário disponível para o pedido agendado."); } else if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {
         setAppliedCouponCode("");
         setAppliedRewardId("");
         setDiscount(0);
@@ -459,7 +473,8 @@ export function CheckoutModal() {
               </section>
               {!isPickup && freeThreshold !== null && !hasFreeDelivery && <div className={styles.freightProgress}>Faltam <strong>{money(missingForFreeDelivery)}</strong> para ganhar entrega grátis.</div>}{hasFreeDelivery && <div className={styles.successHint}>Entrega grátis conquistada para este pedido.</div>}
             </> : <div className={styles.pickupCard}><strong>Retirada no balcão</strong><span>Sem taxa de entrega. O pedido ficará identificado pelo seu nome e referência.</span></div>}
-            <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : "Complete o endereço para continuar."); }}>Continuar</button>
+            {shopClosed && <section className={styles.scheduleCard}><div><span>LOJA FECHADA AGORA</span><strong>Agende seu pedido</strong><small>Escolha um horário disponível. O horário é uma previsão e pode variar conforme o movimento.</small></div>{scheduleLoading ? <p>Carregando horários…</p> : scheduleSlots.length ? <select value={scheduledFor} onChange={e=>setScheduledFor(e.target.value)}>{scheduleSlots.map(slot=><option key={slot.value} value={slot.value} disabled={slot.disabled}>{slot.label}</option>)}</select> : <p>Nenhum horário disponível nos próximos dias.</p>}</section>}
+            <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance && (!shopClosed || Boolean(scheduledFor))) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : !addressReady ? "Complete o endereço para continuar." : "Escolha um horário disponível para o agendamento."); }}>Continuar</button>
           </div>
         ) : (
           <div className={styles.stack}>

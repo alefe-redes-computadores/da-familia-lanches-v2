@@ -459,7 +459,7 @@ export function CatalogAdmin() {
         <div className={styles.productInfo}>
           <div className={styles.productTitle}>
             <div><strong>{product.name}</strong><span>{categoryLabel(product.category)} · {product.id}</span></div>
-            {product.isSuggestion && <b>Sugestão</b>}
+            {product.isSuggestion && <b>Destaque na vitrine</b>}
           </div>
           <p>{product.description}</p>
           <div className={styles.productBottom}><div className={styles.adminPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <small>{money(product.oldPrice)}</small>}<strong>{money(product.price)}</strong>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <b>-{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%</b>}</div><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
@@ -533,7 +533,7 @@ export function CatalogAdmin() {
         {productDraft.image.trim() && <div className={styles.preview}><img src={productDraft.image} alt="" /><div><span>PRÉVIA</span><strong>{productDraft.name || "Novo produto"}</strong><small>{productDraft.image}</small></div></div>}
         <div className={styles.switches}>
           <button type="button" data-on={productDraft.disponivel} onClick={() => setProductDraft({ ...productDraft, disponivel: !productDraft.disponivel })}><i />Disponível</button>
-          <button type="button" data-on={productDraft.isSuggestion} onClick={() => setProductDraft({ ...productDraft, isSuggestion: !productDraft.isSuggestion })}><i />Sugestão da casa</button>
+          <button type="button" data-on={productDraft.isSuggestion} onClick={() => setProductDraft({ ...productDraft, isSuggestion: !productDraft.isSuggestion })}><i />Destaque na vitrine da casa</button>
         </div>
         {productDraft.category !== "bebidas" && <div className={styles.addonPicker}>
           <div className={styles.addonPickerHead}><div><strong>Adicionais permitidos</strong><span>{productDraft.addonIds === undefined ? "Todos os adicionais ativos" : `${productDraft.addonIds.length} selecionados`}</span></div><button type="button" onClick={() => setProductDraft({ ...productDraft, addonIds: undefined })}>Permitir todos</button></div>

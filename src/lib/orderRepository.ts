@@ -11,6 +11,7 @@ import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupo
 import { normalizeReward, rewardDiscount, rewardIsExpired, type RewardGrantPlan } from "@/lib/rewards";
 import { canTransitionOrderStatus } from "@/lib/orderStatus";
 import { normalizarStatus } from "@/lib/orderUtils";
+import { capacityForTime, normalizeSchedulingConfig, scheduleSlotId } from "@/lib/schedulingConfig";
 import { ensureIntegrationEventInTransaction } from "@/lib/integration/firestore";
 import {
   buildOrderCreatedEvent,
@@ -86,6 +87,9 @@ export async function createCustomerOrder(input: CreateCustomerOrderInput) {
         throw new Error("COUPON_CHANGED");
       }
     }
+
+    const scheduledFor=typeof input.order.scheduledFor==="string"?input.order.scheduledFor:"";
+    if(input.order.isAgendamento===true&&scheduledFor){const cr=doc(db,"settings","orderScheduling"),cs=await transaction.get(cr),cfg=normalizeSchedulingConfig(cs.exists()?cs.data():{}),time=scheduledFor.slice(11,16);if(!cfg.enabled||(cfg.enabledTimes.length&&!cfg.enabledTimes.includes(time)))throw new Error("SCHEDULE_SLOT_DISABLED");const sr=doc(db,"schedule_slots",scheduleSlotId(scheduledFor)),ss=await transaction.get(sr),reserved=ss.exists()?Math.max(0,Number(ss.data().reserved)||0):0,capacity=capacityForTime(cfg,time);if(reserved>=capacity)throw new Error("SCHEDULE_SLOT_FULL");transaction.set(sr,{scheduledFor,date:scheduledFor.slice(0,10),time,reserved:reserved+1,capacity,updatedAt:serverTimestamp()},{merge:true})}
 
     const event = buildOrderCreatedEvent({
       orderId: orderRef.id,
@@ -233,5 +237,267 @@ export async function updateOrderStatus(input: {
       status: next,
       rewardAwarded,
     };
+  });
+}
+
+
+export async function rescheduleCustomerOrder(input: {
+  orderId: string;
+  userId: string;
+  scheduledFor: string;
+  scheduledLabel: string;
+}) {
+  const orderRef = doc(db, "Pedidos", input.orderId);
+  const now = Timestamp.now();
+  const occurredAt = now.toDate().toISOString();
+
+  return runTransaction(db, async (transaction) => {
+    const orderSnapshot = await transaction.get(orderRef);
+    if (!orderSnapshot.exists()) throw new Error("ORDER_NOT_FOUND");
+
+    const order = orderSnapshot.data();
+
+    if (String(order.userId ?? "") !== input.userId) {
+      throw new Error("ORDER_FORBIDDEN");
+    }
+
+    if (normalizarStatus(order.status) !== "Agendado") {
+      throw new Error("ORDER_NOT_RESCHEDULABLE");
+    }
+
+    const previousScheduledFor =
+      typeof order.scheduledFor === "string"
+        ? order.scheduledFor
+        : "";
+
+    if (previousScheduledFor === input.scheduledFor) {
+      return { changed: false };
+    }
+
+    const configRef = doc(db, "settings", "orderScheduling");
+    const configSnapshot = await transaction.get(configRef);
+    const config = normalizeSchedulingConfig(
+      configSnapshot.exists()
+        ? configSnapshot.data()
+        : {},
+    );
+
+    const time = input.scheduledFor.slice(11, 16);
+
+    if (
+      !config.enabled ||
+      (
+        config.enabledTimes.length &&
+        !config.enabledTimes.includes(time)
+      )
+    ) {
+      throw new Error("SCHEDULE_SLOT_DISABLED");
+    }
+
+    const newSlotRef = doc(
+      db,
+      "schedule_slots",
+      scheduleSlotId(input.scheduledFor),
+    );
+
+    const newSlotSnapshot =
+      await transaction.get(newSlotRef);
+
+    const newReserved = newSlotSnapshot.exists()
+      ? Math.max(
+          0,
+          Number(newSlotSnapshot.data().reserved) || 0,
+        )
+      : 0;
+
+    const capacity = capacityForTime(config, time);
+
+    if (newReserved >= capacity) {
+      throw new Error("SCHEDULE_SLOT_FULL");
+    }
+
+    let oldSlotRef: ReturnType<typeof doc> | null = null;
+    let oldReserved = 0;
+
+    if (previousScheduledFor) {
+      oldSlotRef = doc(
+        db,
+        "schedule_slots",
+        scheduleSlotId(previousScheduledFor),
+      );
+
+      const oldSlotSnapshot =
+        await transaction.get(oldSlotRef);
+
+      oldReserved = oldSlotSnapshot.exists()
+        ? Math.max(
+            0,
+            Number(oldSlotSnapshot.data().reserved) || 0,
+          )
+        : 0;
+    }
+
+    const nextOrder = {
+      ...order,
+      scheduledFor: input.scheduledFor,
+      scheduledLabel: input.scheduledLabel,
+      scheduleUpdatedAt: now,
+      statusUpdatedAt: now,
+    };
+
+    const event = buildOrderUpdatedEvent({
+      orderId: input.orderId,
+      order: nextOrder,
+      status: "Agendado",
+      occurredAt,
+      occurrenceId: `customer-reschedule-${input.orderId}-${input.scheduledFor}`,
+    });
+
+    await ensureIntegrationEventInTransaction(
+      transaction,
+      event,
+    );
+
+    /*
+     * Todas as leituras da transação já aconteceram.
+     * A partir daqui somente writes.
+     */
+    if (oldSlotRef) {
+      transaction.set(
+        oldSlotRef,
+        {
+          reserved: Math.max(0, oldReserved - 1),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
+
+    transaction.set(
+      newSlotRef,
+      {
+        scheduledFor: input.scheduledFor,
+        date: input.scheduledFor.slice(0, 10),
+        time,
+        reserved: newReserved + 1,
+        capacity,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    transaction.update(orderRef, {
+      scheduledFor: input.scheduledFor,
+      scheduledLabel: input.scheduledLabel,
+      scheduleUpdatedAt: now,
+      statusUpdatedAt: now,
+    });
+
+    return { changed: true };
+  });
+}
+
+export async function cancelCustomerScheduledOrder(input: {
+  orderId: string;
+  userId: string;
+}) {
+  const orderRef = doc(db, "Pedidos", input.orderId);
+  const now = Timestamp.now();
+  const occurredAt = now.toDate().toISOString();
+
+  return runTransaction(db, async (transaction) => {
+    const orderSnapshot = await transaction.get(orderRef);
+    if (!orderSnapshot.exists()) {
+      throw new Error("ORDER_NOT_FOUND");
+    }
+
+    const order = orderSnapshot.data();
+
+    if (String(order.userId ?? "") !== input.userId) {
+      throw new Error("ORDER_FORBIDDEN");
+    }
+
+    if (normalizarStatus(order.status) !== "Agendado") {
+      throw new Error("ORDER_NOT_CANCELLABLE");
+    }
+
+    const scheduledFor =
+      typeof order.scheduledFor === "string"
+        ? order.scheduledFor
+        : "";
+
+    let slotRef: ReturnType<typeof doc> | null = null;
+    let reserved = 0;
+
+    if (scheduledFor) {
+      slotRef = doc(
+        db,
+        "schedule_slots",
+        scheduleSlotId(scheduledFor),
+      );
+
+      const slotSnapshot =
+        await transaction.get(slotRef);
+
+      reserved = slotSnapshot.exists()
+        ? Math.max(
+            0,
+            Number(slotSnapshot.data().reserved) || 0,
+          )
+        : 0;
+    }
+
+    const history = Array.isArray(order.statusHistory)
+      ? order.statusHistory
+      : [];
+
+    const nextOrder = {
+      ...order,
+      status: "Cancelado",
+      statusUpdatedAt: now,
+      statusHistory: [
+        ...history,
+        {
+          status: "Cancelado",
+          at: now,
+        },
+      ],
+      scheduleSlotReleasedAt: now,
+      cancelledBy: "customer",
+    };
+
+    const event = buildOrderUpdatedEvent({
+      orderId: input.orderId,
+      order: nextOrder,
+      status: "Cancelado",
+      occurredAt,
+      occurrenceId: `customer-cancel-${input.orderId}`,
+    });
+
+    await ensureIntegrationEventInTransaction(
+      transaction,
+      event,
+    );
+
+    if (slotRef) {
+      transaction.set(
+        slotRef,
+        {
+          reserved: Math.max(0, reserved - 1),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
+
+    transaction.update(orderRef, {
+      status: "Cancelado",
+      statusUpdatedAt: now,
+      statusHistory: nextOrder.statusHistory,
+      scheduleSlotReleasedAt: now,
+      cancelledBy: "customer",
+    });
+
+    return { changed: true };
   });
 }

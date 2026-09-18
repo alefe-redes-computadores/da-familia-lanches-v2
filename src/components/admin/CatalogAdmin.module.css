@@ -45,3 +45,31 @@
 
 /* V32.2 COMMERCIAL READING */
 .adminPrice{display:flex;align-items:baseline;gap:6px;min-width:0}.adminPrice small{text-decoration:line-through;color:#999187;font-size:8px}.adminPrice strong{font-size:14px!important}.adminPrice b{padding:3px 5px;border-radius:6px;background:#171717;color:#fff;font-size:7px}.addonCard{border-radius:15px!important;border:1px solid #e6e0d8!important;background:#fff!important;overflow:hidden!important}.addonEdit{padding:11px!important}.addonToggle{min-height:34px!important;background:#f6f3ee!important}
+
+/* V33.1 — densidade e alinhamento do catálogo administrativo */
+.productCard {
+  position: relative;
+  overflow: hidden;
+}
+.productCard button {
+  min-height: 40px;
+}
+.productActions,
+.actions {
+  align-items: stretch;
+}
+.productActions > button,
+.actions > button {
+  flex: 1 1 0;
+}
+@media (max-width: 640px) {
+  .productCard {
+    padding: 12px;
+  }
+  .productActions,
+  .actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+}

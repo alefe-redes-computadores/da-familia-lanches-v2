@@ -8,7 +8,9 @@ import { useAdminOrders } from "@/hooks/useAdminOrders";
 import { OrderCard } from "@/components/layout/OrderCard";
 import { RelatoriosAdmin } from "@/components/layout/RelatoriosAdmin";
 import { CatalogAdmin } from "@/components/admin/CatalogAdmin";
+import { CatalogOrganizerAdmin } from "@/components/admin/CatalogOrganizerAdmin";
 import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";
+import { SchedulingAdmin } from "@/components/admin/SchedulingAdmin";
 import { RewardsAdmin } from "@/components/admin/RewardsAdmin";
 import { CouponsAdmin } from "@/components/admin/CouponsAdmin";
 import { PublicPromotionsAdmin } from "@/components/admin/PublicPromotionsAdmin";
@@ -20,6 +22,7 @@ import { imprimirPedido } from "@/lib/printOrder";
 import { adminOrderSearchText, compareOperationalOrders, operationalAttention } from "@/lib/adminOrders";
 import styles from "./admin.module.css";
 import { FreeDeliveryAdmin } from "@/components/admin/FreeDeliveryAdmin";
+import { DeliveryRatesAdmin } from "@/components/admin/DeliveryRatesAdmin";
 
 const ADMINS = [
   "alefejohsefe@gmail.com",
@@ -190,9 +193,9 @@ export default function AdminPage() {
       {feedback && <div className={styles.feedback}>{feedback}<button onClick={() => setFeedback("")}>Fechar</button></div>}
 
       {tab === "catalogo" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogAdmin /></section>
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogOrganizerAdmin /><CatalogAdmin /></section>
       ) : tab === "operacao" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>OPERAÇÃO</span><h2>Funcionamento da loja</h2></div><p>Agenda automática, controle manual e exceções.</p></div><StoreOperationAdmin /></section>
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>OPERAÇÃO</span><h2>Funcionamento da loja</h2></div><p>Agenda automática, controle manual, exceções e regras de entrega.</p></div><StoreOperationAdmin /><SchedulingAdmin /><DeliveryRatesAdmin /></section>
       ) : tab === "cupons" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>PROMOÇÕES</span><h2>Cupons de desconto</h2></div><p>Crie, agende, pause e edite cupons sem mexer diretamente no banco.</p></div><CouponsAdmin /><PublicPromotionsAdmin /><FreeDeliveryAdmin /></section>
       ) : tab === "fidelidade" ? (
