@@ -114,17 +114,23 @@ async function hydrate(docId:string, data:Record<string,unknown>):Promise<Projec
   let phone = text(data.customer_phone);
   let name = text(data.customer_name) || null;
   let total = Number(data.total) || 0;
+  let order: Record<string,unknown> = {};
 
-  if (!phone || !name || !total || source === "entregas") {
-    const orderSnap = await adminDb.collection("Pedidos").doc(orderId).get();
-    if (!orderSnap.exists) return null;
-    const order = orderSnap.data() as Record<string,unknown>;
+  // O pedido continua sendo a autoridade comercial. Hidratamos o snapshot
+  // completo para a mensagem inicial usar os mesmos dados do checkout.
+  const orderSnap = await adminDb.collection("Pedidos").doc(orderId).get();
+  if (orderSnap.exists) {
+    order = orderSnap.data() as Record<string,unknown>;
     const customer = obj(order.customerSnapshot);
     phone = phone || text(customer.phoneE164) || text(customer.phone) || text(order.userPhone);
     name = name || text(customer.name) || text(order.userName) || null;
     total = total || Number(order.total) || 0;
   }
   if (!phone) return null;
+
+  const delivery = obj(order.deliverySnapshot);
+  const items = Array.isArray(order.itens) ? order.itens : [];
+  const fulfillment = text(order.tipoEntrega) === "pickup" ? "pickup" : "delivery";
 
   return {
     intent_id:docId,
@@ -138,6 +144,19 @@ async function hydrate(docId:string, data:Record<string,unknown>):Promise<Projec
       customer_name:name,
       order_number:orderId.slice(-8).toUpperCase(),
       total,
+      items,
+      payment_method:text(order.metodoPagamento)||null,
+      change_for:order.trocoPara??null,
+      fulfillment,
+      address:fulfillment === "delivery" ? {
+        street:text(delivery.street),
+        number:text(delivery.number),
+        district:text(delivery.district),
+        complement:text(delivery.complement),
+        reference:text(delivery.reference),
+      } : null,
+      delivery_fee:Number(order.taxaEntrega)||0,
+      discount:Number(order.desconto)||0,
       delivery_id:data.delivery_id??null,
       stops_ahead:data.stops_ahead??null,
       is_next_stop:data.is_next_stop===true,
