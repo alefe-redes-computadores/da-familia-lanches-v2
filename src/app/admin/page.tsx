@@ -8,7 +8,6 @@ import { useAdminOrders } from "@/hooks/useAdminOrders";
 import { OrderCard } from "@/components/layout/OrderCard";
 import { RelatoriosAdmin } from "@/components/layout/RelatoriosAdmin";
 import { CatalogAdmin } from "@/components/admin/CatalogAdmin";
-import { CatalogOrganizerAdmin } from "@/components/admin/CatalogOrganizerAdmin";
 import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";
 import { SchedulingAdmin } from "@/components/admin/SchedulingAdmin";
 import { RewardsAdmin } from "@/components/admin/RewardsAdmin";
@@ -205,7 +204,7 @@ export default function AdminPage() {
       {feedback && <div className={styles.feedback}>{feedback}<button onClick={() => setFeedback("")}>Fechar</button></div>}
 
       {tab === "catalogo" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogOrganizerAdmin /><CatalogAdmin /></section>
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogAdmin /></section>
       ) : tab === "operacao" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>FUNCIONAMENTO</span><h2>Loja agora & horários</h2></div><p>Abertura automática, forçada, modo de teste e agenda semanal.</p></div><StoreOperationAdmin /></section>
       ) : tab === "agendamentos" ? (

@@ -10,6 +10,7 @@ import { useCatalogCategories } from "@/hooks/useCatalogCategories";
 import { CATALOG_ADDONS_COLLECTION, CATALOG_PRODUCTS_COLLECTION } from "@/lib/catalog";
 import { CATALOG_CATEGORIES_COLLECTION, type CatalogCategory } from "@/lib/catalogCategories";
 import styles from "./CatalogAdmin.module.css";
+import { CatalogOrganizerAdmin } from "./CatalogOrganizerAdmin";
 
 
 type ProductDraft = {
@@ -38,6 +39,8 @@ type AddonDraft = {
   disponivel: boolean;
   sortOrder: string;
 };
+
+type CatalogView = "produtos" | "categorias" | "adicionais" | "ordem";
 
 function slugify(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
@@ -149,6 +152,7 @@ export function CatalogAdmin() {
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "active" | "paused">("all");
   const [categoryDraft, setCategoryDraft] = useState<{ id: string; label: string; mode: "create" | "edit" } | null>(null);
   const [categoryDeleteConfirm, setCategoryDeleteConfirm] = useState<string | null>(null);
+  const [view, setView] = useState<CatalogView>("produtos");
 
   const filteredProducts = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
@@ -390,6 +394,12 @@ export function CatalogAdmin() {
 
     {message && <div className={styles.message}><span>{message}</span><button onClick={() => setMessage("")}>×</button></div>}
 
+    <nav className={styles.viewTabs} aria-label="Seções do cardápio">
+      {([["produtos", "Produtos", products.length], ["categorias", "Categorias", categories.length], ["adicionais", "Adicionais", allAddons.length], ["ordem", "Ordem", null]] as Array<[CatalogView, string, number | null]>).map(([key, label, count]) => (
+        <button key={key} type="button" data-active={view === key} onClick={() => setView(key)}><span>{label}</span>{count !== null && <b>{count}</b>}</button>
+      ))}
+    </nav>
+    {view === "produtos" && <>
     <section className={styles.catalogTools}>
       <div className={styles.searchWrap}><span>BUSCAR</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, descrição ou ID" /></div>
       <ChoicePicker label="Categoria" value={categoryFilter} onChange={setCategoryFilter} options={[
@@ -429,11 +439,15 @@ export function CatalogAdmin() {
       {!filteredProducts.length && <div className={styles.empty}><strong>Nenhum produto encontrado</strong><span>Altere os filtros ou crie um novo produto.</span></div>}
     </div>
 
+    </>}
+    {view === "categorias" && <>
     <section className={styles.categoryPanel}>
       <div className={styles.sectionBar}><div><span>CATEGORIAS</span><strong>{categories.length} cadastradas</strong><small className={styles.sectionHint}>Organize as seções exibidas no cardápio.</small></div><button onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Nova categoria</button></div>
       <div className={styles.categoryGrid}>{categories.map((category,index)=>{const count=productsInCategory(category.id).length;return <article key={category.id} className={styles.categoryCard} data-off={!category.active}><div className={styles.categoryMain}><div><strong>{category.label}</strong><span>{category.id} · {count} produto{count===1?"":"s"}</span></div><b>{category.active?"VISÍVEL":"OCULTA"}</b></div><div className={styles.categoryActions}><button disabled={index===0||busy.startsWith("category-order-")} onClick={()=>moveCategory(category,-1)}>↑</button><button disabled={index===categories.length-1||busy.startsWith("category-order-")} onClick={()=>moveCategory(category,1)}>↓</button><button onClick={()=>setCategoryDraft({id:category.id,label:category.label,mode:"edit"})}>Renomear</button><button onClick={()=>toggleCategory(category)} disabled={busy===`category-toggle-${category.id}`}>{category.active?"Ocultar":"Reativar"}</button><button className={styles.dangerAction} data-confirm={categoryDeleteConfirm===category.id} onClick={()=>removeCategory(category)} disabled={busy===`category-delete-${category.id}`}>{categoryDeleteConfirm===category.id?"Confirmar":"Excluir"}</button></div></article>})}</div>
     </section>
 
+    </>}
+    {view === "adicionais" && <>
     <section className={styles.addonsPanel}>
       <div className={styles.sectionBar}><div><span>ADICIONAIS</span><strong>{allAddons.length} cadastrados</strong></div><button onClick={openCreateAddon}>+ Novo adicional</button></div>
       <div className={styles.addonGrid}>
@@ -443,6 +457,9 @@ export function CatalogAdmin() {
         </article>)}
       </div>
     </section>
+
+    </>}
+    {view === "ordem" && <CatalogOrganizerAdmin />}
 
     {categoryDraft && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setCategoryDraft(null); }}>
       <section className={styles.smallEditor}><div className={styles.editorHead}><div><span>{categoryDraft.mode === "create" ? "NOVA CATEGORIA" : "EDITAR CATEGORIA"}</span><h3>{categoryDraft.mode === "create" ? "Criar seção do cardápio" : categoryDraft.label}</h3></div><button onClick={() => setCategoryDraft(null)}>×</button></div>{categoryDraft.mode === "edit" && <div className={styles.idBox}><span>ID permanente</span><strong>{categoryDraft.id}</strong></div>}<label>Nome<input autoFocus value={categoryDraft.label} onChange={(e) => setCategoryDraft({ ...categoryDraft, label: e.target.value })} placeholder="Ex.: Porções" /></label><p className={styles.categoryHint}>O ID é permanente: renomear não quebra os produtos vinculados.</p><div className={styles.editorActions}><button onClick={() => setCategoryDraft(null)}>Cancelar</button><button className={styles.save} onClick={saveCategory} disabled={busy.startsWith("category-")}>{busy.startsWith("category-") ? "Salvando..." : "Salvar categoria"}</button></div></section>
