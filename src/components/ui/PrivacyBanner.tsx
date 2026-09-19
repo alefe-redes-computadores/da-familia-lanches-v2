@@ -20,7 +20,7 @@ export function PrivacyBanner() {
 
   return (
     <aside className={styles.banner} aria-label="Aviso de privacidade">
-      <div><strong>Privacidade, sem enrolação.</strong><p>Usamos armazenamento necessário para manter sua experiência e preferências. Consulte os detalhes quando quiser.</p></div>
+      <div><strong>Cookies e privacidade</strong><p>Usamos apenas o necessário para manter carrinho, login e preferências.</p></div>
       <div className={styles.actions}><button className={styles.terms} type="button" onClick={() => openModal("terms")}>Ver política</button><button className={styles.accept} type="button" onClick={() => { localStorage.setItem(STORAGE_KEY, "true"); setVisible(false); }}>Entendi</button></div>
     </aside>
   );

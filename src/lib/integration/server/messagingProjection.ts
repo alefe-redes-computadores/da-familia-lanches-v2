@@ -147,6 +147,55 @@ async function hydrate(docId:string, data:Record<string,unknown>):Promise<Projec
       items,
       payment_method:text(order.metodoPagamento)||null,
       change_for:order.trocoPara??null,
+
+      // Messaging V12 — fatos comerciais opcionais.
+      // Mantemos aliases tolerantes sem alterar o contrato do Pedido.
+      payment_status:
+        text(order.paymentStatus) ||
+        text(order.statusPagamento) ||
+        null,
+      is_paid:
+        order.isPaid === true ||
+        order.pago === true ||
+        ["paid","pago","approved","aprovado","confirmed","confirmado"]
+          .includes(
+            (
+              text(order.paymentStatus) ||
+              text(order.statusPagamento)
+            ).toLowerCase()
+          ),
+
+      scheduled:
+        order.isAgendamento === true ||
+        order.isScheduled === true ||
+        Boolean(
+          order.scheduledFor ||
+          order.scheduledAt ||
+          order.dataAgendamento ||
+          order.agendamento
+        ),
+
+      scheduled_for:
+        order.scheduledFor ??
+        order.scheduledAt ??
+        order.dataAgendamento ??
+        (
+          order.agendamento &&
+          typeof order.agendamento === "object" &&
+          !Array.isArray(order.agendamento)
+            ? (
+                order.agendamento as Record<string,unknown>
+              ).scheduledFor ??
+              (
+                order.agendamento as Record<string,unknown>
+              ).dateTime ??
+              (
+                order.agendamento as Record<string,unknown>
+              ).dataHora ??
+              null
+            : null
+        ),
+
       fulfillment,
       address:fulfillment === "delivery" ? {
         street:text(delivery.street),

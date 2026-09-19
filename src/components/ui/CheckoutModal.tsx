@@ -48,6 +48,7 @@ export function CheckoutModal() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const { profile, loading: profileLoading } = useUserProfile(currentUser);
   const hydratedProfileRef = useRef<string>("");
+  const customerEditingRef = useRef(false);
 
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -112,6 +113,7 @@ export function CheckoutModal() {
     });
     if (hydratedProfileRef.current === hydrationKey) return;
     hydratedProfileRef.current = hydrationKey;
+    if (customerEditingRef.current) return;
 
     setCustomerName(profile?.name || currentUser.displayName || "");
     setUserPhone(profile?.phone || "");
@@ -122,8 +124,8 @@ export function CheckoutModal() {
   }, [currentUser, profile, profileLoading]);
 
 
-  const selectSavedAddress=(a:SavedAddress)=>{setSelectedAddressId(a.id);setCep(a.cep);setRua(a.street);setNumero(a.number);setBairro(a.district);setComplemento(a.complement);setReferencia(a.reference);setManualMode(true);setAddressPickerOpen(false);setAddressEditorOpen(false);if(a.district)void calculateDeliveryFee(a.district);};
-  const startNewCheckoutAddress=()=>{setSelectedAddressId("");setCep("");setRua("");setNumero("");setBairro("");setComplemento("");setReferencia("");setManualMode(false);setAddressPickerOpen(false);setAddressEditorOpen(true);setDeliveryStatus("");};
+  const selectSavedAddress=(a:SavedAddress)=>{customerEditingRef.current=true;setSelectedAddressId(a.id);setCep(a.cep);setRua(a.street);setNumero(a.number);setBairro(a.district);setComplemento(a.complement);setReferencia(a.reference);setManualMode(true);setAddressPickerOpen(false);setAddressEditorOpen(false);if(a.district)void calculateDeliveryFee(a.district);};
+  const startNewCheckoutAddress=()=>{customerEditingRef.current=true;setSelectedAddressId("");setCep("");setRua("");setNumero("");setBairro("");setComplemento("");setReferencia("");setManualMode(false);setAddressPickerOpen(false);setAddressEditorOpen(true);setDeliveryStatus("");};
   const savedAddresses = profile?.addresses || [];
   const selectedSavedAddress = savedAddresses.find((address) => address.id === selectedAddressId);
   const addressLimitReached = savedAddresses.length >= 3;
@@ -465,8 +467,8 @@ export function CheckoutModal() {
               <button type="button" data-active={deliveryMode === "pickup"} onClick={() => setDeliveryMode("pickup")}><b>Retirada</b><small>Buscar no balcão</small></button>
             </div>
             <div className={styles.profileHint} data-loaded={Boolean(profile)}><div><strong>{profile ? "Dados carregados da sua conta" : "Seus dados de entrega"}</strong><span>{profile ? "Você pode alterar aqui. Salvamos a atualização depois do pedido." : "Preencha uma vez e os próximos pedidos ficam mais rápidos."}</span></div>{profileLoading && <b>Carregando…</b>}</div>
-            <label className={styles.label}>Nome para o pedido<input className={styles.input} data-invalid={Boolean(customerName && !nameReady)} placeholder="Seu nome" value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoComplete="name" /></label>
-            <label className={styles.label}>WhatsApp para contato e atualizações <span>(obrigatório)</span><input className={styles.input} data-invalid={Boolean(userPhone && !phoneReady)} placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => setUserPhone(formatPhoneBR(event.target.value))} inputMode="tel" autoComplete="tel" /></label>
+            <label className={styles.label}>Nome para o pedido<input className={styles.input} data-invalid={Boolean(customerName && !nameReady)} placeholder="Seu nome" value={customerName} onChange={(event) => { customerEditingRef.current = true; setCustomerName(event.target.value); }} autoComplete="name" /></label>
+            <label className={styles.label}>WhatsApp para contato e atualizações <span>(obrigatório)</span><input className={styles.input} data-invalid={Boolean(userPhone && !phoneReady)} placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => { customerEditingRef.current = true; setUserPhone(formatPhoneBR(event.target.value)); }} inputMode="tel" autoComplete="tel" /></label>
             {deliveryMode === "delivery" ? <>
               <section className={styles.addressChoice}>
                 <div className={styles.addressHeading}>
@@ -490,10 +492,10 @@ export function CheckoutModal() {
                 </div>}
                 {(!rua || addressEditorOpen) && <div className={styles.addressForm}>
                   <div className={styles.newAddressIntro}><strong>{savedAddresses.length ? "Novo endereço" : "Seu primeiro endereço"}</strong><span>Busque pelo CEP para preencher mais rápido.</span></div>
-                  {!manualMode&&<div className={styles.inline}><input className={styles.input} placeholder="CEP" value={cep} onChange={e=>setCep(formatCEPBR(e.target.value))} onBlur={()=>{if(cep.replace(/\D/g,"").length===8)void handleSearchCep();}} inputMode="numeric" autoComplete="postal-code"/><button className={styles.yellowButton} type="button" onClick={()=>void handleSearchCep()} disabled={loading}>{loading?"Buscando…":"Buscar"}</button></div>}
-                  <input className={styles.input} placeholder="Rua" value={rua} onChange={e=>setRua(e.target.value)} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
-                  <div className={styles.addressGrid}><input className={styles.input} placeholder="Número" value={numero} onChange={e=>setNumero(e.target.value)} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={e=>setBairro(e.target.value)} onBlur={()=>{if(manualMode&&bairro.trim())void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
-                  <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>setComplemento(e.target.value)} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>setReferencia(e.target.value)}/>{deliveryStatus&&<div className={styles.info}>{deliveryStatus}</div>}
+                  {!manualMode&&<div className={styles.inline}><input className={styles.input} placeholder="CEP" value={cep} onChange={e=>{customerEditingRef.current=true;setCep(formatCEPBR(e.target.value))}} onBlur={()=>{if(cep.replace(/\D/g,"").length===8)void handleSearchCep();}} inputMode="numeric" autoComplete="postal-code"/><button className={styles.yellowButton} type="button" onClick={()=>void handleSearchCep()} disabled={loading}>{loading?"Buscando…":"Buscar"}</button></div>}
+                  <input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
+                  <div className={styles.addressGrid}><input className={styles.input} placeholder="Número" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={e=>{customerEditingRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim())void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
+                  <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info}>{deliveryStatus}</div>}
                   <div className={styles.addressFormActions}><button className={styles.linkButton} type="button" onClick={()=>setManualMode(v=>!v)}>{manualMode?"Usar busca por CEP":"Preencher manualmente"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
               </section>
