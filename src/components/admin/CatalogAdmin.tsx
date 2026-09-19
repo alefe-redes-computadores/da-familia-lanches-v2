@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { deleteDoc, deleteField, doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { products as fallbackProducts, type Product, type ProductCategory } from "@/data/products";
 import { ADDONS as fallbackAddons, type Addon } from "@/data/addons";
 import { useCatalog } from "@/hooks/useCatalog";
@@ -144,7 +143,6 @@ export function CatalogAdmin() {
   const [categoryFilter, setCategoryFilter] = useState<"all" | ProductCategory>("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "active" | "paused">("all");
   const [confirmSeed, setConfirmSeed] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [categoryDraft, setCategoryDraft] = useState<{ id: string; label: string; mode: "create" | "edit" } | null>(null);
   const [categoryDeleteConfirm, setCategoryDeleteConfirm] = useState<string | null>(null);
 
@@ -193,22 +191,6 @@ export function CatalogAdmin() {
     setProductMode("edit");
     setProductDraft(draftFromProduct(product));
     setMessage("");
-  };
-
-  const uploadProductImage = async (file: File) => {
-    if (!productDraft) return;
-    if (!file.type.startsWith("image/")) return setMessage("Escolha uma imagem.");
-    if (file.size > 6 * 1024 * 1024) return setMessage("A foto deve ter no máximo 6 MB.");
-    setUploadingImage(true); setMessage("");
-    try {
-      const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg";
-      const base=(productDraft.id||productDraft.name||"produto").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"produto";
-      const objectRef=ref(storage,`catalog/products/${base}-${Date.now()}.${ext}`);
-      await uploadBytes(objectRef,file,{contentType:file.type,customMetadata:{scope:"catalog-product"}});
-      const url=await getDownloadURL(objectRef);
-      setProductDraft(d=>d?{...d,image:url}:d); setMessage("Foto enviada. Agora salve o produto.");
-    } catch(error){console.error(error);setMessage("Falha no upload. Confira se as regras do Storage foram publicadas.");}
-    finally{setUploadingImage(false);}
   };
 
   const saveProduct = async () => {
@@ -276,66 +258,6 @@ export function CatalogAdmin() {
     } catch (error) {
       console.error(error);
       setMessage("Falha ao alterar a disponibilidade.");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const publishFamilyOffers = async () => {
-    const familyOfferIds = new Set([
-      "combo-familia-uai",
-      "combo-bitela-oferta",
-      "combo-apruma-oferta",
-      "combo-4-uai",
-      "combo-armaria-oferta",
-      "combo-7-uai",
-    ]);
-
-    const offers = fallbackProducts.filter((product) =>
-      familyOfferIds.has(product.id)
-    );
-
-    if (offers.length !== familyOfferIds.size) {
-      setMessage(
-        `Publicação cancelada: encontrei ${offers.length} de ${familyOfferIds.size} ofertas no catálogo-base.`
-      );
-      return;
-    }
-
-    setBusy("publish-family-offers");
-    setMessage("");
-
-    try {
-      const batch = writeBatch(db);
-
-      offers.forEach((product) => {
-        batch.set(
-          doc(db, CATALOG_PRODUCTS_COLLECTION, product.id),
-          {
-            ...product,
-            oldPrice: product.oldPrice ?? null,
-            isSuggestion: Boolean(product.isSuggestion),
-            promoPlacement: product.promoPlacement ?? "home_showcase",
-            sortOrder: product.sortOrder ?? null,
-            addonIds: product.addonIds ?? null,
-            migratedFromFallback: true,
-            familyOfferV35: true,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      });
-
-      await batch.commit();
-
-      setMessage(
-        `${offers.length} Ofertas da Família publicadas na nuvem. Agora você pode editar cada promoção normalmente.`
-      );
-    } catch (error) {
-      console.error(error);
-      setMessage(
-        "Não foi possível publicar as Ofertas da Família. Os demais produtos não foram enviados."
-      );
     } finally {
       setBusy("");
     }
@@ -418,12 +340,6 @@ export function CatalogAdmin() {
     setBusy(`category-delete-${category.id}`); try{await deleteDoc(doc(db,CATALOG_CATEGORIES_COLLECTION,category.id));setCategoryDeleteConfirm(null);setMessage("Categoria vazia excluída.");}catch(error){console.error(error);setMessage("Não foi possível excluir a categoria.");}finally{setBusy("");}
   };
 
-  const moveProduct = async (product: Product, direction: -1 | 1) => {
-    const ordered=products.filter((item)=>item.category===product.category&&item.disponivel!==false).sort((a,b)=>(a.sortOrder??Number.MAX_SAFE_INTEGER)-(b.sortOrder??Number.MAX_SAFE_INTEGER)||a.name.localeCompare(b.name,"pt-BR")); const index=ordered.findIndex((item)=>item.id===product.id); const target=index+direction; if(index<0||target<0||target>=ordered.length)return;
-    [ordered[index],ordered[target]]=[ordered[target],ordered[index]]; setBusy(`product-order-${product.id}`);
-    try{const batch=writeBatch(db);ordered.forEach((item,pos)=>batch.set(doc(db,CATALOG_PRODUCTS_COLLECTION,item.id),{sortOrder:pos*10,updatedAt:serverTimestamp()},{merge:true}));await batch.commit();setMessage(`Ordem de ${categoryLabel(product.category)} atualizada.`);}catch(error){console.error(error);setMessage("Não foi possível reordenar os produtos.");}finally{setBusy("");}
-  };
-
   const openCreateAddon = () => {
     setAddonMode("create");
     setAddonDraft({ id: "", name: "", price: "", disponivel: true, sortOrder: "" });
@@ -492,9 +408,10 @@ export function CatalogAdmin() {
   return <div className={styles.root}>
     <section className={styles.summary}>
       <div className={styles.summaryCopy}>
-        <span>FONTE ATUAL</span>
-        <strong>{source === "hybrid" ? "Catálogo remoto operacional" : "Fallback local ativo"}</strong>
-        <p>{remoteProducts} produtos, {remoteAddons} adicionais e {remoteCategories} categorias com versão remota.</p>
+        <span>CATÁLOGO</span>
+        <strong>Central do cardápio</strong>
+        <p>Produtos, disponibilidade, ofertas e estrutura da vitrine.</p>
+        <small>{source === "hybrid" ? "Nuvem operacional" : "Fallback local"} · {remoteProducts} produtos · {remoteAddons} adicionais · {remoteCategories} categorias remotas</small>
       </div>
       <div className={styles.summaryActions}>
         <button className={styles.secondaryAction} onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Categoria</button><button className={styles.secondaryAction} onClick={openCreateAddon}>+ Adicional</button>
@@ -525,7 +442,7 @@ export function CatalogAdmin() {
     </section>
 
     <div className={styles.sectionBar}>
-      <div><span>PRODUTOS</span><strong>{filteredProducts.length} exibidos</strong></div>
+      <div><span>PRODUTOS</span><strong>Gerenciar cardápio</strong><small className={styles.sectionHint}>{filteredProducts.length} exibidos</small></div>
       {(search || categoryFilter !== "all" || availabilityFilter !== "all") && <button onClick={() => { setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); }}>Limpar filtros</button>}
     </div>
 
@@ -541,7 +458,6 @@ export function CatalogAdmin() {
               <div className={styles.productBottom}><div className={styles.adminPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <small>{money(product.oldPrice)}</small>}<strong>{money(product.price)}</strong>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <b>-{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%</b>}</div><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
             </div>
             <div className={styles.actions}>
-              {product.disponivel ? <div className={styles.orderActions}><button title="Subir produto" onClick={() => moveProduct(product, -1)} disabled={busy.startsWith("product-order-")}>↑</button><button title="Descer produto" onClick={() => moveProduct(product, 1)} disabled={busy.startsWith("product-order-")}>↓</button></div> : <div className={styles.orderPlaceholder}>Fora da ordem pública</div>}
               <button onClick={() => toggleProduct(product)} disabled={busy === `toggle-${product.id}`}>{product.disponivel ? "Pausar" : "Reativar"}</button>
               <button className={styles.primary} onClick={() => openEditProduct(product)}>Editar</button>
             </div>
@@ -552,7 +468,7 @@ export function CatalogAdmin() {
     </div>
 
     <section className={styles.categoryPanel}>
-      <div className={styles.sectionBar}><div><span>CATEGORIAS & ORDEM DA HOME</span><strong>{categories.length} cadastradas</strong><small className={styles.sectionHint}>Use ↑ ↓ para definir a sequência pública.</small></div><button onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Nova categoria</button></div>
+      <div className={styles.sectionBar}><div><span>CATEGORIAS</span><strong>{categories.length} cadastradas</strong><small className={styles.sectionHint}>Organize as seções exibidas no cardápio.</small></div><button onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Nova categoria</button></div>
       <div className={styles.categoryGrid}>{categories.map((category,index)=>{const count=productsInCategory(category.id).length;return <article key={category.id} className={styles.categoryCard} data-off={!category.active}><div className={styles.categoryMain}><div><strong>{category.label}</strong><span>{category.id} · {count} produto{count===1?"":"s"}</span></div><b>{category.active?"VISÍVEL":"OCULTA"}</b></div><div className={styles.categoryActions}><button disabled={index===0||busy.startsWith("category-order-")} onClick={()=>moveCategory(category,-1)}>↑</button><button disabled={index===categories.length-1||busy.startsWith("category-order-")} onClick={()=>moveCategory(category,1)}>↓</button><button onClick={()=>setCategoryDraft({id:category.id,label:category.label,mode:"edit"})}>Renomear</button><button onClick={()=>toggleCategory(category)} disabled={busy===`category-toggle-${category.id}`}>{category.active?"Ocultar":"Reativar"}</button><button className={styles.dangerAction} data-confirm={categoryDeleteConfirm===category.id} onClick={()=>removeCategory(category)} disabled={busy===`category-delete-${category.id}`}>{categoryDeleteConfirm===category.id?"Confirmar":"Excluir"}</button></div></article>})}</div>
     </section>
 
@@ -568,16 +484,7 @@ export function CatalogAdmin() {
 
     <section className={styles.maintenance}>
       <div><span>MANUTENÇÃO</span><strong>Fallback local</strong><p>Reaplica categorias, produtos e adicionais-base no Firestore sem remover itens criados pelo Admin.</p></div>
-      <button
-          type="button"
-          className={styles.secondaryAction}
-          disabled={Boolean(busy)}
-          onClick={() => void publishFamilyOffers()}
-        >
-          {busy === "publish-family-offers"
-            ? "Publicando ofertas…"
-            : "Publicar 6 novas ofertas"}
-        </button>
+
         <button data-confirm={confirmSeed} onClick={seedCatalog} disabled={busy === "seed"}>{busy === "seed" ? "Sincronizando..." : confirmSeed ? "Confirmar sincronização" : "Sincronizar catálogo-base"}</button>
       {confirmSeed && <button className={styles.cancelSeed} onClick={() => setConfirmSeed(false)}>Cancelar</button>}
     </section>
@@ -613,9 +520,8 @@ export function CatalogAdmin() {
             </div>
             {(() => { const promo=promoMetrics(productDraft.price,productDraft.oldPrice); return promo ? <div className={styles.promoPreview}><div><span>CLIENTE ECONOMIZA</span><strong>{money(promo.saving)}</strong></div><b>-{promo.percent}%</b><small>De {money(promo.oldPrice)} por {money(promo.price)}</small></div> : <p className={styles.promoHint}>Informe um preço anterior maior que o atual para ativar a apresentação promocional no cardápio.</p>; })()}
           </div>
-          <div className={styles.photoUpload}><label className={styles.photoButton}>{uploadingImage ? "Enviando..." : "Escolher foto do celular"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingImage} onChange={(e)=>{const file=e.target.files?.[0];if(file)void uploadProductImage(file);e.currentTarget.value="";}} /></label><small>JPG, PNG ou WebP · até 6 MB. O campo de URL continua funcionando.</small></div>
+          <div className={styles.photoUpload}><small>Imagem hospedada pelo próprio site. Use um caminho como <strong>/img/combo-familia-uai.jpg</strong> ou uma URL HTTPS.</small></div>
           <div className={styles.formChoice}><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={categoryOptions} /></div>
-          <label>Ordem<input inputMode="numeric" value={productDraft.sortOrder} onChange={(e) => setProductDraft({ ...productDraft, sortOrder: e.target.value })} placeholder="Opcional" /></label>
           <label className={styles.full}>Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /></label>
         </div>
         {productDraft.image.trim() && <div className={styles.preview}><img src={productDraft.image} alt="" /><div><span>PRÉVIA</span><strong>{productDraft.name || "Novo produto"}</strong><small>{productDraft.image}</small></div></div>}
