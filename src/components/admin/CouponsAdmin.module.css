@@ -2,8 +2,11 @@
 
 /* DFL-V34.7-CONTROLS */
 .wrap :global(select){appearance:none;-webkit-appearance:none;background-color:#fff;background-image:linear-gradient(45deg,transparent 50%,#777 50%),linear-gradient(135deg,#777 50%,transparent 50%);background-position:calc(100% - 14px) 50%,calc(100% - 10px) 50%;background-size:4px 4px,4px 4px;background-repeat:no-repeat;padding-right:28px!important}
-select:focus,input:focus,textarea:focus{outline:none;border-color:#d5ad2b!important;box-shadow:0 0 0 3px rgba(213,173,43,.12)}.wrap :global(button){touch-action:manipulation}button:active{transform:scale(.985)}
+.wrap :global(select:focus),.wrap :global(input:focus),.wrap :global(textarea:focus){outline:none;border-color:#d5ad2b!important;box-shadow:0 0 0 3px rgba(213,173,43,.12)}.wrap :global(button){touch-action:manipulation}.wrap :global(button:active){transform:scale(.985)}
 
 
 /* DFL-V34.7-TOP-FEEDBACK */
 .feedback{position:fixed!important;top:max(12px,calc(env(safe-area-inset-top) + 8px))!important;left:50%!important;transform:translateX(-50%)!important;z-index:10050!important;width:min(92vw,500px)!important;margin:0!important;box-shadow:0 16px 45px rgba(0,0,0,.22)!important}
+
+/* DFL-V36-ADMIN-POLISH */
+.wrap{gap:10px}.editor,.listCard{border-color:#ded8ce;border-radius:16px;padding:12px;box-shadow:0 7px 22px rgba(20,17,12,.035)}.editor{gap:9px}.grid{gap:7px}.grid input,.grid select,.full textarea,.listHeader input{min-height:38px!important;border-radius:10px!important;background:#fff!important;padding:8px 10px!important}.full textarea{min-height:66px!important;resize:vertical}.switchRow{padding:9px 10px;border-radius:11px}.primary{min-height:40px}.list{gap:6px}.coupon{padding:10px 11px;border-radius:12px;background:#fbfaf8}.couponTop>div>strong{font-size:14px}.meta{margin-top:7px;padding-top:7px}.actions{margin-top:7px;gap:5px}.actions button{padding:7px 9px}.feedback{background:#171715!important;color:#fff!important;border:1px solid #302e2a!important}@media(max-width:480px){.editor,.listCard{padding:10px}.grid{grid-template-columns:1fr 1fr}.grid label:first-child,.grid label:nth-child(5),.grid label:nth-child(6){grid-column:1/-1}.actions{grid-template-columns:1fr 1fr 1fr}.actions button[data-danger="true"]{grid-column:auto}}
