@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import { deleteDoc, deleteField, doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { products as fallbackProducts, type Product, type ProductCategory } from "@/data/products";
-import { ADDONS as fallbackAddons, type Addon } from "@/data/addons";
+import { type Product, type ProductCategory } from "@/data/products";
+import { type Addon } from "@/data/addons";
 import { useCatalog } from "@/hooks/useCatalog";
 import { useCatalogCategories } from "@/hooks/useCatalogCategories";
 import { CATALOG_ADDONS_COLLECTION, CATALOG_PRODUCTS_COLLECTION } from "@/lib/catalog";
-import { CATALOG_CATEGORIES_COLLECTION, FALLBACK_CATEGORIES, type CatalogCategory } from "@/lib/catalogCategories";
+import { CATALOG_CATEGORIES_COLLECTION, type CatalogCategory } from "@/lib/catalogCategories";
 import styles from "./CatalogAdmin.module.css";
 
 
@@ -95,6 +95,11 @@ function moneyDraft(value: string) {
   const number = parseMoneyInput(value);
   return number == null ? "" : number.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function moneyTyping(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  return (Number(digits) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 function promoMetrics(priceText: string, oldPriceText: string) {
   const price = parseMoneyInput(priceText);
   const oldPrice = parseMoneyInput(oldPriceText);
@@ -142,7 +147,6 @@ export function CatalogAdmin() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | ProductCategory>("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "active" | "paused">("all");
-  const [confirmSeed, setConfirmSeed] = useState(false);
   const [categoryDraft, setCategoryDraft] = useState<{ id: string; label: string; mode: "create" | "edit" } | null>(null);
   const [categoryDeleteConfirm, setCategoryDeleteConfirm] = useState<string | null>(null);
 
@@ -258,48 +262,6 @@ export function CatalogAdmin() {
     } catch (error) {
       console.error(error);
       setMessage("Falha ao alterar a disponibilidade.");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const seedCatalog = async () => {
-    if (!confirmSeed) {
-      setConfirmSeed(true);
-      return;
-    }
-
-    setBusy("seed");
-    setMessage("");
-    try {
-      const batch = writeBatch(db);
-      FALLBACK_CATEGORIES.forEach((category) => batch.set(doc(db, CATALOG_CATEGORIES_COLLECTION, category.id), { ...category, migratedFromFallback: true, updatedAt: serverTimestamp() }, { merge: true }));
-      fallbackProducts.forEach((product, index) => {
-        batch.set(doc(db, CATALOG_PRODUCTS_COLLECTION, product.id), {
-          ...product,
-          oldPrice: product.oldPrice ?? null,
-          isSuggestion: Boolean(product.isSuggestion),
-          sortOrder: product.sortOrder ?? index,
-          addonIds: product.addonIds ?? null,
-          migratedFromFallback: true,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
-      });
-      fallbackAddons.forEach((addon, index) => {
-        batch.set(doc(db, CATALOG_ADDONS_COLLECTION, addon.id), {
-          ...addon,
-          disponivel: addon.disponivel !== false,
-          sortOrder: addon.sortOrder ?? index,
-          migratedFromFallback: true,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
-      });
-      await batch.commit();
-      setConfirmSeed(false);
-      setMessage("Catálogo-base sincronizado sem remover itens criados no Admin.");
-    } catch (error) {
-      console.error(error);
-      setMessage("Não foi possível sincronizar o catálogo-base.");
     } finally {
       setBusy("");
     }
@@ -482,13 +444,6 @@ export function CatalogAdmin() {
       </div>
     </section>
 
-    <section className={styles.maintenance}>
-      <div><span>MANUTENÇÃO</span><strong>Fallback local</strong><p>Reaplica categorias, produtos e adicionais-base no Firestore sem remover itens criados pelo Admin.</p></div>
-
-        <button data-confirm={confirmSeed} onClick={seedCatalog} disabled={busy === "seed"}>{busy === "seed" ? "Sincronizando..." : confirmSeed ? "Confirmar sincronização" : "Sincronizar catálogo-base"}</button>
-      {confirmSeed && <button className={styles.cancelSeed} onClick={() => setConfirmSeed(false)}>Cancelar</button>}
-    </section>
-
     {categoryDraft && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setCategoryDraft(null); }}>
       <section className={styles.smallEditor}><div className={styles.editorHead}><div><span>{categoryDraft.mode === "create" ? "NOVA CATEGORIA" : "EDITAR CATEGORIA"}</span><h3>{categoryDraft.mode === "create" ? "Criar seção do cardápio" : categoryDraft.label}</h3></div><button onClick={() => setCategoryDraft(null)}>×</button></div>{categoryDraft.mode === "edit" && <div className={styles.idBox}><span>ID permanente</span><strong>{categoryDraft.id}</strong></div>}<label>Nome<input autoFocus value={categoryDraft.label} onChange={(e) => setCategoryDraft({ ...categoryDraft, label: e.target.value })} placeholder="Ex.: Porções" /></label><p className={styles.categoryHint}>O ID é permanente: renomear não quebra os produtos vinculados.</p><div className={styles.editorActions}><button onClick={() => setCategoryDraft(null)}>Cancelar</button><button className={styles.save} onClick={saveCategory} disabled={busy.startsWith("category-")}>{busy.startsWith("category-") ? "Salvando..." : "Salvar categoria"}</button></div></section>
     </div>}
@@ -515,8 +470,8 @@ export function CatalogAdmin() {
           <div className={`${styles.full} ${styles.commercialBlock}`}>
             <div className={styles.commercialHead}><div><span>PREÇO & PROMOÇÃO</span><strong>Venda do produto</strong></div>{promoMetrics(productDraft.price, productDraft.oldPrice) ? <b>OFERTA ATIVA</b> : <small>Preço anterior é opcional</small>}</div>
             <div className={styles.priceFields}>
-              <label>Preço atual<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: e.target.value })} onBlur={(e) => setProductDraft({ ...productDraft, price: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
-              <label>Preço anterior<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: e.target.value })} onBlur={(e) => setProductDraft({ ...productDraft, oldPrice: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
+              <label>Preço atual<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: moneyTyping(e.target.value) })} onBlur={(e) => setProductDraft({ ...productDraft, price: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
+              <label>Preço anterior<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: moneyTyping(e.target.value) })} onBlur={(e) => setProductDraft({ ...productDraft, oldPrice: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
             </div>
             {(() => { const promo=promoMetrics(productDraft.price,productDraft.oldPrice); return promo ? <div className={styles.promoPreview}><div><span>CLIENTE ECONOMIZA</span><strong>{money(promo.saving)}</strong></div><b>-{promo.percent}%</b><small>De {money(promo.oldPrice)} por {money(promo.price)}</small></div> : <p className={styles.promoHint}>Informe um preço anterior maior que o atual para ativar a apresentação promocional no cardápio.</p>; })()}
           </div>
@@ -543,7 +498,7 @@ export function CatalogAdmin() {
         <div className={styles.editorHead}><div><span>{addonMode === "create" ? "NOVO ADICIONAL" : "EDITAR ADICIONAL"}</span><h3>{addonMode === "create" ? "Cadastrar adicional" : addonDraft.name}</h3></div><button onClick={() => { setAddonDraft(null); setAddonMode(null); }}>×</button></div>
         {addonMode === "edit" && <div className={styles.idBox}><span>ID permanente</span><strong>{addonDraft.id}</strong></div>}
         <label>Nome<input value={addonDraft.name} onChange={(e) => setAddonDraft({ ...addonDraft, name: e.target.value })} /></label>
-        <label>Preço<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={addonDraft.price} onChange={(e) => setAddonDraft({ ...addonDraft, price: e.target.value })} onBlur={(e) => setAddonDraft({ ...addonDraft, price: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
+        <label>Preço<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={addonDraft.price} onChange={(e) => setAddonDraft({ ...addonDraft, price: moneyTyping(e.target.value) })} onBlur={(e) => setAddonDraft({ ...addonDraft, price: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
         <label>Ordem<input inputMode="numeric" value={addonDraft.sortOrder} onChange={(e) => setAddonDraft({ ...addonDraft, sortOrder: e.target.value })} placeholder="Opcional" /></label>
         <button className={styles.availability} data-on={addonDraft.disponivel} onClick={() => setAddonDraft({ ...addonDraft, disponivel: !addonDraft.disponivel })}><i />{addonDraft.disponivel ? "Disponível" : "Pausado"}</button>
         <div className={styles.editorActions}><button onClick={() => { setAddonDraft(null); setAddonMode(null); }}>Cancelar</button><button className={styles.save} onClick={saveAddon} disabled={busy.startsWith("addon-")}>{busy.startsWith("addon-") ? "Salvando..." : addonMode === "create" ? "Criar adicional" : "Salvar alterações"}</button></div>
