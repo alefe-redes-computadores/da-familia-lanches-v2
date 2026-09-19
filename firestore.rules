@@ -72,6 +72,15 @@ service cloud.firestore {
       allow read, list, update, delete: if isAdmin();
     }
 
+    match /analytics_daily_v2/{documentId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /analytics_dimensions_v2/{documentId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
     match /Entregadores/{entregadorId} { allow read, write: if isAdmin(); }
     match /settings/{documentId} { allow read: if true; allow write: if isAdmin(); }
     match /Cupons/{cupomId} { allow get: if true; allow list: if isAdmin(); allow create, update, delete: if isAdmin(); }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { normalizePaymentMethod, orderDateToDate, paymentLabel } from "@/lib/orderCompat";
 import styles from "./RelatoriosAdmin.module.css";
+import { projectOrdersV2 } from "@/lib/analytics/orderProjection";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -23,8 +24,9 @@ export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
     return diff >= 0 && diff < filtroDias;
   }), [pedidos, filtroDias]);
 
-  const totalVendido = pedidosFiltrados.reduce((sum, pedido) => sum + Number(pedido.total || 0), 0);
-  const totalPedidos = pedidosFiltrados.length;
+  const analyticsV2 = useMemo(() => projectOrdersV2(pedidos, filtroDias), [pedidos, filtroDias]);
+  const totalVendido = analyticsV2.revenue;
+  const totalPedidos = analyticsV2.totalSales;
   const ticketMedio = totalPedidos ? totalVendido / totalPedidos : 0;
 
   const porMetodo = useMemo(() => pedidosFiltrados.reduce<Record<string, number>>((acc, pedido) => {

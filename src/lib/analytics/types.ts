@@ -1,0 +1,2 @@
+export type AnalyticsDailyV2={dateKey:string;salesCount:number;revenue:number;subtotal:number;deliveryFees:number;discounts:number;deliveries:number;pickups:number;scheduled:number;payments:Record<string,{count:number;revenue:number}>};
+export type AnalyticsSummaryV2={source:"projection"|"legacy";days:AnalyticsDailyV2[];totalSales:number;revenue:number;subtotal:number;deliveryFees:number;discounts:number;deliveries:number;pickups:number;scheduled:number;payments:Record<string,{count:number;revenue:number}>};
