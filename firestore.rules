@@ -72,6 +72,12 @@ service cloud.firestore {
       allow read, list, update, delete: if isAdmin();
     }
 
+    match /analytics_order_state_v2/{documentId} {
+      allow read, create, update, delete: if false;
+    }
+    match /analytics_projector_checkpoints/{documentId} {
+      allow read, create, update, delete: if false;
+    }
     match /analytics_daily_v2/{documentId} {
       allow read: if isAdmin();
       allow create, update, delete: if false;

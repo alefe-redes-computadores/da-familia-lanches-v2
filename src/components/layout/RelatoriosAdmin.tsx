@@ -1,103 +1,15 @@
 "use client";
-
-import { useMemo, useState } from "react";
-import { normalizarStatus } from "@/lib/orderUtils";
-import { normalizePaymentMethod, orderDateToDate, paymentLabel } from "@/lib/orderCompat";
+import { useMemo,useState } from "react";
+import { useAnalyticsReportsV2,type AnalyticsDayV2 } from "@/hooks/useAnalyticsReportsV2";
 import styles from "./RelatoriosAdmin.module.css";
-import { projectOrdersV2 } from "@/lib/analytics/orderProjection";
-
-const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-export function RelatoriosAdmin({ pedidos }: { pedidos: any[] }) {
-  const [filtroDias, setFiltroDias] = useState(0);
-
-  const pedidosFiltrados = useMemo(() => pedidos.filter((pedido) => {
-    if (normalizarStatus(pedido.status) !== "Finalizado") return false;
-    const date = orderDateToDate(pedido.data);
-    if (!date) return false;
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const orderDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-    const diff = Math.floor((today - orderDay) / 86400000);
-    if (filtroDias === 0) return diff === 0;
-    if (filtroDias === 1) return diff === 1;
-    return diff >= 0 && diff < filtroDias;
-  }), [pedidos, filtroDias]);
-
-  const analyticsV2 = useMemo(() => projectOrdersV2(pedidos, filtroDias), [pedidos, filtroDias]);
-  const totalVendido = analyticsV2.revenue;
-  const totalPedidos = analyticsV2.totalSales;
-  const ticketMedio = totalPedidos ? totalVendido / totalPedidos : 0;
-
-  const porMetodo = useMemo(() => pedidosFiltrados.reduce<Record<string, number>>((acc, pedido) => {
-    const method = normalizePaymentMethod(pedido.metodoPagamento);
-    acc[method] = (acc[method] || 0) + Number(pedido.total || 0);
-    return acc;
-  }, {}), [pedidosFiltrados]);
-
-  const entregas = pedidosFiltrados.filter((pedido) => pedido.tipoEntrega !== "pickup").length;
-  const retiradas = pedidosFiltrados.filter((pedido) => pedido.tipoEntrega === "pickup").length;
-
-  return (
-    <div className={styles.root}>
-      <div className={styles.filters}>
-        {[
-          { label: "Hoje", value: 0 },
-          { label: "Ontem", value: 1 },
-          { label: "7 dias", value: 7 },
-          { label: "30 dias", value: 30 },
-        ].map((filter) => (
-          <button key={filter.label} data-active={filtroDias === filter.value} onClick={() => setFiltroDias(filter.value)}>
-            {filter.label}
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.kpis}>
-        <article><span>Faturamento finalizado</span><strong>{money(totalVendido)}</strong></article>
-        <article><span>Pedidos finalizados</span><strong>{totalPedidos}</strong></article>
-        <article><span>Ticket medio</span><strong>{money(ticketMedio)}</strong></article>
-        <article><span>Atendimento</span><strong>{entregas} entrega{entregas === 1 ? "" : "s"} · {retiradas} retirada{retiradas === 1 ? "" : "s"}</strong></article>
-      </div>
-
-      <section className={styles.panel}>
-        <div className={styles.panelTitle}>
-          <div><span>PAGAMENTOS</span><h3>Vendas por metodo</h3></div>
-          <small>{totalPedidos ? "Base: pedidos finalizados" : "Sem vendas no periodo"}</small>
-        </div>
-
-        <div className={styles.methods}>
-          {Object.entries(porMetodo).length === 0 ? (
-            <div className={styles.noData}>Sem dados de pagamento neste periodo.</div>
-          ) : Object.entries(porMetodo)
-            .sort(([, a], [, b]) => b - a)
-            .map(([method, value]) => {
-              const percentage = totalVendido > 0 ? (value / totalVendido) * 100 : 0;
-              return (
-                <div className={styles.method} key={method}>
-                  <div><span>{paymentLabel(method)}</span><b>{money(value)} · {percentage.toFixed(0)}%</b></div>
-                  <div className={styles.bar}><i style={{ width: `${Math.min(100, percentage)}%` }} /></div>
-                </div>
-              );
-            })}
-        </div>
-      </section>
-
-      <section className={styles.panel}>
-        <div className={styles.panelTitle}>
-          <div><span>HISTORICO</span><h3>Pedidos finalizados no periodo</h3></div>
-          <small>{totalPedidos} registro{totalPedidos === 1 ? "" : "s"}</small>
-        </div>
-        <div className={styles.history}>
-          {pedidosFiltrados.length === 0 ? <div className={styles.noData}>Nenhum pedido finalizado neste periodo.</div> :
-            pedidosFiltrados.slice(0, 30).map((pedido) => (
-              <div className={styles.historyRow} key={pedido.id}>
-                <div><b>#{String(pedido.id).slice(-6).toUpperCase()}</b><span>{pedido.userName || "Cliente"}</span></div>
-                <div><b>{money(Number(pedido.total || 0))}</b><span>{pedido.tipoEntrega === "pickup" ? "Retirada" : "Entrega"}</span></div>
-              </div>
-            ))}
-        </div>
-      </section>
-    </div>
-  );
-}
+const money=(v:number)=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const label=(k:string)=>k==="pix"?"PIX":k==="dinheiro"?"Dinheiro":k.startsWith("cartao")?"Cartão":k.replaceAll("_"," ");
+const dk=(d:Date)=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+const shift=(n:number)=>{const d=new Date();d.setDate(d.getDate()-n);return dk(d)};
+function merge(days:AnalyticsDayV2[]){const o={sales:0,revenue:0,subtotal:0,deliveryFees:0,discounts:0,delivery:0,pickup:0,scheduled:0,immediate:0,logisticsCompleted:0,payments:{} as Record<string,number>,products:{} as Record<string,number>};for(const d of days){for(const k of ["sales","revenue","subtotal","deliveryFees","discounts","delivery","pickup","scheduled","immediate","logisticsCompleted"] as const)o[k]+=Number(d[k]||0);for(const[k,v]of Object.entries(d.payments||{}))o.payments[k]=(o.payments[k]||0)+Number(v);for(const[k,v]of Object.entries(d.products||{}))o.products[k]=(o.products[k]||0)+Number(v)}return o}
+export function RelatoriosAdmin({pedidos:_pedidos}:{pedidos:any[]}){const[period,setPeriod]=useState<"today"|"yesterday"|"7d"|"30d"|"all">("today");const{days,loading,error,reload}=useAnalyticsReportsV2();const selected=useMemo(()=>{const today=dk(new Date());if(period==="today")return days.filter(d=>d.dateKey===today);if(period==="yesterday")return days.filter(d=>d.dateKey===shift(1));if(period==="7d")return days.filter(d=>d.dateKey>=shift(6)&&d.dateKey<=today);if(period==="30d")return days.filter(d=>d.dateKey>=shift(29)&&d.dateKey<=today);return days},[days,period]);const m=useMemo(()=>merge(selected),[selected]),ticket=m.sales?m.revenue/m.sales:0,payments=Object.entries(m.payments).sort((a,b)=>b[1]-a[1]),products=Object.entries(m.products).sort((a,b)=>b[1]-a[1]).slice(0,10);
+return <div className={styles.root}><div className={styles.filters}>{[["Hoje","today"],["Ontem","yesterday"],["7 dias","7d"],["30 dias","30d"],["Tudo","all"]].map(([l,v])=><button key={v} data-active={period===v} onClick={()=>setPeriod(v as typeof period)}>{l}</button>)}</div>{loading?<section className={styles.panel}><div className={styles.noData}>Carregando projeções analíticas…</div></section>:error?<section className={styles.panel}><div className={styles.noData}>Relatórios V2 indisponíveis. <button onClick={reload}>Tentar novamente</button></div></section>:<>
+<div className={styles.kpis}><article><span>Faturamento finalizado</span><strong>{money(m.revenue)}</strong></article><article><span>Pedidos finalizados</span><strong>{m.sales}</strong></article><article><span>Ticket médio</span><strong>{money(ticket)}</strong></article><article><span>Atendimento</span><strong>{m.delivery} entregas · {m.pickup} retiradas</strong></article></div>
+<section className={styles.panel}><div className={styles.panelTitle}><div><span>COMERCIAL</span><h3>Composição das vendas</h3></div><small>Projeção canônica V2</small></div><div className={styles.methods}><div className={styles.method}><div><span>Subtotal</span><b>{money(m.subtotal)}</b></div></div><div className={styles.method}><div><span>Taxas de entrega</span><b>{money(m.deliveryFees)}</b></div></div><div className={styles.method}><div><span>Descontos</span><b>{money(m.discounts)}</b></div></div><div className={styles.method}><div><span>Agendados / imediatos</span><b>{m.scheduled} / {m.immediate}</b></div></div><div className={styles.method}><div><span>Logística concluída</span><b>{m.logisticsCompleted}</b></div></div></div></section>
+<section className={styles.panel}><div className={styles.panelTitle}><div><span>PAGAMENTOS</span><h3>Vendas por método</h3></div><small>{m.sales} finalizados</small></div><div className={styles.methods}>{!payments.length?<div className={styles.noData}>Sem dados no período.</div>:payments.map(([k,v])=>{const pct=m.revenue?v/m.revenue*100:0;return <div className={styles.method} key={k}><div><span>{label(k)}</span><b>{money(v)} · {pct.toFixed(0)}%</b></div><div className={styles.bar}><i style={{width:`${Math.min(100,pct)}%`}}/></div></div>})}</div></section>
+<section className={styles.panel}><div className={styles.panelTitle}><div><span>PRODUTOS</span><h3>Mais vendidos</h3></div><small>Quantidade</small></div><div className={styles.history}>{!products.length?<div className={styles.noData}>Sem produtos no período.</div>:products.map(([n,q],i)=><div className={styles.historyRow} key={n}><div><b>{i+1}. {n}</b><span>Ranking</span></div><div><b>{q}</b><span>un.</span></div></div>)}</div></section></>}</div>}

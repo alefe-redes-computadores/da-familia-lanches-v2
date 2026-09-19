@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { normalizarStatus } from "@/lib/orderUtils";
 import type { AdminOrder } from "@/lib/adminOrders";
@@ -50,7 +50,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
     initializedRef.current = false;
     knownIdsRef.current = new Set();
-    const ordersQuery = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(250));
+    const ordersQuery = query(collection(db, "Pedidos"), orderBy("data", "desc"));
 
     const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
       const docs = snapshot.docs.map((document): AdminOrder => ({ id: document.id, ...document.data() } as AdminOrder));

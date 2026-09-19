@@ -2,6 +2,7 @@ import "server-only";
 import { Timestamp, type DocumentReference } from "firebase-admin/firestore";
 import { adminDb } from "./admin";
 import type { IntegrationEventEnvelope } from "../contracts";
+import { projectOrderById } from "@/lib/analytics/server/projector";
 
 type ReverseEventType =
   | "delivery.assigned"
@@ -140,7 +141,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
   const orderRef = adminDb.collection("Pedidos").doc(event.payload.externalOrderId);
   const now = new Date().toISOString();
 
-  return adminDb.runTransaction(async (tx) => {
+  const result = await adminDb.runTransaction(async (tx) => {
     const [inboxSnap, orderSnap] = await Promise.all([tx.get(inboxRef), tx.get(orderRef)]);
 
     if (inboxSnap.exists && inboxSnap.data()?.status === "processed") {
@@ -310,4 +311,8 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       reward_awarded: Boolean(rewardWrite),
     };
   });
+  if (!result.already_processed && result.applied) {
+    await projectOrderById(event.payload.externalOrderId, event.event_id);
+  }
+  return result;
 }

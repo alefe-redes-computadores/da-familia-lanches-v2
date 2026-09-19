@@ -11,6 +11,7 @@ import {
 } from "./outboxRepository";
 import { integrationSignature } from "./signature";
 import { ensureCommercialMessagingIntent } from "./messagingProjection";
+import { projectOrderEvent } from "@/lib/analytics/server/projector";
 
 export interface RelayDrainResult {
   claimed: number;
@@ -81,6 +82,9 @@ async function processClaimed(
       const event = eventFromOutbox(item.record as unknown as Record<string, unknown>);
       const status = await sendEvent(config.targetUrl!, config.signingSecret!, event, config.requestTimeoutMs);
       await ensureCommercialMessagingIntent(event);
+      if (event.entity_type === "order" && (event.event_type === "order.created" || event.event_type === "order.updated")) {
+        await projectOrderEvent(event);
+      }
       await markOutboxSent(item, config.workerId);
       result.sent += 1;
       result.results.push({ eventId, ok: true, status });
