@@ -91,3 +91,51 @@
   border-color:rgba(251,113,133,.48)!important;
 }
 [data-admin-ui] ::selection{background:rgba(139,92,246,.38)!important;color:#fff!important}
+
+/* DFL ADMIN V4 — COMPONENT CONVERGENCE */
+[data-admin-ui]{
+  --admin-bg:#09090b;--admin-surface:#111114;--admin-surface-2:#16161b;--admin-surface-3:#1b1b21;
+  --admin-line:#292930;--admin-line-soft:#202026;--admin-text:#f4f4f5;--admin-muted:#9a9aa5;--admin-faint:#6f6f79;
+  --admin-accent:#8b5cf6;--admin-accent-strong:#7c3aed;--admin-accent-soft:rgba(139,92,246,.12);
+  --admin-success:#34d399;--admin-warning:#fbbf24;--admin-danger:#fb7185;--admin-info:#60a5fa;
+  --admin-radius:14px;--admin-control:44px;
+  background:#09090b!important;color:#f4f4f5!important;
+}
+[data-admin-ui] input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+[data-admin-ui] select,[data-admin-ui] textarea{
+  min-height:44px!important;border:1px solid #292930!important;border-radius:11px!important;background:#101013!important;color:#f4f4f5!important;padding-left:12px!important;padding-right:12px!important;font-size:16px!important;box-shadow:none!important;
+}
+[data-admin-ui] textarea{padding-top:10px!important;padding-bottom:10px!important;line-height:1.45!important}
+[data-admin-ui] input:focus,[data-admin-ui] select:focus,[data-admin-ui] textarea:focus{border-color:#7c3aed!important;background:#131317!important;box-shadow:0 0 0 3px rgba(139,92,246,.12)!important}
+[data-admin-ui] input::placeholder,[data-admin-ui] textarea::placeholder{color:#60606a!important}
+[data-admin-ui] select{padding-right:38px!important;background-color:#101013!important;background-position:calc(100% - 17px) 19px,calc(100% - 12px) 19px!important}
+
+/* Neutraliza o mosaico de fundos herdado dos módulos antigos sem alterar sua geometria. */
+[data-admin-ui] [class*="card"],[data-admin-ui] [class*="panel"],[data-admin-ui] [class*="section"],[data-admin-ui] [class*="form"],[data-admin-ui] [class*="promo"]{
+  border-color:#292930!important;color:#f4f4f5;
+}
+[data-admin-ui] [class*="card"],[data-admin-ui] [class*="panel"],[data-admin-ui] [class*="section"]{box-shadow:none!important}
+[data-admin-ui] button{min-height:34px;touch-action:manipulation}
+[data-admin-ui] button[class*="primary"],[data-admin-ui] button[class*="save"],[data-admin-ui] button[class*="mainAction"]{
+  background:#7c3aed!important;border-color:#7c3aed!important;color:#fff!important;box-shadow:none!important;font-weight:800!important;
+}
+[data-admin-ui] button[class*="secondary"],[data-admin-ui] button[class*="cancel"],[data-admin-ui] button[class*="testAdd"]{
+  background:#17171c!important;border-color:#2c2c34!important;color:#ededf0!important;box-shadow:none!important;
+}
+[data-admin-ui] button[class*="danger"],[data-admin-ui] button[class*="remove"],[data-admin-ui] button[data-danger="true"]{
+  color:#fb7185!important;border-color:rgba(251,113,133,.28)!important;background:rgba(251,113,133,.055)!important;
+}
+[data-admin-ui] button[data-confirm="true"]{background:rgba(251,113,133,.12)!important;border-color:rgba(251,113,133,.42)!important}
+[data-admin-ui] [class*="badge"],[data-admin-ui] [class*="pill"],[data-admin-ui] [class*="chip"]{box-shadow:none!important}
+[data-admin-ui] h1,[data-admin-ui] h2,[data-admin-ui] h3,[data-admin-ui] strong{letter-spacing:-.015em}
+[data-admin-ui] p{line-height:1.5}
+
+/* Desktop: mantém o painel largo, mas evita formulários esticados e leitura cansativa. */
+@media(min-width:900px){
+  [data-admin-ui] [class*="form"]{max-width:100%}
+  [data-admin-ui] input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),[data-admin-ui] select{font-size:14px!important}
+}
+@media(max-width:680px){
+  [data-admin-ui]{--admin-control:44px}
+  [data-admin-ui] button{min-height:36px}
+}
