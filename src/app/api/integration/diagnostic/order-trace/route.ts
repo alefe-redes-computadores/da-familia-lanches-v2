@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const DEFAULT_TARGET_SUFFIX = "W00LYSZA";
 const WEB_PROJECT_ID = "da-familia-lanches";
 const RECENT_ORDER_LIMIT = 120;
+const MAX_ORDER_PAGES = 4;
 
 function targetSuffix(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("suffix") || DEFAULT_TARGET_SUFFIX;
@@ -77,21 +78,44 @@ function safeIntent(id: string, data: Record<string, unknown>) {
 }
 
 async function findRecentOrderBySuffix(suffix: string) {
-  // Diagnóstico deliberadamente limitado: nunca percorre o histórico inteiro.
-  // O admin já trabalha com "data" como eixo cronológico dos pedidos.
-  const page = await adminDb
-    .collection("Pedidos")
-    .orderBy("data", "desc")
-    .limit(RECENT_ORDER_LIMIT)
-    .get();
+  // Diagnóstico paginado e rigidamente limitado.
+  // Para assim que encontra o sufixo e nunca percorre o histórico inteiro.
+  const matches: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  let scanned = 0;
+  let pages = 0;
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
 
-  const matches = page.docs.filter((doc) =>
-    doc.id.toUpperCase().endsWith(suffix),
-  );
+  while (pages < MAX_ORDER_PAGES && matches.length === 0) {
+    let query = adminDb
+      .collection("Pedidos")
+      .orderBy("data", "desc")
+      .limit(RECENT_ORDER_LIMIT);
+
+    if (cursor) {
+      query = query.startAfter(cursor);
+    }
+
+    const page = await query.get();
+    pages += 1;
+    scanned += page.size;
+
+    for (const doc of page.docs) {
+      if (doc.id.toUpperCase().endsWith(suffix)) {
+        matches.push(doc);
+      }
+    }
+
+    if (page.empty || page.size < RECENT_ORDER_LIMIT) {
+      break;
+    }
+
+    cursor = page.docs[page.docs.length - 1];
+  }
 
   return {
-    scanned: page.size,
-    limit: RECENT_ORDER_LIMIT,
+    scanned,
+    limit: RECENT_ORDER_LIMIT * MAX_ORDER_PAGES,
+    pages,
     matches,
   };
 }
