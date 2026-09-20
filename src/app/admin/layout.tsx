@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import "./admin-ui.css";
 
 export const metadata: Metadata = {
   title: "DFL Admin",
@@ -46,5 +47,5 @@ export default function AdminLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return children;
+  return <div data-admin-ui>{children}</div>;
 }
