@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import "./admin-ui.css";
 
 export const metadata: Metadata = {
   title: "DFL Admin",
   description: "Painel administrativo da Da Família Lanches",
   applicationName: "DFL Admin",
-  manifest: "/admin-manifest.json?v=51",
+  manifest: "/admin-manifest.json?v=54",
   appleWebApp: {
     capable: true,
     title: "DFL Admin",
@@ -13,11 +12,25 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico?v=23", sizes: "any" },
-      { url: "/icon-192x192.png?v=23", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512x512.png?v=23", sizes: "512x512", type: "image/png" },
+      {
+        url: "/admin-icon-192x192.png?v=54",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/admin-icon-512x512.png?v=54",
+        sizes: "512x512",
+        type: "image/png",
+      },
     ],
-    apple: [{ url: "/apple-touch-icon.png?v=23", sizes: "180x180", type: "image/png" }],
+    shortcut: "/admin-icon-192x192.png?v=54",
+    apple: [
+      {
+        url: "/admin-apple-touch-icon.png?v=54",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
   },
 };
 
@@ -28,6 +41,10 @@ export const viewport: Viewport = {
   themeColor: "#0b0b0c",
 };
 
-export default function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <div data-admin-ui>{children}</div>;
+export default function AdminLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return children;
 }

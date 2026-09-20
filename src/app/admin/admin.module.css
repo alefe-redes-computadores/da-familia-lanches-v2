@@ -530,3 +530,26 @@
     margin-left:0;
   }
 }
+
+
+/* =========================================================
+   V54 — Management navigation mobile polish
+   ========================================================= */
+
+.managementNav {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 16px;
+  padding-right: 24px;
+}
+
+.managementNav::-webkit-scrollbar {
+  display: none;
+}
+
+.managementNav > * {
+  flex: 0 0 auto;
+}
