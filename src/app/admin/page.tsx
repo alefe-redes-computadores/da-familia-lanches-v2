@@ -159,47 +159,143 @@ export default function AdminPage() {
     <main className={styles.page}>
       {alarmeAtivo && <button className={styles.alarm} onClick={pararAlarme}>NOVO PEDIDO <span>toque para silenciar</span></button>}
 
-      <header className={styles.hero}>
-        <div className={styles.heroTop}>
-          <div className={styles.identity}>
-            <div className={styles.adminMark}><span>DFL</span><b>OPERAÇÃO</b></div>
-            <div className={styles.heroCopy}>
-              <span className={styles.eyebrow}>CENTRAL ADMINISTRATIVA</span>
-              <h1>Operação de hoje</h1>
-              <p>{counts.cozinha} na cozinha · {counts.expedicao} na expedição</p>
-            </div>
+      <header className={styles.topbar}>
+        <div className={styles.brand}>
+          <div className={styles.brandMark}>DF</div>
+          <div>
+            <strong>Da Família</strong>
+            <span>Admin</span>
           </div>
-          <button className={styles.store} data-open={storeOpen} onClick={() => setTab("operacao")}>
-            <i />{storeOpen ? "Loja aberta" : "Loja fechada"}
+        </div>
+
+        <button
+          className={styles.storePill}
+          data-open={storeOpen}
+          onClick={() => setTab("operacao")}
+        >
+          <i />
+          {storeOpen ? "Aberta" : "Fechada"}
+        </button>
+      </header>
+
+      <section className={styles.command}>
+        <div className={styles.commandHead}>
+          <div>
+            <span>OPERAÇÃO</span>
+            <h1>
+              {counts.cozinha || counts.expedicao
+                ? `${counts.cozinha + counts.expedicao} pedidos em andamento`
+                : "Tudo tranquilo por aqui"}
+            </h1>
+          </div>
+
+          {counts.attention > 0 && (
+            <button
+              className={styles.alertPill}
+              onClick={() => {
+                setTab("cozinha");
+                setAttentionOnly(true);
+              }}
+            >
+              {counts.attention} atenção
+            </button>
+          )}
+        </div>
+
+        <div className={styles.quickStats}>
+          <button onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+            <b>{counts.pendentes}</b>
+            <span>Novos</span>
+          </button>
+
+          <button onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+            <b>{counts.producao}</b>
+            <span>Preparo</span>
+          </button>
+
+          <button onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+            <b>{counts.prontos}</b>
+            <span>Prontos</span>
+          </button>
+
+          <button onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+            <b>{counts.rota}</b>
+            <span>Em rota</span>
           </button>
         </div>
+      </section>
 
-        <div className={styles.pulse}>
-          <button onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}><span>Recebidos</span><b>{counts.pendentes}</b></button>
-          <button onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}><span>Em preparo</span><b>{counts.producao}</b></button>
-          <button onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}><span>Prontos</span><b>{counts.prontos}</b></button>
-          <button onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}><span>Em rota</span><b>{counts.rota}</b></button>
-          <button onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}><span>Agendados</span><b>{counts.agendados}</b></button>
-          <button data-alert={counts.attention > 0} onClick={() => { setTab("cozinha"); setAttentionOnly(true); }}><span>Sem atualização</span><b>{counts.attention}</b></button>
-        </div>
+      <nav className={styles.primaryNav} aria-label="Operação">
+        {tabItems
+          .filter(([key]) =>
+            ["cozinha", "expedicao", "concluidos"].includes(key)
+          )
+          .map(([key, label, count]) => (
+            <button
+              key={key}
+              data-active={tab === key}
+              onClick={() => {
+                setTab(key);
+                setAttentionOnly(false);
+              }}
+            >
+              <span>{key === "concluidos" ? "Histórico" : label}</span>
+              {count !== null && <b>{count}</b>}
+            </button>
+          ))}
 
-        <div className={styles.navGroups}>
-          <nav className={styles.tabs} aria-label="Etapas da operação">
-            {tabItems.filter(([key]) => ["cozinha", "expedicao", "concluidos", "cancelados"].includes(key)).map(([key, label, count]) => (
-              <button key={key} className={styles.tab} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
-                <span>{label}</span>{count !== null && <b>{count}</b>}
-              </button>
-            ))}
-          </nav>
-          <nav className={styles.managementTabs} aria-label="Gestão da loja">
-            {tabItems.filter(([key]) => ["catalogo", "operacao", "agendamentos", "frete", "cupons", "fidelidade", "gestao"].includes(key)).map(([key, label]) => (
-              <button key={key} className={styles.managementTab} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
-                {label}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </header>
+        <button
+          data-active={[
+            "cancelados",
+            "catalogo",
+            "operacao",
+            "agendamentos",
+            "frete",
+            "cupons",
+            "fidelidade",
+            "gestao",
+          ].includes(tab)}
+          onClick={() => {
+            document
+              .getElementById("admin-management")
+              ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }}
+        >
+          Gestão
+        </button>
+      </nav>
+
+      <div id="admin-management" className={styles.managementNav}>
+        {tabItems
+          .filter(([key]) =>
+            [
+              "catalogo",
+              "operacao",
+              "agendamentos",
+              "frete",
+              "cupons",
+              "fidelidade",
+              "gestao",
+              "cancelados",
+            ].includes(key)
+          )
+          .map(([key, label]) => (
+            <button
+              key={key}
+              data-active={tab === key}
+              onClick={() => {
+                setTab(key);
+                setAttentionOnly(false);
+              }}
+            >
+              {key === "operacao"
+                ? "Loja"
+                : key === "frete"
+                  ? "Entrega"
+                  : label}
+            </button>
+          ))}
+      </div>
 
       {feedback && <div className={styles.feedback}>{feedback}<button onClick={() => setFeedback("")}>Fechar</button></div>}
 
@@ -219,17 +315,41 @@ export default function AdminPage() {
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>DESEMPENHO</span><h2>Relatórios da loja</h2></div><p>Somente pedidos finalizados entram nos indicadores comerciais.</p></div><RelatoriosAdmin pedidos={pedidos} /></section>
       ) : isOrderTab ? (
         <>
-          <div className={styles.toolbar}>
-            <div className={styles.toolbarTitle}>
-              <strong>{attentionOnly ? "Precisam de atenção" : tabItems.find(([key]) => key === tab)?.[1]}</strong>
-              <span>{filtered.length} pedido{filtered.length === 1 ? "" : "s"} nesta visualização</span>
+          <div className={styles.queueHead}>
+            <div>
+              <span>
+                {tab === "cozinha"
+                  ? "AGORA"
+                  : tab === "expedicao"
+                    ? "SAÍDA"
+                    : "HISTÓRICO"}
+              </span>
+              <h2>
+                {attentionOnly
+                  ? "Precisam de atenção"
+                  : tabItems.find(([key]) => key === tab)?.[1]}
+              </h2>
             </div>
-            <label className={styles.search}>
-              <span>Buscar</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cliente, telefone, pedido ou endereço" />
-              {search && <button type="button" onClick={() => setSearch("")} aria-label="Limpar busca">×</button>}
-            </label>
+            <b>{filtered.length}</b>
           </div>
+
+          <label className={styles.search}>
+            <span>Buscar pedido</span>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Cliente, telefone, pedido ou endereço"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Limpar busca"
+              >
+                ×
+              </button>
+            )}
+          </label>
 
           <div className={styles.filters}>
             <button data-active={serviceFilter === "todos"} onClick={() => setServiceFilter("todos")}>Todos</button>
