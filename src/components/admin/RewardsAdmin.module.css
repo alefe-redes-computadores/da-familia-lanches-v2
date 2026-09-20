@@ -17,3 +17,6 @@
 
 /* ADMIN DESIGN V5 — REWARDS */
 .root,.card,.panel,.section{background:#101216!important;border-color:#242830!important}.root [class*="card"],.root [class*="panel"]{border-radius:14px!important}.root [class*="grid"]{gap:7px!important}.root button{min-height:40px!important;border-radius:10px!important}
+
+/* ADMIN V6 REWARDS */
+.statusCard{background:linear-gradient(135deg,#12151a,#151322)!important;border-color:#2a2d37!important}.statusCard[data-active=true]{background:linear-gradient(135deg,#101a15,#121817)!important;border-color:rgba(34,197,94,.3)!important;color:#f5f7f6!important}.statusCard>div>span{color:#8e7ee0!important}.statusCard[data-active=true]>div>span{color:#67d68e!important}.statusCard strong{font-size:17px!important;color:#fff!important}.statusCard p{color:#8d949e!important}.statusCard button{background:rgba(139,92,246,.14)!important;color:#c8baff!important;border:1px solid rgba(139,92,246,.28)!important}.statusCard[data-active=true] button{background:rgba(239,68,68,.08)!important;color:#ff8585!important;border-color:rgba(239,68,68,.18)!important}.card{background:#111318!important}.card label>span{color:#aeb4bd!important}.notice{border-left:3px solid #8b5cf6!important;background:#15131e!important}.notice strong{color:#c9bdff!important}.save{background:#8b5cf6!important;color:#fff!important}

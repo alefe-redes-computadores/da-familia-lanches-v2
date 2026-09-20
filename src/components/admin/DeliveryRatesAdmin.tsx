@@ -35,6 +35,8 @@ export function DeliveryRatesAdmin() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [removeConfirmKey, setRemoveConfirmKey] = useState("");
+  const [editingKey, setEditingKey] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -117,12 +119,8 @@ export function DeliveryRatesAdmin() {
       <label className={styles.fallback}><span>Taxa padrão</span><div className={styles.moneyInput}><i>R$</i><input inputMode="decimal" value={defaultFee} onChange={(e)=>setDefaultFee(moneyTyping(e.target.value))} onBlur={()=>setDefaultFee(moneyDraft(defaultFee))}/></div><small>Fallback quando o bairro não for localizado.</small></label>
       <div className={styles.health} data-warning={invalidCount>0}><span>Qualidade</span><strong>{invalidCount?`${invalidCount} para revisar`:"Tabela saudável"}</strong><small>{invalidCount?"Corrija antes de publicar.":"Nenhum problema encontrado."}</small></div>
     </div>
-    <div className={styles.toolbar}><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar bairro"/><span>{sorted.length} de {rates.length}</span></div>
-    {loading?<div className={styles.empty}>Carregando tabela…</div>:<div className={styles.list}>{sorted.map(item=><div className={styles.row} key={item._key}>
-      <input className={styles.name} value={String(item.nome??"")} onChange={(e)=>updateRate(item._key,{nome:e.target.value})} aria-label="Nome do bairro"/>
-      <div className={styles.rate}><span>R$</span><input inputMode="decimal" value={typeof item.taxa==="string"?item.taxa:moneyDraft(item.taxa)} onChange={(e)=>updateRate(item._key,{taxa:moneyTyping(e.target.value)})} onBlur={()=>updateRate(item._key,{taxa:moneyDraft(item.taxa)})} aria-label={`Taxa de ${item.nome??"bairro"}`}/></div>
-      <button type="button" className={styles.remove} data-confirm={removeConfirmKey===item._key} onClick={()=>removeRate(item._key,String(item.nome??"Bairro"))}>{removeConfirmKey===item._key?"Confirmar":"Remover"}</button>
-    </div>)}{!sorted.length&&<div className={styles.empty}>Nenhum bairro encontrado.</div>}</div>}
+    <div className={styles.toolbar}>{(searchOpen || search) ? <input autoFocus value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar bairro" onBlur={()=>!search&&setSearchOpen(false)}/> : <button type="button" className={styles.searchTrigger} onClick={()=>setSearchOpen(true)}>⌕ Buscar bairro</button>}<span>{sorted.length} de {rates.length}</span></div>
+    {loading?<div className={styles.empty}>Carregando tabela…</div>:<div className={styles.list}>{sorted.map(item=>{const editing=editingKey===item._key;return <div className={styles.row} data-editing={editing} key={item._key}>{editing?<><input className={styles.name} value={String(item.nome??"")} onChange={(e)=>updateRate(item._key,{nome:e.target.value})}/><div className={styles.rate}><span>R$</span><input inputMode="decimal" value={typeof item.taxa==="string"?item.taxa:moneyDraft(item.taxa)} onChange={(e)=>updateRate(item._key,{taxa:moneyTyping(e.target.value)})} onBlur={()=>updateRate(item._key,{taxa:moneyDraft(item.taxa)})}/></div><div className={styles.rowActions}><button type="button" className={styles.done} onClick={()=>{setEditingKey("");setRemoveConfirmKey("")}}>Pronto</button><button type="button" className={styles.remove} data-confirm={removeConfirmKey===item._key} onClick={()=>removeRate(item._key,String(item.nome??"Bairro"))}>{removeConfirmKey===item._key?"Confirmar":"Excluir"}</button></div></>:<button type="button" className={styles.rateView} onClick={()=>{setEditingKey(item._key);setRemoveConfirmKey("")}}><strong>{String(item.nome??"Bairro")}</strong><b>{money(parseMoney(item.taxa))}</b><span>Editar ›</span></button>}</div>})}{!sorted.length&&<div className={styles.empty}>Nenhum bairro encontrado.</div>}</div>}
     <div className={styles.add}><div><span>NOVO BAIRRO</span><strong>Adicionar taxa</strong></div><div className={styles.addFields}><input value={newName} onChange={(e)=>setNewName(e.target.value)} placeholder="Nome do bairro"/><div className={styles.rate}><span>R$</span><input inputMode="decimal" value={newFee} onChange={(e)=>setNewFee(moneyTyping(e.target.value))} onBlur={()=>newFee&&setNewFee(moneyDraft(newFee))} placeholder="0,00"/></div><button type="button" onClick={addRate}>Adicionar</button></div></div>
     {message&&<div className={styles.feedback}>{message}</div>}
     <button type="button" className={styles.save} disabled={saving||loading} onClick={()=>void save()}>{saving?"Publicando…":`Publicar alterações · ${money(parseMoney(defaultFee))} padrão`}</button>

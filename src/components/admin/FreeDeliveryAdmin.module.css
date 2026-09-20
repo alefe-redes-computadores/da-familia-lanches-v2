@@ -20,3 +20,6 @@
 
 /* ADMIN DESIGN V5 — FREE DELIVERY */
 .card{padding:13px!important;border-radius:15px!important;background:#101216!important;border-color:#242830!important}.preview{padding:9px 10px!important;background:#15181d!important}.grid{gap:6px!important}.full textarea{min-height:84px!important}.card>button{min-height:42px!important;border-radius:10px!important}
+
+/* ADMIN V6 FREE DELIVERY */
+.card{margin-top:14px!important;border-top:3px solid #8b5cf6!important;background:#111318!important}.head span{color:#9f8cff!important}.head strong{font-size:17px!important;color:#fff!important}.preview{background:#15131e!important;border:1px solid rgba(139,92,246,.18)!important}.preview span{color:#9f8cff!important}.preview i{background:#8b5cf6!important}.grid span,.full span{color:#b5bbc3!important}.card>button{background:#8b5cf6!important;color:#fff!important}

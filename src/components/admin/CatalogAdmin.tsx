@@ -374,14 +374,14 @@ export function CatalogAdmin() {
   return <div className={styles.root}>
     <section className={styles.summary}>
       <div className={styles.summaryCopy}>
-        <span>CATÁLOGO</span>
-        <strong>Central do cardápio</strong>
-        <p>Produtos, disponibilidade, ofertas e estrutura da vitrine.</p>
-        <small>{source === "hybrid" ? "Nuvem operacional" : "Fallback local"} · {remoteProducts} produtos · {remoteAddons} adicionais · {remoteCategories} categorias remotas</small>
+        <span>CATÁLOGO ATIVO</span>
+        <strong>{products.length} produtos · {activeProducts} disponíveis</strong>
+        <small>{source === "hybrid" ? "Nuvem operacional" : "Fallback local"} · {remoteAddons} adicionais · {remoteCategories} categorias remotas</small>
       </div>
       <div className={styles.summaryActions}>
-        <button className={styles.secondaryAction} onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Categoria</button><button className={styles.secondaryAction} onClick={openCreateAddon}>+ Adicional</button>
-        <button className={styles.mainAction} onClick={openCreateProduct}>+ Novo produto</button>
+        <button className={styles.mainAction} onClick={openCreateProduct}>+ Produto</button>
+        <button className={styles.secondaryAction} onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Categoria</button>
+        <button className={styles.secondaryAction} onClick={openCreateAddon}>+ Adicional</button>
       </div>
     </section>
 

@@ -39,6 +39,8 @@ export function CouponsAdmin() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [confirmDelete, setConfirmDelete] = useState("");
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => onSnapshot(collection(db, "Cupons"), (snapshot) => {
     setCoupons(snapshot.docs.map((item) => normalizeCoupon(item.id, item.data())).sort((a, b) => a.code.localeCompare(b.code, "pt-BR")));
@@ -66,6 +68,7 @@ export function CouponsAdmin() {
     });
     setFeedback("");
     setConfirmDelete("");
+    setEditorOpen(true);
   };
 
   const save = async () => {
@@ -96,6 +99,7 @@ export function CouponsAdmin() {
         ...(editor.originalCode ? {} : { createdAt: serverTimestamp() }),
       }, { merge: true });
       setEditor(emptyEditor());
+      setEditorOpen(false);
       setFeedback(editor.originalCode ? "Cupom atualizado." : "Cupom criado.");
     } catch (error) {
       console.error(error);
@@ -123,8 +127,9 @@ export function CouponsAdmin() {
 
   return (
     <div className={styles.wrap}>
-      <section className={styles.editor}>
-        <div className={styles.editorHeader}><div><span>{editor.originalCode ? "EDITANDO" : "NOVO CUPOM"}</span><strong>{editor.originalCode || "Criar campanha promocional"}</strong></div>{editor.originalCode && <button type="button" onClick={() => setEditor(emptyEditor())}>Cancelar edição</button>}</div>
+      <section className={styles.editor} data-open={editorOpen || Boolean(editor.originalCode)}>
+        <div className={styles.editorHeader}><div><span>{editor.originalCode ? "EDITANDO" : "CUPONS"}</span><strong>{editor.originalCode || "Nova campanha"}</strong></div><button type="button" onClick={() => { if (editorOpen || editor.originalCode) { setEditor(emptyEditor()); setEditorOpen(false); } else setEditorOpen(true); }}>{editorOpen || editor.originalCode ? "Fechar" : "+ Criar cupom"}</button></div>
+        <div className={styles.editorBody}>
         <div className={styles.grid}>
           <label><span>Código</span><input value={editor.code} disabled={Boolean(editor.originalCode)} placeholder="EX: FAMILIA10" onChange={(event) => setEditor((state) => ({ ...state, code: event.target.value.toUpperCase() }))} /></label>
           <label><span>Tipo</span><select value={editor.type} onChange={(event) => setEditor((state) => ({ ...state, type: event.target.value as CouponDiscountType }))}><option value="fixed">Valor em R$</option><option value="percent">Porcentagem</option></select></label>
@@ -137,10 +142,11 @@ export function CouponsAdmin() {
         <label className={styles.switchRow}><div><strong>Cupom ativo</strong><span>Desative sem apagar a configuração.</span></div><input type="checkbox" checked={editor.active} onChange={(event) => setEditor((state) => ({ ...state, active: event.target.checked }))} /></label>
         {feedback && <div className={styles.feedback}>{feedback}</div>}
         <button className={styles.primary} type="button" disabled={saving} onClick={() => void save()}>{saving ? "Salvando…" : editor.originalCode ? "Salvar alterações" : "Criar cupom"}</button>
+        </div>
       </section>
 
       <section className={styles.listCard}>
-        <div className={styles.listHeader}><div><span>CUPONS</span><strong>{coupons.length} cadastrado{coupons.length === 1 ? "" : "s"}</strong></div><input placeholder="Buscar código ou descrição" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
+        <div className={styles.listHeader}><div><span>CUPONS CADASTRADOS</span><strong>{coupons.length} no total</strong></div>{(searchOpen || search) ? <input autoFocus placeholder="Buscar código ou descrição" value={search} onChange={(event) => setSearch(event.target.value)} onBlur={()=>!search&&setSearchOpen(false)} /> : <button type="button" className={styles.searchTrigger} onClick={()=>setSearchOpen(true)}>⌕ Buscar</button>}</div>
         <div className={styles.list}>
           {filtered.length === 0 ? <div className={styles.empty}>Nenhum cupom encontrado.</div> : filtered.map((coupon) => {
             const expired = Boolean(coupon.expiresAt && coupon.expiresAt.toMillis() < Date.now());
