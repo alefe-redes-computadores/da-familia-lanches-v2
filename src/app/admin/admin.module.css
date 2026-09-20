@@ -59,7 +59,7 @@
 .brand span{
   margin-top:2px;
   color:var(--muted);
-  font-size:11px;
+  font-size:12px;
 }
 
 .storePill{
@@ -72,7 +72,7 @@
   background:var(--surface2);
   color:#d7dadd;
   padding:0 12px;
-  font-size:11px;
+  font-size:12px;
   font-weight:850;
 }
 
@@ -103,7 +103,7 @@
 .commandHead span,
 .queueHead span,
 .sectionHeading span{
-  font-size:10px;
+  font-size:12px;
   font-weight:900;
   letter-spacing:.12em;
   color:var(--muted);
@@ -122,7 +122,7 @@
   background:#38201b;
   color:#ffad91;
   padding:7px 10px;
-  font-size:11px;
+  font-size:12px;
   font-weight:850;
 }
 
@@ -167,7 +167,7 @@
   display:block;
   margin-top:5px;
   color:var(--muted);
-  font-size:10px;
+  font-size:12px;
 }
 
 .primaryNav{
@@ -190,7 +190,7 @@
   border-radius:10px;
   background:transparent;
   color:var(--muted);
-  font-size:11px;
+  font-size:12px;
   font-weight:850;
 }
 
@@ -206,7 +206,7 @@
   height:18px;
   border-radius:999px;
   background:#292d32;
-  font-size:9px;
+  font-size:12px;
 }
 
 .managementNav{
@@ -229,7 +229,7 @@
   background:transparent;
   color:#777e86;
   padding:0 9px;
-  font-size:10px;
+  font-size:12px;
   font-weight:800;
 }
 
@@ -254,7 +254,7 @@
 
 .alarm span{
   margin-left:5px;
-  font-size:10px;
+  font-size:12px;
   opacity:.8;
 }
 
@@ -273,7 +273,7 @@
   background:#202329;
   color:var(--text);
   padding:11px 13px;
-  font-size:11px;
+  font-size:12px;
   font-weight:800;
   box-shadow:0 16px 45px rgba(0,0,0,.35);
 }
@@ -320,7 +320,7 @@
   left:13px;
   top:6px;
   color:#717881;
-  font-size:9px;
+  font-size:12px;
   font-weight:900;
   text-transform:uppercase;
   letter-spacing:.08em;
@@ -375,7 +375,7 @@
   background:var(--surface);
   color:var(--muted);
   padding:0 10px;
-  font-size:10px;
+  font-size:12px;
   font-weight:850;
 }
 
@@ -417,7 +417,7 @@
 }
 
 .empty span{
-  font-size:11px;
+  font-size:12px;
 }
 
 .management{
@@ -442,7 +442,7 @@
   max-width:380px;
   margin:0;
   color:var(--muted);
-  font-size:11px;
+  font-size:12px;
   text-align:right;
   line-height:1.4;
 }
@@ -465,7 +465,7 @@
 }
 
 .statePage span{
-  font-size:11px;
+  font-size:12px;
   color:#8f969e;
 }
 
@@ -498,7 +498,7 @@
   }
 
   .quickStats span{
-    font-size:9px;
+    font-size:12px;
   }
 
   .primaryNav{
@@ -506,7 +506,7 @@
   }
 
   .primaryNav button{
-    font-size:10px;
+    font-size:12px;
   }
 
   .managementNav{

@@ -32,7 +32,7 @@
 }
 
 .status{
-  font-size:11px;
+  font-size:12px;
   font-weight:900;
   color:var(--status-color);
 }
@@ -40,7 +40,7 @@
 .orderId{
   margin-top:2px;
   color:#777e86;
-  font-size:10px;
+  font-size:12px;
   font-weight:800;
 }
 
@@ -53,7 +53,7 @@
 
 .time span,
 .time b{
-  font-size:10px;
+  font-size:12px;
   color:#8f969e;
 }
 
@@ -62,7 +62,7 @@
   padding:7px 9px;
   background:#2a2216;
   color:#efc178;
-  font-size:10px;
+  font-size:12px;
   font-weight:850;
 }
 
@@ -84,7 +84,7 @@
 .phone{
   margin-top:3px;
   color:#8f969e;
-  font-size:11px;
+  font-size:12px;
 }
 
 .metaActions{
@@ -99,7 +99,7 @@
   background:#1e2125;
   color:#b9bec4;
   padding:0 9px;
-  font-size:10px;
+  font-size:12px;
   font-weight:800;
 }
 
@@ -114,13 +114,13 @@
 
 .delivery b{
   color:#777e86;
-  font-size:9px;
+  font-size:12px;
   letter-spacing:.08em;
 }
 
 .delivery span{
   color:#d4d8dc;
-  font-size:11px;
+  font-size:12px;
   line-height:1.35;
 }
 
@@ -138,7 +138,7 @@
 }
 
 .itemsToggle span{
-  font-size:11px;
+  font-size:12px;
 }
 
 .itemsToggle span b{
@@ -147,7 +147,7 @@
 
 .itemsToggle strong{
   color:#aeb4ba;
-  font-size:10px;
+  font-size:12px;
 }
 
 .items{
@@ -160,7 +160,7 @@
 
 .item,
 .item>b{
-  font-size:11px;
+  font-size:12px;
   line-height:1.4;
 }
 
@@ -188,19 +188,19 @@
 
 .money small{
   color:#777e86;
-  font-size:9px;
+  font-size:12px;
   text-transform:uppercase;
   letter-spacing:.08em;
 }
 
 .money b{
-  font-size:11px;
+  font-size:12px;
 }
 
 .cash{
   margin-top:2px;
   color:#d8dadd;
-  font-size:10px;
+  font-size:12px;
 }
 
 .total{
@@ -220,7 +220,7 @@
   min-height:43px;
   border:0;
   border-radius:11px;
-  font-size:11px;
+  font-size:12px;
   font-weight:900;
 }
 
@@ -261,12 +261,12 @@
 }
 
 .logisticsDoneNotice strong{
-  font-size:10px;
+  font-size:12px;
   color:#65d58d;
 }
 
 .logisticsDoneNotice span{
-  font-size:10px;
+  font-size:12px;
   line-height:1.35;
   color:#a9b5ad;
 }
