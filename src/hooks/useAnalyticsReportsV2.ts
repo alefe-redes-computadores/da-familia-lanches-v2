@@ -1,6 +1,42 @@
 "use client";
-import { useEffect,useState } from "react";
+import { useEffect,useMemo,useState } from "react";
 import { collection,getDocs,orderBy,query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
 export type AnalyticsDayV2={dateKey:string;sales:number;revenue:number;subtotal:number;deliveryFees:number;discounts:number;delivery:number;pickup:number;scheduled:number;immediate:number;logisticsCompleted:number;payments:Record<string,number>;products:Record<string,number>;projectorVersion:number;updatedAt:string};
-export function useAnalyticsReportsV2(enabled=true){const[days,setDays]=useState<AnalyticsDayV2[]>([]),[loading,setLoading]=useState(enabled),[error,setError]=useState(""),[reloadKey,setReloadKey]=useState(0);useEffect(()=>{if(!enabled){setLoading(false);return}let live=true;setLoading(true);setError("");getDocs(query(collection(db,"analytics_daily_v2"),orderBy("dateKey","desc"))).then(s=>{if(live){setDays(s.docs.map(d=>({dateKey:d.id,...d.data()} as AnalyticsDayV2)));setLoading(false)}}).catch(e=>{if(live){setError(e instanceof Error?e.message:"Falha ao carregar relatórios.");setLoading(false)}});return()=>{live=false}},[enabled,reloadKey]);return{days,loading,error,reload:()=>setReloadKey(v=>v+1)}}
+type Source="persistent"|"live-fallback";
+const n=(v:unknown)=>{const x=Number(v);return Number.isFinite(x)?x:0};
+const txt=(v:unknown)=>typeof v==="string"?v.trim():"";
+const key=(v:unknown)=>txt(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"nao_informado";
+const isFinal=(v:unknown)=>["finalizado","concluido","concluida","completed"].includes(key(v));
+const asDate=(v:any):Date|null=>{if(!v)return null;if(typeof v?.toDate==="function"){try{return v.toDate()}catch{return null}}if(typeof v==="object"&&typeof v?.seconds==="number"){const d=new Date(v.seconds*1000);return Number.isNaN(d.getTime())?null:d}const d=new Date(v);return Number.isNaN(d.getTime())?null:d};
+const dk=(d:Date)=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+
+function projectOrders(orders:any[]):AnalyticsDayV2[]{
+ const map=new Map<string,AnalyticsDayV2>();
+ for(const o of orders||[]){
+  if(!isFinal(o?.status))continue;
+  const d=asDate(o?.data)||asDate(o?.createdAt)||asDate(o?.created_at)||asDate(o?.updatedAt);if(!d)continue;
+  const dateKey=dk(d);
+  const row=map.get(dateKey)??{dateKey,sales:0,revenue:0,subtotal:0,deliveryFees:0,discounts:0,delivery:0,pickup:0,scheduled:0,immediate:0,logisticsCompleted:0,payments:{},products:{},projectorVersion:0,updatedAt:new Date().toISOString()};
+  row.sales++;row.revenue+=n(o?.total);row.subtotal+=n(o?.subtotal);row.deliveryFees+=n(o?.taxaEntrega);row.discounts+=n(o?.desconto);
+  const pickup=key(o?.tipoEntrega)==="pickup";row.pickup+=pickup?1:0;row.delivery+=pickup?0:1;
+  const scheduled=o?.isAgendamento===true;row.scheduled+=scheduled?1:0;row.immediate+=scheduled?0:1;
+  row.logisticsCompleted+=o?.deliveryOperationalCompleted===true?1:0;
+  const payment=key(o?.metodoPagamento);row.payments[payment]=(row.payments[payment]||0)+n(o?.total);
+  for(const raw of Array.isArray(o?.itens)?o.itens:[]){const name=txt(raw?.name)||txt(raw?.nome)||txt(raw?.id)||"Item";const qty=Math.max(1,n(raw?.quantity??raw?.quantidade??1));row.products[name]=(row.products[name]||0)+qty}
+  map.set(dateKey,row);
+ }
+ return [...map.values()].sort((a,b)=>b.dateKey.localeCompare(a.dateKey));
+}
+
+export function useAnalyticsReportsV2(orders:any[]=[],enabled=true){
+ const[persistentDays,setPersistentDays]=useState<AnalyticsDayV2[]>([]),[loading,setLoading]=useState(enabled),[persistentError,setPersistentError]=useState(""),[reloadKey,setReloadKey]=useState(0);
+ const fallbackDays=useMemo(()=>projectOrders(orders),[orders]);
+ useEffect(()=>{if(!enabled){setLoading(false);return}let live=true;setLoading(true);setPersistentError("");
+  getDocs(query(collection(db,"analytics_daily_v2"),orderBy("dateKey","desc"))).then(s=>{if(live){setPersistentDays(s.docs.map(d=>({dateKey:d.id,...d.data()} as AnalyticsDayV2)));setLoading(false)}}).catch(e=>{if(live){setPersistentError(e instanceof Error?e.message:"Falha ao carregar projeção persistente.");setLoading(false)}});
+  return()=>{live=false}},[enabled,reloadKey]);
+ const usePersistent=persistentDays.length>0,days=usePersistent?persistentDays:fallbackDays,source:Source=usePersistent?"persistent":"live-fallback";
+ const error=persistentError&&fallbackDays.length===0?persistentError:"";
+ return{days,loading:loading&&fallbackDays.length===0,error,persistentError,source,reload:()=>setReloadKey(v=>v+1)};
+}
