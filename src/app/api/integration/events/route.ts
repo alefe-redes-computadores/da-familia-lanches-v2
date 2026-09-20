@@ -5,6 +5,7 @@ import {
   assertReverseIntegrationEvent,
   consumeDflEntregasEvent,
 } from "@/lib/integration/server/reversePersistence";
+import { projectEntregasNativeDeliveryEvent } from "@/lib/analytics/server/projector";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,11 @@ export async function POST(request: NextRequest) {
       expectedEventId: event.event_id,
     });
 
+    const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload as Record<string, unknown> : {};
+    if (event.source_system === "dfl_entregas" && event.event_type === "delivery.completed" && payload.analyticsNativeDelivery === true) {
+      const result = await projectEntregasNativeDeliveryEvent(event);
+      return NextResponse.json({ ok:true, accepted:true, analytics:"native_delivery", ...result }, { status:201 });
+    }
     assertReverseIntegrationEvent(event);
     const result = await consumeDflEntregasEvent(event);
     return NextResponse.json(

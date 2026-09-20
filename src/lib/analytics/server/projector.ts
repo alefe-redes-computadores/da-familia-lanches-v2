@@ -43,6 +43,24 @@ export async function projectOrderById(orderId:string,sourceEventId?:string){
   return{projected:true,dateKey:next.dateKey};
  });
 }
+export async function projectEntregasNativeDeliveryEvent(event:{entity_id?:unknown;event_id?:unknown;occurred_at?:unknown;payload?:Record<string,unknown>;}){
+ const deliveryId=text(event.entity_id),p=(event.payload&&typeof event.payload==="object"?event.payload:{}) as Record<string,unknown>;
+ if(!deliveryId)return{projected:false,reason:"missing_delivery_id"};
+ if(text(p.externalOrderId)||text(p.external_order_id)||text(p.externalOrderSource)==="dfl_site")return{projected:false,reason:"site_owned_delivery"};
+ if(p.analyticsNativeDelivery!==true)return{projected:false,reason:"not_native_analytics"};
+ const stateRef=adminDb.collection(STATE).doc(encodeURIComponent(`dfl_entregas:delivery:${deliveryId}`));
+ const next=empty(dateKey(asDate(event.occurred_at)||asDate(p.completedAt)||asDate(p.updatedAt)||new Date()));
+ if(p.completed===true){const revenue=num(p.customerCharge??p.value);next.sales=1;next.revenue=revenue;next.subtotal=revenue;next.delivery=1;next.immediate=1;next.logisticsCompleted=1;next.payments[key(p.paymentMethod)]=revenue;}
+ return adminDb.runTransaction(async tx=>{
+  const ss=await tx.get(stateRef),prev=ss.exists?(ss.data()?.contribution as Contribution|undefined):undefined;
+  if(prev&&same(prev,next)){if(text(event.event_id))tx.set(stateRef,{lastSourceEventId:text(event.event_id),updatedAt:new Date().toISOString()},{merge:true});return{projected:false,reason:"unchanged",dateKey:next.dateKey}}
+  const keys=[...new Set([prev?.dateKey,next.dateKey].filter(Boolean) as string[])],refs=keys.map(k=>adminDb.collection(DAILY).doc(k)),snaps=await Promise.all(refs.map(r=>tx.get(r))),map=new Map<string,Contribution>();
+  keys.forEach((k,i)=>map.set(k,daily(snaps[i].exists?snaps[i].data():undefined,k)));if(prev)map.set(prev.dateKey,apply(map.get(prev.dateKey)||empty(prev.dateKey),prev,-1));map.set(next.dateKey,apply(map.get(next.dateKey)||empty(next.dateKey),next,1));
+  const now=new Date().toISOString();for(const [k,v] of map)tx.set(adminDb.collection(DAILY).doc(k),{...v,projectorVersion:PROJECTOR_VERSION,updatedAt:now},{merge:false});
+  tx.set(stateRef,{orderId:null,deliveryId,authority:"dfl_entregas",businessKey:`dfl_entregas:delivery:${deliveryId}`,contribution:next,projectorVersion:PROJECTOR_VERSION,lastSourceEventId:text(event.event_id)||null,updatedAt:now},{merge:false});return{projected:true,dateKey:next.dateKey};
+ });
+}
+
 export async function projectOrderEvent(event:{entity_id?:unknown;event_id?:unknown}){const id=text(event.entity_id);return id?projectOrderById(id,text(event.event_id)||undefined):{projected:false,reason:"missing_order_id"}}
 export async function runAnalyticsBackfill(batchSize=80){
  if(backfillCompleteInProcess)return{complete:true,processed:0,cached:true};
