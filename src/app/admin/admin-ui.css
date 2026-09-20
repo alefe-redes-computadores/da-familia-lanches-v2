@@ -24,3 +24,70 @@
 [data-admin-ui] :focus-visible{outline:2px solid rgba(167,139,250,.9);outline-offset:2px}
 [data-admin-ui]::-webkit-scrollbar,[data-admin-ui] *::-webkit-scrollbar{width:5px;height:5px}
 [data-admin-ui]::-webkit-scrollbar-thumb,[data-admin-ui] *::-webkit-scrollbar-thumb{background:#34343e;border-radius:99px}
+
+/* =========================================================
+   DFL ADMIN V3.1 — MANAGEMENT FOUNDATION
+   Mantém a geometria real dos módulos e unifica a identidade.
+   ========================================================= */
+[data-admin-ui]{
+  --ui-bg:#09090b!important;
+  --ui-surface:#111114!important;
+  --ui-raised:#17171c!important;
+  --ui-line:#292933!important;
+  --ui-line-strong:#3a3a47!important;
+  --ui-text:#f5f5f7!important;
+  --ui-muted:#a2a2ad!important;
+  --ui-faint:#73737f!important;
+  --ui-ink:#09090b!important;
+  --ui-danger:#fb7185!important;
+  --ui-radius:13px!important;
+  --ui-h:48px!important;
+}
+[data-admin-ui] input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+[data-admin-ui] select,
+[data-admin-ui] textarea{
+  border-color:#292933!important;
+  background:#111114!important;
+  color:#f5f5f7!important;
+}
+[data-admin-ui] input:focus,
+[data-admin-ui] select:focus,
+[data-admin-ui] textarea:focus{
+  border-color:#8b5cf6!important;
+  background:#15151a!important;
+  box-shadow:0 0 0 3px rgba(139,92,246,.16)!important;
+}
+[data-admin-ui] input[type=checkbox],
+[data-admin-ui] input[type=radio]{accent-color:#8b5cf6!important}
+[data-admin-ui] input[type=checkbox]:checked,
+[data-admin-ui] input[type=radio]:checked{
+  background:#8b5cf6!important;
+  border-color:#8b5cf6!important;
+}
+[data-admin-ui] button[class*="primary"],
+[data-admin-ui] button[class*="save"],
+[data-admin-ui] button[class*="mainAction"]{
+  background:#8b5cf6!important;
+  border-color:#8b5cf6!important;
+  color:#fff!important;
+  box-shadow:none!important;
+}
+[data-admin-ui] button[class*="secondary"],
+[data-admin-ui] button[class*="cancel"],
+[data-admin-ui] button[class*="testAdd"]{
+  background:#17171c!important;
+  border-color:#292933!important;
+  color:#f5f5f7!important;
+}
+[data-admin-ui] button[class*="danger"],
+[data-admin-ui] button[class*="remove"],
+[data-admin-ui] button[data-danger="true"]{
+  color:#fb7185!important;
+  border-color:rgba(251,113,133,.32)!important;
+  background:rgba(251,113,133,.06)!important;
+}
+[data-admin-ui] button[data-confirm="true"]{
+  background:rgba(251,113,133,.14)!important;
+  border-color:rgba(251,113,133,.48)!important;
+}
+[data-admin-ui] ::selection{background:rgba(139,92,246,.38)!important;color:#fff!important}
