@@ -17,3 +17,6 @@
 /* V47 shared admin surface */
 .root,.card,.panel,.section{color:#e8eaec}.root input,.root select,.root textarea,.card input,.card select,.card textarea{border-color:#30353a;background:#0f1113;color:#e8eaec;font-size:16px}.root button,.card button,.panel button{touch-action:manipulation}
 .root{color:#f5f5f7!important}.root [class*="card"],.root [class*="panel"],.root [class*="rule"]{background:#111114!important;border-color:#292933!important;color:#f5f5f7!important}.root [class*="save"]{background:#8b5cf6!important;border-color:#8b5cf6!important;color:#fff!important}
+
+/* ADMIN DESIGN V5 — FREE DELIVERY */
+.card{padding:13px!important;border-radius:15px!important;background:#101216!important;border-color:#242830!important}.preview{padding:9px 10px!important;background:#15181d!important}.grid{gap:6px!important}.full textarea{min-height:84px!important}.card>button{min-height:42px!important;border-radius:10px!important}

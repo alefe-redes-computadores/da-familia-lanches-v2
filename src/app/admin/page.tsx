@@ -44,6 +44,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("cozinha");
   const [storeOpen, setStoreOpen] = useState(true);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("todos");
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -163,8 +164,8 @@ export default function AdminPage() {
         <div className={styles.brand}>
           <div className={styles.brandMark} aria-hidden="true" />
           <div>
-            <strong>DFL Admin</strong>
-            <span>Central da loja</span>
+            <strong>Da Família</strong>
+            <span>Operação da loja</span>
           </div>
         </div>
 
@@ -333,32 +334,29 @@ export default function AdminPage() {
             <b>{filtered.length}</b>
           </div>
 
-          <label className={styles.search}>
-            <span>Buscar pedido</span>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Cliente, telefone, pedido ou endereço"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                aria-label="Limpar busca"
-              >
-                ×
-              </button>
-            )}
-          </label>
-
-          <div className={styles.filters}>
+          <div className={styles.queueTools}>
+            <button type="button" className={styles.searchTrigger} data-active={searchOpen || Boolean(search)}
+              onClick={() => setSearchOpen((value) => !value)} aria-label={searchOpen ? "Fechar busca" : "Buscar pedido"} title="Buscar pedido">
+              <span aria-hidden="true">⌕</span><b>Buscar</b>
+            </button>
+            <div className={styles.filters}>
             <button data-active={serviceFilter === "todos"} onClick={() => setServiceFilter("todos")}>Todos</button>
             <button data-active={serviceFilter === "delivery"} onClick={() => setServiceFilter("delivery")}>Entrega</button>
             <button data-active={serviceFilter === "pickup"} onClick={() => setServiceFilter("pickup")}>Retirada</button>
             <button className={styles.attentionFilter} data-active={attentionOnly} onClick={() => setAttentionOnly((value) => !value)}>
               {attentionOnly ? "Voltar à etapa" : "Sem atualização"} {counts.attention > 0 && <b>{counts.attention}</b>}
             </button>
+            </div>
           </div>
+
+          {(searchOpen || search) && (
+            <label className={styles.search} data-open="true">
+              <span>Buscar pedido</span>
+              <input autoFocus value={search} onChange={(event) => setSearch(event.target.value)}
+                placeholder="Cliente, telefone, pedido ou endereço" />
+              <button type="button" onClick={() => { setSearch(""); setSearchOpen(false); }} aria-label="Fechar busca">×</button>
+            </label>
+          )}
 
           <div className={styles.grid}>
             {filtered.length

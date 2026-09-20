@@ -11,3 +11,6 @@
 
 /* V47 shared admin surface */
 .root,.card,.panel,.section{color:#e8eaec}.root input,.root select,.root textarea,.card input,.card select,.card textarea{border-color:#30353a;background:#0f1113;color:#e8eaec;font-size:16px}.root button,.card button,.panel button{touch-action:manipulation}
+
+/* ADMIN DESIGN V5 — CATALOG ORGANIZER */
+.root,.card,.panel{background:#101216!important;border-color:#242830!important}.root [class*="row"],.root [class*="item"]{border-radius:10px!important}.root button{min-height:36px!important;border-radius:9px!important}
