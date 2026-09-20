@@ -112,38 +112,19 @@ export function DeliveryRatesAdmin() {
   };
 
   return <section className={styles.card}>
-    <div className={styles.head}>
-      <div><span>ENTREGA & FRETE</span><strong>Tabela de bairros</strong><p>A mesma tabela usada pelo checkout.</p></div>
-      <b>{rates.length} bairros</b>
+    <div className={styles.head}><div><span>TAXAS DE ENTREGA</span><strong>Bairros e valores</strong><p>Edite apenas o que precisar. Valores são formatados em real.</p></div><b>{rates.length}</b></div>
+    <div className={styles.topGrid}>
+      <label className={styles.fallback}><span>Taxa padrão</span><div className={styles.moneyInput}><i>R$</i><input inputMode="decimal" value={defaultFee} onChange={(e)=>setDefaultFee(moneyTyping(e.target.value))} onBlur={()=>setDefaultFee(moneyDraft(defaultFee))}/></div><small>Fallback quando o bairro não for localizado.</small></label>
+      <div className={styles.health} data-warning={invalidCount>0}><span>Qualidade</span><strong>{invalidCount?`${invalidCount} para revisar`:"Tabela saudável"}</strong><small>{invalidCount?"Corrija antes de publicar.":"Nenhum problema encontrado."}</small></div>
     </div>
-
-    <div className={styles.summary}>
-      <label><span>TAXA PADRÃO / FALLBACK</span><div className={styles.moneyInput}><i>R$</i><input inputMode="decimal" value={defaultFee} onChange={(e) => setDefaultFee(moneyTyping(e.target.value))} onBlur={() => setDefaultFee(moneyDraft(defaultFee))} placeholder="0,00" /></div><small>Usada quando o bairro não está na tabela ou a consulta falha.</small></label>
-      <div className={styles.health} data-warning={invalidCount > 0}><span>QUALIDADE DA TABELA</span><strong>{invalidCount ? `${invalidCount} item(ns) para revisar` : "Tudo certo"}</strong><small>{invalidCount ? "Há nome ou taxa inválida." : "Bairros prontos para cobrança."}</small></div>
-    </div>
-
-    <div className={styles.toolbar}>
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar bairro…" />
-      <span>{sorted.length} exibidos</span>
-    </div>
-
-    {loading ? <div className={styles.empty}>Carregando tabela…</div> : (
-      <div className={styles.list}>
-        {sorted.map((item) => <div className={styles.row} key={item._key}>
-          <input className={styles.name} value={String(item.nome ?? "")} onChange={(e) => updateRate(item._key, { nome: e.target.value })} aria-label="Nome do bairro" />
-          <div className={styles.rate}><span>R$</span><input inputMode="decimal" value={typeof item.taxa === "string" ? item.taxa : moneyDraft(item.taxa)} onChange={(e) => updateRate(item._key, { taxa: moneyTyping(e.target.value) })} onBlur={() => updateRate(item._key, { taxa: moneyDraft(item.taxa) })} aria-label={`Taxa de ${item.nome ?? "bairro"}`} /></div>
-          <button type="button" className={styles.remove} data-confirm={removeConfirmKey===item._key} onClick={() => removeRate(item._key, String(item.nome ?? "Bairro"))} aria-label={`Remover ${item.nome ?? "bairro"}`}>{removeConfirmKey===item._key ? "Confirmar" : "Excluir"}</button>
-        </div>)}
-        {!sorted.length && <div className={styles.empty}>Nenhum bairro encontrado.</div>}
-      </div>
-    )}
-
-    <div className={styles.add}>
-      <div><span>NOVO BAIRRO</span><strong>Adicionar à tabela</strong></div>
-      <div className={styles.addFields}><input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome do bairro" /><div className={styles.rate}><span>R$</span><input inputMode="decimal" value={newFee} onChange={(e) => setNewFee(moneyTyping(e.target.value))} onBlur={() => newFee && setNewFee(moneyDraft(newFee))} placeholder="0,00" /></div><button type="button" onClick={addRate}>Adicionar</button></div>
-    </div>
-
-    {message && <div className={styles.feedback}>{message}</div>}
-    <button type="button" className={styles.save} disabled={saving || loading} onClick={() => void save()}>{saving ? "Publicando…" : `Salvar tabela · fallback ${money(parseMoney(defaultFee))}`}</button>
+    <div className={styles.toolbar}><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar bairro"/><span>{sorted.length} de {rates.length}</span></div>
+    {loading?<div className={styles.empty}>Carregando tabela…</div>:<div className={styles.list}>{sorted.map(item=><div className={styles.row} key={item._key}>
+      <input className={styles.name} value={String(item.nome??"")} onChange={(e)=>updateRate(item._key,{nome:e.target.value})} aria-label="Nome do bairro"/>
+      <div className={styles.rate}><span>R$</span><input inputMode="decimal" value={typeof item.taxa==="string"?item.taxa:moneyDraft(item.taxa)} onChange={(e)=>updateRate(item._key,{taxa:moneyTyping(e.target.value)})} onBlur={()=>updateRate(item._key,{taxa:moneyDraft(item.taxa)})} aria-label={`Taxa de ${item.nome??"bairro"}`}/></div>
+      <button type="button" className={styles.remove} data-confirm={removeConfirmKey===item._key} onClick={()=>removeRate(item._key,String(item.nome??"Bairro"))}>{removeConfirmKey===item._key?"Confirmar":"Remover"}</button>
+    </div>)}{!sorted.length&&<div className={styles.empty}>Nenhum bairro encontrado.</div>}</div>}
+    <div className={styles.add}><div><span>NOVO BAIRRO</span><strong>Adicionar taxa</strong></div><div className={styles.addFields}><input value={newName} onChange={(e)=>setNewName(e.target.value)} placeholder="Nome do bairro"/><div className={styles.rate}><span>R$</span><input inputMode="decimal" value={newFee} onChange={(e)=>setNewFee(moneyTyping(e.target.value))} onBlur={()=>newFee&&setNewFee(moneyDraft(newFee))} placeholder="0,00"/></div><button type="button" onClick={addRate}>Adicionar</button></div></div>
+    {message&&<div className={styles.feedback}>{message}</div>}
+    <button type="button" className={styles.save} disabled={saving||loading} onClick={()=>void save()}>{saving?"Publicando…":`Publicar alterações · ${money(parseMoney(defaultFee))} padrão`}</button>
   </section>;
 }

@@ -161,10 +161,10 @@ export default function AdminPage() {
 
       <header className={styles.topbar}>
         <div className={styles.brand}>
-          <div className={styles.brandMark}>DF</div>
+          <div className={styles.brandMark} aria-hidden="true" />
           <div>
-            <strong>Da Família</strong>
-            <span>Admin</span>
+            <strong>DFL Admin</strong>
+            <span>Central da loja</span>
           </div>
         </div>
 
@@ -181,11 +181,11 @@ export default function AdminPage() {
       <section className={styles.command}>
         <div className={styles.commandHead}>
           <div>
-            <span>OPERAÇÃO</span>
+            <span>VISÃO GERAL</span>
             <h1>
               {counts.cozinha || counts.expedicao
                 ? `${counts.cozinha + counts.expedicao} pedidos em andamento`
-                : "Tudo tranquilo por aqui"}
+                : "Operação sob controle"}
             </h1>
           </div>
 
