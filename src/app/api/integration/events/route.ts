@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     });
 
     const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload as Record<string, unknown> : {};
-    if (event.source_system === "dfl_entregas" && event.event_type === "delivery.completed" && payload.analyticsNativeDelivery === true) {
+    if (event.source_system === "dfl_entregas" && event.entity_type === "delivery" && payload.analyticsNativeDelivery === true) {
       const result = await projectEntregasNativeDeliveryEvent(event);
       return NextResponse.json({ ok:true, accepted:true, analytics:"native_delivery", ...result }, { status:201 });
     }
