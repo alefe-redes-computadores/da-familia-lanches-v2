@@ -14,7 +14,24 @@ const key=(v:unknown)=>text(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").t
 const isFinal=(v:unknown)=>["finalizado","concluido","concluida","completed"].includes(key(v));
 const dateKey=(d:Date)=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
 function asDate(v:unknown):Date|null{if(v instanceof Timestamp)return v.toDate();if(v&&typeof v==="object"&&"toDate" in v&&typeof (v as {toDate?:unknown}).toDate==="function"){try{return (v as {toDate:()=>Date}).toDate()}catch{return null}}if(typeof v==="string"||typeof v==="number"){const d=new Date(v);return Number.isNaN(d.getTime())?null:d}return null}
-function addMap(a:NumMap,b:NumMap,sign=1){const out={...a};for(const[k,v]of Object.entries(b)){const n=(out[k]||0)+v*sign;if(Math.abs(n)<1e-9)delete out[k];else out[k]=n}return out}
+function safeMap(v:unknown):NumMap{
+ if(!v||typeof v!=="object"||Array.isArray(v))return{};
+ const out:NumMap={};
+ for(const[k,raw]of Object.entries(v as Record<string,unknown>)){
+  const n=num(raw);
+  if(Math.abs(n)>=1e-9)out[k]=n;
+ }
+ return out;
+}
+function addMap(a:NumMap|undefined|null,b:NumMap|undefined|null,sign=1){
+ const out=safeMap(a);
+ for(const[k,v]of Object.entries(safeMap(b))){
+  const n=(out[k]||0)+v*sign;
+  if(Math.abs(n)<1e-9)delete out[k];
+  else out[k]=n;
+ }
+ return out;
+}
 function contribution(o:Record<string,unknown>):Contribution{
  const c=empty(dateKey(asDate(o.data)||asDate(o.createdAt)||asDate(o.created_at)||new Date()));if(!isFinal(o.status))return c;
  c.sales=1;c.revenue=num(o.total);c.subtotal=num(o.subtotal);c.deliveryFees=num(o.taxaEntrega);c.discounts=num(o.desconto);
@@ -24,13 +41,37 @@ function contribution(o:Record<string,unknown>):Contribution{
  for(const raw of Array.isArray(o.itens)?o.itens:[]){if(!raw||typeof raw!=="object")continue;const i=raw as Record<string,unknown>;const name=text(i.name)||text(i.nome)||text(i.id)||"Item";const qty=Math.max(1,num(i.quantity||i.quantidade||1));c.products[name]=(c.products[name]||0)+qty}
  return c;
 }
-function daily(raw:Record<string,unknown>|undefined,k:string):Contribution{const r=raw||{};return{dateKey:k,sales:num(r.sales),revenue:num(r.revenue),subtotal:num(r.subtotal),deliveryFees:num(r.deliveryFees),discounts:num(r.discounts),delivery:num(r.delivery),pickup:num(r.pickup),scheduled:num(r.scheduled),immediate:num(r.immediate),logisticsCompleted:num(r.logisticsCompleted),payments:(r.payments&&typeof r.payments==="object"?r.payments:{}) as NumMap,products:(r.products&&typeof r.products==="object"?r.products:{}) as NumMap,origins:(r.origins&&typeof r.origins==="object"?r.origins:{}) as NumMap}}
+function daily(raw:Record<string,unknown>|undefined,k:string):Contribution{
+ const r=raw||{};
+ return{
+  dateKey:k,
+  sales:num(r.sales),
+  revenue:num(r.revenue),
+  subtotal:num(r.subtotal),
+  deliveryFees:num(r.deliveryFees),
+  discounts:num(r.discounts),
+  delivery:num(r.delivery),
+  pickup:num(r.pickup),
+  scheduled:num(r.scheduled),
+  immediate:num(r.immediate),
+  logisticsCompleted:num(r.logisticsCompleted),
+  payments:safeMap(r.payments),
+  products:safeMap(r.products),
+  origins:safeMap(r.origins),
+ };
+}
+function normalizeContribution(raw:unknown,fallbackDateKey:string):Contribution|null{
+ if(!raw||typeof raw!=="object"||Array.isArray(raw))return null;
+ const r=raw as Record<string,unknown>;
+ return daily(r,text(r.dateKey)||fallbackDateKey);
+}
 function apply(a:Contribution,b:Contribution,sign:number):Contribution{return{...a,sales:a.sales+b.sales*sign,revenue:a.revenue+b.revenue*sign,subtotal:a.subtotal+b.subtotal*sign,deliveryFees:a.deliveryFees+b.deliveryFees*sign,discounts:a.discounts+b.discounts*sign,delivery:a.delivery+b.delivery*sign,pickup:a.pickup+b.pickup*sign,scheduled:a.scheduled+b.scheduled*sign,immediate:a.immediate+b.immediate*sign,logisticsCompleted:a.logisticsCompleted+b.logisticsCompleted*sign,payments:addMap(a.payments,b.payments,sign),products:addMap(a.products,b.products,sign),origins:addMap(a.origins,b.origins,sign)}}
 const same=(a:Contribution,b:Contribution)=>JSON.stringify(a)===JSON.stringify(b);
 
 async function persistState(stateRef:FirebaseFirestore.DocumentReference,next:Contribution,state:Record<string,unknown>){
  return adminDb.runTransaction(async tx=>{
-  const ss=await tx.get(stateRef),prev=ss.exists?(ss.data()?.contribution as Contribution|undefined):undefined;
+  const ss=await tx.get(stateRef);
+  const prev=ss.exists?normalizeContribution(ss.data()?.contribution,next.dateKey):null;
   if(prev&&same(prev,next)){tx.set(stateRef,{...state,updatedAt:new Date().toISOString()},{merge:true});return{projected:false,reason:"unchanged",dateKey:next.dateKey}}
   const keys=[...new Set([prev?.dateKey,next.dateKey].filter(Boolean) as string[])],refs=keys.map(k=>adminDb.collection(DAILY).doc(k)),snaps=await Promise.all(refs.map(r=>tx.get(r))),map=new Map<string,Contribution>();
   keys.forEach((k,i)=>map.set(k,daily(snaps[i].exists?snaps[i].data():undefined,k)));
