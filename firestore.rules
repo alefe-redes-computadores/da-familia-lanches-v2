@@ -15,14 +15,7 @@ service cloud.firestore {
     }
 
     match /Pedidos/{documentId} {
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.status in ["Pendente", "Agendado"]
-        && request.resource.data.tipoEntrega in ["delivery", "pickup"]
-        && request.resource.data.subtotal is number
-        && request.resource.data.total is number
-        && request.resource.data.subtotal >= 0
-        && request.resource.data.total >= 0;
+      allow create: if false; // V60: criação exclusiva pelo endpoint autenticado (Admin SDK)
       allow read, list: if isAdmin()
         || (request.auth != null && request.auth.uid == resource.data.userId);
       allow update, delete: if isAdmin();
@@ -42,32 +35,7 @@ service cloud.firestore {
     }
 
     match /integration_outbox/{eventId} {
-      allow create: if request.auth != null
-        && eventId == request.resource.data.event_id
-        && request.resource.data.event_id is string
-        && request.resource.data.event_type in ["order.created", "order.updated"]
-        && request.resource.data.occurred_at is string
-        && request.resource.data.source_system == "dfl_site"
-        && request.resource.data.entity_type == "order"
-        && request.resource.data.entity_id is string
-        && request.resource.data.schema_version == 1
-        && request.resource.data.payload is map
-        && request.resource.data.status == "pending"
-        && request.resource.data.attempts == 0
-        && request.resource.data.created_at is string
-        && request.resource.data.updated_at is string
-        && request.resource.data.payload.orderId == request.resource.data.entity_id
-        && request.resource.data.payload.sourceSystem == "dfl_site"
-        && request.resource.data.payload.userId is string
-        && request.resource.data.payload.orderSchemaVersion is number
-        && (
-          isValidCustomerOrderCreatedOutbox()
-          ||
-          (
-            request.resource.data.event_type == "order.updated"
-            && isAdmin()
-          )
-        );
+      allow create: if false; // V60: outbox nasce atomicamente no backend confiável
 
       allow read, list, update, delete: if isAdmin();
     }

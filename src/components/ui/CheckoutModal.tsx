@@ -443,6 +443,8 @@ export function CheckoutModal() {
         setDiscount(0);
         setCouponMessage("O cupom ou benefício mudou desde a validação. Aplique o código novamente.");
         setErrorMessage("Revise o cupom ou benefício antes de confirmar. Seu carrinho foi preservado.");
+      } else if (["PRICE_CHANGED", "DELIVERY_CHANGED", "PRODUCT_UNAVAILABLE", "ADDON_UNAVAILABLE"].includes(code)) {
+        setErrorMessage("O cardápio ou a taxa mudou. Feche o checkout, confira o carrinho atualizado e tente novamente.");
       } else {
         setErrorMessage("Não conseguimos registrar o pedido. Seu carrinho foi preservado. Tente novamente antes de enviar pelo WhatsApp.");
       }

@@ -14,8 +14,6 @@ export type ModalType =
   | "account"
   | "terms"
   | "menu"
-  | "pix"
-  | "outros"
   | null;
 
 export type CartToastState = {

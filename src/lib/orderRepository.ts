@@ -6,7 +6,7 @@ import {
   Timestamp,
   type DocumentReference,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupons";
 import { normalizeReward, rewardDiscount, rewardIsExpired, type RewardGrantPlan } from "@/lib/rewards";
 import { canTransitionOrderStatus } from "@/lib/orderStatus";
@@ -34,86 +34,17 @@ export type CreateCustomerOrderInput = {
 const cents = (value: number) => Math.round(value * 100);
 
 export async function createCustomerOrder(input: CreateCustomerOrderInput) {
-  const orderRef = doc(collection(db, "Pedidos"));
-  const code = input.discount?.code.trim().toUpperCase() || "";
-  const occurredAt = new Date().toISOString();
-
-  await runTransaction(db, async (transaction) => {
-    let rewardRefToConsume: DocumentReference | null = null;
-
-    if (input.discount?.rewardId) {
-      const rewardRef = doc(
-        db,
-        "Usuarios",
-        input.userId,
-        "RecompensasRecebidas",
-        input.discount.rewardId,
-      );
-      const rewardSnap = await transaction.get(rewardRef);
-      if (!rewardSnap.exists()) throw new Error("REWARD_NOT_FOUND");
-
-      const reward = normalizeReward(rewardSnap.id, rewardSnap.data());
-      if (!reward || reward.code !== code) throw new Error("REWARD_INVALID");
-      if (reward.used) throw new Error("REWARD_USED");
-      if (rewardIsExpired(reward)) throw new Error("REWARD_EXPIRED");
-
-      const actualDiscount = rewardDiscount(reward, input.subtotal);
-      if (
-        actualDiscount <= 0 ||
-        cents(actualDiscount) !== cents(input.discount.expectedDiscount)
-      ) {
-        throw new Error("REWARD_CHANGED");
-      }
-
-      rewardRefToConsume = rewardRef;
-    } else if (code) {
-      const couponRef = doc(db, "Cupons", code);
-      const couponSnap = await transaction.get(couponRef);
-      if (!couponSnap.exists()) throw new Error("COUPON_NOT_FOUND");
-
-      const coupon = normalizeCoupon(couponSnap.id, couponSnap.data());
-      const availability = couponAvailability(coupon, input.subtotal);
-      if (!availability.ok) {
-        throw new Error(
-          `COUPON_${availability.reason.toUpperCase().replace(/-/g, "_")}`,
-        );
-      }
-
-      const actualDiscount = couponDiscount(coupon, input.subtotal);
-      if (
-        actualDiscount <= 0 ||
-        cents(actualDiscount) !== cents(input.discount?.expectedDiscount ?? 0)
-      ) {
-        throw new Error("COUPON_CHANGED");
-      }
-    }
-
-    const scheduledFor=typeof input.order.scheduledFor==="string"?input.order.scheduledFor:"";
-    if(input.order.isAgendamento===true&&scheduledFor){const cr=doc(db,"settings","orderScheduling"),cs=await transaction.get(cr),cfg=normalizeSchedulingConfig(cs.exists()?cs.data():{}),time=scheduledFor.slice(11,16);if(!cfg.enabled||(cfg.enabledTimes.length&&!cfg.enabledTimes.includes(time)))throw new Error("SCHEDULE_SLOT_DISABLED");const sr=doc(db,"schedule_slots",scheduleSlotId(scheduledFor)),ss=await transaction.get(sr),reserved=ss.exists()?Math.max(0,Number(ss.data().reserved)||0):0,capacity=capacityForTime(cfg,time);if(reserved>=capacity)throw new Error("SCHEDULE_SLOT_FULL");transaction.set(sr,{scheduledFor,date:scheduledFor.slice(0,10),time,reserved:reserved+1,capacity,updatedAt:serverTimestamp()},{merge:true})}
-
-    const event = buildOrderCreatedEvent({
-      orderId: orderRef.id,
-      order: input.order,
-      occurredAt,
-    });
-
-    await ensureIntegrationEventInTransaction(
-      transaction,
-      event,
-    );
-
-    if (rewardRefToConsume) {
-      transaction.update(rewardRefToConsume, {
-        used: true,
-        usedAt: serverTimestamp(),
-        usedOrderId: orderRef.id,
-      });
-    }
-
-    transaction.set(orderRef, input.order);
+  const user = auth.currentUser;
+  if (!user || user.uid !== input.userId) throw new Error("AUTH_REQUIRED");
+  const token = await user.getIdToken();
+  const response = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ` },
+    body: JSON.stringify(input),
   });
-
-  return { id: orderRef.id };
+  const payload = await response.json().catch(() => ({})) as { ok?: boolean; id?: string; error?: string };
+  if (!response.ok || !payload.ok || !payload.id) throw new Error(payload.error || "ORDER_FAILED");
+  return { id: payload.id };
 }
 
 export async function updateOrderStatus(input: {

@@ -24,5 +24,5 @@ function adminCredential() {
   });
 }
 
-const adminApp = getApps()[0] || initializeApp({ credential: adminCredential() });
+export const adminApp = getApps()[0] || initializeApp({ credential: adminCredential() });
 export const adminDb = getFirestore(adminApp);
