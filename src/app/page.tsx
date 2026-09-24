@@ -10,6 +10,9 @@ import { useUIStore } from "@/store/ui";
 import { ActiveOrderBanner } from "@/components/ui/ActiveOrderBanner";
 import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
+import { useRouter } from "next/navigation";
+import { productHref } from "@/lib/productRoutes";
+import Link from "next/link";
 
 
 
@@ -22,6 +25,7 @@ function normalize(value: string) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const openModal = useUIStore((s) => s.openModal);
   const shopStatus = useShopStatus();
   const { products } = useCatalog();
@@ -98,10 +102,10 @@ export default function Home() {
             <div className={styles.promoRail}>
               {promoProducts.map((product) => {
                 const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
-                return <button type="button" className={styles.promoHeroCard} key={`promo-${product.id}`} onClick={() => openProduct(product)}>
+                return <Link className={styles.promoHeroCard} key={`promo-${product.id}`} href={productHref(product)}>
                   <div className={styles.promoHeroMedia}><img src={product.image} alt="" loading="lazy" /><span>-{discount}%</span></div>
                   <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em></div>
-                </button>;
+                </Link>;
               })}
             </div>
           </section>
@@ -131,7 +135,7 @@ export default function Home() {
                   const hasDiscount = typeof product.oldPrice === "number" && product.oldPrice > product.price;
                   const discount = hasDiscount ? Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100) : 0;
                   return (
-                    <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id} onClick={() => openProduct(product)}>
+                    <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id} onClick={() => available && router.push(productHref(product))}>
                       <div className={styles.media}>
                         <img src={product.image} alt={product.name} loading="lazy" />
                         <div className={styles.badges}>
@@ -143,7 +147,7 @@ export default function Home() {
                       <div className={styles.cardBody}>
                         <h3>{product.name}</h3>
                         <p className={styles.cardDescription}>{product.description}</p>
-                        {product.bundleItems?.length && available && <span className={styles.detailsLink}>Ver o que vem no combo <b>›</b></span>}
+                        {(product.bundleItems?.length || product.detailsItems?.length) && available && <Link href={productHref(product)} onClick={(event) => event.stopPropagation()} className={styles.detailsLink}>Ver página completa <b>›</b></Link>}
                         <div className={styles.cardFooter}>
                           <div className={styles.priceBlock}>
                             {hasDiscount && <span className={styles.oldPrice}>{money(product.oldPrice!)}</span>}

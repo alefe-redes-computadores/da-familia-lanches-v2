@@ -20,6 +20,10 @@ export type Product = {
   detailsItems?: string[];
   includedExtras?: string;
   bundleItems?: Array<{ productId: string; quantity: number; note?: string }>;
+  /** Endereco publico opcional. Quando vazio, o site deriva um slug estavel do ID. */
+  publicSlug?: string;
+  /** Secao publica opcional, por exemplo ofertas-da-familia ou lanches. */
+  publicSection?: string;
 };
 
 export const products: Product[] = [

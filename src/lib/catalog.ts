@@ -70,6 +70,8 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
   const detailsItems = stringArray(raw.detailsItems ?? raw.itensDetalhes);
   const includedExtras = text(raw.includedExtras ?? raw.acompanha) || undefined;
   const normalizedBundleItems = bundleItems(raw.bundleItems ?? raw.itensCombo);
+  const publicSlug = text(raw.publicSlug ?? raw.slugPublico) || undefined;
+  const publicSection = text(raw.publicSection ?? raw.secaoPublica) || undefined;
 
   return {
     id,
@@ -87,6 +89,8 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
     ...(detailsItems !== undefined ? { detailsItems } : {}),
     ...(includedExtras ? { includedExtras } : {}),
     ...(normalizedBundleItems ? { bundleItems: normalizedBundleItems } : {}),
+    ...(publicSlug ? { publicSlug } : {}),
+    ...(publicSection ? { publicSection } : {}),
   };
 }
 

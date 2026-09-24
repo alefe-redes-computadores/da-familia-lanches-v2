@@ -11,6 +11,7 @@ import { CATALOG_ADDONS_COLLECTION, CATALOG_PRODUCTS_COLLECTION } from "@/lib/ca
 import { CATALOG_CATEGORIES_COLLECTION, type CatalogCategory } from "@/lib/catalogCategories";
 import styles from "./CatalogAdmin.module.css";
 import { CatalogOrganizerAdmin } from "./CatalogOrganizerAdmin";
+import { productPublicSection, productPublicSlug } from "@/lib/productRoutes";
 
 
 type ProductDraft = {
@@ -30,6 +31,8 @@ type ProductDraft = {
   detailsItems: string;
   includedExtras: string;
   bundleItems: Array<{ productId: string; quantity: number; note: string }>;
+  publicSlug: string;
+  publicSection: string;
 };
 
 type AddonDraft = {
@@ -128,6 +131,8 @@ const draftFromProduct = (product: Product): ProductDraft => ({
   detailsItems: product.detailsItems?.join("\n") ?? "",
   includedExtras: product.includedExtras ?? "",
   bundleItems: (product.bundleItems ?? []).map((item) => ({ productId: item.productId, quantity: item.quantity, note: item.note ?? "" })),
+  publicSlug: product.publicSlug ?? productPublicSlug(product),
+  publicSection: product.publicSection ?? productPublicSection(product),
 });
 
 const draftFromAddon = (addon: Addon): AddonDraft => ({
@@ -191,7 +196,7 @@ export function CatalogAdmin() {
 
   const openCreateProduct = () => {
     setProductMode("create");
-    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [] });
+    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "" });
     setMessage("");
   };
 
@@ -235,6 +240,8 @@ export function CatalogAdmin() {
         detailsItems: productDraft.detailsItems.split("\n").map((item) => item.trim()).filter(Boolean),
         includedExtras: productDraft.includedExtras.trim() || deleteField(),
         bundleItems: productDraft.bundleItems.length ? productDraft.bundleItems.map((item) => ({ productId: item.productId, quantity: Math.max(1, Math.trunc(item.quantity || 1)), ...(item.note.trim() ? { note: item.note.trim() } : {}) })) : deleteField(),
+        publicSlug: slugify(productDraft.publicSlug) || deleteField(),
+        publicSection: slugify(productDraft.publicSection) || deleteField(),
         updatedAt: serverTimestamp(),
       };
 
@@ -475,6 +482,14 @@ export function CatalogAdmin() {
           <label className={styles.full}>Título dos detalhes<input value={productDraft.detailsTitle} onChange={(e) => setProductDraft({ ...productDraft, detailsTitle: e.target.value })} placeholder="Ex.: O que vem no Uai?" /></label>
           <label className={styles.full}>Ingredientes / composição<textarea value={productDraft.detailsItems} onChange={(e) => setProductDraft({ ...productDraft, detailsItems: e.target.value })} placeholder={"Um item por linha\nPão\nHambúrguer\nBacon"} /></label>
           <label className={styles.full}>Acompanha<textarea value={productDraft.includedExtras} onChange={(e) => setProductDraft({ ...productDraft, includedExtras: e.target.value })} placeholder="Maionese temperada da casa, molho verde e ketchup sachê" /></label>
+          <div className={`${styles.full} ${styles.commercialBlock}`}>
+            <div className={styles.commercialHead}><div><span>LINK PÚBLICO</span><strong>Página para divulgação</strong></div><small>Google, Instagram e WhatsApp</small></div>
+            <div className={styles.priceFields}>
+              <label>Seção da URL<input value={productDraft.publicSection} onChange={(e) => setProductDraft({ ...productDraft, publicSection: slugify(e.target.value) })} placeholder={productDraft.showInOffers ? "ofertas-da-familia" : "lanches"} /></label>
+              <label>Nome na URL<input value={productDraft.publicSlug} onChange={(e) => setProductDraft({ ...productDraft, publicSlug: slugify(e.target.value) })} placeholder={slugify(productDraft.name) || "nome-do-produto"} /></label>
+            </div>
+            <p className={styles.promoHint}>dafamilialanches.com.br/{productDraft.publicSection || (productDraft.showInOffers ? "ofertas-da-familia" : productDraft.category)}/{productDraft.publicSlug || slugify(productDraft.name) || "produto"}</p>
+          </div>
           <div className={`${styles.full} ${styles.bundleEditor}`}>
             <div className={styles.bundleEditorHead}><div><strong>Composição por produtos</strong><small>Ideal para combos e promoções. Ingredientes vêm do cadastro do lanche vinculado.</small></div><button type="button" onClick={() => { const candidate=products.find((item)=>item.id!==productDraft.id); if(candidate)setProductDraft({...productDraft,bundleItems:[...productDraft.bundleItems,{productId:candidate.id,quantity:1,note:""}]}); }}>+ Adicionar item</button></div>
             {productDraft.bundleItems.length ? <div className={styles.bundleRows}>{productDraft.bundleItems.map((item,index)=><div className={styles.bundleRow} key={`${item.productId}-${index}`}>
