@@ -5,7 +5,15 @@ import styles from"./StoreOperationAdmin.module.css";
 export function StoreOperationAdmin(){const[s,setS]=useState<StoreSettings>(DEFAULT_STORE_SETTINGS),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
  const[ex,setEx]=useState<StoreException>({date:"",closed:true,label:""});useEffect(()=>onSnapshot(doc(db,"settings","loja"),x=>{setS(x.exists()?normalizeStoreSettings(x.data()):DEFAULT_STORE_SETTINGS);setReady(true)},()=>setReady(true)),[]);
  const current=useMemo(()=>evaluateStoreStatus(s),[s]);const save=async(next:StoreSettings,text:string)=>{setBusy(true);try{await setDoc(doc(db,"settings","loja"),{...next,updatedAt:serverTimestamp()},{merge:true});setS(next);setMsg(text)}catch(e){console.error(e);setMsg("Falha ao salvar funcionamento.")}finally{setBusy(false)}};
- const mode=(m:StoreMode)=>void save({...s,mode:m},m==="auto"?"Modo automático ativado.":m==="force_open"?"Loja forçada como aberta.":m==="test_open"?"Modo de teste ativado. Só os e-mails liberados fazem pedido imediato.":"Loja forçada como fechada.");
+ const mode=(m:StoreMode)=>{
+  if(m===s.mode)return;
+  const risky=m==="force_open"||m==="force_closed";
+  if(risky){
+   const action=m==="force_open"?"abrir a loja ignorando a agenda":"fechar a loja temporariamente";
+   if(!window.confirm(`Confirmar: ${action}?\n\nO controle manual ficará ativo até você voltar para Automático.`))return;
+  }
+  void save({...s,mode:m},m==="auto"?"Modo automático ativado.":m==="force_open"?"Loja forçada como aberta.":m==="test_open"?"Modo de teste ativado. Só os e-mails liberados fazem pedido imediato.":"Loja forçada como fechada.");
+ };
  const[testEmail,setTestEmail]=useState("");
  useEffect(()=>{if(!msg)return;const id=window.setTimeout(()=>setMsg(""),3200);return()=>window.clearTimeout(id)},[msg]);
  const addTestEmail=()=>{const email=testEmail.trim().toLowerCase();if(!email||!email.includes("@"))return setMsg("Informe um e-mail válido.");if(s.testAllowedEmails.includes(email))return setMsg("Esse e-mail já está liberado.");setTestEmail("");void save({...s,testAllowedEmails:[...s.testAllowedEmails,email]},"E-mail liberado para teste.")};

@@ -1,0 +1,126 @@
+/* DFL ADMIN V59 — INTERNAL COMMAND CENTER
+   Camada única de convergência visual. Sem regras comerciais. */
+[data-admin-ui]{
+  --v59-bg:#080a0d;--v59-panel:#0f1217;--v59-panel-2:#141820;--v59-row:#171b23;
+  --v59-line:#252b35;--v59-line-2:#303744;--v59-text:#f5f7fa;--v59-muted:#929aa7;
+  --v59-faint:#68717f;--v59-purple:#8b5cf6;--v59-purple-soft:rgba(139,92,246,.13);
+  --v59-green:#45d49b;--v59-amber:#f4be5b;--v59-red:#ff6f89;
+  background:var(--v59-bg)!important;color:var(--v59-text)!important;
+}
+[data-admin-ui] input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+[data-admin-ui] select,[data-admin-ui] textarea{
+  min-height:43px!important;border:1px solid var(--v59-line)!important;border-radius:11px!important;
+  background:#0c0f14!important;color:var(--v59-text)!important;font-size:16px!important;box-shadow:none!important;
+}
+[data-admin-ui] input:focus,[data-admin-ui] select:focus,[data-admin-ui] textarea:focus{
+  border-color:#7451d0!important;background:#10141a!important;box-shadow:0 0 0 3px rgba(139,92,246,.13)!important;
+}
+[data-admin-ui] button{touch-action:manipulation;transition:background .16s,border-color .16s,color .16s,transform .12s}
+[data-admin-ui] button:active{transform:scale(.985)}
+[data-admin-ui] button:disabled{opacity:.48!important}
+
+/* Superfícies: remove o mosaico claro/escuro herdado sem alterar contratos. */
+[data-admin-ui] [class*="block"],[data-admin-ui] [class*="card"],[data-admin-ui] [class*="panel"],
+[data-admin-ui] [class*="editor"],[data-admin-ui] [class*="listCard"]{
+  border-color:var(--v59-line)!important;background:var(--v59-panel)!important;color:var(--v59-text)!important;
+  box-shadow:none!important;
+}
+[data-admin-ui] [class*="statusCard"],[data-admin-ui] [class*="current"]{
+  border-color:var(--v59-line-2)!important;background:linear-gradient(145deg,#121720,#0e1116)!important;color:var(--v59-text)!important;
+}
+[data-admin-ui] [class*="current"][data-open=true],[data-admin-ui] [class*="statusCard"][data-active=true]{
+  border-color:rgba(69,212,155,.31)!important;background:linear-gradient(145deg,rgba(69,212,155,.105),#0f1516)!important;color:var(--v59-text)!important;
+}
+[data-admin-ui] [class*="feedback"],[data-admin-ui] [class*="message"],[data-admin-ui] [class*="msg"]{
+  position:fixed!important;z-index:10050!important;left:50%!important;top:auto!important;
+  bottom:calc(18px + env(safe-area-inset-bottom))!important;width:min(calc(100% - 28px),460px)!important;
+  transform:translateX(-50%)!important;margin:0!important;padding:11px 13px!important;
+  border:1px solid #343b48!important;border-radius:13px!important;background:rgba(15,18,24,.97)!important;
+  color:#e8ecf2!important;box-shadow:0 18px 54px rgba(0,0,0,.5)!important;backdrop-filter:blur(18px);
+}
+
+/* Cabeçalhos internos compactos e previsíveis. */
+[data-admin-ui] [class*="Header"],[data-admin-ui] [class*="header"],[data-admin-ui] [class*="Head"],[data-admin-ui] [class*="head"]{min-width:0}
+[data-admin-ui] [class*="Header"] span,[data-admin-ui] [class*="header"] span,
+[data-admin-ui] [class*="Head"] span,[data-admin-ui] [class*="head"] span{
+  color:#777f8c!important;font-size:9px!important;letter-spacing:.13em!important;
+}
+[data-admin-ui] [class*="Header"] strong,[data-admin-ui] [class*="header"] strong,
+[data-admin-ui] [class*="Head"] strong,[data-admin-ui] [class*="head"] strong{color:#f4f6f8!important}
+[data-admin-ui] [class*="Header"] p,[data-admin-ui] [class*="header"] p,
+[data-admin-ui] [class*="Head"] p,[data-admin-ui] [class*="head"] p{color:var(--v59-muted)!important}
+
+/* Ações com semântica única. */
+[data-admin-ui] button[class*="primary"],[data-admin-ui] button[class*="save"],[data-admin-ui] button[class*="mainAction"]{
+  min-height:42px!important;border:1px solid #7c3aed!important;border-radius:10px!important;
+  background:#7c3aed!important;color:#fff!important;font-weight:850!important;box-shadow:none!important;
+}
+[data-admin-ui] button[class*="secondary"],[data-admin-ui] button[class*="cancel"],[data-admin-ui] button[class*="searchTrigger"]{
+  border:1px solid var(--v59-line-2)!important;background:#171b22!important;color:#c5cbd4!important;
+}
+[data-admin-ui] button[class*="danger"],[data-admin-ui] button[class*="remove"],[data-admin-ui] button[data-danger=true]{
+  border-color:rgba(255,111,137,.25)!important;background:rgba(255,111,137,.055)!important;color:var(--v59-red)!important;
+}
+
+/* Loja: estado primeiro, comando manual inequívoco e agenda em linhas. */
+[data-admin-ui] [class*="StoreOperationAdmin_root"]{gap:9px!important}
+[data-admin-ui] [class*="StoreOperationAdmin_current"]{min-height:82px!important;padding:13px 14px!important;border-radius:15px!important}
+[data-admin-ui] [class*="StoreOperationAdmin_current"] strong{font-size:18px!important}
+[data-admin-ui] [class*="StoreOperationAdmin_current"] small{color:var(--v59-muted)!important}
+[data-admin-ui] [class*="StoreOperationAdmin_block"]{padding:13px!important;border-radius:15px!important}
+[data-admin-ui] [class*="StoreOperationAdmin_modes"]{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}
+[data-admin-ui] [class*="StoreOperationAdmin_modes"] button{min-height:62px!important;padding:9px!important;border:1px solid var(--v59-line)!important;background:#131720!important;color:#dfe3e9!important}
+[data-admin-ui] [class*="StoreOperationAdmin_modes"] button[data-active=true]{border-color:rgba(139,92,246,.52)!important;background:var(--v59-purple-soft)!important;color:#e4dcff!important}
+[data-admin-ui] [class*="StoreOperationAdmin_modes"] button:nth-child(3){border-color:rgba(255,111,137,.22)!important}
+[data-admin-ui] [class*="StoreOperationAdmin_week"]{display:flex!important;flex-direction:column!important;gap:0!important;border:1px solid var(--v59-line)!important;border-radius:13px!important;overflow:hidden!important}
+[data-admin-ui] [class*="StoreOperationAdmin_day"]{display:grid!important;grid-template-columns:minmax(92px,.55fr) minmax(0,1fr)!important;align-items:center!important;border:0!important;border-bottom:1px solid #202630!important;border-radius:0!important;background:#11151b!important;padding:8px 10px!important}
+[data-admin-ui] [class*="StoreOperationAdmin_day"]:last-child{border-bottom:0!important}
+[data-admin-ui] [class*="StoreOperationAdmin_times"]{margin:0!important}
+
+/* Catálogo: inventário operacional; pausados continuam legíveis e reativáveis. */
+[data-admin-ui] [class*="CatalogAdmin_summary"]{padding:14px!important;border:1px solid #2d3440!important;border-radius:16px!important;background:linear-gradient(145deg,#131822,#0e1116)!important}
+[data-admin-ui] [class*="CatalogAdmin_metrics"]{gap:6px!important}
+[data-admin-ui] [class*="CatalogAdmin_metrics"]>div{padding:11px!important;border-color:var(--v59-line)!important;background:#10141a!important}
+[data-admin-ui] [class*="CatalogAdmin_product"]{padding:9px!important;border-color:var(--v59-line)!important;background:#11151b!important;box-shadow:none!important}
+[data-admin-ui] [class*="CatalogAdmin_product"][data-off=true]{opacity:1!important;border-style:dashed!important;background:#0d1015!important}
+[data-admin-ui] [class*="CatalogAdmin_product"][data-off=true] img{filter:grayscale(.75);opacity:.58}
+[data-admin-ui] [class*="CatalogAdmin_productTitle"] b{background:#1b2029!important;color:#9da5b1!important}
+[data-admin-ui] [class*="CatalogAdmin_productBottom"]{border-color:#252b34!important}
+[data-admin-ui] [class*="CatalogAdmin_categoryCard"],[data-admin-ui] [class*="CatalogAdmin_addonCard"]{background:#11151b!important;border-color:var(--v59-line)!important;box-shadow:none!important}
+[data-admin-ui] [class*="CatalogAdmin_overlay"]{background:rgba(2,4,7,.78)!important;backdrop-filter:blur(5px)}
+[data-admin-ui] [class*="CatalogAdmin_editor"]{background:#0e1116!important;border:1px solid #303743!important}
+[data-admin-ui] [class*="CatalogAdmin_editorHead"]{background:rgba(14,17,22,.95)!important;border-color:var(--v59-line)!important}
+[data-admin-ui] [class*="CatalogAdmin_commercialBlock"]{background:#11151b!important;border-color:var(--v59-line)!important;box-shadow:none!important}
+
+/* Listas comerciais: cupons, bairros, promoções e fidelidade. */
+[data-admin-ui] [class*="CouponsAdmin_coupon"],[data-admin-ui] [class*="DeliveryRatesAdmin_rate"],
+[data-admin-ui] [class*="PublicPromotionsAdmin_promo"],[data-admin-ui] [class*="FreeDeliveryAdmin_row"]{
+  border-color:var(--v59-line)!important;background:#11151b!important;color:var(--v59-text)!important;box-shadow:none!important;
+}
+[data-admin-ui] [class*="CouponsAdmin_coupon"]{padding:11px 12px!important}
+[data-admin-ui] [class*="CouponsAdmin_couponTop"]>div>span{background:rgba(69,212,155,.1)!important;color:#66dda8!important}
+[data-admin-ui] [class*="CouponsAdmin_meta"]{border-color:#242a33!important;color:#848d99!important}
+[data-admin-ui] [class*="DeliveryRatesAdmin_wrap"]+[class*="FreeDeliveryAdmin_wrap"],
+[data-admin-ui] [class*="CouponsAdmin_wrap"]+[class*="PublicPromotionsAdmin_wrap"]{margin-top:9px!important}
+[data-admin-ui] [class*="RewardsAdmin_statusCard"]{min-height:92px!important}
+[data-admin-ui] [class*="RewardsAdmin_notice"]{border-left:3px solid var(--v59-purple)!important;background:#15131e!important}
+
+/* Agendamentos: configuração compacta e grade como lista operacional. */
+[data-admin-ui] [class*="SchedulingAdmin_card"]{margin-top:0!important;padding:13px!important;border-radius:15px!important}
+[data-admin-ui] [class*="SchedulingAdmin_settings"] label{background:#131720!important;border:1px solid var(--v59-line)!important}
+[data-admin-ui] [class*="SchedulingAdmin_slots"]{display:flex!important;flex-direction:column!important;gap:0!important;padding:0!important;border:1px solid var(--v59-line)!important;border-radius:13px!important;background:#0f1319!important}
+[data-admin-ui] [class*="SchedulingAdmin_slots"] article{grid-template-columns:minmax(0,1fr) auto!important;padding:7px 9px!important;border:0!important;border-bottom:1px solid #202630!important;border-radius:0!important;background:transparent!important}
+[data-admin-ui] [class*="SchedulingAdmin_slots"] article[data-enabled=true]{background:rgba(139,92,246,.075)!important}
+[data-admin-ui] [class*="SchedulingAdmin_slots"] article>button{background:transparent!important;color:#dce1e7!important}
+
+@media(max-width:680px){
+  [data-admin-ui] [class*="StoreOperationAdmin_modes"]{grid-template-columns:1fr 1fr!important}
+  [data-admin-ui] [class*="StoreOperationAdmin_day"]{grid-template-columns:1fr!important;gap:7px!important}
+  [data-admin-ui] [class*="CatalogAdmin_summary"]{gap:12px!important}
+  [data-admin-ui] [class*="CatalogAdmin_products"]{grid-template-columns:1fr!important}
+  [data-admin-ui] [class*="SchedulingAdmin_settings"]{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+@media(max-width:430px){
+  [data-admin-ui] [class*="SchedulingAdmin_settings"]{grid-template-columns:1fr 1fr!important}
+  [data-admin-ui] [class*="SchedulingAdmin_settings"] label:last-child{grid-column:1/-1!important}
+}

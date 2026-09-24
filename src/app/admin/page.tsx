@@ -42,7 +42,7 @@ export default function AdminPage() {
   const { currentUser } = useAuthStore();
   const { pedidos, loading, alarmeAtivo, pararAlarme } = useAdminOrders(currentUser, ADMINS);
   const [tab, setTab] = useState<Tab>("cozinha");
-  const [storeOpen, setStoreOpen] = useState(true);
+  const [storeStatus, setStoreStatus] = useState({ isOpen: true, mode: "auto", source: "schedule", message: "" });
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("todos");
@@ -71,9 +71,22 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authorized) return;
     return onSnapshot(doc(db, "settings", "loja"), (snapshot) => {
-      if (snapshot.exists()) setStoreOpen(evaluateStoreStatus(normalizeStoreSettings(snapshot.data())).isOpen);
+      if (!snapshot.exists()) return;
+      const effective = evaluateStoreStatus(normalizeStoreSettings(snapshot.data()));
+      setStoreStatus({
+        isOpen: effective.isOpen,
+        mode: effective.mode,
+        source: effective.source,
+        message: effective.message,
+      });
     });
   }, [authorized]);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = window.setTimeout(() => setFeedback(""), 4200);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
 
   const updateStatus = async (id: string, status: string, pedido?: Record<string, unknown>) => {
     if (updatingOrderId === id) return;
@@ -155,6 +168,12 @@ export default function AdminPage() {
   ];
 
   const isOrderTab = ["cozinha", "expedicao", "concluidos", "cancelados"].includes(tab);
+  const storeState = storeStatus.mode === "test_open"
+    ? { label: "Manutenção", tone: "maintenance", detail: storeStatus.message }
+    : storeStatus.isOpen
+      ? { label: "Aberta", tone: "open", detail: storeStatus.source === "manual" ? "Abertura manual" : storeStatus.message }
+      : { label: "Fechada", tone: "closed", detail: storeStatus.message };
+  const managementActive = ["cancelados","catalogo","operacao","agendamentos","frete","cupons","fidelidade","gestao"].includes(tab);
 
   return (
     <main className={styles.page}>
@@ -171,11 +190,13 @@ export default function AdminPage() {
 
         <button
           className={styles.storePill}
-          data-open={storeOpen}
+          data-tone={storeState.tone}
           onClick={() => setTab("operacao")}
+          aria-label={`Loja ${storeState.label}. ${storeState.detail}`}
+          title={storeState.detail}
         >
           <i />
-          {storeOpen ? "Aberta" : "Fechada"}
+          <span><b>{storeState.label}</b><small>{storeStatus.mode === "test_open" ? "teste" : storeStatus.source === "manual" ? "manual" : "agenda"}</small></span>
         </button>
       </header>
 
@@ -246,59 +267,35 @@ export default function AdminPage() {
           ))}
 
         <button
-          data-active={[
-            "cancelados",
-            "catalogo",
-            "operacao",
-            "agendamentos",
-            "frete",
-            "cupons",
-            "fidelidade",
-            "gestao",
-          ].includes(tab)}
+          data-active={managementActive}
           onClick={() => {
-            document
-              .getElementById("admin-management")
-              ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            if (!managementActive) setTab("operacao");
+            window.requestAnimationFrame(() => document.getElementById("admin-management")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
           }}
         >
           Gestão
         </button>
       </nav>
 
-      <div id="admin-management" className={styles.managementNav}>
-        {tabItems
-          .filter(([key]) =>
-            [
-              "catalogo",
-              "operacao",
-              "agendamentos",
-              "frete",
-              "cupons",
-              "fidelidade",
-              "gestao",
-              "cancelados",
-            ].includes(key)
-          )
-          .map(([key, label]) => (
-            <button
-              key={key}
-              data-active={tab === key}
-              onClick={() => {
-                setTab(key);
-                setAttentionOnly(false);
-              }}
-            >
-              {key === "operacao"
-                ? "Loja"
-                : key === "frete"
-                  ? "Entrega"
-                  : label}
-            </button>
-          ))}
-      </div>
+      {managementActive && (
+        <section id="admin-management" className={styles.managementHub} aria-label="Gestão da loja">
+          <div className={styles.managementHubHead}>
+            <div><span>GESTÃO</span><strong>Controles da loja</strong></div>
+            <small>{storeState.label} · {storeStatus.source === "manual" ? "controle manual" : storeStatus.source === "exception" ? "exceção" : "agenda automática"}</small>
+          </div>
+          <div className={styles.managementNav}>
+            {tabItems.filter(([key]) => ["operacao","catalogo","agendamentos","frete","cupons","fidelidade","gestao","cancelados"].includes(key)).map(([key,label]) => (
+              <button key={key} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
+                <span>{key === "operacao" ? "Loja" : key === "frete" ? "Entrega" : key === "gestao" ? "Relatórios" : label}</span>
+                {key === "operacao" && <small>{storeState.label}</small>}
+                {key === "cancelados" && counts.cancelados > 0 && <small>{counts.cancelados}</small>}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {feedback && <div className={styles.feedback}>{feedback}<button onClick={() => setFeedback("")}>Fechar</button></div>}
+      {feedback && <div className={styles.toast} role="status" aria-live="polite"><i /><span>{feedback}</span><button onClick={() => setFeedback("")} aria-label="Fechar aviso">×</button></div>}
 
       {tab === "catalogo" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogAdmin /></section>
