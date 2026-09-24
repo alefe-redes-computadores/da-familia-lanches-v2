@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import "./admin-ui.css";
+import { AdminPwa } from "@/components/admin/AdminPwa";
 
 export const metadata: Metadata = {
   title: "DFL Admin",
   description: "Painel administrativo da Da Família Lanches",
   applicationName: "DFL Admin",
-  manifest: "/admin-manifest.json?v=54",
+  manifest: "/admin-manifest.webmanifest?v=67",
   appleWebApp: {
     capable: true,
     title: "DFL Admin",
@@ -47,5 +48,5 @@ export default function AdminLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <div data-admin-ui>{children}</div>;
+  return <div data-admin-ui><AdminPwa />{children}</div>;
 }
