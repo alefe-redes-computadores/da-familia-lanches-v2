@@ -22,6 +22,7 @@ interface CartState {
   increaseQtd: (cartId: string) => void;
   decreaseQtd: (cartId: string) => void;
   clearCart: () => void;
+  replaceItems: (items: CartItem[]) => void;
   getCartTotal: () => number;
 }
 
@@ -96,6 +97,7 @@ export const useCartStore = create<CartState>()(
         })),
 
       clearCart: () => set({ items: [] }),
+      replaceItems: (items) => set({ items }),
 
       getCartTotal: () => {
         return get().items.reduce((total, item) => {

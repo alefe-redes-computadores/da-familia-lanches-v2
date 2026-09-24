@@ -408,7 +408,7 @@
 /* DFL ADMIN V3.1 — CATALOG PURPLE */
 .root{--s:#111114;--r:#17171c;--soft:#202027;--b:#292933;--t:#f5f5f7;--m:#9b9ba7;--ok:#34d399!important;color:var(--t)!important}
 .summary,.categoryPanel,.addonsPanel,.productGroup,.catalogTools,.filters{background:#111114!important;border-color:#292933!important;color:#f5f5f7!important}
-.summary{background:radial-gradient(circle at 100% 0,rgba(139,92,246,.16),transparent 38%),#111114!important}
+.summary{background:radial-gradient(circle at 100% 0,rgba(255,202,40,.16),transparent 38%),#111114!important}
 .summaryCopy>span,.sectionBar span,.productGroup summary span,.editorHead span,.commercialHead span{color:#9b9ba7!important}
 .summaryCopy>strong,.sectionBar strong,.productGroup>summary strong{color:#f5f5f7!important}
 .summaryCopy p,.summaryCopy small,.sectionHint{color:#9b9ba7!important}
@@ -416,28 +416,36 @@
 .metrics span{color:#9b9ba7!important}
 .viewTabs{background:#111114!important;border-color:#292933!important}
 .viewTabs button{color:#9b9ba7!important}
-.viewTabs button[data-active="true"],.viewTabActive{background:rgba(139,92,246,.16)!important;border-color:rgba(139,92,246,.32)!important;color:#c4b5fd!important}
-.mainAction{background:#8b5cf6!important;border-color:#8b5cf6!important;color:#fff!important}
+.viewTabs button[data-active="true"],.viewTabActive{background:rgba(255,202,40,.16)!important;border-color:rgba(255,202,40,.32)!important;color:#ffe082!important}
+.mainAction{background:#ffca28!important;border-color:#ffca28!important;color:#fff!important}
 .secondaryAction{background:#17171c!important;border-color:#292933!important;color:#f5f5f7!important}
 .searchWrap,.choiceButton{background:#111114!important;border-color:#292933!important;color:#f5f5f7!important}
 .productGroup>summary{background:#111114!important}
 .productGroup .products{background:#0d0d10!important}
 .product,.categoryCard,.addonCard{background:#17171c!important;border-color:#292933!important;color:#f5f5f7!important}
-.productBadges b{background:rgba(139,92,246,.12)!important;color:#c4b5fd!important}
+.productBadges b{background:rgba(255,202,40,.12)!important;color:#ffe082!important}
 .actions button,.categoryActions button,.addonToggle{background:#202027!important;border-color:#30303a!important;color:#f5f5f7!important}
-.actions .primary{background:#8b5cf6!important;border-color:#8b5cf6!important;color:#fff!important}
+.actions .primary{background:#ffca28!important;border-color:#ffca28!important;color:#fff!important}
 .editor,.smallEditor,.choiceSheet{background:#111114!important;border-color:#292933!important;color:#f5f5f7!important}
 .editorHead{background:rgba(17,17,20,.96)!important;border-color:#292933!important}
 .editor input,.editor textarea,.smallEditor input,.moneyInput{background:#0d0d10!important;border-color:#292933!important;color:#f5f5f7!important}
 .editorActions{background:rgba(17,17,20,.97)!important;border-color:#292933!important}
-.editorActions .save{background:#8b5cf6!important;color:#fff!important}
+.editorActions .save{background:#ffca28!important;color:#fff!important}
 .choiceList button{background:#17171c!important;border-color:#292933!important;color:#f5f5f7!important}
-.choiceList button[data-active="true"]{background:rgba(139,92,246,.18)!important;color:#c4b5fd!important}
+.choiceList button[data-active="true"]{background:rgba(255,202,40,.18)!important;color:#ffe082!important}
 .photoUpload,.checks label{background:#17171c!important;border-color:#292933!important;color:#f5f5f7!important}
 
 /* ADMIN DESIGN V5 — CATALOG */
-.root{gap:10px!important}.hero{min-height:0!important;padding:15px!important;border-radius:16px!important;background:radial-gradient(circle at 95% 0,rgba(139,92,246,.10),transparent 34%),#101216!important;border-color:#242830!important}.hero p{margin-bottom:12px!important}.heroActions{margin-top:14px!important;gap:6px!important}.heroActions button{min-height:38px!important;padding:0 12px!important;border-radius:10px!important}.stats{gap:6px!important}.stats>*{padding:9px!important;border-radius:11px!important}.stats b,.stats strong{font-size:18px!important}.tabs{padding:4px!important;border-radius:12px!important}.tabs button{min-height:38px!important;border-radius:9px!important}.filters,.toolbar{gap:6px!important}.filters input,.filters select,.toolbar input,.toolbar select{min-height:40px!important}@media(max-width:560px){.hero{padding:13px!important}.heroActions{display:flex!important;overflow-x:auto!important}.heroActions button{flex:0 0 auto!important}.stats{grid-template-columns:repeat(4,minmax(82px,1fr))!important;overflow-x:auto!important}.tabs{overflow-x:auto!important}.tabs button{flex:0 0 auto!important;padding-inline:13px!important}}
+.root{gap:10px!important}.hero{min-height:0!important;padding:15px!important;border-radius:16px!important;background:radial-gradient(circle at 95% 0,rgba(255,202,40,.10),transparent 34%),#101216!important;border-color:#242830!important}.hero p{margin-bottom:12px!important}.heroActions{margin-top:14px!important;gap:6px!important}.heroActions button{min-height:38px!important;padding:0 12px!important;border-radius:10px!important}.stats{gap:6px!important}.stats>*{padding:9px!important;border-radius:11px!important}.stats b,.stats strong{font-size:18px!important}.tabs{padding:4px!important;border-radius:12px!important}.tabs button{min-height:38px!important;border-radius:9px!important}.filters,.toolbar{gap:6px!important}.filters input,.filters select,.toolbar input,.toolbar select{min-height:40px!important}@media(max-width:560px){.hero{padding:13px!important}.heroActions{display:flex!important;overflow-x:auto!important}.heroActions button{flex:0 0 auto!important}.stats{grid-template-columns:repeat(4,minmax(82px,1fr))!important;overflow-x:auto!important}.tabs{overflow-x:auto!important}.tabs button{flex:0 0 auto!important;padding-inline:13px!important}}
 
 /* ADMIN V6 CATALOG */
 .summary{min-height:0!important;padding:11px 12px!important;border:1px solid #292d36!important;border-radius:14px!important;background:#111318!important}.summaryCopy p{display:none!important}.summaryCopy strong{font-size:14px!important}.summaryCopy small{display:block;margin-top:3px;color:#727a85!important;font-size:10px!important}.summaryActions{gap:5px!important}.summaryActions button{min-height:35px!important;padding:0 10px!important;border-radius:9px!important}.metrics{gap:6px!important}.metrics>div{padding:9px 10px!important;border-radius:11px!important}.metrics span{font-size:10px!important}.metrics strong{font-size:16px!important}.catalogTools{gap:6px!important}.searchWrap input,.choiceButton{height:42px!important;border-radius:11px!important}
 @media(max-width:700px){.summary{flex-direction:row!important;align-items:center!important}.summaryActions{display:flex!important;overflow-x:auto!important}.summaryActions button{white-space:nowrap!important}.metrics{display:flex!important;overflow-x:auto!important}.metrics>div{min-width:105px!important;flex:1 0 105px!important}}
+
+/* DFL FINAL — catálogo legível no celular */
+.summary{background:radial-gradient(circle at 100% 0,rgba(255,202,40,.11),transparent 38%),#111318!important}
+.mainAction,.actions .primary,.editorActions .save{background:#ffca28!important;border-color:#ffca28!important;color:#17120a!important}
+.viewTabs button[data-active="true"],.viewTabActive,.choiceList button[data-active="true"]{background:rgba(255,202,40,.14)!important;border-color:rgba(255,202,40,.34)!important;color:#ffe082!important}
+.productBadges b,.adminPrice b{background:rgba(255,202,40,.10)!important;color:#ffe082!important}
+@media(max-width:700px){.catalogTools{display:grid!important;grid-template-columns:1fr!important;padding:8px!important}.searchWrap{grid-column:1!important;min-width:0!important}.searchWrap input,.choiceButton{width:100%!important;min-width:0!important;height:50px!important}.metrics{margin:0!important;padding:0 0 3px!important}.metrics>div{min-width:112px!important}.categoryActions{grid-template-columns:40px 40px minmax(0,1fr) minmax(0,1fr)!important}.categoryActions .dangerAction{grid-column:1/-1!important}.sectionBar{align-items:flex-start!important}.productGroup>summary{grid-template-columns:minmax(0,1fr) auto 18px!important}}
+@media(max-width:420px){.summary{display:block!important}.summaryActions{display:grid!important;grid-template-columns:1fr 1fr!important;margin-top:12px!important;overflow:visible!important}.summaryActions .mainAction{grid-column:1/-1!important}.categoryActions{grid-template-columns:38px 38px minmax(0,1fr)!important}.categoryActions .dangerAction{grid-column:1/-1!important}.productGroup>summary b{max-width:88px;text-align:right}.editor{width:100%!important}}

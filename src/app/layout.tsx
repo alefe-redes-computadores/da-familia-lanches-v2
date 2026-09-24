@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { Poppins } from "next/font/google";
 import { AppShell } from "@/components/layout/AppShell";
 
-const poppins = Poppins({ subsets: ["latin"], weight: ["400", "600", "700", "800", "900"], display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "Da Família Lanches", template: "%s | Da Família Lanches" },
@@ -30,5 +28,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="pt-BR"><body className={poppins.className}><AppShell>{children}</AppShell></body></html>;
+  return <html lang="pt-BR"><body><AppShell>{children}</AppShell></body></html>;
 }

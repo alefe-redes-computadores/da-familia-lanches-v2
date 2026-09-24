@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./admin-ui.css";
-import "./admin-v59.css";
 
 export const metadata: Metadata = {
   title: "DFL Admin",

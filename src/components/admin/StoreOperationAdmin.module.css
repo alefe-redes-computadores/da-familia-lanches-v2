@@ -17,9 +17,9 @@
 .root,.card,.panel,.section,.statusCard,.schedule,.exception,.day,.dayCard{color:#f5f5f7!important}
 .root [class*="card"],.root [class*="panel"],.root [class*="section"]{border-color:#292933!important;background:#111114!important}
 .root button{border-radius:12px}
-.root button[data-active="true"],.root button[data-on="true"]{background:rgba(139,92,246,.16)!important;border-color:rgba(139,92,246,.35)!important;color:#c4b5fd!important}
+.root button[data-active="true"],.root button[data-on="true"]{background:rgba(255,202,40,.16)!important;border-color:rgba(255,202,40,.35)!important;color:#ffe082!important}
 .root input[type="time"],.root input[type="date"]{background:#111114!important;border-color:#292933!important;color:#f5f5f7!important}
-.root [class*="save"]{background:#8b5cf6!important;border-color:#8b5cf6!important;color:#fff!important}
+.root [class*="save"]{background:#ffca28!important;border-color:#ffca28!important;color:#fff!important}
 
 /* ADMIN DESIGN V5 — STORE OPERATION */
 .root{gap:9px!important}.current{border-radius:14px!important;padding:12px!important;background:#101216!important;border-color:#242830!important}.current strong{font-size:17px!important}.current small{font-size:11px!important}.block{padding:13px!important;border-radius:15px!important;background:#101216!important;border-color:#242830!important}.modes{gap:6px!important}.modes button{min-height:54px!important;padding:9px!important;border-radius:11px!important}.modes button strong{font-size:12px!important}.modes button small{font-size:9px!important}.schedule{gap:5px!important}.day{padding:8px 10px!important;border-radius:11px!important}.day:not(:has(input[type=checkbox]:checked)) input[type=time]{display:none!important}.exceptions{gap:7px!important}@media(max-width:560px){.modes{grid-template-columns:1fr 1fr!important}.day{padding:9px!important}.day input[type=time]{min-height:40px!important}}

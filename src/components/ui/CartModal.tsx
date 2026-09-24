@@ -12,6 +12,7 @@ import { haptic } from "@/lib/haptics";
 import { CartPromotionInsight } from "@/components/ui/CartPromotionInsight";
 import { selectSmartCartSuggestions } from "@/lib/smartCart";
 import { DEFAULT_COMMERCIAL_SETTINGS, getCommercialSettings, type CommercialSettings } from "@/lib/commercialSettings";
+import { availableAddonsForProduct } from "@/lib/catalog";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -20,11 +21,39 @@ export function CartModal() {
   const { closeModal, openModal, showCartToast } = useUIStore();
   const currentUser = useAuthStore((state) => state.currentUser);
   const orderStats = useCustomerOrderStats();
-  const { products } = useCatalog();
-  const { items, increaseQtd, decreaseQtd, removeItem, restoreItem, clearCart, getCartTotal } = useCartStore();
+  const { products, allAddons, loading: catalogLoading } = useCatalog();
+  const { items, increaseQtd, decreaseQtd, removeItem, restoreItem, clearCart, replaceItems, getCartTotal } = useCartStore();
   const [clearArmed, setClearArmed] = useState(false);
+  const [catalogNotice, setCatalogNotice] = useState("");
   const [commercial, setCommercial] = useState<CommercialSettings>(DEFAULT_COMMERCIAL_SETTINGS);
   useEffect(() => { void getCommercialSettings().then(setCommercial).catch(() => setCommercial(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
+  useEffect(() => {
+    if (catalogLoading || !items.length) return;
+    const next = items.flatMap((item) => {
+      const product = products.find((candidate) => candidate.id === item.id);
+      if (!product?.disponivel) return [];
+      const allowed = new Map(availableAddonsForProduct(product, allAddons).map((addon) => [addon.id, addon]));
+      const selectedAddons = (item.selectedAddons ?? []).flatMap((addon) => {
+        const current = allowed.get(addon.id);
+        return current?.disponivel === false || !current ? [] : [current];
+      });
+      const addonsId = selectedAddons.map((addon) => addon.id).sort().join("-");
+      const observation = (item.observation ?? "").trim();
+      return [{ ...product, cartId: `${product.id}|${addonsId}|${observation}`, quantity: item.quantity, selectedAddons, observation, price: Number(product.price) + selectedAddons.reduce((sum, addon) => sum + Number(addon.price), 0) }];
+    });
+    const compacted = Array.from(next.reduce((map, item) => {
+      const previous = map.get(item.cartId);
+      map.set(item.cartId, previous ? { ...item, quantity: previous.quantity + item.quantity } : item);
+      return map;
+    }, new Map<string, (typeof next)[number]>()).values());
+    const before = items.map(({ cartId, quantity, price }) => [cartId, quantity, price]);
+    const after = compacted.map(({ cartId, quantity, price }) => [cartId, quantity, price]);
+    if (JSON.stringify(before) !== JSON.stringify(after)) {
+      const removed = items.length - next.length;
+      replaceItems(compacted);
+      setCatalogNotice(removed > 0 ? "Atualizamos os preços e removemos item(ns) que não estão mais disponíveis." : "Seu carrinho foi atualizado com os preços atuais do cardápio.");
+    }
+  }, [allAddons, catalogLoading, items, products, replaceItems]);
   const total = getCartTotal();
   const freeDeliveryTarget = commercial.freeDeliveryEnabled ? commercial.globalMinimum : null;
   const freeDeliveryMissing = freeDeliveryTarget === null ? 0 : Math.max(0, freeDeliveryTarget - total);
@@ -55,6 +84,7 @@ export function CartModal() {
   return (
     <ModalBase title={`Seu carrinho${itemCount ? ` · ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}`} onClose={closeModal}>
       <div className={styles.body}>
+        {catalogNotice && <div className={styles.catalogNotice} role="status">{catalogNotice}<button type="button" aria-label="Fechar aviso" onClick={() => setCatalogNotice("")}>×</button></div>}
         {items.length === 0 ? (
           <div className={styles.empty}><span>🛒</span><strong>Seu carrinho está vazio</strong><p>Escolha seus favoritos e volte aqui para finalizar.</p><button type="button" onClick={closeModal}>Explorar cardápio</button></div>
         ) : <>

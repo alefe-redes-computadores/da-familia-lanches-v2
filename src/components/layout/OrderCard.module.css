@@ -296,7 +296,7 @@
     min-height:37px;
   }
 }
-.card{background:#111114!important;border-color:#292933!important;color:#f5f5f7!important}.card button[class*="primary"],.card button[class*="next"]{background:#8b5cf6!important;border-color:#8b5cf6!important;color:#fff!important}
+.card{background:#111114!important;border-color:#292933!important;color:#f5f5f7!important}.card button[class*="primary"],.card button[class*="next"]{background:#ffca28!important;border-color:#ffca28!important;color:#fff!important}
 
 /* ADMIN DESIGN V5 — ORDER CARD */
 .card{border-radius:15px!important;background:#0f1114!important;border-color:#20242b!important;padding:13px!important;box-shadow:none!important}.card [class*="address"],.card [class*="delivery"]{border-radius:10px!important;background:#171a1f!important}.card button{min-height:36px!important;border-radius:9px!important}.card button[class*="whatsapp"],.card a[class*="whatsapp"]{background:rgba(67,211,158,.10)!important;border-color:rgba(67,211,158,.22)!important;color:#75e0b7!important}.card button[class*="print"],.card a[class*="print"]{background:#191c21!important;border-color:#282d35!important;color:#b7bdc7!important}.card [class*="total"]{font-variant-numeric:tabular-nums}.card [class*="items"]{min-height:38px!important}@media(max-width:560px){.card{padding:11px!important}.card [class*="actions"]{gap:5px!important}.card [class*="actions"] button{padding-inline:10px!important;font-size:11px!important}}
