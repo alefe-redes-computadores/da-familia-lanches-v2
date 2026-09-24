@@ -16,6 +16,7 @@ import { findCustomerRewardByCode, rewardDiscount, rewardIsExpired } from "@/lib
 import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupons";
 import styles from "./CheckoutModal.module.css";
 import { DEFAULT_COMMERCIAL_SETTINGS, freeDeliveryThreshold, getCommercialSettings, type CommercialSettings } from "@/lib/commercialSettings";
+import { BUSINESS_CONTACT, businessWhatsAppUrl } from "@/lib/businessContact";
 
 type PaymentMethod = "pix" | "cartao" | "dinheiro";
 type DeliveryMode = "delivery" | "pickup";
@@ -23,8 +24,6 @@ type DeliveryMode = "delivery" | "pickup";
 import { getDefaultDeliveryFee, SAFE_DEFAULT_DELIVERY_FEE, type DeliveryRate } from "@/lib/deliveryRates";
 import { getOrderScheduleSlots, scheduleHumanLabel, type OrderScheduleSlot } from "@/lib/orderScheduling";
 
-const PIX_KEY = "34997178336";
-const WHATSAPP_NUMBER = "5534997178336";
 const DEFAULT_DELIVERY_FEE = SAFE_DEFAULT_DELIVERY_FEE;
 
 const getTestAccess = async (email: string | null | undefined) => {
@@ -99,7 +98,7 @@ export function CheckoutModal() {
   const canAdvance = nameReady && phoneReady && addressReady && items.length > 0;
 
   useEffect(() => { void getCommercialSettings().then(setCommercialSettings).catch(() => setCommercialSettings(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
-  useEffect(() => { let alive=true; void (async()=>{ try{const [status,testAccess]=await Promise.all([getEffectiveShopStatus(),getTestAccess(currentUser?.email)]);if(!alive)return;const closedForUser=!status.isOpen&&!testAccess;setShopClosed(closedForUser);if(closedForUser){const slots=await getOrderScheduleSlots();if(!alive)return;setScheduleSlots(slots);setScheduledFor(v=>v||slots[0]?.value||"")}}catch(error){console.error("Falha ao preparar agendamento",error)}finally{if(alive)setScheduleLoading(false)}})();return()=>{alive=false}}, []);
+  useEffect(() => { let alive=true; setScheduleLoading(true); void (async()=>{ try{const [status,testAccess]=await Promise.all([getEffectiveShopStatus(),getTestAccess(currentUser?.email)]);if(!alive)return;const closedForUser=!status.isOpen&&!testAccess;setShopClosed(closedForUser);if(closedForUser){const slots=await getOrderScheduleSlots();if(!alive)return;setScheduleSlots(slots);setScheduledFor(v=>v||slots[0]?.value||"")}else{setScheduleSlots([]);setScheduledFor("")}}catch(error){console.error("Falha ao preparar agendamento",error)}finally{if(alive)setScheduleLoading(false)}})();return()=>{alive=false}}, [currentUser?.email]);
 
   useEffect(() => {
     if (!currentUser || profileLoading) return;
@@ -425,7 +424,7 @@ export function CheckoutModal() {
         isClosed ? `\n🕒 Agendado para *${scheduleHumanLabel(selectedSchedule)}*.\nEsse horário é uma previsão operacional; faremos o possível para atender o mais próximo dele.` : null,
       ].filter(Boolean).join("\n");
 
-      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+      const whatsappUrl = businessWhatsAppUrl(message);
       clearCart();
       openModal("order-success", {
         orderId: created.id,
@@ -512,7 +511,7 @@ export function CheckoutModal() {
             <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters"/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || !couponCode.trim()}>Aplicar</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
             <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>Entrega</span><b data-free={finalFee === 0}>{finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{hasFreeDelivery && !isPickup && <small>Entrega grátis aplicada conforme a promoção vigente.</small>}</section>
             <section><div className={styles.sectionLabel}>Como você quer pagar?</div><div className={styles.paymentTabs}>{(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => <button type="button" key={option} data-active={method === option} onClick={() => setMethod(option)}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>)}</div></section>
-            {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Copie a chave abaixo. O pedido é registrado antes de qualquer envio pelo WhatsApp.</span></div><div className={styles.inline}><input className={styles.input} readOnly value={PIX_KEY}/><button className={styles.yellowButton} type="button" onClick={() => { void navigator.clipboard.writeText(PIX_KEY); setPixCopied(true); }}>{pixCopied ? "Copiado" : "Copiar"}</button></div></div>}
+            {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Copie a chave abaixo. O pedido é registrado antes de qualquer envio pelo WhatsApp.</span></div><div className={styles.inline}><input className={styles.input} readOnly value={BUSINESS_CONTACT.pixKey}/><button className={styles.yellowButton} type="button" onClick={() => { void navigator.clipboard.writeText(BUSINESS_CONTACT.pixKey); setPixCopied(true); }}>{pixCopied ? "Copiado" : "Copiar"}</button></div></div>}
             {method === "dinheiro" && <label className={styles.label}>Troco para quanto? <span>(opcional)</span><input className={styles.input} placeholder="Ex.: 100,00" value={troco} onChange={(event) => setTroco(event.target.value)} inputMode="decimal"/></label>}
             <div className={styles.actions}><button className={styles.secondary} type="button" onClick={() => { setErrorMessage(""); setStep(1); }} disabled={loading}>Voltar</button><button className={styles.primary} type="button" onClick={() => void finishOrder()} disabled={loading}>{loading ? "Registrando pedido…" : `Confirmar pedido · ${money(total)}`}</button></div>
             <p className={styles.trust}>Seu WhatsApp fica salvo para as atualizações do pedido. Você também acompanha o andamento pelo site.</p>

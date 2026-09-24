@@ -21,19 +21,6 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-
-    function isValidCustomerOrderCreatedOutbox() {
-      let orderAfter = getAfter(
-        /databases/$(database)/documents/Pedidos/$(request.resource.data.entity_id)
-      ).data;
-
-      return request.resource.data.event_type == "order.created"
-        && request.resource.data.payload.userId == request.auth.uid
-        && orderAfter.userId == request.auth.uid
-        && orderAfter.sourceSystem == "dfl_site"
-        && orderAfter.orderSchemaVersion == request.resource.data.payload.orderSchemaVersion;
-    }
-
     match /integration_outbox/{eventId} {
       allow create: if false; // V60: outbox nasce atomicamente no backend confiável
 

@@ -39,7 +39,7 @@ export async function createCustomerOrder(input: CreateCustomerOrderInput) {
   const token = await user.getIdToken();
   const response = await fetch("/api/orders", {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ` },
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
     body: JSON.stringify(input),
   });
   const payload = await response.json().catch(() => ({})) as { ok?: boolean; id?: string; error?: string };
