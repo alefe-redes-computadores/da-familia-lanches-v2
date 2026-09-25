@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useUIStore } from "@/store/ui";
+import { useCartStore } from "@/store/cart.store";
+import { availableAddonsForProduct } from "@/lib/catalog";
+import { getOrderItems, normalizeText } from "@/lib/orderCompat";
 import { useCustomerOrders } from "@/hooks/useCustomerOrders";
 import { useCatalog } from "@/hooks/useCatalog";
 import styles from "./LastOrderCard.module.css";
@@ -23,6 +26,8 @@ const normalize = (value: unknown) =>
 export function LastOrderCard() {
   const user = useAuthStore((state) => state.currentUser);
   const openModal = useUIStore((state) => state.openModal);
+  const { addItem, clearCart } = useCartStore();
+  const [repeatError, setRepeatError] = useState("");
 
   const {
     pastOrders,
@@ -30,7 +35,7 @@ export function LastOrderCard() {
     loading,
   } = useCustomerOrders(user);
 
-  const { products } = useCatalog();
+  const { products, addons } = useCatalog();
 
   const order = pastOrders[0];
 
@@ -122,9 +127,29 @@ export function LastOrderCard() {
     return null;
   }
 
-  const images = data.items
-    .filter((item) => item.image)
-    .slice(0, 3);
+  const images = data.items.filter((item) => item.image).slice(0, 3);
+
+  const repeatLastOrder = () => {
+    setRepeatError("");
+    const previous = getOrderItems(order);
+    const resolved = previous.flatMap((item) => {
+      const product = products.find((candidate) => candidate.id === item.id) ?? products.find((candidate) => normalizeText(candidate.name) === normalizeText(item.name));
+      if (!product || product.disponivel === false) return [];
+      const allowed = availableAddonsForProduct(product, addons);
+      const selected = item.selectedAddons.flatMap((oldAddon) => {
+        const addon = allowed.find((candidate) => candidate.id === oldAddon.id) ?? allowed.find((candidate) => normalizeText(candidate.name) === normalizeText(oldAddon.name));
+        return addon ? [addon] : [];
+      });
+      return [{ item, product, selected }];
+    });
+    if (!resolved.length) {
+      setRepeatError("Os itens desse pedido não estão disponíveis agora. Veja os detalhes para escolher novamente.");
+      return;
+    }
+    clearCart();
+    resolved.forEach(({ item, product, selected }) => addItem(product, item.quantity, selected, item.observation));
+    openModal("cart");
+  };
 
   return (
     <section
@@ -166,13 +191,14 @@ export function LastOrderCard() {
             ? ` · ${data.address}`
             : ""}
         </p>
+        {repeatError && <small className={styles.error}>{repeatError}</small>}
       </div>
 
       <div className={styles.actions}>
         <button
           className={styles.primary}
           type="button"
-          onClick={() => openModal("orders")}
+          onClick={repeatLastOrder}
         >
           Pedir novamente
         </button>

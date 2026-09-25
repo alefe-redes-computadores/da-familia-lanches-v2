@@ -68,6 +68,7 @@ export function CheckoutModal() {
   const [deliveryStatus, setDeliveryStatus] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("pix");
   const [troco, setTroco] = useState("");
+  const [orderObservation, setOrderObservation] = useState("");
   const [pixCopied, setPixCopied] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCouponCode, setAppliedCouponCode] = useState("");
@@ -76,6 +77,7 @@ export function CheckoutModal() {
   const [couponMessage, setCouponMessage] = useState("");
   const [commercialSettings, setCommercialSettings] = useState<CommercialSettings>(DEFAULT_COMMERCIAL_SETTINGS);
   const [errorMessage, setErrorMessage] = useState("");
+  const [fallbackWhatsAppUrl, setFallbackWhatsAppUrl] = useState("");
   const [shopClosed, setShopClosed] = useState(false);
   const [scheduleSlots, setScheduleSlots] = useState<OrderScheduleSlot[]>([]);
   const [scheduledFor, setScheduledFor] = useState("");
@@ -291,6 +293,7 @@ export function CheckoutModal() {
 
   const finishOrder = async () => {
     setErrorMessage("");
+    setFallbackWhatsAppUrl("");
     if (!currentUser) {
       setErrorMessage("Sua sessão expirou. Entre novamente para finalizar.");
       return;
@@ -343,6 +346,7 @@ export function CheckoutModal() {
         total,
         metodoPagamento: method,
         trocoPara: method === "dinheiro" ? (troco.trim() || null) : null,
+        observacao: orderObservation.trim() || null,
         endereco: finalAddress,
         tipoEntrega: deliveryMode,
         data: serverTimestamp(),
@@ -421,6 +425,7 @@ export function CheckoutModal() {
         safeDiscount > 0 ? `Desconto${appliedCouponCode ? ` (${appliedCouponCode})` : ""}: -${money(safeDiscount)}` : null,
         `*TOTAL: ${money(total)}*`,
         `Pagamento: ${paymentText}`,
+        orderObservation.trim() ? `\n📝 *Observação do pedido:* ${orderObservation.trim()}` : null,
         isClosed ? `\n🕒 Agendado para *${scheduleHumanLabel(selectedSchedule)}*.\nEsse horário é uma previsão operacional; faremos o possível para atender o mais próximo dele.` : null,
       ].filter(Boolean).join("\n");
 
@@ -432,10 +437,40 @@ export function CheckoutModal() {
         deliveryMode,
         total,
         whatsappUrl,
+        paymentMethod: method,
+        pixKey: method === "pix" ? BUSINESS_CONTACT.pixKey : undefined,
       });
     } catch (error) {
       console.error("Erro ao salvar pedido", error);
       const code = error instanceof Error ? error.message : "";
+      const fallbackAddress = isPickup
+        ? "Retirada no balcão"
+        : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}${referencia.trim() ? ` · Ref.: ${referencia.trim()}` : ""}`;
+      const fallbackItems = items.map((item) => {
+        const selected = item.selectedAddons?.length ? `\n   + ${item.selectedAddons.map((addon) => addon.name).join(", ")}` : "";
+        const note = item.observation?.trim() ? `\n   Obs.: ${item.observation.trim()}` : "";
+        return `• ${item.quantity}x ${item.name} — ${money(item.price * item.quantity)}${selected}${note}`;
+      }).join("\n");
+      const fallbackPayment = method === "pix" ? "PIX" : method === "cartao" ? "Cartão — levar maquininha" : `Dinheiro${troco.trim() ? ` — troco para ${troco.trim()}` : " — sem troco informado"}`;
+      const fallbackMessage = [
+        "⚠️ *PEDIDO PELO WHATSAPP — SITE EM CONTINGÊNCIA*",
+        "O site não conseguiu registrar este pedido automaticamente. Favor confirmar manualmente.",
+        "",
+        `Cliente: *${customerName.trim() || currentUser.displayName || "Cliente"}*`,
+        `WhatsApp: ${userPhone.trim()}`,
+        "",
+        fallbackItems,
+        "",
+        `📍 ${fallbackAddress}`,
+        `Subtotal: ${money(subtotal)}`,
+        `Entrega: ${finalFee === 0 ? "Grátis" : money(finalFee)}`,
+        safeDiscount > 0 ? `Desconto${appliedCouponCode ? ` (${appliedCouponCode})` : ""}: -${money(safeDiscount)}` : null,
+        `*TOTAL: ${money(total)}*`,
+        `Pagamento: ${fallbackPayment}`,
+        orderObservation.trim() ? `\n📝 *Observação do pedido:* ${orderObservation.trim()}` : null,
+        shopClosed && scheduledFor ? `\n🕒 Horário solicitado: *${scheduleHumanLabel(scheduledFor)}*` : null,
+      ].filter(Boolean).join("\n");
+      setFallbackWhatsAppUrl(businessWhatsAppUrl(fallbackMessage));
       if (code === "SCHEDULE_REQUIRED") { setErrorMessage("Escolha um horário disponível para o pedido agendado."); } else if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {
         setAppliedCouponCode("");
         setAppliedRewardId("");
@@ -444,6 +479,12 @@ export function CheckoutModal() {
         setErrorMessage("Revise o cupom ou benefício antes de confirmar. Seu carrinho foi preservado.");
       } else if (["PRICE_CHANGED", "DELIVERY_CHANGED", "PRODUCT_UNAVAILABLE", "ADDON_UNAVAILABLE"].includes(code)) {
         setErrorMessage("O cardápio ou a taxa mudou. Feche o checkout, confira o carrinho atualizado e tente novamente.");
+      } else if (code === "SERVICE_BUSY") {
+        setErrorMessage("O sistema de pedidos atingiu o limite temporário do banco. Seu carrinho foi preservado; aguarde alguns minutos e tente novamente.");
+      } else if (code === "SERVICE_UNAVAILABLE") {
+        setErrorMessage("O serviço de pedidos está temporariamente indisponível. Seu carrinho foi preservado; tente novamente em instantes.");
+      } else if (code === "SERVICE_CONFIG") {
+        setErrorMessage("O pedido não pôde ser gravado por uma configuração do servidor. Seu carrinho foi preservado e a loja precisa revisar o acesso ao banco.");
       } else {
         setErrorMessage("Não conseguimos registrar o pedido. Seu carrinho foi preservado. Tente novamente antes de enviar pelo WhatsApp.");
       }
@@ -459,7 +500,7 @@ export function CheckoutModal() {
           <i data-active="true" /><i data-active={step === 2} />
         </div>
         <div className={styles.stepCaption}><strong>{step === 1 ? "Entrega" : "Pagamento"}</strong><span>{step}/2</span></div>
-        {errorMessage && <div className={styles.error}>{errorMessage}</div>}
+        {errorMessage && <div className={styles.errorFallback}><div className={styles.error}>{errorMessage}</div>{fallbackWhatsAppUrl && <div className={styles.contingency}><span>Seu pedido continua montado neste aparelho.</span><strong>Quer concluir diretamente com a loja?</strong><button type="button" onClick={() => { window.location.href = fallbackWhatsAppUrl; }}>Finalizar pelo WhatsApp</button><small>O WhatsApp abrirá com itens, endereço, pagamento, cupom e observações preenchidos.</small></div>}</div>}
 
         {step === 1 ? (
           <div className={styles.stack}>
@@ -511,8 +552,9 @@ export function CheckoutModal() {
             <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters"/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || !couponCode.trim()}>Aplicar</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
             <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>Entrega</span><b data-free={finalFee === 0}>{finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{hasFreeDelivery && !isPickup && <small>Entrega grátis aplicada conforme a promoção vigente.</small>}</section>
             <section><div className={styles.sectionLabel}>Como você quer pagar?</div><div className={styles.paymentTabs}>{(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => <button type="button" key={option} data-active={method === option} onClick={() => setMethod(option)}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>)}</div></section>
-            {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Copie a chave abaixo. O pedido é registrado antes de qualquer envio pelo WhatsApp.</span></div><div className={styles.inline}><input className={styles.input} readOnly value={BUSINESS_CONTACT.pixKey}/><button className={styles.yellowButton} type="button" onClick={() => { void navigator.clipboard.writeText(BUSINESS_CONTACT.pixKey); setPixCopied(true); }}>{pixCopied ? "Copiado" : "Copiar"}</button></div></div>}
+            {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Primeiro registraremos o pedido. Na tela seguinte você poderá copiar a chave, conferir o valor e enviar o comprovante.</span></div></div>}
             {method === "dinheiro" && <label className={styles.label}>Troco para quanto? <span>(opcional)</span><input className={styles.input} placeholder="Ex.: 100,00" value={troco} onChange={(event) => setTroco(event.target.value)} inputMode="decimal"/></label>}
+            <label className={styles.label}>Observação do pedido <span>(opcional)</span><textarea className={`${styles.input} ${styles.orderObservation}`} placeholder="Ex.: tocar o interfone, retirar ingrediente de todos os itens…" value={orderObservation} onChange={(event) => setOrderObservation(event.target.value.slice(0, 300))} maxLength={300}/><small className={styles.counter}>{orderObservation.length}/300</small></label>
             <div className={styles.actions}><button className={styles.secondary} type="button" onClick={() => { setErrorMessage(""); setStep(1); }} disabled={loading}>Voltar</button><button className={styles.primary} type="button" onClick={() => void finishOrder()} disabled={loading}>{loading ? "Registrando pedido…" : `Confirmar pedido · ${money(total)}`}</button></div>
             <p className={styles.trust}>Seu WhatsApp fica salvo para as atualizações do pedido. Você também acompanha o andamento pelo site.</p>
           </div>

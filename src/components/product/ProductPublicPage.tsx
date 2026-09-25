@@ -6,6 +6,7 @@ import { useCatalog } from "@/hooks/useCatalog";
 import { resolveBundleItems } from "@/lib/catalogComposition";
 import { matchesProductRoute, productHref, PUBLIC_SECTION_LABELS, productPublicSection } from "@/lib/productRoutes";
 import { useUIStore } from "@/store/ui";
+import { useCartStore } from "@/store/cart.store";
 import styles from "./ProductPublicPage.module.css";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -13,6 +14,7 @@ const money = (value: number) => value.toLocaleString("pt-BR", { style: "currenc
 export function ProductPublicPage({ section, slug }: { section: string; slug: string }) {
   const { products, loading } = useCatalog();
   const openModal = useUIStore((state) => state.openModal);
+  const cartItems = useCartStore((state) => state.items);
   const [copied, setCopied] = useState(false);
   const product = useMemo(() => products.find((item) => matchesProductRoute(item, section, slug)), [products, section, slug]);
   const related = useMemo(() => product ? products.filter((item) => item.id !== product.id && item.disponivel !== false && item.category === product.category).slice(0, 4) : [], [product, products]);
@@ -22,6 +24,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   if (!product) return <main className={styles.state}><span>ITEM NÃO ENCONTRADO</span><h1>Esse endereço não está mais disponível.</h1><p>O produto pode ter mudado de endereço ou saído do cardápio.</p><Link href="/">Ver cardápio completo</Link></main>;
 
   const available = product.disponivel !== false;
+  const inCart = cartItems.filter((item) => item.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
   const hasDiscount = typeof product.oldPrice === "number" && product.oldPrice > product.price;
   const share = async () => {
     const data = { title: `${product.name} | Da Família Lanches`, text: product.description, url: window.location.href };
@@ -39,6 +42,6 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
     {(bundle.length > 0 || product.detailsItems?.length || product.includedExtras) && <section className={styles.composition}><span>{bundle.length ? "POR DENTRO DO COMBO" : "CONHEÇA SEU PEDIDO"}</span><h2>{product.detailsTitle || `O que vem no ${product.name}?`}</h2>{bundle.length ? <div className={styles.bundle}>{bundle.map((item) => <article key={item.key}><div><b>{item.quantity}×</b><strong>{item.product?.name || item.label}</strong>{item.note && <small>{item.note}</small>}</div>{item.product?.detailsItems?.length ? <ul>{item.product.detailsItems.map((detail) => <li key={detail}>{detail}</li>)}</ul> : null}</article>)}</div> : <ul className={styles.ingredients}>{product.detailsItems?.map((item) => <li key={item}>{item}</li>)}</ul>}{product.includedExtras && <p className={styles.included}><b>Acompanha:</b> {product.includedExtras}</p>}</section>}
 
     {related.length > 0 && <section className={styles.related}><div><span>CONTINUE ESCOLHENDO</span><h2>Talvez combine com seu pedido</h2></div><div className={styles.relatedGrid}>{related.map((item) => <Link href={productHref(item)} key={item.id}><img src={item.image} alt="" /><span><strong>{item.name}</strong><small>{money(item.price)}</small></span></Link>)}</div></section>}
-    <div className={styles.mobileAction}><button disabled={!available} onClick={() => openModal("product-details", product)}>{available ? `Adicionar · ${money(product.price)}` : "Indisponível"}</button></div>
+    <div className={styles.mobileAction}><button disabled={!available} onClick={() => openModal("product-details", product)}>{available ? <><span aria-hidden="true">🛒</span><span>Adicionar <small>{money(product.price)}{inCart > 0 ? ` · ${inCart} no carrinho` : ""}</small></span></> : "Indisponível"}</button></div>
   </main>;
 }

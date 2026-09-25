@@ -9,6 +9,7 @@ import { buildOutboxRecord } from "@/lib/integration/contracts";
 import { INTEGRATION_COLLECTIONS } from "@/lib/integration/firestore";
 import { capacityForTime, normalizeSchedulingConfig, scheduleSlotId } from "@/lib/schedulingConfig";
 import { normalizeCommercialSettings, freeDeliveryThreshold, normalizeCommercialText } from "@/lib/commercialSettings";
+import { drainIntegrationOutboxEvent } from "@/lib/integration/server/relay";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -181,7 +182,7 @@ export async function POST(request: NextRequest) {
       const canonicalOrder: Raw = {
         userId: decoded.uid, userName: text(incoming.userName, 120) || text(decoded.name, 120) || "Cliente", userEmail: decoded.email || "", userPhone: phone,
         itens: canonicalItems, subtotal, taxaEntrega: fee, desconto: discount, cupom: discount > 0 && code ? code : null, rewardId: rewardId || null, total,
-        metodoPagamento: method, trocoPara: method === "dinheiro" ? text(incoming.trocoPara, 40) || null : null,
+        metodoPagamento: method, trocoPara: method === "dinheiro" ? text(incoming.trocoPara, 40) || null : null, observacao: text(incoming.observacao, 300) || null,
         endereco: deliveryMode === "pickup" ? "RETIRADA NO LOCAL" : text(incoming.endereco, 600), tipoEntrega: deliveryMode,
         data: FieldValue.serverTimestamp(), status: isScheduled ? "Agendado" : "Pendente", isAgendamento: isScheduled,
         scheduledFor: isScheduled ? scheduledFor : null, scheduledLabel: isScheduled ? text(incoming.scheduledLabel, 100) : null,
@@ -195,12 +196,21 @@ export async function POST(request: NextRequest) {
       tx.create(adminDb.collection(INTEGRATION_COLLECTIONS.outbox).doc(encodeURIComponent(event.event_id)), buildOutboxRecord(event, occurredAt));
       if (rewardRef) tx.update(rewardRef, { used: true, usedAt: FieldValue.serverTimestamp(), usedOrderId: orderRef.id });
       if (slotRef && slotData) tx.set(slotRef, slotData, { merge: true });
-      return { id: orderRef.id };
+      return { id: orderRef.id, eventId: event.event_id };
     });
-    return NextResponse.json({ ok: true, ...result }, { status: 201 });
+    let integration = { queued: true, sent: false };
+    try {
+      const relay = await drainIntegrationOutboxEvent(result.eventId);
+      integration = { queued: relay.sent !== 1, sent: relay.sent === 1 };
+    } catch (relayError) {
+      console.error("[orders/create] pedido salvo; relay seguirá na outbox", relayError);
+    }
+    return NextResponse.json({ ok: true, id: result.id, integration }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "ORDER_FAILED";
-    const known = /^(AUTH_REQUIRED|PAYLOAD_INVALID|CART_INVALID|ADDON_DUPLICATE|PRODUCT_UNAVAILABLE|ADDON_UNAVAILABLE|PRICE_CHANGED|DELIVERY_CHANGED|COUPON_|REWARD_|SCHEDULE_|PAYMENT_INVALID|PHONE_INVALID|ADDRESS_INVALID)/.test(message);
+    const rawCode = String((error && typeof error === "object" && "code" in error) ? (error as { code?: unknown }).code ?? "" : "").toLowerCase();
+    const original = error instanceof Error ? error.message : "ORDER_FAILED";
+    const message = rawCode.includes("resource-exhausted") || rawCode === "8" || /quota|resource exhausted/i.test(original) ? "SERVICE_BUSY" : rawCode.includes("permission-denied") || rawCode === "7" ? "SERVICE_CONFIG" : rawCode.includes("unavailable") || rawCode === "14" ? "SERVICE_UNAVAILABLE" : original;
+    const known = /^(AUTH_REQUIRED|PAYLOAD_INVALID|CART_INVALID|ADDON_DUPLICATE|PRODUCT_UNAVAILABLE|ADDON_UNAVAILABLE|PRICE_CHANGED|DELIVERY_CHANGED|COUPON_|REWARD_|SCHEDULE_|PAYMENT_INVALID|PHONE_INVALID|ADDRESS_INVALID|SERVICE_BUSY|SERVICE_CONFIG|SERVICE_UNAVAILABLE)/.test(message);
     console.error("[orders/create]", known ? message : error);
     return fail(known ? message : "ORDER_FAILED", known ? 409 : 500);
   }

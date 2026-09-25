@@ -147,3 +147,5 @@
     min-height:44px;
   }
 }
+
+.error{display:block;margin-top:6px;color:#9f2f25;font-size:9px;line-height:1.35}

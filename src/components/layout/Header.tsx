@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { useCustomerOrderCount } from "@/hooks/useCustomerOrderCount";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -11,6 +12,8 @@ import { useCartStore } from "@/store/cart.store";
 import styles from "./header.module.css";
 
 export function Header() {
+  const router = useRouter();
+  const pathname = usePathname();
   const openModal = useUIStore((state) => state.openModal);
   const currentUser = useAuthStore((state) => state.currentUser);
   const items = useCartStore((state) => state.items);
@@ -31,10 +34,11 @@ export function Header() {
   const totalItems = items.reduce((total, item) => total + (item.quantity || 0), 0);
   const userName = profile?.name?.split(" ")[0] || currentUser?.displayName?.split(" ")[0] || currentUser?.email?.split("@")[0] || "Conta";
   const initials = userName.slice(0, 1).toUpperCase();
+  const goHome = () => { if (pathname === "/") window.scrollTo({ top: 0, behavior: "smooth" }); else router.push("/"); };
 
   return (
     <header className={styles.header}>
-      <button className={styles.brandBlock} type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Voltar ao topo do cardápio">
+      <button className={styles.brandBlock} type="button" onClick={goHome} aria-label="Ir para o início do cardápio">
         <strong className={styles.logo}>Da Família <span>Lanches</span></strong>
         <span className={styles.status}>
           <i className={shopStatus.isOpen ? styles.open : styles.closed} />

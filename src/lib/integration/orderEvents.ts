@@ -44,6 +44,7 @@ export type DflSiteOrderEventPayloadV1 = {
   total: number;
   metodoPagamento: string;
   trocoPara: string | null;
+  observacao: string | null;
   status: string;
   isAgendamento: boolean;
   scheduledFor: string | null;
@@ -189,6 +190,8 @@ export function buildDflSiteOrderPayloadV1(
       text(rawOrder.metodoPagamento),
     trocoPara:
       nullableText(rawOrder.trocoPara),
+    observacao:
+      nullableText(rawOrder.observacao),
     status:
       overrides?.status ??
       text(rawOrder.status),
