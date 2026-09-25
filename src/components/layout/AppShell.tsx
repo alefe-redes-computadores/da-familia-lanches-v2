@@ -44,7 +44,7 @@ export function AppShell({ children }: Props) {
   }, [isAdmin, activeModal, closeModal]);
 
   useEffect(() => {
-    const shouldLock = Boolean(!isAdmin && activeModal && activeModal !== "menu");
+    const shouldLock = Boolean(!isAdmin && activeModal);
     if (!shouldLock) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
