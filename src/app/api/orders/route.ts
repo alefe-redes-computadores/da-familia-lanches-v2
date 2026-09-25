@@ -11,6 +11,7 @@ import { INTEGRATION_COLLECTIONS } from "@/lib/integration/firestore";
 import { capacityForTime, normalizeSchedulingConfig, scheduleSlotId } from "@/lib/schedulingConfig";
 import { normalizeCommercialSettings, freeDeliveryThreshold, normalizeCommercialText } from "@/lib/commercialSettings";
 import { drainIntegrationOutboxEvent } from "@/lib/integration/server/relay";
+import { errorCode,finishRouteTrace,startRouteTrace } from "@/lib/server/observability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,6 +80,7 @@ function discountAmount(type: string, value: number, subtotal: number) {
 }
 
 export async function POST(request: NextRequest) {
+  const trace=startRouteTrace("orders.create");
   try {
     const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() || "";
     if (!bearer) return fail("AUTH_REQUIRED", 401);
@@ -374,6 +376,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    finishRouteTrace(trace,"ok",{status:result.reused?200:201,reused:result.reused,integrationSent:integration.sent});
     return NextResponse.json(
       {
         ok: true,
@@ -383,6 +386,7 @@ export async function POST(request: NextRequest) {
       },
       {
         status: result.reused ? 200 : 201,
+        headers:{"x-dfl-trace-id":trace.id},
       },
     );
   } catch (error) {
@@ -390,7 +394,7 @@ export async function POST(request: NextRequest) {
     const original = error instanceof Error ? error.message : "ORDER_FAILED";
     const message = rawCode.includes("resource-exhausted") || rawCode === "8" || /quota|resource exhausted/i.test(original) ? "SERVICE_BUSY" : rawCode.includes("permission-denied") || rawCode === "7" ? "SERVICE_CONFIG" : rawCode.includes("unavailable") || rawCode === "14" ? "SERVICE_UNAVAILABLE" : original;
     const known = /^(AUTH_REQUIRED|PAYLOAD_INVALID|IDEMPOTENCY_|CART_INVALID|ADDON_DUPLICATE|PRODUCT_UNAVAILABLE|ADDON_UNAVAILABLE|UPSELL_|PRICE_CHANGED|DELIVERY_CHANGED|COUPON_|REWARD_|SCHEDULE_|PAYMENT_INVALID|PHONE_INVALID|ADDRESS_INVALID|SERVICE_BUSY|SERVICE_CONFIG|SERVICE_UNAVAILABLE)/.test(message);
-    console.error("[orders/create]", known ? message : error);
-    return fail(known ? message : "ORDER_FAILED", known ? 409 : 500);
+    finishRouteTrace(trace,"error",{errorCode:errorCode(error),businessCode:known?message:"ORDER_FAILED",status:known?409:500});
+    return NextResponse.json({ok:false,error:known?message:"ORDER_FAILED"},{status:known?409:500,headers:{"x-dfl-trace-id":trace.id}});
   }
 }
