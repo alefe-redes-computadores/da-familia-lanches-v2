@@ -13,7 +13,7 @@ import { SchedulingAdmin } from "@/components/admin/SchedulingAdmin";
 import { RewardsAdmin } from "@/components/admin/RewardsAdmin";
 import { CouponsAdmin } from "@/components/admin/CouponsAdmin";
 import { PublicPromotionsAdmin } from "@/components/admin/PublicPromotionsAdmin";
-import { prepareRewardForFinalizedOrder } from "@/lib/rewards";
+import { prepareOrderSummaryTransition } from "@/lib/rewards";
 import { updateOrderStatus } from "@/lib/orderRepository";
 import { evaluateStoreStatus, normalizeStoreSettings } from "@/lib/storeSchedule";
 import { normalizarStatus } from "@/lib/orderUtils";
@@ -92,8 +92,9 @@ export default function AdminPage() {
     if (updatingOrderId === id) return;
     setUpdatingOrderId(id);
     try {
-      const rewardPlan = status === "Finalizado" && pedido
-        ? await prepareRewardForFinalizedOrder(pedido)
+      const normalizedNext=normalizarStatus(status);
+      const rewardPlan = pedido && (normalizedNext === "Finalizado" || normalizedNext === "Cancelado")
+        ? await prepareOrderSummaryTransition(pedido,normalizedNext)
         : null;
       const result = await updateOrderStatus({
         orderId: id,

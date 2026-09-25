@@ -85,8 +85,10 @@ export async function updateOrderStatus(input: {
 
     let rewardAwarded = false;
     let rewardRef: ReturnType<typeof doc> | null = null;
+    let summaryRef: ReturnType<typeof doc> | null = null;
+    let summaryCounts: {total:number;completed:number;cancelled:number}|null = null;
 
-    if (next === "Finalizado" && input.rewardPlan) {
+    if ((next === "Finalizado" || next === "Cancelado") && input.rewardPlan) {
       if (
         input.rewardPlan.userId !==
         String(orderData.userId ?? "")
@@ -94,19 +96,17 @@ export async function updateOrderStatus(input: {
         throw new Error("REWARD_USER_MISMATCH");
       }
 
-      rewardRef = doc(
-        db,
-        "Usuarios",
-        input.rewardPlan.userId,
-        "RecompensasRecebidas",
-        input.rewardPlan.id,
-      );
-
-      const rewardSnapshot =
-        await transaction.get(rewardRef);
-
-      rewardAwarded =
-        !rewardSnapshot.exists();
+      summaryRef=doc(db,"Usuarios",input.rewardPlan.userId,"Loyalty","state");
+      const summarySnapshot=await transaction.get(summaryRef);
+      const stored=summarySnapshot.data()??{};
+      const base=stored.initialized===true
+        ? {total:Math.max(0,Number(stored.totalOrders)||0),completed:Math.max(0,Number(stored.completedOrders)||0),cancelled:Math.max(0,Number(stored.cancelledOrders)||0)}
+        : input.rewardPlan.seed;
+      summaryCounts={total:Math.max(base.total,1),completed:base.completed+(next==="Finalizado"?1:0),cancelled:base.cancelled+(next==="Cancelado"?1:0)};
+      if(next==="Finalizado"&&input.rewardPlan.reward){
+        rewardRef=doc(db,"Usuarios",input.rewardPlan.userId,"RecompensasRecebidas",input.rewardPlan.reward.id);
+        rewardAwarded=!(await transaction.get(rewardRef)).exists();
+      }
     }
 
     const history =
@@ -154,13 +154,16 @@ export async function updateOrderStatus(input: {
 
     if (
       rewardRef &&
-      input.rewardPlan &&
+      input.rewardPlan?.reward &&
       rewardAwarded
     ) {
       transaction.set(rewardRef, {
-        ...input.rewardPlan.data,
+        ...input.rewardPlan.reward.data,
         earnedAt: serverTimestamp(),
       });
+    }
+    if(summaryRef&&summaryCounts){
+      transaction.set(summaryRef,{version:2,initialized:true,totalOrders:summaryCounts.total,completedOrders:summaryCounts.completed,cancelledOrders:summaryCounts.cancelled,lastOrderId:input.orderId,updatedAt:serverTimestamp()},{merge:true});
     }
 
     return {

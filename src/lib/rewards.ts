@@ -3,13 +3,13 @@ import {
   doc,
   getDoc,
   getDocs,
+  getCountFromServer,
   query,
   limit,
   Timestamp,
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { normalizarStatus } from "@/lib/orderUtils";
 
 export const REWARDS_CONFIG_COLLECTION = "RecompensasConfig";
 export const REWARDS_CONFIG_ID = "loyalty";
@@ -131,9 +131,10 @@ const rewardCode = (userId: string, milestone: number) =>
   `DFL${userId.replace(/[^a-z0-9]/gi, "").slice(0, 5).toUpperCase()}${String(milestone).padStart(2, "0")}`;
 
 export type RewardGrantPlan = {
-  id: string;
   userId: string;
-  data: {
+  nextStatus: "Finalizado" | "Cancelado";
+  seed: { total: number; completed: number; cancelled: number };
+  reward: null | { id: string; data: {
     campaignId: string;
     code: string;
     title: string;
@@ -147,37 +148,39 @@ export type RewardGrantPlan = {
     usedOrderId: null;
     usedAt: null;
     expiresAt: Timestamp | null;
-  };
+  }};
 };
 
-export async function prepareRewardForFinalizedOrder(order: Record<string, unknown>): Promise<RewardGrantPlan | null> {
+export async function prepareOrderSummaryTransition(order: Record<string, unknown>,nextStatus:"Finalizado"|"Cancelado"): Promise<RewardGrantPlan | null> {
   const userId = String(order.userId ?? "").trim();
   if (!userId) return null;
-
-  const configSnapshot = await getDoc(doc(db, REWARDS_CONFIG_COLLECTION, REWARDS_CONFIG_ID));
-  if (!configSnapshot.exists()) return null;
-  const config = normalizeRewardsConfig(configSnapshot.data());
-  if (!config.active) return null;
-
-  const currentOrderId = String(order.id ?? "");
-  const ordersSnapshot = await getDocs(query(collection(db, "Pedidos"), where("userId", "==", userId)));
-  const completedAfterTransition = ordersSnapshot.docs.filter((candidate) =>
-    candidate.id !== currentOrderId &&
-    normalizarStatus(typeof candidate.data().status === "string" ? candidate.data().status : undefined) === "Finalizado"
-  ).length + 1;
-
-  if (completedAfterTransition <= 0 || completedAfterTransition % config.everyOrders !== 0) return null;
-
-  const milestone = completedAfterTransition / config.everyOrders;
+  const summarySnapshot=await getDoc(doc(db,"Usuarios",userId,"Loyalty","state"));
+  const known=summarySnapshot.data()??{};
+  let seed={total:Math.max(0,Number(known.totalOrders)||0),completed:Math.max(0,Number(known.completedOrders)||0),cancelled:Math.max(0,Number(known.cancelledOrders)||0)};
+  if(known.initialized!==true){
+    const orders=query(collection(db,"Pedidos"),where("userId","==",userId));
+    const[total,completed,cancelled]=await Promise.all([
+      getCountFromServer(orders),
+      getCountFromServer(query(orders,where("status","==","Finalizado"))),
+      getCountFromServer(query(orders,where("status","==","Cancelado"))),
+    ]);
+    seed={total:total.data().count,completed:completed.data().count,cancelled:cancelled.data().count};
+  }
+  const completedAfterTransition=seed.completed+(nextStatus==="Finalizado"?1:0);
+  const configSnapshot=nextStatus==="Finalizado"?await getDoc(doc(db,REWARDS_CONFIG_COLLECTION,REWARDS_CONFIG_ID)):null;
+  const config=configSnapshot?.exists()?normalizeRewardsConfig(configSnapshot.data()):DEFAULT_REWARDS_CONFIG;
+  const shouldReward=config.active&&completedAfterTransition>0&&completedAfterTransition%config.everyOrders===0;
+  const milestone=shouldReward?completedAfterTransition/config.everyOrders:0;
   const now = Timestamp.now();
   const expiresAt = config.expiresDays > 0
     ? Timestamp.fromMillis(now.toMillis() + config.expiresDays * 86_400_000)
     : null;
 
   return {
-    id: `${REWARDS_CONFIG_ID}-${milestone}`,
     userId,
-    data: {
+    nextStatus,
+    seed,
+    reward: shouldReward ? { id: `${REWARDS_CONFIG_ID}-${milestone}`, data: {
       campaignId: REWARDS_CONFIG_ID,
       code: rewardCode(userId, milestone),
       title: config.title,
@@ -191,6 +194,6 @@ export async function prepareRewardForFinalizedOrder(order: Record<string, unkno
       usedOrderId: null,
       usedAt: null,
       expiresAt,
-    },
+    }} : null,
   };
 }

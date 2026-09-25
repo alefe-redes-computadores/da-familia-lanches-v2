@@ -69,6 +69,11 @@ service cloud.firestore {
       );
     }
 
+    match /Usuarios/{userId}/Loyalty/{documentId} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == userId);
+      allow create, update, delete: if isAdmin();
+    }
+
     match /Usuarios/{userId} {
       allow create: if request.auth != null && request.auth.uid == userId;
       allow read, update, delete: if request.auth != null && request.auth.uid == userId;

@@ -140,6 +140,20 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
   const inboxRef = adminDb.collection("integration_inbox").doc(encodeURIComponent(event.event_id));
   const orderRef = adminDb.collection("Pedidos").doc(event.payload.externalOrderId);
   const now = new Date().toISOString();
+  let loyaltySeed:{userId:string;total:number;completed:number;cancelled:number}|null=null;
+  if(event.event_type==="delivery.completed"){
+    const preview=await orderRef.get(),previewOrder=preview.data()||{},userId=String(previewOrder.userId??"").trim();
+    if(userId){
+      const summary=await adminDb.doc(`Usuarios/${userId}/Loyalty/state`).get(),known=summary.data()||{};
+      if(known.initialized===true){
+        loyaltySeed={userId,total:Math.max(0,Number(known.totalOrders)||0),completed:Math.max(0,Number(known.completedOrders)||0),cancelled:Math.max(0,Number(known.cancelledOrders)||0)};
+      }else{
+        const orders=adminDb.collection("Pedidos").where("userId","==",userId);
+        const[total,completed,cancelled]=await Promise.all([orders.count().get(),orders.where("status","==","Finalizado").count().get(),orders.where("status","==","Cancelado").count().get()]);
+        loyaltySeed={userId,total:total.data().count,completed:completed.data().count,cancelled:cancelled.data().count};
+      }
+    }
+  }
 
   const result = await adminDb.runTransaction(async (tx) => {
     const [inboxSnap, orderSnap] = await Promise.all([tx.get(inboxRef), tx.get(orderRef)]);
@@ -186,15 +200,18 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
     const projectionDeferred = Boolean(wins && projection.deferred);
 
     let rewardWrite: { ref: DocumentReference; data: Record<string, unknown> } | null = null;
+    let loyaltyWrite:{ref:DocumentReference;data:Record<string,unknown>}|null=null;
     if (statusChanged && targetStatus === "Finalizado") {
       const userId=String(order.userId??"").trim();
-      if(userId){
+      if(userId&&loyaltySeed&&loyaltySeed.userId===userId){
+        const summaryRef=adminDb.doc(`Usuarios/${userId}/Loyalty/state`),summarySnap=await tx.get(summaryRef),summary=summarySnap.data()||{};
+        const base=summary.initialized===true?{total:Math.max(0,Number(summary.totalOrders)||0),completed:Math.max(0,Number(summary.completedOrders)||0),cancelled:Math.max(0,Number(summary.cancelledOrders)||0)}:loyaltySeed;
+        const completed=base.completed+1;
+        loyaltyWrite={ref:summaryRef,data:{version:2,initialized:true,totalOrders:Math.max(base.total,1),completedOrders:completed,cancelledOrders:base.cancelled,lastOrderId:event.payload.externalOrderId,updatedAt:Timestamp.fromMillis(incoming.time)}};
         const configRef=adminDb.collection("RecompensasConfig").doc("loyalty");
         const configSnap=await tx.get(configRef); const cfg=configSnap.exists?(configSnap.data()||{}):{};
         if(configSnap.exists&&cfg.active===true){
           const every=Math.max(1,Math.floor(positive(cfg.everyOrders,5,1)));
-          const ordersSnap=await tx.get(adminDb.collection("Pedidos").where("userId","==",userId));
-          const completed=ordersSnap.docs.filter(d=>d.id!==event.payload.externalOrderId&&commercialStatus(d.data().status)==="Finalizado").length+1;
           if(completed>0&&completed%every===0){
             const milestone=completed/every; const ref=adminDb.collection("Usuarios").doc(userId).collection("RecompensasRecebidas").doc(`loyalty-${milestone}`);
             const old=await tx.get(ref);
@@ -241,6 +258,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         } : {}),
       });
       if(rewardWrite) tx.set(rewardWrite.ref, rewardWrite.data);
+      if(loyaltyWrite) tx.set(loyaltyWrite.ref,loyaltyWrite.data,{merge:true});
     }
 
     if (wins) {

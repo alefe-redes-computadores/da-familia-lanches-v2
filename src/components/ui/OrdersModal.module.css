@@ -7,3 +7,4 @@
 .reschedule{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:8px}
 .reschedule select{min-width:0;width:100%}
 @media(max-width:420px){.scheduleActions,.reschedule{grid-template-columns:1fr}}
+.loadMore{width:100%;min-height:46px;margin-top:12px;border:1px solid #ddd6cb;border-radius:14px;background:#fff;color:#27231e;font-size:10px;font-weight:900;cursor:pointer}.loadMore:disabled{opacity:.6;cursor:wait}

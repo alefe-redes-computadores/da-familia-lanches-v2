@@ -336,6 +336,15 @@ export async function POST(request: NextRequest) {
         },
         { merge: true },
       );
+      tx.set(
+        adminDb.doc(`Usuarios/${decoded.uid}/Loyalty/state`),
+        {
+          version: 2,
+          totalOrders: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
       tx.create(adminDb.collection(INTEGRATION_COLLECTIONS.outbox).doc(encodeURIComponent(event.event_id)), buildOutboxRecord(event, occurredAt));
       if (rewardRef) tx.update(rewardRef, { used: true, usedAt: FieldValue.serverTimestamp(), usedOrderId: orderRef.id });
       if (slotRef && slotData) tx.set(slotRef, slotData, { merge: true });
