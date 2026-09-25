@@ -37,7 +37,7 @@
 /* V40 CART — FAST SCAN */
 @media (max-width:760px){
   .content,.wrap{padding-bottom:calc(92px + env(safe-area-inset-bottom))!important}
-  button{touch-action:manipulation}
+  .body button{touch-action:manipulation}
 }
 
 /* V42 SMART CART GUARD */

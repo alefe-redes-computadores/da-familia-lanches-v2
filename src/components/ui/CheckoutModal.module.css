@@ -21,8 +21,8 @@
 /* V40 CHECKOUT — TOUCH + SAFE AREA */
 @media (max-width:760px){
   .content,.wrap{padding-bottom:calc(96px + env(safe-area-inset-bottom))!important}
-  input,select,textarea{font-size:16px!important}
-  button{touch-action:manipulation}
+  .body input,.body select,.body textarea{font-size:16px!important}
+  .body button{touch-action:manipulation}
 }
 
 /* V42 CHECKOUT RESILIENCE */
