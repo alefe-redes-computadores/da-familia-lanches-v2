@@ -10,7 +10,6 @@ import { useUIStore } from "@/store/ui";
 import { ActiveOrderBanner } from "@/components/ui/ActiveOrderBanner";
 import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
-import { useRouter } from "next/navigation";
 import { productHref } from "@/lib/productRoutes";
 import Link from "next/link";
 
@@ -25,7 +24,6 @@ function normalize(value: string) {
 }
 
 export default function Home() {
-  const router = useRouter();
   const openModal = useUIStore((s) => s.openModal);
   const shopStatus = useShopStatus();
   const { products } = useCatalog();
@@ -102,10 +100,10 @@ export default function Home() {
             <div className={styles.promoRail}>
               {promoProducts.map((product) => {
                 const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
-                return <Link className={styles.promoHeroCard} key={`promo-${product.id}`} href={productHref(product)}>
+                return <article className={styles.promoHeroCard} key={`promo-${product.id}`} role="button" tabIndex={0} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openProduct(product); }}>
                   <div className={styles.promoHeroMedia}><img src={product.image} alt="" loading="lazy" /><span>-{discount}%</span></div>
-                  <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em></div>
-                </Link>;
+                  <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em><Link href={productHref(product)} onClick={(event) => event.stopPropagation()}>Ver página completa ›</Link></div>
+                </article>;
               })}
             </div>
           </section>
@@ -135,7 +133,7 @@ export default function Home() {
                   const hasDiscount = typeof product.oldPrice === "number" && product.oldPrice > product.price;
                   const discount = hasDiscount ? Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100) : 0;
                   return (
-                    <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id} onClick={() => available && router.push(productHref(product))}>
+                    <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id} onClick={() => available && openProduct(product)}>
                       <div className={styles.media}>
                         <img src={product.image} alt={product.name} loading="lazy" />
                         <div className={styles.badges}>

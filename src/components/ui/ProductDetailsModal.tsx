@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Addon } from "@/data/addons";
 import type { Product } from "@/data/products";
@@ -12,6 +13,7 @@ import { useUIStore } from "@/store/ui";
 import { ModalBase } from "./ModalBase";
 import styles from "./ProductDetailsModal.module.css";
 import { haptic } from "@/lib/haptics";
+import { productHref } from "@/lib/productRoutes";
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -64,7 +66,7 @@ export function ProductDetailsModal() {
       <div className={styles.wrap}>
         <div className={styles.product}>
           <img src={product.image} alt={product.name} />
-          <div><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div></div>
+          <div><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div><Link className={styles.fullPageLink} href={productHref(product)} onClick={closeModal}>Ver detalhes e compartilhar →</Link></div>
         </div>
 
         {(hasBundle || product.detailsItems?.length || product.includedExtras) && <section className={hasBundle ? styles.composition : styles.ingredients}>
