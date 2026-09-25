@@ -66,7 +66,7 @@ export function ProductDetailsModal() {
       <div className={styles.wrap}>
         <div className={styles.product}>
           <img src={product.image} alt={product.name} />
-          <div><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div><Link className={styles.fullPageLink} href={productHref(product)} onClick={closeModal}>Ver detalhes e compartilhar →</Link></div>
+          <div><div className={styles.productTopline}><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><Link className={styles.fullPageLink} href={productHref(product)} onClick={closeModal}>Página completa ↗</Link></div><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div></div>
         </div>
 
         {(hasBundle || product.detailsItems?.length || product.includedExtras) && <section className={hasBundle ? styles.composition : styles.ingredients}>

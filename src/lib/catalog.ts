@@ -48,9 +48,8 @@ function bundleItems(value: unknown): Product["bundleItems"] {
   return items.length ? items : undefined;
 }
 
-export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentData>): Product | null {
-  const raw = snapshot.data();
-  const id = text(raw.id) || snapshot.id;
+export function normalizeRemoteProductRecord(snapshotId: string, raw: DocumentData): Product | null {
+  const id = text(raw.id) || snapshotId;
   const name = text(raw.name ?? raw.nome);
   const description = text(raw.description ?? raw.descricao);
   const image = text(raw.image ?? raw.imagem);
@@ -58,7 +57,7 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
   const price = finiteMoney(raw.price ?? raw.preco);
 
   if (!id || !name || !description || !image || !category || price === null) {
-    console.warn("[catalog] Produto remoto ignorado por dados invalidos:", snapshot.id);
+    console.warn("[catalog] Produto remoto ignorado por dados invalidos:", snapshotId);
     return null;
   }
 
@@ -72,6 +71,8 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
   const normalizedBundleItems = bundleItems(raw.bundleItems ?? raw.itensCombo);
   const publicSlug = text(raw.publicSlug ?? raw.slugPublico) || undefined;
   const publicSection = text(raw.publicSection ?? raw.secaoPublica) || undefined;
+  const upsellProductId = text(raw.upsellProductId ?? raw.upsellProdutoId) || undefined;
+  const upsellUnitPrice = finiteMoney(raw.upsellUnitPrice ?? raw.precoUpsell);
 
   return {
     id,
@@ -91,17 +92,22 @@ export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentD
     ...(normalizedBundleItems ? { bundleItems: normalizedBundleItems } : {}),
     ...(publicSlug ? { publicSlug } : {}),
     ...(publicSection ? { publicSection } : {}),
+    ...(upsellProductId ? { upsellProductId } : {}),
+    ...(upsellUnitPrice !== null ? { upsellUnitPrice } : {}),
   };
 }
 
-export function normalizeRemoteAddon(snapshot: QueryDocumentSnapshot<DocumentData>): Addon | null {
-  const raw = snapshot.data();
-  const id = text(raw.id) || snapshot.id;
+export function normalizeRemoteProduct(snapshot: QueryDocumentSnapshot<DocumentData>): Product | null {
+  return normalizeRemoteProductRecord(snapshot.id, snapshot.data());
+}
+
+export function normalizeRemoteAddonRecord(snapshotId: string, raw: DocumentData): Addon | null {
+  const id = text(raw.id) || snapshotId;
   const name = text(raw.name ?? raw.nome);
   const price = finiteMoney(raw.price ?? raw.preco);
 
   if (!id || !name || price === null) {
-    console.warn("[catalog] Adicional remoto ignorado por dados invalidos:", snapshot.id);
+    console.warn("[catalog] Adicional remoto ignorado por dados invalidos:", snapshotId);
     return null;
   }
 
@@ -114,6 +120,10 @@ export function normalizeRemoteAddon(snapshot: QueryDocumentSnapshot<DocumentDat
     disponivel: booleanOrUndefined(raw.disponivel ?? raw.available) ?? true,
     ...(sortOrder !== undefined ? { sortOrder } : {}),
   };
+}
+
+export function normalizeRemoteAddon(snapshot: QueryDocumentSnapshot<DocumentData>): Addon | null {
+  return normalizeRemoteAddonRecord(snapshot.id, snapshot.data());
 }
 
 export function mergeProducts(remote: Product[]): Product[] {

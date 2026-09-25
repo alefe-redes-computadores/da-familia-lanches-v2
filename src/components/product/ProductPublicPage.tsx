@@ -12,41 +12,7 @@ import styles from "./ProductPublicPage.module.css";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const CartIcon = () => <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 10.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"/></svg>;
-const norm = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-const isDrink = (product: Product) => /\b(bebida|refrigerante|refri|kuat|coca|guarana|suco|agua|fanta|2l|2 l|600ml|600 ml|lata)\b/.test(norm(`${product.category} ${product.name} ${product.description}`));
-const familyWords = (product: Product) => norm(product.name).split(/[^a-z0-9]+/).filter((word) => word.length >= 4 && !["combo", "burger", "burgers", "lanche", "lanches", "familia", "tradicional", "artesanal", "promocao"].includes(word));
-
-type Related = { product: Product; eyebrow: string; reason: string; score: number };
-
-function smartRelated(product: Product, products: Product[]): Related[] {
-  const available = products.filter((item) => item.id !== product.id && item.disponivel !== false);
-  const sourceParts = resolveBundleItems(product, products);
-  const sourceHasDrink = isDrink(product) || sourceParts.some((part) => part.product && isDrink(part.product));
-  const family = familyWords(product);
-  const scored = available.map((item): Related => {
-    const sameFamily = family.some((word) => familyWords(item).includes(word));
-    const drink = isDrink(item);
-    let score = 0;
-    let eyebrow = "OUTRA BOA ESCOLHA";
-    let reason = "Uma opção próxima para continuar montando seu pedido.";
-    if (!sourceHasDrink && drink) { score += 140; eyebrow = "BEBIDA PARA COMPLETAR"; reason = "Este pedido ainda não inclui bebida."; }
-    if (sameFamily) { score += 105; eyebrow = "DA MESMA FAMÍLIA"; reason = "Mantém o estilo que você escolheu, em outra opção."; }
-    if (item.category === product.category) score += 40;
-    if (item.isSuggestion) score += 18;
-    if (item.bundleItems?.length && !product.bundleItems?.length) score += 16;
-    return { product: item, eyebrow, reason, score };
-  }).sort((a, b) => b.score - a.score || a.product.price - b.product.price);
-  const result: Related[] = [];
-  const drink = scored.find((item) => item.eyebrow === "BEBIDA PARA COMPLETAR");
-  const sameFamily = scored.find((item) => item.eyebrow === "DA MESMA FAMÍLIA");
-  if (drink) result.push(drink);
-  if (sameFamily && !result.some((item) => item.product.id === sameFamily.product.id)) result.push(sameFamily);
-  for (const item of scored) {
-    if (result.length >= 3) break;
-    if (!result.some((entry) => entry.product.id === item.product.id)) result.push(item);
-  }
-  return result;
-}
+import { getCommercialRecommendations } from "@/lib/commercialRecommendations";
 
 export function ProductPublicPage({ section, slug }: { section: string; slug: string }) {
   const { products, loading } = useCatalog();
@@ -55,7 +21,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   const [copied, setCopied] = useState(false);
   const product = useMemo(() => products.find((item) => matchesProductRoute(item, section, slug)), [products, section, slug]);
   const bundle = useMemo(() => product ? resolveBundleItems(product, products) : [], [product, products]);
-  const related = useMemo(() => product ? smartRelated(product, products) : [], [product, products]);
+  const related = useMemo(() => product ? getCommercialRecommendations(product, products, cartItems) : [], [product, products, cartItems]);
 
   if (loading) return <main className={styles.state}><strong>Abrindo o cardápio...</strong></main>;
   if (!product) return <main className={styles.state}><span>ITEM NÃO ENCONTRADO</span><h1>Esse endereço não está mais disponível.</h1><p>O produto pode ter mudado de endereço ou saído do cardápio.</p><Link href="/">Ver cardápio completo</Link></main>;
@@ -87,7 +53,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
         {inCart > 0 && <button className={styles.inCart} onClick={() => openModal("cart")}><span>{inCart} no carrinho</span><b>Ver pedido <span aria-hidden="true">›</span></b></button>}
       </div>
     </section>
-    {related.length > 0 && <section className={styles.related}><div className={styles.relatedHead}><div><span>✦ ESCOLHAS INTELIGENTES</span><h2>Complete do seu jeito</h2><p>Sugestões levando em conta o que já existe neste item.</p></div></div><div className={styles.relatedGrid}>{related.map((entry) => <Link href={productHref(entry.product)} key={entry.product.id}><img src={entry.product.image} alt="" /><span><small>{entry.eyebrow}</small><strong>{entry.product.name}</strong><em>{entry.reason}</em><b>{money(entry.product.price)} <span aria-hidden="true">›</span></b></span></Link>)}</div></section>}
+    {related.length > 0 && <section className={styles.related}><div className={styles.relatedHead}><div><span>ESCOLHAS PARA O SEU PEDIDO</span><h2>Complete do seu jeito</h2><p>Sem repetir o que já vem neste item ou no seu carrinho.</p></div></div><div className={styles.relatedGrid}>{related.map((entry) => <Link href={productHref(entry.product)} key={entry.product.id}><img src={entry.product.image} alt="" /><span><small>{entry.eyebrow}</small><strong>{entry.product.name}</strong><em>{entry.reason}</em><b>{money(entry.product.price)} <span aria-hidden="true">›</span></b></span></Link>)}</div></section>}
     <div className={styles.mobileAction}><button disabled={!available} onClick={() => openModal("product-details", product)}><CartIcon /><span>{available ? "Adicionar ao carrinho" : "Indisponível"}</span>{available && <b>{money(product.price)}</b>}</button></div>
   </main>;
 }

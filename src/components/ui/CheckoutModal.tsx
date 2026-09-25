@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { doc, getDoc, increment, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { ModalBase } from "./ModalBase";
 import { useUIStore } from "@/store/ui";
 import { useCartStore } from "@/store/cart.store";
@@ -10,8 +10,8 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { formatCEPBR, formatPhoneBR, saveUserAddresses, saveUserProfile, type SavedAddress } from "@/lib/userProfile";
 import { db } from "@/lib/firebase";
 import { createCustomerOrder } from "@/lib/orderRepository";
-import { getEffectiveShopStatus } from "@/lib/shopStatus";
-import { canPlaceImmediateTestOrder, normalizeStoreSettings } from "@/lib/storeSchedule";
+import { getCheckoutStoreAccess } from "@/lib/shopStatus";
+
 import { findCustomerRewardByCode, rewardDiscount, rewardIsExpired } from "@/lib/rewards";
 import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupons";
 import styles from "./CheckoutModal.module.css";
@@ -25,15 +25,23 @@ import { getDefaultDeliveryFee, SAFE_DEFAULT_DELIVERY_FEE, type DeliveryRate } f
 import { getOrderScheduleSlots, scheduleHumanLabel, type OrderScheduleSlot } from "@/lib/orderScheduling";
 
 const DEFAULT_DELIVERY_FEE = SAFE_DEFAULT_DELIVERY_FEE;
+const DELIVERY_CACHE_TTL = 5 * 60_000;
+let deliveryTableCache: { at: number; list: DeliveryRate[]; defaultFee: number } | null = null;
+let deliveryTableInflight: Promise<{ list: DeliveryRate[]; defaultFee: number }> | null = null;
 
-const getTestAccess = async (email: string | null | undefined) => {
-  try {
-    const snapshot = await getDoc(doc(db, "settings", "loja"));
-    return snapshot.exists() && canPlaceImmediateTestOrder(normalizeStoreSettings(snapshot.data()), email);
-  } catch {
-    return false;
-  }
-};
+async function getDeliveryTableCached() {
+  if (deliveryTableCache && Date.now() - deliveryTableCache.at < DELIVERY_CACHE_TTL) return deliveryTableCache;
+  if (deliveryTableInflight) return deliveryTableInflight;
+  deliveryTableInflight = Promise.all([
+    getDoc(doc(db, "TaxasDeEntrega", "bairros", "lista", "tabela")),
+    getDefaultDeliveryFee(),
+  ]).then(([snap, defaultFee]) => {
+    const list = snap.exists() && Array.isArray(snap.data()?.data) ? snap.data().data as DeliveryRate[] : [];
+    deliveryTableCache = { at: Date.now(), list, defaultFee };
+    return deliveryTableCache;
+  }).finally(() => { deliveryTableInflight = null; });
+  return deliveryTableInflight;
+}
 
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -48,6 +56,43 @@ export function CheckoutModal() {
   const { profile, loading: profileLoading } = useUserProfile(currentUser);
   const hydratedProfileRef = useRef<string>("");
   const customerEditingRef = useRef(false);
+  const submittingRef = useRef(false);
+  const orderAttemptRef = useRef<string>("");
+
+  const orderAttemptStorageKey = currentUser?.uid
+    ? `dfl:pending-order:${currentUser.uid}`
+    : "";
+
+  const rememberOrderAttempt = (value: string) => {
+    orderAttemptRef.current = value;
+
+    if (
+      orderAttemptStorageKey &&
+      typeof window !== "undefined"
+    ) {
+      try {
+        window.sessionStorage.setItem(
+          orderAttemptStorageKey,
+          value,
+        );
+      } catch {}
+    }
+  };
+
+  const clearOrderAttempt = () => {
+    orderAttemptRef.current = "";
+
+    if (
+      orderAttemptStorageKey &&
+      typeof window !== "undefined"
+    ) {
+      try {
+        window.sessionStorage.removeItem(
+          orderAttemptStorageKey,
+        );
+      } catch {}
+    }
+  };
 
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -82,6 +127,7 @@ export function CheckoutModal() {
   const [scheduleSlots, setScheduleSlots] = useState<OrderScheduleSlot[]>([]);
   const [scheduledFor, setScheduledFor] = useState("");
   const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
 
   const subtotal = getCartTotal();
   const isPickup = deliveryMode === "pickup";
@@ -100,7 +146,35 @@ export function CheckoutModal() {
   const canAdvance = nameReady && phoneReady && addressReady && items.length > 0;
 
   useEffect(() => { void getCommercialSettings().then(setCommercialSettings).catch(() => setCommercialSettings(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
-  useEffect(() => { let alive=true; setScheduleLoading(true); void (async()=>{ try{const [status,testAccess]=await Promise.all([getEffectiveShopStatus(),getTestAccess(currentUser?.email)]);if(!alive)return;const closedForUser=!status.isOpen&&!testAccess;setShopClosed(closedForUser);if(closedForUser){const slots=await getOrderScheduleSlots();if(!alive)return;setScheduleSlots(slots);setScheduledFor(v=>v||slots[0]?.value||"")}else{setScheduleSlots([]);setScheduledFor("")}}catch(error){console.error("Falha ao preparar agendamento",error)}finally{if(alive)setScheduleLoading(false)}})();return()=>{alive=false}}, [currentUser?.email]);
+  useEffect(() => {
+    if (
+      !orderAttemptStorageKey ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    try {
+      const pending =
+        window.sessionStorage.getItem(
+          orderAttemptStorageKey,
+        );
+
+      if (
+        pending &&
+        /^[A-Za-z0-9_-]{16,80}$/.test(pending)
+      ) {
+        orderAttemptRef.current = pending;
+      }
+    } catch {}
+  }, [orderAttemptStorageKey]);
+
+  useEffect(()=>{
+    const online=()=>setIsOnline(true), offline=()=>setIsOnline(false);
+    window.addEventListener("online",online); window.addEventListener("offline",offline);
+    return()=>{window.removeEventListener("online",online);window.removeEventListener("offline",offline);};
+  },[]);
+  useEffect(() => { let alive=true; setScheduleLoading(true); void (async()=>{ try{const {status,testAccess}=await getCheckoutStoreAccess(currentUser?.email);if(!alive)return;const closedForUser=!status.isOpen&&!testAccess;setShopClosed(closedForUser);if(closedForUser){const slots=await getOrderScheduleSlots();if(!alive)return;setScheduleSlots(slots);setScheduledFor(v=>v||slots[0]?.value||"")}else{setScheduleSlots([]);setScheduledFor("")}}catch(error){console.error("Falha ao preparar agendamento",error)}finally{if(alive)setScheduleLoading(false)}})();return()=>{alive=false}}, [currentUser?.email]);
 
   useEffect(() => {
     if (!currentUser || profileLoading) return;
@@ -147,17 +221,12 @@ export function CheckoutModal() {
     if (!cleanedDistrict) return;
 
     try {
-      const [snap, configuredDefaultFee] = await Promise.all([
-        getDoc(doc(db, "TaxasDeEntrega", "bairros", "lista", "tabela")),
-        getDefaultDeliveryFee(),
-      ]);
-      if (!snap.exists()) {
+      const { list, defaultFee: configuredDefaultFee } = await getDeliveryTableCached();
+      if (!list.length) {
         setDeliveryFee(configuredDefaultFee);
         setDeliveryStatus(`Taxa padrão: ${money(configuredDefaultFee)}`);
         return;
       }
-
-      const list = Array.isArray(snap.data()?.data) ? (snap.data().data as DeliveryRate[]) : [];
       const found = list.find((item) => {
         const name = typeof item.nome === "string" ? normalizeText(item.nome) : "";
         return name === cleanedDistrict || name.includes(cleanedDistrict) || cleanedDistrict.includes(name);
@@ -208,6 +277,7 @@ export function CheckoutModal() {
       setManualMode(true);
       setDeliveryStatus("Não foi possível consultar o CEP. Preencha manualmente.");
     } finally {
+      submittingRef.current=false;
       setLoading(false);
     }
   };
@@ -292,39 +362,52 @@ export function CheckoutModal() {
   }, [troco]);
 
   const finishOrder = async () => {
+    if(submittingRef.current) return;
+    if(!navigator.onLine){
+      setIsOnline(false);
+      setErrorMessage("Você está sem internet. Seu carrinho continua salvo neste aparelho; reconecte para registrar o pedido.");
+      return;
+    }
+    submittingRef.current=true;
     setErrorMessage("");
     setFallbackWhatsAppUrl("");
     if (!currentUser) {
+      submittingRef.current=false;
       setErrorMessage("Sua sessão expirou. Entre novamente para finalizar.");
       return;
     }
     if (items.length === 0) {
+      submittingRef.current=false;
       setErrorMessage("Seu carrinho está vazio.");
       return;
     }
     if (!nameReady) {
+      submittingRef.current=false;
       setStep(1);
       setErrorMessage("Informe seu nome para o pedido.");
       return;
     }
     if (!phoneReady) {
+      submittingRef.current=false;
       setStep(1);
       setErrorMessage("Informe um WhatsApp válido com DDD.");
       return;
     }
     if (!addressReady) {
+      submittingRef.current=false;
       setStep(1);
       setErrorMessage("Preencha rua, número e bairro para entrega.");
       return;
     }
     if (method === "dinheiro" && cashValue !== null && cashValue < total) {
+      submittingRef.current=false;
       setErrorMessage(`O valor para troco precisa ser pelo menos ${money(total)}.`);
       return;
     }
 
     setLoading(true);
     try {
-      const [shopStatus, testAccess] = await Promise.all([getEffectiveShopStatus(), getTestAccess(currentUser.email)]);
+      const { status: shopStatus, testAccess } = await getCheckoutStoreAccess(currentUser.email, true);
       const isClosed = !shopStatus.isOpen && !testAccess;
       const selectedSchedule = isClosed ? scheduledFor : "";
       if (isClosed && !selectedSchedule) { setStep(1); throw new Error("SCHEDULE_REQUIRED"); }
@@ -332,7 +415,19 @@ export function CheckoutModal() {
         ? "RETIRADA NO LOCAL"
         : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}${referencia.trim() ? ` · Ref.: ${referencia.trim()}` : ""}`;
 
+      if (!orderAttemptRef.current) {
+        rememberOrderAttempt(
+          typeof crypto !== "undefined" &&
+          typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `site-${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2, 12)}`,
+        );
+      }
+
       const orderData = {
+        clientRequestId: orderAttemptRef.current,
         userId: currentUser.uid,
         userName: customerName.trim() || currentUser.displayName || "Cliente",
         userEmail: currentUser.email,
@@ -392,9 +487,7 @@ export function CheckoutModal() {
           const next:SavedAddress={id:selectedAddressId||`address-${Date.now()}`,label:old?.label||(list.length?"Outro":"Casa"),cep:cep.trim(),street:rua.trim(),number:numero.trim(),district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim(),isDefault:old?.isDefault??list.length===0};
           await saveUserAddresses(currentUser,i>=0?list.map((a,n)=>n===i?next:a):(list.length<3?[...list,next]:list));
         }
-        await setDoc(doc(db, "Usuarios", currentUser.uid), {
-          pedidosFeitos: increment(1),
-        }, { merge: true });
+
       } catch (profileError) {
         console.error("Pedido salvo, mas falhou ao atualizar o perfil do cliente", profileError);
       }
@@ -431,6 +524,7 @@ export function CheckoutModal() {
 
       const whatsappUrl = businessWhatsAppUrl(message);
       clearCart();
+      clearOrderAttempt();
       openModal("order-success", {
         orderId: created.id,
         isScheduled: isClosed,
@@ -477,7 +571,7 @@ export function CheckoutModal() {
         setDiscount(0);
         setCouponMessage("O cupom ou benefício mudou desde a validação. Aplique o código novamente.");
         setErrorMessage("Revise o cupom ou benefício antes de confirmar. Seu carrinho foi preservado.");
-      } else if (["PRICE_CHANGED", "DELIVERY_CHANGED", "PRODUCT_UNAVAILABLE", "ADDON_UNAVAILABLE"].includes(code)) {
+      } else if (["PRICE_CHANGED", "DELIVERY_CHANGED", "PRODUCT_UNAVAILABLE", "ADDON_UNAVAILABLE", "UPSELL_CHANGED", "UPSELL_INVALID"].includes(code)) {
         setErrorMessage("O cardápio ou a taxa mudou. Feche o checkout, confira o carrinho atualizado e tente novamente.");
       } else if (code === "SERVICE_BUSY") {
         setErrorMessage("O sistema de pedidos atingiu o limite temporário do banco. Seu carrinho foi preservado; aguarde alguns minutos e tente novamente.");
@@ -496,6 +590,7 @@ export function CheckoutModal() {
   return (
     <ModalBase title={step === 1 ? "Como você quer receber?" : "Confirme seu pedido"} onClose={closeModal}>
       <div className={styles.body}>
+        {!isOnline && <div className={styles.offlineBanner} role="status"><strong>Sem conexão</strong><span>Seu carrinho está preservado. Reconecte antes de confirmar o pedido.</span></div>}
         <div className={styles.steps} aria-label={`Etapa ${step} de 2`}>
           <i data-active="true" /><i data-active={step === 2} />
         </div>
@@ -555,7 +650,7 @@ export function CheckoutModal() {
             {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Primeiro registraremos o pedido. Na tela seguinte você poderá copiar a chave, conferir o valor e enviar o comprovante.</span></div></div>}
             {method === "dinheiro" && <label className={styles.label}>Troco para quanto? <span>(opcional)</span><input className={styles.input} placeholder="Ex.: 100,00" value={troco} onChange={(event) => setTroco(event.target.value)} inputMode="decimal"/></label>}
             <label className={styles.label}>Observação do pedido <span>(opcional)</span><textarea className={`${styles.input} ${styles.orderObservation}`} placeholder="Ex.: tocar o interfone, retirar ingrediente de todos os itens…" value={orderObservation} onChange={(event) => setOrderObservation(event.target.value.slice(0, 300))} maxLength={300}/><small className={styles.counter}>{orderObservation.length}/300</small></label>
-            <div className={styles.actions}><button className={styles.secondary} type="button" onClick={() => { setErrorMessage(""); setStep(1); }} disabled={loading}>Voltar</button><button className={styles.primary} type="button" onClick={() => void finishOrder()} disabled={loading}>{loading ? "Registrando pedido…" : `Confirmar pedido · ${money(total)}`}</button></div>
+            <div className={styles.actions}><button className={styles.secondary} type="button" onClick={() => { setErrorMessage(""); setStep(1); }} disabled={loading}>Voltar</button><button className={styles.primary} type="button" onClick={() => void finishOrder()} disabled={loading || !isOnline} aria-busy={loading}>{loading ? "Registrando pedido… não feche esta tela" : !isOnline ? "Reconecte para confirmar" : `Confirmar pedido · ${money(total)}`}</button></div>
             <p className={styles.trust}>Seu WhatsApp fica salvo para as atualizações do pedido. Você também acompanha o andamento pelo site.</p>
           </div>
         )}

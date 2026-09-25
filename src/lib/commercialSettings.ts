@@ -30,9 +30,34 @@ export function normalizeCommercialSettings(data?: Record<string, unknown>): Com
       : [],
   };
 }
-export async function getCommercialSettings() {
-  const snap = await getDoc(doc(db, "settings", "commercial"));
-  return snap.exists() ? normalizeCommercialSettings(snap.data()) : DEFAULT_COMMERCIAL_SETTINGS;
+const COMMERCIAL_CACHE_TTL = 60_000;
+let commercialCache: { at: number; value: CommercialSettings } | null = null;
+let commercialInflight: Promise<CommercialSettings> | null = null;
+
+export async function getCommercialSettings(forceFresh = false) {
+  if (!forceFresh && commercialCache && Date.now() - commercialCache.at < COMMERCIAL_CACHE_TTL) {
+    return commercialCache.value;
+  }
+  if (!forceFresh && commercialInflight) return commercialInflight;
+
+  const request = getDoc(doc(db, "settings", "commercial"))
+    .then((snap) => {
+      const value = snap.exists()
+        ? normalizeCommercialSettings(snap.data())
+        : DEFAULT_COMMERCIAL_SETTINGS;
+      commercialCache = { at: Date.now(), value };
+      return value;
+    })
+    .finally(() => {
+      if (commercialInflight === request) commercialInflight = null;
+    });
+
+  if (!forceFresh) commercialInflight = request;
+  return request;
+}
+
+export function invalidateCommercialSettingsCache() {
+  commercialCache = null;
 }
 export function freeDeliveryThreshold(settings: CommercialSettings, district: string) {
   if (!settings.freeDeliveryEnabled) return null;

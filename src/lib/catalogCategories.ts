@@ -29,9 +29,8 @@ export function canonicalCategoryId(value: unknown) {
     .replace(/^-+|-+$/g, "");
 }
 
-export function normalizeRemoteCategory(snapshot: QueryDocumentSnapshot<DocumentData>): CatalogCategory | null {
-  const raw = snapshot.data();
-  const id = canonicalCategoryId(raw.id || snapshot.id);
+export function normalizeRemoteCategoryRecord(snapshotId: string, raw: DocumentData): CatalogCategory | null {
+  const id = canonicalCategoryId(raw.id || snapshotId);
   const label = text(raw.label ?? raw.nome);
   const rawOrder = raw.sortOrder ?? raw.ordem;
   const parsedOrder = rawOrder === null || rawOrder === undefined || rawOrder === "" ? undefined : Number(rawOrder);
@@ -42,6 +41,10 @@ export function normalizeRemoteCategory(snapshot: QueryDocumentSnapshot<Document
     active: typeof raw.active === "boolean" ? raw.active : typeof raw.ativa === "boolean" ? raw.ativa : true,
     sortOrder: Number.isFinite(parsedOrder) ? parsedOrder! : 999,
   };
+}
+
+export function normalizeRemoteCategory(snapshot: QueryDocumentSnapshot<DocumentData>): CatalogCategory | null {
+  return normalizeRemoteCategoryRecord(snapshot.id, snapshot.data());
 }
 
 export function mergeCategories(remote: CatalogCategory[]): CatalogCategory[] {

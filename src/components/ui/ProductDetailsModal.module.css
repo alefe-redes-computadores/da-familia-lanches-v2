@@ -52,3 +52,21 @@
 
 /* V32 PRODUCT DETAIL */
 .content{border-radius:24px 24px 0 0!important}.price{font-weight:950!important;letter-spacing:-.035em!important}.addButton{min-height:52px!important;border-radius:15px!important;box-shadow:0 9px 24px rgba(0,0,0,.16)!important}
+
+/* V36 — página pública como ação secundária */
+.productTopline{display:flex;align-items:center;justify-content:space-between;gap:8px}.productTopline .kicker{min-width:0}.fullPageLink{flex:0 0 auto;padding:5px 7px;border:1px solid #e6e0d5;border-radius:999px;background:#faf8f3;color:#78611d!important;font-size:8px!important;font-weight:850;text-decoration:none}.bottom{z-index:4}
+
+/* V40 PRODUCT MODAL — CTA FIRST */
+@media (max-width:760px){
+  .wrap{padding-inline:15px!important}
+  .product{grid-template-columns:82px minmax(0,1fr)!important;gap:12px!important;padding-bottom:14px!important}
+  .product img{width:82px!important;height:82px!important;border-radius:16px!important}
+  .productTopline{gap:6px!important;flex-wrap:wrap!important}
+  .fullPageLink{font-size:10px!important;padding:5px 8px!important;border-radius:999px!important;background:#f5f5f5!important;text-decoration:none!important}
+  .composition,.ingredients,.section{padding-top:14px!important}
+  .bundleList{max-height:none!important}
+  .addons{max-height:none!important;overflow:visible!important}
+  .bottom{z-index:25!important;margin-top:14px!important;padding-top:10px!important;padding-bottom:calc(10px + env(safe-area-inset-bottom))!important;box-shadow:0 -12px 30px rgba(255,255,255,.92)!important}
+  .quantity button{min-width:44px!important;min-height:50px!important}
+  .confirm{min-height:52px!important}
+}

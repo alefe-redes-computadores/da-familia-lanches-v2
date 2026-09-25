@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   query,
+  limit,
   Timestamp,
   where,
 } from "firebase/firestore";
@@ -115,15 +116,15 @@ export function rewardDiscount(reward: CustomerReward, subtotal: number) {
 }
 
 export async function findCustomerRewardByCode(userId: string, code: string) {
-  const snapshot = await getDocs(collection(db, "Usuarios", userId, "RecompensasRecebidas"));
   const normalizedCode = code.trim().toUpperCase();
-
-  for (const document of snapshot.docs) {
-    const reward = normalizeReward(document.id, document.data());
-    if (reward?.code === normalizedCode) return reward;
-  }
-
-  return null;
+  if (!normalizedCode) return null;
+  const snapshot = await getDocs(query(
+    collection(db, "Usuarios", userId, "RecompensasRecebidas"),
+    where("code", "==", normalizedCode),
+    limit(1),
+  ));
+  const document = snapshot.docs[0];
+  return document ? normalizeReward(document.id, document.data()) : null;
 }
 
 const rewardCode = (userId: string, milestone: number) =>

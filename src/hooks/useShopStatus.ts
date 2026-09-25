@@ -1,7 +1,4 @@
 "use client";
-import{useEffect,useState}from"react";import{doc,onSnapshot}from"firebase/firestore";import{db}from"@/lib/firebase";
-import{getScheduleShopStatus,type ShopStatus}from"@/lib/shopStatus";import{evaluateStoreStatus,normalizeStoreSettings,type StoreSettings}from"@/lib/storeSchedule";
-export function useShopStatus():ShopStatus{const[status,setStatus]=useState<ShopStatus>(()=>getScheduleShopStatus());
- useEffect(()=>{let settings:StoreSettings|null=null;const refresh=()=>setStatus(settings?evaluateStoreStatus(settings):getScheduleShopStatus());const timer=window.setInterval(refresh,30000);
- const unsub=onSnapshot(doc(db,"settings","loja"),s=>{settings=s.exists()?normalizeStoreSettings(s.data()):null;refresh()},()=>{settings=null;refresh()});
- return()=>{clearInterval(timer);unsub()}},[]);return status}
+import{useEffect,useState}from"react";import{doc,onSnapshot,type Unsubscribe}from"firebase/firestore";import{db}from"@/lib/firebase";import{getScheduleShopStatus,type ShopStatus}from"@/lib/shopStatus";import{evaluateStoreStatus,normalizeStoreSettings,type StoreSettings}from"@/lib/storeSchedule";
+let status:ShopStatus=getScheduleShopStatus(),settings:StoreSettings|null=null,stop:Unsubscribe|undefined,timer:number|undefined,refs=0;const listeners=new Set<(s:ShopStatus)=>void>();const refresh=()=>{status=settings?evaluateStoreStatus(settings):getScheduleShopStatus();listeners.forEach(fn=>fn(status))};function start(){if(stop)return;stop=onSnapshot(doc(db,"settings","loja"),s=>{settings=s.exists()?normalizeStoreSettings(s.data()):null;refresh()},()=>{settings=null;refresh()});timer=window.setInterval(refresh,30000)}function subscribe(fn:(s:ShopStatus)=>void){listeners.add(fn);refs++;start();fn(status);return()=>{listeners.delete(fn);refs=Math.max(0,refs-1);if(!refs){stop?.();stop=undefined;if(timer)window.clearInterval(timer);timer=undefined}}}
+export function useShopStatus():ShopStatus{const[s,setS]=useState(status);useEffect(()=>subscribe(setS),[]);return s}

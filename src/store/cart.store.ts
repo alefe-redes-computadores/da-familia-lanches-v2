@@ -9,13 +9,14 @@ export interface CartItem extends Product {
   quantity: number;
   selectedAddons: Addon[];
   observation: string;
+  upsellSourceId?: string;
 }
 
 interface CartState {
   items: CartItem[];
   
   // A função addItem agora recebe opcionais (adicionais e obs)
-  addItem: (product: Product, quantity?: number, addons?: Addon[], obs?: string) => void;
+  addItem: (product: Product, quantity?: number, addons?: Addon[], obs?: string, commercial?: { upsellSourceId?: string; unitPrice?: number }) => void;
   
   removeItem: (cartId: string) => void; // Remove pelo ID único
   restoreItem: (item: CartItem) => void;
@@ -31,16 +32,18 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
 
-      addItem: (product, quantity = 1, addons = [], obs = "") => {
+      addItem: (product, quantity = 1, addons = [], obs = "", commercial = {}) => {
         set((state) => {
           // Preço base + soma dos adicionais
           const addonsTotal = addons.reduce((acc, ad) => acc + ad.price, 0);
-          const finalPrice = Number(product.price) + addonsTotal;
+          const commercialPrice = commercial.upsellSourceId && Number.isFinite(commercial.unitPrice) && Number(commercial.unitPrice) >= 0 ? Number(commercial.unitPrice) : Number(product.price);
+          const finalPrice = commercialPrice + addonsTotal;
 
           // Cria um ID único baseado nas escolhas (Garante que itens iguais se juntem, mas diferentes fiquem separados)
           // Ex: "uai-bacon-ovo-semcebola"
           const addonsId = addons.map(a => a.id).sort().join("-");
-          const uniqueId = `${product.id}|${addonsId}|${obs.trim()}`;
+          const commercialKey = commercial.upsellSourceId ? `upsell:${commercial.upsellSourceId}` : "regular";
+          const uniqueId = `${product.id}|${addonsId}|${obs.trim()}|${commercialKey}`;
 
           const existingItem = state.items.find((i) => i.cartId === uniqueId);
 
@@ -63,7 +66,8 @@ export const useCartStore = create<CartState>()(
                 quantity: quantity, 
                 price: finalPrice, // O preço salvo já é o (Unitário + Adicionais)
                 selectedAddons: addons,
-                observation: obs
+                observation: obs,
+                ...(commercial.upsellSourceId ? { upsellSourceId: commercial.upsellSourceId } : {})
               },
             ],
           };

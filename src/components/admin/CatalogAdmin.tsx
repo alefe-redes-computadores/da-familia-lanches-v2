@@ -33,6 +33,8 @@ type ProductDraft = {
   bundleItems: Array<{ productId: string; quantity: number; note: string }>;
   publicSlug: string;
   publicSection: string;
+  upsellProductId: string;
+  upsellUnitPrice: string;
 };
 
 type AddonDraft = {
@@ -133,6 +135,8 @@ const draftFromProduct = (product: Product): ProductDraft => ({
   bundleItems: (product.bundleItems ?? []).map((item) => ({ productId: item.productId, quantity: item.quantity, note: item.note ?? "" })),
   publicSlug: product.publicSlug ?? productPublicSlug(product),
   publicSection: product.publicSection ?? productPublicSection(product),
+  upsellProductId: product.upsellProductId ?? "",
+  upsellUnitPrice: product.upsellUnitPrice == null ? "" : String(product.upsellUnitPrice),
 });
 
 const draftFromAddon = (addon: Addon): AddonDraft => ({
@@ -196,7 +200,7 @@ export function CatalogAdmin() {
 
   const openCreateProduct = () => {
     setProductMode("create");
-    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "" });
+    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "", upsellProductId: "", upsellUnitPrice: "" });
     setMessage("");
   };
 
@@ -211,6 +215,7 @@ export function CatalogAdmin() {
     const price = parseMoneyInput(productDraft.price);
     const oldPrice = productDraft.oldPrice.trim() ? parseMoneyInput(productDraft.oldPrice) : null;
     const sortOrder = productDraft.sortOrder.trim() ? Number(productDraft.sortOrder) : null;
+    const upsellUnitPrice = productDraft.upsellUnitPrice.trim() ? parseMoneyInput(productDraft.upsellUnitPrice) : null;
 
     if (!productDraft.name.trim()) return setMessage("Informe o nome do produto.");
     if (!productDraft.description.trim()) return setMessage("Informe a descrição do produto.");
@@ -218,6 +223,8 @@ export function CatalogAdmin() {
     if (price === null || price < 0) return setMessage("Informe um preço válido.");
     if (oldPrice !== null && oldPrice < 0) return setMessage("Preço anterior inválido.");
     if (oldPrice !== null && oldPrice <= price) return setMessage("Para criar promoção, o preço anterior precisa ser maior que o preço atual.");
+    if(productDraft.upsellProductId && (!products.some(p=>p.id===productDraft.upsellProductId)||productDraft.upsellProductId===productDraft.id)) return setMessage("Selecione um produto válido para o upsell.");
+    if(productDraft.upsellProductId && (upsellUnitPrice===null||upsellUnitPrice<0)) return setMessage("Informe o preço explícito do upsell.");
 
     const usedIds = new Set(products.map((product) => product.id));
     const id = productMode === "edit" ? productDraft.id : nextId(productDraft.name, usedIds);
@@ -242,6 +249,8 @@ export function CatalogAdmin() {
         bundleItems: productDraft.bundleItems.length ? productDraft.bundleItems.map((item) => ({ productId: item.productId, quantity: Math.max(1, Math.trunc(item.quantity || 1)), ...(item.note.trim() ? { note: item.note.trim() } : {}) })) : deleteField(),
         publicSlug: slugify(productDraft.publicSlug) || deleteField(),
         publicSection: slugify(productDraft.publicSection) || deleteField(),
+        upsellProductId: productDraft.upsellProductId || deleteField(),
+        upsellUnitPrice: productDraft.upsellProductId && upsellUnitPrice !== null ? upsellUnitPrice : deleteField(),
         updatedAt: serverTimestamp(),
       };
 
@@ -498,6 +507,13 @@ export function CatalogAdmin() {
               <input aria-label="Observação do item" value={item.note} placeholder="Ex.: Brinde" onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],note:e.target.value};setProductDraft({...productDraft,bundleItems:next});}} />
               <button type="button" aria-label="Remover item" onClick={()=>setProductDraft({...productDraft,bundleItems:productDraft.bundleItems.filter((_,i)=>i!==index)})}>×</button>
             </div>)}</div> : <p className={styles.bundleEmpty}>Sem vínculos. O formato antigo em texto continua compatível.</p>}
+          </div>
+          <div className={`${styles.full} ${styles.commercialBlock}`}>
+            <div className={styles.commercialHead}><div><span>UPSELL EXPLÍCITO</span><strong>Oferta vinculada</strong></div><small>Preço definido pela loja</small></div>
+            <div className={styles.priceFields}>
+              <label>Produto adicional<select value={productDraft.upsellProductId} onChange={(e)=>setProductDraft({...productDraft,upsellProductId:e.target.value,upsellUnitPrice:e.target.value?productDraft.upsellUnitPrice:""})}><option value="">Sem upsell</option>{products.filter(p=>p.id!==productDraft.id&&p.disponivel!==false).map(p=><option key={p.id} value={p.id}>{p.name} · {money(p.price)}</option>)}</select></label>
+              <label>Preço especial<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" disabled={!productDraft.upsellProductId} value={productDraft.upsellUnitPrice} onChange={(e)=>setProductDraft({...productDraft,upsellUnitPrice:moneyTyping(e.target.value)})} onBlur={(e)=>setProductDraft({...productDraft,upsellUnitPrice:moneyDraft(e.target.value)})} placeholder="0,00" /></div></label>
+            </div><p className={styles.promoHint}>Nunca calculado dividindo o combo. A API revalida a oferta no fechamento.</p>
           </div>
           <div className={`${styles.full} ${styles.commercialBlock}`}>
             <div className={styles.commercialHead}><div><span>PREÇO & PROMOÇÃO</span><strong>Venda do produto</strong></div>{promoMetrics(productDraft.price, productDraft.oldPrice) ? <b>OFERTA ATIVA</b> : <small>Preço anterior é opcional</small>}</div>

@@ -7,3 +7,9 @@
 }
 
 /* DFL-V30-NAV */ @media(max-width:760px){.nav,.root{padding-bottom:max(8px,env(safe-area-inset-bottom));height:auto;min-height:64px}}
+
+/* V40 BOTTOM NAV */
+@media (max-width:760px){
+  .nav{padding-bottom:max(7px,env(safe-area-inset-bottom))!important;backdrop-filter:blur(18px)!important}
+  .item,.button,.nav button,.nav a{min-height:48px!important;touch-action:manipulation}
+}

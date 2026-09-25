@@ -30,7 +30,7 @@ export function MobileBottomNav() {
         <span aria-hidden="true">▤</span><b>Pedidos</b>
       </button>
       <button type="button" onClick={() => requireAccount("rewards")}>
-        <span aria-hidden="true">★</span><b>Progresso</b>
+        <span aria-hidden="true">★</span><b>Fidelidade</b>
       </button>
       <button className={styles.cart} type="button" onClick={() => openModal("cart")}>
         <span aria-hidden="true">🛒</span><b>Carrinho</b>

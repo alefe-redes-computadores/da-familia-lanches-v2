@@ -146,6 +146,9 @@ export function LastOrderCard() {
       setRepeatError("Os itens desse pedido não estão disponíveis agora. Veja os detalhes para escolher novamente.");
       return;
     }
+    if (resolved.length !== previous.length) {
+      setRepeatError("Alguns itens antigos não estão disponíveis e foram deixados de fora. Revise o carrinho antes de finalizar.");
+    }
     clearCart();
     resolved.forEach(({ item, product, selected }) => addItem(product, item.quantity, selected, item.observation));
     openModal("cart");

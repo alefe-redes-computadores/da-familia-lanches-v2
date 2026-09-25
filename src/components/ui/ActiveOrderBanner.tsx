@@ -7,8 +7,10 @@ import { statusDescription, statusProgress, statusTitle } from "@/lib/orderStatu
 import { deliveryTrackingPresentation } from "@/lib/deliveryTracking";
 import styles from "./ActiveOrderBanner.module.css";
 export function ActiveOrderBanner(){
- const currentUser=useAuthStore(s=>s.currentUser),openModal=useUIStore(s=>s.openModal); const {activeOrders,loading}=useCustomerOrders(currentUser);
- if(!currentUser||loading||!activeOrders.length)return null; const order=activeOrders[0],pickup=order.tipoEntrega==="pickup",status=normalizarStatus(order.status),extra=activeOrders.length-1,tracking=deliveryTrackingPresentation(order);
+ const currentUser=useAuthStore(s=>s.currentUser),openModal=useUIStore(s=>s.openModal); const {activeOrders,loading,error}=useCustomerOrders(currentUser);
+ if(!currentUser||loading)return null;
+ if(error&&!activeOrders.length)return <section className={styles.banner} aria-label="Acompanhamento temporariamente indisponível"><div className={styles.top}><div><span className={styles.eyebrow}>ACOMPANHAMENTO</span><strong>Não conseguimos atualizar seus pedidos agora</strong></div></div><p>{error}</p><div className={styles.bottom}><span>Seu pedido não foi alterado.</span><button type="button" onClick={()=>openModal("orders")}>Ver pedidos</button></div></section>;
+ if(!activeOrders.length)return null; const order=activeOrders[0],pickup=order.tipoEntrega==="pickup",status=normalizarStatus(order.status),extra=activeOrders.length-1,tracking=deliveryTrackingPresentation(order);
  return <section className={`${styles.banner} ${tracking.visible?styles.tracking:""}`} data-tone={tracking.visible?tracking.tone:"commercial"} aria-label="Pedido em andamento">
   <div className={styles.top}><div><span className={styles.eyebrow}>{tracking.visible?tracking.eyebrow:(status==="Agendado"?"PEDIDO AGENDADO":"PEDIDO EM ANDAMENTO")}</span><strong>{tracking.visible?tracking.title:statusTitle(status,pickup)}</strong></div><span className={styles.id}>#{String(order.id).slice(-8).toUpperCase()}</span></div>
   <p>{tracking.visible?tracking.description:statusDescription(status,pickup)}</p>{tracking.detail&&<div className={styles.deliveryDetail}>{tracking.detail}</div>}

@@ -10,8 +10,6 @@ import { useUIStore } from "@/store/ui";
 import { ActiveOrderBanner } from "@/components/ui/ActiveOrderBanner";
 import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
-import { productHref } from "@/lib/productRoutes";
-import Link from "next/link";
 
 
 
@@ -26,7 +24,8 @@ function normalize(value: string) {
 export default function Home() {
   const openModal = useUIStore((s) => s.openModal);
   const shopStatus = useShopStatus();
-  const { products } = useCatalog();
+  const { products, loading: catalogLoading, error: catalogError, reload: reloadCatalog } = useCatalog();
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const { activeCategories: categories } = useCatalogCategories();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("todos");
@@ -46,6 +45,11 @@ export default function Home() {
   useEffect(() => {
     if (activeCategory !== "todos" && !categories.some((category) => category.id === activeCategory)) setActiveCategory("todos");
   }, [activeCategory, categories]);
+  useEffect(() => {
+    const online=()=>setIsOnline(true), offline=()=>setIsOnline(false);
+    window.addEventListener("online",online); window.addEventListener("offline",offline);
+    return()=>{window.removeEventListener("online",online);window.removeEventListener("offline",offline);};
+  }, []);
 
   const promoProducts = useMemo(
     () => products
@@ -65,9 +69,7 @@ export default function Home() {
       <section className={styles.hero}>
         <div className={styles.heroGlow} />
         <div className={styles.heroInner}>
-          <p className={styles.eyebrow}>DA FAMÍLIA LANCHES</p>
-          <h1>O que vai matar sua fome hoje?</h1>
-          <p className={styles.heroText}>Encontre rápido, personalize do seu jeito e acompanhe o pedido por aqui.</p>
+          <div className={styles.heroLead}><p className={styles.eyebrow}>CARDÁPIO DA FAMÍLIA</p><h1>O que você quer pedir?</h1></div>
 
           <label className={styles.searchBox}>
             <span aria-hidden="true">⌕</span>
@@ -87,10 +89,13 @@ export default function Home() {
       </div>
 
       <main className={styles.content}>
+        {!isOnline && <div className={styles.connectionNotice} role="status"><div><strong>Você está offline</strong><span>O que já carregou continua disponível. Para atualizar o cardápio ou enviar um pedido, reconecte.</span></div></div>}
+        {catalogError && isOnline && <div className={styles.catalogNotice} role="status"><div><strong>Cardápio em modo de contingência</strong><span>Mostrando a base disponível enquanto tentamos buscar a versão mais recente.</span></div><button type="button" onClick={() => void reloadCatalog()}>Tentar atualizar</button></div>}
         <div className={styles.orderSlot}>
           <ActiveOrderBanner />
           <LastOrderCard />
         </div>
+        {catalogLoading && <section className={styles.catalogSkeleton} aria-label="Carregando cardápio" aria-busy="true"><div className={styles.skeletonTitle}/><div className={styles.skeletonGrid}>{[0,1,2,3].map((item)=><div className={styles.skeletonCard} key={item}><i/><span/><b/></div>)}</div></section>}
         {activeCategory === "todos" && !search.trim() && promoProducts.length > 0 && (
           <section className={styles.promoShowcase}>
             <div className={styles.promoShowcaseHead}>
@@ -102,7 +107,7 @@ export default function Home() {
                 const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
                 return <article className={styles.promoHeroCard} key={`promo-${product.id}`} role="button" tabIndex={0} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openProduct(product); }}>
                   <div className={styles.promoHeroMedia}><img src={product.image} alt="" loading="lazy" /><span>-{discount}%</span></div>
-                  <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em><Link href={productHref(product)} onClick={(event) => event.stopPropagation()}>Ver página completa ›</Link></div>
+                  <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em><span className={styles.promoHint}>Toque para ver e personalizar</span></div>
                 </article>;
               })}
             </div>
@@ -145,7 +150,7 @@ export default function Home() {
                       <div className={styles.cardBody}>
                         <h3>{product.name}</h3>
                         <p className={styles.cardDescription}>{product.description}</p>
-                        {(product.bundleItems?.length || product.detailsItems?.length) && available && <Link href={productHref(product)} onClick={(event) => event.stopPropagation()} className={styles.detailsLink}>Ver página completa <b>›</b></Link>}
+
                         <div className={styles.cardFooter}>
                           <div className={styles.priceBlock}>
                             {hasDiscount && <span className={styles.oldPrice}>{money(product.oldPrice!)}</span>}
@@ -164,7 +169,7 @@ export default function Home() {
           );
         })}
 
-        {filtered.length === 0 && (
+        {!catalogLoading && filtered.length === 0 && (
           <div className={styles.empty}>
             <strong>Nenhum item encontrado.</strong>
             <span>Tente outro nome ou volte ao cardápio completo.</span>

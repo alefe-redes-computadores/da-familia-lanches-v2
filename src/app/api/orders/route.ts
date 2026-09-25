@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminApp, adminDb } from "@/lib/integration/server/admin";
@@ -15,7 +16,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Raw = Record<string, unknown>;
-type CartLine = { id: string; quantity: number; selectedAddons: Array<{ id: string }>; observation: string };
+type CartLine = { id: string; quantity: number; selectedAddons: Array<{ id: string }>; observation: string; upsellSourceId?: string };
 const MAX_BODY = 180_000;
 const cents = (value: number) => Math.round(value * 100);
 const text = (value: unknown, max = 300) => String(value ?? "").trim().slice(0, max);
@@ -45,8 +46,10 @@ function remoteProduct(id: string, raw: Raw, fallback?: Product): Product | null
   if (!id || !name || price === null || !category) return null;
   const ids = raw.addonIds ?? raw.adicionaisIds;
   const addonIds = Array.isArray(ids) ? ids.map((v) => text(v, 100)).filter(Boolean) : fallback?.addonIds;
+  const upsellProductId=text(raw.upsellProductId ?? raw.upsellProdutoId ?? fallback?.upsellProductId,120)||undefined;
+  const upsellUnitPrice=finiteMoney(raw.upsellUnitPrice ?? raw.precoUpsell ?? fallback?.upsellUnitPrice);
   return { ...(fallback ?? { id, name, description, image, category, price, disponivel: true }), id, name, description, image, category, price,
-    disponivel: bool(raw.disponivel ?? raw.available, fallback?.disponivel ?? true), ...(addonIds ? { addonIds } : {}) };
+    disponivel: bool(raw.disponivel ?? raw.available, fallback?.disponivel ?? true), ...(addonIds ? { addonIds } : {}), ...(upsellProductId?{upsellProductId}:{}), ...(upsellUnitPrice!==null?{upsellUnitPrice}:{}) };
 }
 function remoteAddon(id: string, raw: Raw, fallback?: Addon): Addon | null {
   const price = finiteMoney(raw.price ?? raw.preco ?? fallback?.price);
@@ -62,7 +65,8 @@ function parseLines(value: unknown): CartLine[] {
     const selectedAddons = Array.isArray(raw.selectedAddons) ? raw.selectedAddons.map((v) => ({ id: text(object(v).id, 120) })).filter((v) => v.id) : [];
     if (!id || !Number.isFinite(quantity) || quantity < 1 || quantity > 30 || selectedAddons.length > 20) throw new Error("CART_INVALID");
     if (new Set(selectedAddons.map((v) => v.id)).size !== selectedAddons.length) throw new Error("ADDON_DUPLICATE");
-    return { id, quantity, selectedAddons, observation: text(raw.observation, 300) };
+    const upsellSourceId=text(raw.upsellSourceId,120)||undefined;
+    return { id, quantity, selectedAddons, observation:text(raw.observation,300), ...(upsellSourceId?{upsellSourceId}:{}) };
   });
 }
 function couponData(code: string, raw: Raw) {
@@ -84,13 +88,92 @@ export async function POST(request: NextRequest) {
     const body = object(JSON.parse(rawText));
     const incoming = object(body.order);
     const lines = parseLines(incoming.itens);
-    const orderRef = adminDb.collection("Pedidos").doc();
+    const clientRequestId = text(incoming.clientRequestId, 80);
+
+    if (!/^[A-Za-z0-9_-]{16,80}$/.test(clientRequestId)) {
+      throw new Error("IDEMPOTENCY_REQUIRED");
+    }
+
+    const deterministicId =
+      "site_" +
+      createHash("sha256")
+        .update(decoded.uid + ":" + clientRequestId)
+        .digest("hex")
+        .slice(0, 40);
+
+    const requestFingerprint =
+      createHash("sha256")
+        .update(
+          JSON.stringify({
+            userId: decoded.uid,
+            clientRequestId,
+            lines,
+            tipoEntrega:
+              incoming.tipoEntrega === "pickup"
+                ? "pickup"
+                : "delivery",
+            endereco: text(
+              incoming.endereco,
+              600,
+            ),
+            metodoPagamento: text(
+              incoming.metodoPagamento,
+              30,
+            ),
+            scheduledFor: text(
+              incoming.scheduledFor,
+              80,
+            ),
+            subtotal: Number(
+              incoming.subtotal,
+            ),
+            taxaEntrega: Number(
+              incoming.taxaEntrega,
+            ),
+            desconto: Number(
+              incoming.desconto ?? 0,
+            ),
+            total: Number(
+              incoming.total,
+            ),
+          }),
+        )
+        .digest("hex");
+
+    const orderRef = adminDb
+      .collection("Pedidos")
+      .doc(deterministicId);
+
     const occurredAt = new Date().toISOString();
 
     const result = await adminDb.runTransaction(async (tx) => {
+      const existingOrder = await tx.get(orderRef);
+
+      if (existingOrder.exists) {
+        const existing = existingOrder.data() as Raw;
+
+        if (
+          text(existing.userId, 160) !== decoded.uid ||
+          text(existing.clientRequestId, 80) !== clientRequestId ||
+          text(
+            existing.requestFingerprint,
+            100,
+          ) !== requestFingerprint
+        ) {
+          throw new Error(
+            "IDEMPOTENCY_CONFLICT",
+          );
+        }
+
+        return {
+          id: orderRef.id,
+          eventId: null,
+          reused: true,
+        };
+      }
       const productFallback = new Map(fallbackProducts.map((p) => [p.id, p]));
       const addonFallback = new Map(fallbackAddons.map((a) => [a.id, a]));
-      const productIds = [...new Set(lines.map((line) => line.id))];
+      const productIds = [...new Set(lines.flatMap(line=>[line.id,line.upsellSourceId].filter(Boolean) as string[]))];
       const addonIds = [...new Set(lines.flatMap((line) => line.selectedAddons.map((a) => a.id)))];
       const productSnaps = await Promise.all(productIds.map((id) => tx.get(adminDb.collection("CatalogoProdutos").doc(id))));
       const addonSnaps = await Promise.all(addonIds.map((id) => tx.get(adminDb.collection("CatalogoAdicionais").doc(id))));
@@ -109,9 +192,56 @@ export async function POST(request: NextRequest) {
           if (!addon || addon.disponivel === false || (allowed && !allowed.has(id))) throw new Error("ADDON_UNAVAILABLE");
           return { id: addon.id, name: addon.name, price: addon.price };
         });
-        const unitPrice = product.price + selectedAddons.reduce((sum, addon) => sum + addon.price, 0);
-        return { ...product, price: unitPrice, quantity: line.quantity, selectedAddons, observation: line.observation,
-          cartId: `${product.id}|${selectedAddons.map((a) => a.id).sort().join("-")}|${line.observation}` };
+        let basePrice=product.price;
+        if(line.upsellSourceId){
+          if(selectedAddons.length) throw new Error("UPSELL_INVALID");
+          const sf=productFallback.get(line.upsellSourceId), sr=remoteProducts.get(line.upsellSourceId);
+          const source=sr?remoteProduct(line.upsellSourceId,sr,sf):sf;
+          const sourceQty=lines.filter(x=>x.id===line.upsellSourceId&&!x.upsellSourceId).reduce((n,x)=>n+x.quantity,0);
+          const usedQty=lines.filter(x=>x.id===line.id&&x.upsellSourceId===line.upsellSourceId).reduce((n,x)=>n+x.quantity,0);
+          if(!source||source.disponivel===false||source.upsellProductId!==product.id||source.upsellUnitPrice==null||source.upsellUnitPrice<0||source.upsellUnitPrice>=product.price||sourceQty<1||usedQty>sourceQty) throw new Error("UPSELL_CHANGED");
+          basePrice=source.upsellUnitPrice;
+        }
+        const unitPrice =
+          basePrice +
+          selectedAddons.reduce(
+            (sum, addon) => sum + addon.price,
+            0,
+          );
+
+        const pricingSnapshot = line.upsellSourceId
+          ? {
+              type: "upsell",
+              catalogUnitPrice: product.price,
+              chargedBasePrice: basePrice,
+              upsellSourceId: line.upsellSourceId,
+            }
+          : {
+              type: "catalog",
+              catalogUnitPrice: product.price,
+              chargedBasePrice: basePrice,
+              upsellSourceId: null,
+            };
+
+        const commercialKey = line.upsellSourceId
+          ? `upsell:${line.upsellSourceId}`
+          : "regular";
+
+        return {
+          ...product,
+          price: unitPrice,
+          quantity: line.quantity,
+          selectedAddons,
+          observation: line.observation,
+          pricingSnapshot,
+          ...(line.upsellSourceId
+            ? { upsellSourceId: line.upsellSourceId }
+            : {}),
+          cartId:
+            `${product.id}|` +
+            `${selectedAddons.map((a) => a.id).sort().join("-")}|` +
+            `${line.observation}|${commercialKey}`,
+        };
       });
       const subtotal = canonicalItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
       if (cents(subtotal) !== cents(Number(body.subtotal)) || cents(subtotal) !== cents(Number(incoming.subtotal))) throw new Error("PRICE_CHANGED");
@@ -180,11 +310,16 @@ export async function POST(request: NextRequest) {
       const phone = text(incoming.userPhone, 30); if (!/^\D*\d(?:\D*\d){9,10}\D*$/.test(phone)) throw new Error("PHONE_INVALID");
       const customer = object(incoming.customerSnapshot);
       const canonicalOrder: Raw = {
-        userId: decoded.uid, userName: text(incoming.userName, 120) || text(decoded.name, 120) || "Cliente", userEmail: decoded.email || "", userPhone: phone,
+        userId: decoded.uid,
+        clientRequestId,
+        requestFingerprint, userName: text(incoming.userName, 120) || text(decoded.name, 120) || "Cliente", userEmail: decoded.email || "", userPhone: phone,
         itens: canonicalItems, subtotal, taxaEntrega: fee, desconto: discount, cupom: discount > 0 && code ? code : null, rewardId: rewardId || null, total,
         metodoPagamento: method, trocoPara: method === "dinheiro" ? text(incoming.trocoPara, 40) || null : null, observacao: text(incoming.observacao, 300) || null,
         endereco: deliveryMode === "pickup" ? "RETIRADA NO LOCAL" : text(incoming.endereco, 600), tipoEntrega: deliveryMode,
-        data: FieldValue.serverTimestamp(), status: isScheduled ? "Agendado" : "Pendente", isAgendamento: isScheduled,
+        data: FieldValue.serverTimestamp(),
+        status: isScheduled ? "Agendado" : "Pendente",
+        isAgendamento: isScheduled,
+        pricingIntegrityVersion: 1,
         scheduledFor: isScheduled ? scheduledFor : null, scheduledLabel: isScheduled ? text(incoming.scheduledLabel, 100) : null,
         scheduleWindowMinutes: isScheduled ? 30 : null, sourceSystem: "dfl_site", orderSchemaVersion: 2,
         customerSnapshot: { id: decoded.uid, name: text(customer.name, 120) || text(incoming.userName, 120), email: decoded.email || "", phone, phoneE164: `+55${phone.replace(/\D/g, "")}` },
@@ -193,24 +328,59 @@ export async function POST(request: NextRequest) {
       if (deliveryMode === "delivery" && (!text(delivery.street) || !text(delivery.number) || !district)) throw new Error("ADDRESS_INVALID");
       const event = buildOrderCreatedEvent({ orderId: orderRef.id, order: canonicalOrder, occurredAt });
       tx.create(orderRef, canonicalOrder);
+
+      tx.set(
+        adminDb.collection("Usuarios").doc(decoded.uid),
+        {
+          pedidosFeitos: FieldValue.increment(1),
+        },
+        { merge: true },
+      );
       tx.create(adminDb.collection(INTEGRATION_COLLECTIONS.outbox).doc(encodeURIComponent(event.event_id)), buildOutboxRecord(event, occurredAt));
       if (rewardRef) tx.update(rewardRef, { used: true, usedAt: FieldValue.serverTimestamp(), usedOrderId: orderRef.id });
       if (slotRef && slotData) tx.set(slotRef, slotData, { merge: true });
-      return { id: orderRef.id, eventId: event.event_id };
+      return {
+        id: orderRef.id,
+        eventId: event.event_id,
+        reused: false,
+      };
     });
-    let integration = { queued: true, sent: false };
-    try {
-      const relay = await drainIntegrationOutboxEvent(result.eventId);
-      integration = { queued: relay.sent !== 1, sent: relay.sent === 1 };
-    } catch (relayError) {
-      console.error("[orders/create] pedido salvo; relay seguirá na outbox", relayError);
+    let integration = result.reused
+      ? { queued: false, sent: true }
+      : { queued: true, sent: false };
+
+    if (result.eventId) {
+      try {
+        const relay = await drainIntegrationOutboxEvent(result.eventId);
+
+        integration = {
+          queued: relay.sent !== 1,
+          sent: relay.sent === 1,
+        };
+      } catch (relayError) {
+        console.error(
+          "[orders/create] pedido salvo; relay seguirá na outbox",
+          relayError,
+        );
+      }
     }
-    return NextResponse.json({ ok: true, id: result.id, integration }, { status: 201 });
+
+    return NextResponse.json(
+      {
+        ok: true,
+        id: result.id,
+        integration,
+        reused: result.reused,
+      },
+      {
+        status: result.reused ? 200 : 201,
+      },
+    );
   } catch (error) {
     const rawCode = String((error && typeof error === "object" && "code" in error) ? (error as { code?: unknown }).code ?? "" : "").toLowerCase();
     const original = error instanceof Error ? error.message : "ORDER_FAILED";
     const message = rawCode.includes("resource-exhausted") || rawCode === "8" || /quota|resource exhausted/i.test(original) ? "SERVICE_BUSY" : rawCode.includes("permission-denied") || rawCode === "7" ? "SERVICE_CONFIG" : rawCode.includes("unavailable") || rawCode === "14" ? "SERVICE_UNAVAILABLE" : original;
-    const known = /^(AUTH_REQUIRED|PAYLOAD_INVALID|CART_INVALID|ADDON_DUPLICATE|PRODUCT_UNAVAILABLE|ADDON_UNAVAILABLE|PRICE_CHANGED|DELIVERY_CHANGED|COUPON_|REWARD_|SCHEDULE_|PAYMENT_INVALID|PHONE_INVALID|ADDRESS_INVALID|SERVICE_BUSY|SERVICE_CONFIG|SERVICE_UNAVAILABLE)/.test(message);
+    const known = /^(AUTH_REQUIRED|PAYLOAD_INVALID|IDEMPOTENCY_|CART_INVALID|ADDON_DUPLICATE|PRODUCT_UNAVAILABLE|ADDON_UNAVAILABLE|UPSELL_|PRICE_CHANGED|DELIVERY_CHANGED|COUPON_|REWARD_|SCHEDULE_|PAYMENT_INVALID|PHONE_INVALID|ADDRESS_INVALID|SERVICE_BUSY|SERVICE_CONFIG|SERVICE_UNAVAILABLE)/.test(message);
     console.error("[orders/create]", known ? message : error);
     return fail(known ? message : "ORDER_FAILED", known ? 409 : 500);
   }

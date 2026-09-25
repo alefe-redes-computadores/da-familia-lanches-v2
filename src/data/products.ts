@@ -24,6 +24,10 @@ export type Product = {
   publicSlug?: string;
   /** Secao publica opcional, por exemplo ofertas-da-familia ou lanches. */
   publicSection?: string;
+  /** Oferta adicional explicitamente configurada para este produto. */
+  upsellProductId?: string;
+  /** Preço unitário explícito do upsell; nunca inferido do valor do combo. */
+  upsellUnitPrice?: number;
 };
 
 export const products: Product[] = [

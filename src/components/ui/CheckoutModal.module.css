@@ -17,3 +17,15 @@
 
 .orderObservation{min-height:86px;resize:vertical;line-height:1.45}.counter{align-self:flex-end;margin-top:-3px;color:#999;font-size:8px;font-weight:700;text-transform:none}
 .errorFallback{display:grid;gap:8px;margin-bottom:13px}.errorFallback .error{margin-bottom:0}.contingency{display:flex;flex-direction:column;gap:5px;padding:13px;border:1px solid #ead58b;border-radius:14px;background:#fff8da;color:#3a310f}.contingency span,.contingency small{font-size:9px;line-height:1.45}.contingency strong{font-size:12px}.contingency button{min-height:44px;margin-top:5px;border:0;border-radius:12px;background:#168b45;color:#fff;font-size:11px;font-weight:950}.contingency small{color:#766a3c}
+
+/* V40 CHECKOUT — TOUCH + SAFE AREA */
+@media (max-width:760px){
+  .content,.wrap{padding-bottom:calc(96px + env(safe-area-inset-bottom))!important}
+  input,select,textarea{font-size:16px!important}
+  button{touch-action:manipulation}
+}
+
+/* V42 CHECKOUT RESILIENCE */
+.offlineBanner{display:flex;flex-direction:column;gap:3px;margin:0 0 12px;padding:11px 13px;border:1px solid #ead18a;border-radius:14px;background:#fff9df;color:#5e4b13}
+.offlineBanner strong{font-size:12px}.offlineBanner span{font-size:10px;line-height:1.35}
+.primary[aria-busy="true"]{cursor:wait;opacity:.78}
