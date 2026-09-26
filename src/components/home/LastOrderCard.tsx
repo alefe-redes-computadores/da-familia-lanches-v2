@@ -7,6 +7,7 @@ import { useCartStore } from "@/store/cart.store";
 import { availableAddonsForProduct } from "@/lib/catalog";
 import { getOrderItems, normalizeText } from "@/lib/orderCompat";
 import { useCustomerOrders } from "@/hooks/useCustomerOrders";
+import { useLastCustomerOrder } from "@/hooks/useLastCustomerOrder";
 import { useCatalog } from "@/hooks/useCatalog";
 import styles from "./LastOrderCard.module.css";
 
@@ -30,14 +31,12 @@ export function LastOrderCard() {
   const [repeatError, setRepeatError] = useState("");
 
   const {
-    pastOrders,
     activeOrders,
-    loading,
+    loading: activeLoading,
   } = useCustomerOrders(user);
+  const { lastOrder: order, loading: lastOrderLoading } = useLastCustomerOrder(user);
 
   const { products, addons } = useCatalog();
-
-  const order = pastOrders[0];
 
   const data = useMemo(() => {
     if (!order) return null;
@@ -119,7 +118,8 @@ export function LastOrderCard() {
    */
   if (
     !user ||
-    loading ||
+    activeLoading ||
+    lastOrderLoading ||
     activeOrders.length > 0 ||
     !order ||
     !data

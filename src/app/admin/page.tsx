@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth.store";
 import { useAdminOrders } from "@/hooks/useAdminOrders";
 import { OrderCard } from "@/components/layout/OrderCard";
@@ -15,7 +13,9 @@ import { CouponsAdmin } from "@/components/admin/CouponsAdmin";
 import { PublicPromotionsAdmin } from "@/components/admin/PublicPromotionsAdmin";
 import { prepareOrderSummaryTransition } from "@/lib/rewards";
 import { updateOrderStatus } from "@/lib/orderRepository";
-import { evaluateStoreStatus, normalizeStoreSettings } from "@/lib/storeSchedule";
+import { evaluateStoreStatus } from "@/lib/storeSchedule";
+import { useAdminStoreSettings } from "@/hooks/useAdminStoreSettings";
+import { FirestoreBudgetAdmin } from "@/components/admin/FirestoreBudgetAdmin";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
 import { adminOrderSearchText, compareOperationalOrders, operationalAttention } from "@/lib/adminOrders";
@@ -23,6 +23,7 @@ import styles from "./admin.module.css";
 import { FreeDeliveryAdmin } from "@/components/admin/FreeDeliveryAdmin";
 import { DeliveryRatesAdmin } from "@/components/admin/DeliveryRatesAdmin";
 import { haptic } from "@/lib/haptics";
+import { AdminAuthGate } from "@/components/admin/AdminAuthGate";
 
 const ADMINS = [
   "alefejohsefe@gmail.com",
@@ -43,7 +44,9 @@ export default function AdminPage() {
   const { currentUser } = useAuthStore();
   const { pedidos, loading, alarmeAtivo, pararAlarme } = useAdminOrders(currentUser, ADMINS);
   const [tab, setTab] = useState<Tab>("cozinha");
-  const [storeStatus, setStoreStatus] = useState({ isOpen: true, mode: "auto", source: "schedule", message: "" });
+  const authorized = Boolean(currentUser?.email && ADMINS.includes(currentUser.email));
+  const { settings: adminStoreSettings } = useAdminStoreSettings(authorized);
+  const storeStatus = useMemo(() => evaluateStoreStatus(adminStoreSettings), [adminStoreSettings]);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("todos");
@@ -52,26 +55,12 @@ export default function AdminPage() {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const authorized = Boolean(currentUser?.email && ADMINS.includes(currentUser.email));
+
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60000);
     return () => window.clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    if (!authorized) return;
-    return onSnapshot(doc(db, "settings", "loja"), (snapshot) => {
-      if (!snapshot.exists()) return;
-      const effective = evaluateStoreStatus(normalizeStoreSettings(snapshot.data()));
-      setStoreStatus({
-        isOpen: effective.isOpen,
-        mode: effective.mode,
-        source: effective.source,
-        message: effective.message,
-      });
-    });
-  }, [authorized]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -143,8 +132,17 @@ export default function AdminPage() {
       .sort(compareOperationalOrders);
   }, [pedidos, search, tab, serviceFilter, attentionOnly, now]);
 
-  if (!currentUser) return <div className={styles.statePage}><strong>Central administrativa</strong><span>Entre com uma conta autorizada para continuar.</span></div>;
-  if (!authorized) return <div className={styles.statePage}><strong>Acesso negado</strong><span>Esta conta não possui permissão administrativa.</span></div>;
+  if (!currentUser) {
+    return <AdminAuthGate />;
+  }
+
+  if (!authorized) {
+    return (
+      <AdminAuthGate
+        deniedEmail={currentUser.email}
+      />
+    );
+  }
   if (loading) return <div className={styles.statePage}><strong>Carregando operação...</strong></div>;
 
   const tabItems: Array<[Tab, string, number | null]> = [
@@ -304,7 +302,7 @@ export default function AdminPage() {
       ) : tab === "fidelidade" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><RewardsAdmin /></section>
       ) : tab === "gestao" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>DESEMPENHO</span><h2>Relatórios da loja</h2></div><p>Somente pedidos finalizados entram nos indicadores comerciais.</p></div><RelatoriosAdmin pedidos={pedidos} /></section>
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>DESEMPENHO</span><h2>Relatórios da loja</h2></div><p>Somente pedidos finalizados entram nos indicadores comerciais.</p></div><FirestoreBudgetAdmin /><RelatoriosAdmin pedidos={pedidos} /></section>
       ) : isOrderTab ? (
         <>
           <div className={styles.queueHead}>

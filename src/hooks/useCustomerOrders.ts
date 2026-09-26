@@ -31,15 +31,18 @@ function start(uid:string,current:Entry){
  current.stop=onSnapshot(activeQuery,snapshot=>{
   const refresh=current.activeInitialized&&snapshot.docChanges().some(change=>change.type==="removed");current.activeInitialized=true;
   current.state={...current.state,activeOrders:snapshot.docs.map(document=>({id:document.id,...document.data()} as CustomerOrder)).sort(newestFirst),activeLoading:false,error:""};emit(current);
-  if(refresh)void loadHistory(uid,current,true);
+  if(refresh){
+   if(current.state.historyReady)void loadHistory(uid,current,true);
+   if(typeof window!=="undefined")window.dispatchEvent(new CustomEvent("dfl:customer-order-terminal",{detail:{uid}}));
+  }
  },reason=>{console.error(reason);current.state={...current.state,activeLoading:false,error:"Não foi possível acompanhar seus pedidos agora."};emit(current)});
 }
-function subscribe(uid:string,listener:(state:State)=>void){const current=entry(uid);if(current.cleanupTimer)clearTimeout(current.cleanupTimer);current.cleanupTimer=undefined;current.listeners.add(listener);current.refs++;start(uid,current);if(!current.state.historyReady)void loadHistory(uid,current);listener(current.state);return()=>{current.listeners.delete(listener);current.refs=Math.max(0,current.refs-1);if(current.refs)return;current.cleanupTimer=setTimeout(()=>{if(current.refs)return;current.stop?.();current.stop=undefined;current.cleanupTimer=undefined},LISTENER_GRACE_MS)}}
+function subscribe(uid:string,listener:(state:State)=>void){const current=entry(uid);if(current.cleanupTimer)clearTimeout(current.cleanupTimer);current.cleanupTimer=undefined;current.listeners.add(listener);current.refs++;start(uid,current);listener(current.state);return()=>{current.listeners.delete(listener);current.refs=Math.max(0,current.refs-1);if(current.refs)return;current.cleanupTimer=setTimeout(()=>{if(current.refs)return;current.stop?.();current.stop=undefined;current.cleanupTimer=undefined},LISTENER_GRACE_MS)}}
 const EMPTY:State={activeOrders:[],pastOrders:[],activeLoading:false,historyLoading:false,historyReady:true,hasMore:false,error:""};
 export function useCustomerOrders(user:User|null|undefined){
  const[state,setState]=useState<State>(()=>user?entry(user.uid).state:EMPTY);
  useEffect(()=>{if(!user){setState(EMPTY);return}const current=entry(user.uid);setState(current.state);return subscribe(user.uid,setState)},[user?.uid]);
  const loadMore=useCallback(async()=>{if(user)await loadHistory(user.uid,entry(user.uid))},[user?.uid]);
  const orders=useMemo(()=>[...state.activeOrders,...state.pastOrders].sort(newestFirst),[state.activeOrders,state.pastOrders]);
- return{...state,orders,loading:state.activeLoading||(!state.historyReady&&state.historyLoading),loadMore};
+ return{...state,orders,loading:state.activeLoading,loadMore};
 }

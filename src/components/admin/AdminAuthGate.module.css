@@ -1,0 +1,147 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(
+      circle at top,
+      #191b20 0,
+      #0b0b0c 58%
+    );
+  color: #f4f4f5;
+}
+
+.card {
+  width: min(100%, 430px);
+  padding: 22px;
+  border: 1px solid #272a31;
+  border-radius: 22px;
+  background: rgba(17, 18, 22, 0.98);
+  box-shadow:
+    0 26px 80px rgba(0, 0, 0, 0.38);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.logo {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #303239;
+  border-radius: 15px;
+  background: #111;
+  color: #ffd447;
+  font-size: 16px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.brand small,
+.kicker {
+  display: block;
+  color: #c9a93e;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+}
+
+.brand strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 15px;
+}
+
+.card h1 {
+  margin: 8px 0;
+  font-size: 24px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.card > p {
+  margin: 0 0 18px;
+  color: #90959e;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.google {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  color: #171717;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.google:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+.denied {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #351919;
+  color: #f2a4a4;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.error {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #5a3131;
+  border-radius: 13px;
+  background: #251515;
+  color: #f1b0b0;
+}
+
+.error strong {
+  display: block;
+  font-size: 11px;
+}
+
+.error code {
+  display: block;
+  margin-top: 5px;
+  color: #c88484;
+  font-size: 9px;
+}
+
+.error p {
+  margin: 8px 0 0;
+  color: #d7a6a6;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.host {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 13px;
+  border-top: 1px solid #23262d;
+  color: #696f79;
+  font-size: 9px;
+}
+
+.host strong {
+  color: #959ba5;
+}

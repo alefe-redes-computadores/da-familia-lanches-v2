@@ -1,10 +1,12 @@
 "use client";
-import{useEffect,useMemo,useState}from"react";import{doc,onSnapshot,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
-import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,normalizeStoreSettings,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
+import{useEffect,useMemo,useState}from"react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
+import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
 import styles from"./StoreOperationAdmin.module.css";
-export function StoreOperationAdmin(){const[s,setS]=useState<StoreSettings>(DEFAULT_STORE_SETTINGS),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
- const[ex,setEx]=useState<StoreException>({date:"",closed:true,label:""});useEffect(()=>onSnapshot(doc(db,"settings","loja"),x=>{setS(x.exists()?normalizeStoreSettings(x.data()):DEFAULT_STORE_SETTINGS);setReady(true)},()=>setReady(true)),[]);
- const current=useMemo(()=>evaluateStoreStatus(s),[s]);const save=async(next:StoreSettings,text:string)=>{setBusy(true);try{await setDoc(doc(db,"settings","loja"),{...next,updatedAt:serverTimestamp()},{merge:true});setS(next);setMsg(text)}catch(e){console.error(e);setMsg("Falha ao salvar funcionamento.")}finally{setBusy(false)}};
+import { haptic } from "@/lib/haptics";
+import{useAdminStoreSettings}from"@/hooks/useAdminStoreSettings";
+export function StoreOperationAdmin(){const{settings:liveSettings,ready}=useAdminStoreSettings();const[s,setS]=useState<StoreSettings>(liveSettings),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
+ const[ex,setEx]=useState<StoreException>({date:"",closed:true,label:""});useEffect(()=>{if(ready)setS(liveSettings)},[ready,liveSettings]);
+ const current=useMemo(()=>evaluateStoreStatus(s),[s]);const save=async(next:StoreSettings,text:string)=>{setBusy(true);try{await setDoc(doc(db,"settings","loja"),{...next,updatedAt:serverTimestamp()},{merge:true});setS(next);setMsg(text);haptic("success")}catch(e){console.error(e);setMsg("Falha ao salvar funcionamento.");haptic("error")}finally{setBusy(false)}};
  const mode=(m:StoreMode)=>{
   if(m===s.mode)return;
   const risky=m==="force_open"||m==="force_closed";

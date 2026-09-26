@@ -18,3 +18,135 @@
 .managementNav button[data-active=true]{background:linear-gradient(145deg,#2b240f,#19160d);border-color:#6c5817;color:#ffe89a}.managementNav button[data-active=true] small{color:#c9a93a}
 .searchTrigger[data-active=true]{color:#ffe69a;border-color:#65551e;background:#201b0e}
 .grid>*{transition:border-color .16s ease,transform .16s ease}.grid>*:focus-within{border-color:rgba(255,202,40,.34)}
+
+/* V56 — diagnóstico local de pressão Firestore */
+:global(.firestoreBudget){margin:0 0 14px;padding:14px;border:1px solid #2a281c;border-radius:16px;background:linear-gradient(145deg,#121317,#0d0f12);color:#eceef2}
+:global(.firestoreBudgetHead){display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+:global(.firestoreBudgetHead span){display:block;color:#c8a83c;font-size:8px;font-weight:950;letter-spacing:.14em}
+:global(.firestoreBudgetHead strong){display:block;margin-top:4px;font-size:14px}
+:global(.firestoreBudgetHead p){max-width:520px;margin:4px 0 0;color:#747b86;font-size:9px;line-height:1.45}
+:global(.firestoreBudgetTotal){flex:none;text-align:right}
+:global(.firestoreBudgetTotal b){display:block;font-size:24px;line-height:1;color:#ffe18a;font-variant-numeric:tabular-nums}
+:global(.firestoreBudgetTotal small){display:block;margin-top:4px;color:#747b86;font-size:8px}
+:global(.firestoreBudgetMeta){display:flex;gap:7px;flex-wrap:wrap;margin:11px 0}
+:global(.firestoreBudgetMeta span){padding:5px 7px;border:1px solid #252830;border-radius:8px;color:#969ca6;font-size:8px}
+:global(.firestoreBudgetList){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+:global(.firestoreBudgetList>div){min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding:8px 9px;border:1px solid #20242b;border-radius:10px;background:#0b0d10}
+:global(.firestoreBudgetList span){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#aeb3bb;font-size:8px}
+:global(.firestoreBudgetList b){font-size:11px;color:#f7dc83}
+:global(.firestoreBudgetList small){grid-column:1/-1;color:#626974;font-size:7px}
+:global(.firestoreBudgetEmpty){padding:12px;border:1px dashed #292d35;border-radius:10px;color:#737a85;font-size:9px;text-align:center}
+:global(.firestoreBudgetActions){display:flex;gap:6px;margin-top:10px}
+:global(.firestoreBudgetActions button){min-height:34px;padding:0 10px;border:1px solid #2a2e36;border-radius:9px;background:#111318;color:#aeb4be;font-size:8px;font-weight:850}
+@media(max-width:520px){:global(.firestoreBudgetList){grid-template-columns:1fr}:global(.firestoreBudgetHead p){max-width:240px}}
+
+/* ==========================================================
+   DFL ADMIN V59 R3
+   ========================================================== */
+
+.management {
+  animation: adminV59Enter .18s ease-out;
+}
+
+.managementHub {
+  scroll-margin-top: 74px;
+}
+
+.managementNav button,
+.primaryNav button,
+.quickStats button,
+.storePill,
+.searchTrigger,
+.filters button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.managementNav button:active,
+.primaryNav button:active,
+.quickStats button:active,
+.storePill:active,
+.searchTrigger:active,
+.filters button:active {
+  transform: scale(.975);
+}
+
+.sectionHeading {
+  margin-top: 15px;
+  margin-bottom: 12px;
+}
+
+.sectionHeading h2 {
+  letter-spacing: -.035em;
+}
+
+.sectionHeading p {
+  max-width: 620px;
+  line-height: 1.45;
+}
+
+.management > :global(section),
+.management > :global(div) {
+  min-width: 0;
+}
+
+.toast {
+  max-width: min(
+    calc(100vw - 28px),
+    520px
+  );
+}
+
+@keyframes adminV59Enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 620px) {
+  .management {
+    margin-top: 8px;
+  }
+
+  .sectionHeading {
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .sectionHeading p {
+    font-size: 10px;
+  }
+
+  .managementNav {
+    scrollbar-width: none;
+  }
+
+  .managementNav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .managementNav button {
+    min-height: 39px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .management {
+    animation: none;
+  }
+
+  .managementNav button,
+  .primaryNav button,
+  .quickStats button,
+  .storePill,
+  .searchTrigger,
+  .filters button {
+    transition: none;
+  }
+}

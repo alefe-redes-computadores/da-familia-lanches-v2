@@ -17,6 +17,7 @@ import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupo
 import styles from "./CheckoutModal.module.css";
 import { DEFAULT_COMMERCIAL_SETTINGS, freeDeliveryThreshold, getCommercialSettings, type CommercialSettings } from "@/lib/commercialSettings";
 import { BUSINESS_CONTACT, businessWhatsAppUrl } from "@/lib/businessContact";
+import { buildOrderWhatsAppMessage } from "@/lib/orderWhatsApp";
 import { haptic } from "@/lib/haptics";
 
 type PaymentMethod = "pix" | "cartao" | "dinheiro";
@@ -52,7 +53,7 @@ const normalizeText = (value: string) =>
 
 export function CheckoutModal() {
   const { closeModal, openModal } = useUIStore();
-  const { items, getCartTotal, clearCart } = useCartStore();
+  const { items, getCartTotal } = useCartStore();
   const currentUser = useAuthStore((s) => s.currentUser);
   const { profile, loading: profileLoading } = useUserProfile(currentUser);
   const hydratedProfileRef = useRef<string>("");
@@ -493,38 +494,35 @@ export function CheckoutModal() {
         console.error("Pedido salvo, mas falhou ao atualizar o perfil do cliente", profileError);
       }
 
-      const itemsMessage = items.map((item) => {
-        const addons = item.selectedAddons?.length ? `\n   + ${item.selectedAddons.map((addon) => addon.name).join(", ")}` : "";
-        const observation = item.observation?.trim() ? `\n   Obs.: ${item.observation.trim()}` : "";
-        return `• ${item.quantity}x ${item.name} — ${money(item.price * item.quantity)}${addons}${observation}`;
-      }).join("\n");
+      const whatsappMessage = buildOrderWhatsAppMessage({
+        registered: true,
+        orderId: created.id,
+        customerName: customerName.trim() || currentUser.displayName || "Cliente",
+        phone: userPhone.trim(),
+        items: items.map((item) => ({
+          quantity: item.quantity,
+          name: item.name,
+          price: item.price,
+          addons: item.selectedAddons?.map((addon) => addon.name) ?? [],
+          observation: item.observation,
+        })),
+        deliveryMode,
+        address: isPickup ? "Retirada no balcão" : finalAddress,
+        district: bairro.trim(),
+        complement: complemento.trim(),
+        reference: referencia.trim(),
+        subtotal,
+        deliveryFee: finalFee,
+        discount: safeDiscount,
+        couponCode: appliedCouponCode,
+        total,
+        paymentMethod: method,
+        changeFor: troco,
+        orderObservation,
+        scheduledLabel: isClosed ? scheduleHumanLabel(selectedSchedule) : undefined,
+      });
 
-      const paymentText = method === "pix"
-        ? "PIX"
-        : method === "cartao"
-          ? "Cartão — levar maquininha"
-          : `Dinheiro${troco.trim() ? ` — troco para ${troco.trim()}` : " — sem troco informado"}`;
-
-      const message = [
-        isClosed ? "🕒 *PEDIDO AGENDADO — Da Família*" : "🍔 *NOVO PEDIDO — Da Família*",
-        `Pedido: *#${created.id.slice(-8).toUpperCase()}*`,
-        "",
-        itemsMessage,
-        "",
-        `📍 ${isPickup ? "Retirada no balcão" : finalAddress}`,
-        `📱 ${userPhone.trim()}`,
-        "",
-        `Subtotal: ${money(subtotal)}`,
-        `Entrega: ${finalFee === 0 ? "Grátis" : money(finalFee)}`,
-        safeDiscount > 0 ? `Desconto${appliedCouponCode ? ` (${appliedCouponCode})` : ""}: -${money(safeDiscount)}` : null,
-        `*TOTAL: ${money(total)}*`,
-        `Pagamento: ${paymentText}`,
-        orderObservation.trim() ? `\n📝 *Observação do pedido:* ${orderObservation.trim()}` : null,
-        isClosed ? `\n🕒 Agendado para *${scheduleHumanLabel(selectedSchedule)}*.\nEsse horário é uma previsão operacional; faremos o possível para atender o mais próximo dele.` : null,
-      ].filter(Boolean).join("\n");
-
-      const whatsappUrl = businessWhatsAppUrl(message);
-      clearCart();
+      const whatsappUrl = businessWhatsAppUrl(whatsappMessage);
       clearOrderAttempt();
       openModal("order-success", {
         orderId: created.id,
@@ -534,47 +532,37 @@ export function CheckoutModal() {
         whatsappUrl,
         paymentMethod: method,
         pixKey: method === "pix" ? BUSINESS_CONTACT.pixKey : undefined,
+        cartPreserved: true,
       });
     } catch (error) {
       console.error("Erro ao salvar pedido", error);
       const code = error instanceof Error ? error.message : "";
-      const fallbackItems = items.map((item) => {
-        const selected = item.selectedAddons?.length ? `\n   + ${item.selectedAddons.map((addon) => addon.name).join(", ")}` : "";
-        const note = item.observation?.trim() ? `\n   Obs.: ${item.observation.trim()}` : "";
-        return `${item.quantity}x ${item.name} - ${money(item.price * item.quantity)}${selected}${note}`;
-      }).join("\n");
-      const fallbackPayment = method === "pix" ? "PIX" : method === "cartao" ? "Cartão — levar maquininha" : `Dinheiro${troco.trim() ? ` — troco para ${troco.trim()}` : " — sem troco informado"}`;
-      const fallbackMessage = [
-        "*PEDIDO PARA CONFIRMAÇÃO*",
-        "_Enviado pelo site em modo de contingência_",
-        "",
-        "*CLIENTE*",
-        `Nome: ${customerName.trim() || currentUser.displayName || "Cliente"}`,
-        `WhatsApp: ${userPhone.trim()}`,
-        "",
-        "*ITENS DO PEDIDO*",
-        fallbackItems,
-        "",
-        `*${isPickup ? "RETIRADA" : "ENTREGA"}*`,
-        isPickup ? "Retirada no balcão" : `Endereço: ${rua.trim()}, ${numero.trim()}`,
-        !isPickup ? `Bairro: ${bairro.trim()}` : null,
-        !isPickup && complemento.trim() ? `Complemento: ${complemento.trim()}` : null,
-        !isPickup && referencia.trim() ? `Referência: ${referencia.trim()}` : null,
-        "",
-        "*RESUMO*",
-        `Subtotal: ${money(subtotal)}`,
-        `Entrega: ${finalFee === 0 ? "Grátis" : money(finalFee)}`,
-        safeDiscount > 0 ? `Desconto${appliedCouponCode ? ` (${appliedCouponCode})` : ""}: -${money(safeDiscount)}` : null,
-        `*TOTAL: ${money(total)}*`,
-        "",
-        "*PAGAMENTO*",
-        fallbackPayment,
-        orderObservation.trim() ? `\n*OBSERVAÇÃO*\n${orderObservation.trim()}` : null,
-        shopClosed && scheduledFor ? `\n*HORÁRIO SOLICITADO*\n${scheduleHumanLabel(scheduledFor)}` : null,
-        "",
-        "Este pedido ainda não foi registrado automaticamente no sistema.",
-        "*Por favor, confirme o recebimento e o prazo com o cliente.*",
-      ].filter(Boolean).join("\n");
+      const fallbackMessage = buildOrderWhatsAppMessage({
+        registered: false,
+        customerName: customerName.trim() || currentUser.displayName || "Cliente",
+        phone: userPhone.trim(),
+        items: items.map((item) => ({
+          quantity: item.quantity,
+          name: item.name,
+          price: item.price,
+          addons: item.selectedAddons?.map((addon) => addon.name) ?? [],
+          observation: item.observation,
+        })),
+        deliveryMode,
+        address: isPickup ? "Retirada no balcão" : `${rua.trim()}, ${numero.trim()}`,
+        district: bairro.trim(),
+        complement: complemento.trim(),
+        reference: referencia.trim(),
+        subtotal,
+        deliveryFee: finalFee,
+        discount: safeDiscount,
+        couponCode: appliedCouponCode,
+        total,
+        paymentMethod: method,
+        changeFor: troco,
+        orderObservation,
+        scheduledLabel: shopClosed && scheduledFor ? scheduleHumanLabel(scheduledFor) : undefined,
+      });
       setFallbackWhatsAppUrl(businessWhatsAppUrl(fallbackMessage));
       haptic("error");
       if (code === "SCHEDULE_REQUIRED") { setErrorMessage("Escolha um horário disponível para o pedido agendado."); } else if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {

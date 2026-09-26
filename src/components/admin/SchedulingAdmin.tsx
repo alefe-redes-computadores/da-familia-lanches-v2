@@ -1,18 +1,18 @@
 "use client";
 import { useEffect,useMemo,useState } from "react";
-import { doc,onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { DEFAULT_SCHEDULING_CONFIG,getSchedulingConfig,saveSchedulingConfig,type SchedulingConfig } from "@/lib/schedulingConfig";
-import { DEFAULT_STORE_SETTINGS,normalizeStoreSettings,type StoreSettings } from "@/lib/storeSchedule";
+import { useAdminStoreSettings } from "@/hooks/useAdminStoreSettings";
 import styles from "./SchedulingAdmin.module.css";
+import { haptic } from "@/lib/haptics";
 const hhmm=(m:number)=>`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
 const mins=(t:string)=>{const[h,m]=t.split(":").map(Number);return h*60+m};
 const inside=(t:string,a:string,b:string)=>{const x=mins(t),o=mins(a),c=mins(b);return c>=o?(x>=o&&x<=c):(x>=o||x<=c)};
-const pulse=(ok=false)=>{if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate(ok?[12,35,18]:8)};
+const pulse = (ok = false) =>
+  haptic(ok ? "success" : "step");
 export function SchedulingAdmin(){
- const[c,setC]=useState<SchedulingConfig>(DEFAULT_SCHEDULING_CONFIG),[store,setStore]=useState<StoreSettings>(DEFAULT_STORE_SETTINGS),[busy,setBusy]=useState(false),[msg,setMsg]=useState(""),[showAll,setShowAll]=useState(false);
+ const[c,setC]=useState<SchedulingConfig>(DEFAULT_SCHEDULING_CONFIG),[busy,setBusy]=useState(false),[msg,setMsg]=useState(""),[showAll,setShowAll]=useState(false);
+ const { settings: store } = useAdminStoreSettings();
  useEffect(()=>{void getSchedulingConfig().then(setC).catch(()=>setMsg("Não foi possível carregar os agendamentos."));},[]);
- useEffect(()=>onSnapshot(doc(db,"settings","loja"),x=>setStore(x.exists()?normalizeStoreSettings(x.data()):DEFAULT_STORE_SETTINGS),()=>setStore(DEFAULT_STORE_SETTINGS)),[]);
  useEffect(()=>{if(!msg)return;const id=window.setTimeout(()=>setMsg(""),3200);return()=>window.clearTimeout(id)},[msg]);
  const times=useMemo(()=>{const a:string[]=[];for(let m=0;m<1440;m+=c.intervalMinutes)a.push(hhmm(m));return a},[c.intervalMinutes]);
  const windows=useMemo(()=>Object.values(store.schedule).filter(d=>d.enabled&&d.open&&d.close).map(d=>({open:d.open,close:d.close})),[store.schedule]);
@@ -21,7 +21,7 @@ export function SchedulingAdmin(){
  const range=useMemo(()=>{if(!windows.length)return"sem janela semanal";const a=windows.map(w=>w.open).sort(),b=windows.map(w=>w.close).sort();return`${a[0]}–${b[b.length-1]}`},[windows]);
  const toggle=(t:string)=>{pulse();setC(v=>({...v,enabledTimes:v.enabledTimes.includes(t)?v.enabledTimes.filter(x=>x!==t):[...v.enabledTimes,t].sort()}))};
  const period=(a:number,b:number)=>{pulse();setC(v=>({...v,enabledTimes:[...new Set([...v.enabledTimes,...times.filter(t=>{const x=mins(t);return x>=a&&x<=b})])].sort()}))};
- const save=async()=>{setBusy(true);setMsg("");try{await saveSchedulingConfig(c);pulse(true);setMsg("Agendamentos salvos e publicados.")}catch(e){console.error(e);setMsg("Não foi possível salvar os agendamentos.")}finally{setBusy(false)}};
+ const save=async()=>{setBusy(true);setMsg("");try{await saveSchedulingConfig(c);pulse(true);setMsg("Agendamentos salvos e publicados.")}catch(e){console.error(e);haptic("error");setMsg("Não foi possível salvar os agendamentos.")}finally{setBusy(false)}};
  return <section className={styles.card}>
   <div className={styles.head}><div><span>AGENDA DE PEDIDOS</span><strong>Agendamentos</strong><p>Capacidade, antecedência e horários oferecidos no checkout.</p></div><button type="button" className={styles.status} data-enabled={c.enabled} onClick={()=>{pulse();setC(v=>({...v,enabled:!v.enabled}))}}>{c.enabled?"Ativado":"Desativado"}</button></div>
   <div className={styles.settings}>

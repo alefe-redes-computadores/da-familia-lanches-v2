@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import styles from "./AppShell.module.css";
 import { Header } from "@/components/layout/Header";
@@ -28,11 +28,31 @@ type Props = { children: ReactNode };
 
 export function AppShell({ children }: Props) {
   const pathname = usePathname();
-  const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
-  const activeModal = useUIStore((state) => state.activeModal);
+  const [adminHost, setAdminHost] =
+    useState(false);
+
+  const routeIsAdmin =
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/");
+
+  const isAdmin =
+    routeIsAdmin ||
+    adminHost;
+
+  const activeModal =
+    useUIStore(
+      (state) => state.activeModal
+    );
   const closeModal = useUIStore((state) => state.closeModal);
   const setCurrentUser = useAuthStore((state) => state.setCurrentUser);
   const setLoading = useAuthStore((state) => state.setLoading);
+
+  useEffect(() => {
+    setAdminHost(
+      window.location.hostname ===
+        "admin.dafamilialanches.com.br"
+    );
+  }, []);
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setCurrentUser(user);

@@ -1,4 +1,4 @@
-const CACHE = "dfl-admin-v67";
+const CACHE = "dfl-admin-v68";
 const SHELL = ["/admin", "/admin-manifest.webmanifest", "/admin-icon-192x192.png", "/admin-icon-512x512.png"];
 
 self.addEventListener("install", (event) => {

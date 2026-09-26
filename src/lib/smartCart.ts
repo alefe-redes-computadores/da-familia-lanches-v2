@@ -59,6 +59,8 @@ export function selectSmartCartSuggestions(items: CartItem[], products: Product[
   if(!items.length) return [];
   const included=includedProductIds(items,products);
   const available=products.filter((product)=>product.disponivel!==false && !items.some((item)=>item.id===product.id));
+  const cartSignature=items.map((item)=>`${item.id}:${item.quantity}`).sort().join("|");
+  const stableHash=(value:string)=>[...value].reduce((hash,char)=>((hash*31)+char.charCodeAt(0))>>>0,7);
   const result: SmartCartSuggestion[]=[];
   for(const sourceItem of items){
     const source=products.find(p=>p.id===sourceItem.id);
@@ -83,7 +85,11 @@ export function selectSmartCartSuggestions(items: CartItem[], products: Product[
 
   if(!hasDrink(items,products)){
     const drink=available.filter(product=>isDrink(product) && !included.has(product.id))
-      .sort((a,b)=>Number(Boolean(b.isSuggestion))-Number(Boolean(a.isSuggestion)) || a.price-b.price)[0];
+      .sort((a,b)=>
+        Number(Boolean(b.isSuggestion))-Number(Boolean(a.isSuggestion)) ||
+        Number(Boolean(b.oldPrice&&b.oldPrice>b.price))-Number(Boolean(a.oldPrice&&a.oldPrice>a.price)) ||
+        stableHash(cartSignature+a.id)-stableHash(cartSignature+b.id)
+      )[0];
     if(drink) result.push({
       kind:"drink",product:drink,eyebrow:"FALTOU A BEBIDA?",title:drink.name,
       description:"Seu pedido ainda não tem bebida. Esta opção combina com o carrinho."
@@ -91,8 +97,13 @@ export function selectSmartCartSuggestions(items: CartItem[], products: Product[
   }
 
   if(result.length<limit){
-    const extra=available.find((product)=>product.isSuggestion && !isCombo(product) && !isDrink(product) &&
-      !included.has(product.id) && !result.some((entry)=>entry.product.id===product.id));
+    const extra=available
+      .filter((product)=>product.isSuggestion && !isCombo(product) && !isDrink(product) &&
+        !included.has(product.id) && !result.some((entry)=>entry.product.id===product.id))
+      .sort((a,b)=>
+        Number(Boolean(b.oldPrice&&b.oldPrice>b.price))-Number(Boolean(a.oldPrice&&a.oldPrice>a.price)) ||
+        stableHash(cartSignature+a.id)-stableHash(cartSignature+b.id)
+      )[0];
     if(extra) result.push({
       kind:"complement",product:extra,eyebrow:"PARA COMPLETAR",title:extra.name,
       description:"Uma sugestão da casa para completar seu pedido."

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { getDoc, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   DEFAULT_REWARDS_CONFIG,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/rewards";
 import styles from "./RewardsAdmin.module.css";
 
+import { haptic } from "@/lib/haptics";
 const numberValue = (value: string, fallback: number) => {
   const parsed = Number(value.replace(",", "."));
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -29,20 +30,49 @@ export function RewardsAdmin() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
 
-  useEffect(() => onSnapshot(
-    doc(db, REWARDS_CONFIG_COLLECTION, REWARDS_CONFIG_ID),
-    (snapshot) => {
-      const config = snapshot.exists() ? normalizeRewardsConfig(snapshot.data()) : DEFAULT_REWARDS_CONFIG;
-      setActive(config.active);
-      setTitle(config.title);
-      setDescription(config.description);
-      setEveryOrders(String(config.everyOrders));
-      setDiscountType(config.discountType);
-      setDiscountValue(String(config.discountValue));
-      setMinOrder(String(config.minOrder));
-      setExpiresDays(String(config.expiresDays));
-    },
-  ), []);
+  useEffect(() => {
+    let alive = true;
+
+    void getDoc(
+      doc(
+        db,
+        REWARDS_CONFIG_COLLECTION,
+        REWARDS_CONFIG_ID,
+      ),
+    )
+      .then((snapshot) => {
+        if (!alive) return;
+
+        const config = snapshot.exists()
+          ? normalizeRewardsConfig(snapshot.data())
+          : DEFAULT_REWARDS_CONFIG;
+
+        setActive(config.active);
+        setTitle(config.title);
+        setDescription(config.description);
+        setEveryOrders(String(config.everyOrders));
+        setDiscountType(config.discountType);
+        setDiscountValue(String(config.discountValue));
+        setMinOrder(String(config.minOrder));
+        setExpiresDays(String(config.expiresDays));
+      })
+      .catch((error) => {
+        console.error(
+          "[admin-rewards] load",
+          error,
+        );
+
+        if (alive) {
+          setFeedback(
+            "Não foi possível carregar a campanha.",
+          );
+        }
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const save = async () => {
     setSaving(true);
@@ -60,9 +90,11 @@ export function RewardsAdmin() {
         updatedAt: serverTimestamp(),
       }, { merge: true });
       setFeedback("Campanha salva.");
+      haptic("success");
     } catch (error) {
       console.error(error);
       setFeedback("Não foi possível salvar a campanha.");
+      haptic("error");
     } finally {
       setSaving(false);
     }

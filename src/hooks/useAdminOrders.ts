@@ -5,6 +5,7 @@ import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestor
 import { db } from "@/lib/firebase";
 import { normalizarStatus } from "@/lib/orderUtils";
 import type { AdminOrder } from "@/lib/adminOrders";
+import { recordFirestoreReadEstimate } from "@/lib/firestoreReadBudget";
 
 export function useAdminOrders(currentUser: any, admins: string[]) {
   const [pedidos, setPedidos] = useState<AdminOrder[]>([]);
@@ -51,10 +52,9 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     initializedRef.current = false;
     knownIdsRef.current = new Set();
     const ordersQuery = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(40));
-    let unsubscribe: (() => void) | undefined;
-    const subscribe = () => {
-      if (unsubscribe || document.visibilityState === "hidden") return;
-      unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+      const delivered = initializedRef.current ? snapshot.docChanges().length : snapshot.size;
+      recordFirestoreReadEstimate("admin.orders.realtime", delivered);
       const docs = snapshot.docs.map((document): AdminOrder => ({ id: document.id, ...document.data() } as AdminOrder));
       const pendingIds = docs
         .filter((order) => normalizarStatus(order.status) === "Pendente")
@@ -74,24 +74,19 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       initializedRef.current = true;
       setPedidos(docs);
       setLoading(false);
-      }, (error) => {
-        console.error("Erro ao acompanhar pedidos:", error);
-        setLoading(false);
-      });
-    };
+    }, (error) => {
+      console.error("Erro ao acompanhar pedidos:", error);
+      setLoading(false);
+    });
+
     const onVisibility = () => {
-      if (document.visibilityState === "hidden") {
-        unsubscribe?.();
-        unsubscribe = undefined;
-        audioRef.current?.pause();
-      } else subscribe();
+      if (document.visibilityState === "hidden") audioRef.current?.pause();
     };
     document.addEventListener("visibilitychange", onVisibility);
-    subscribe();
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
-      unsubscribe?.();
+      unsubscribe();
     };
   }, [currentUser, admins]);
 

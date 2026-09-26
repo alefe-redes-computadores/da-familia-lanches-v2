@@ -1,3 +1,16 @@
 .body{padding:24px 20px calc(24px + env(safe-area-inset-bottom));text-align:center;background:#f7f5f1;color:#171717}.icon{display:grid;place-items:center;width:58px;height:58px;margin:4px auto 13px;border-radius:50%;background:#111;color:#ffca28;font-size:28px;font-weight:950}.eyebrow{font-size:8px;font-weight:950;letter-spacing:.13em;color:#8a6b00}.body h2{max-width:330px;margin:7px auto 7px;font-size:21px;line-height:1.08;letter-spacing:-.04em}.body>p{max-width:360px;margin:0 auto;color:#716b63;font-size:10px;line-height:1.55}.receipt{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:18px 0;padding:12px;border:1px solid #e2ddd4;border-radius:16px;background:#fff}.receipt span,.receipt strong{display:block}.receipt span{font-size:7px;color:#999;text-transform:uppercase}.receipt strong{margin-top:4px;font-size:10px}.primary,.whatsapp,.link{width:100%;border-radius:13px;padding:13px;font-size:10px;font-weight:950;cursor:pointer}.primary{border:0;background:#111;color:#fff}.whatsapp{margin-top:7px;border:1px solid #b9dfc4;background:#effaf2;color:#176b31}.link{border:0;background:transparent;color:#6f675d}.body>small{display:block;margin-top:5px;color:#999;font-size:7px;line-height:1.45}
 .pixFlow{display:flex;flex-direction:column;gap:7px;margin:0 0 14px;padding:15px;text-align:left;border:1px solid #ead48a;border-radius:16px;background:#fff9df}.pixFlow>span{color:#8a6b00;font-size:8px;font-weight:950;letter-spacing:.1em}.pixFlow>strong{font-size:14px}.pixFlow>p{margin:0;color:#72673c;font-size:9px;line-height:1.45}.pixFlow>div{display:grid;grid-template-columns:1fr auto;gap:7px}.pixFlow input{min-width:0;border:1px solid #ddd4b5;border-radius:11px;background:#fff;padding:11px;font-size:10px}.pixFlow button{border:0;border-radius:11px;padding:0 13px;font-size:9px;font-weight:950}.pixFlow>div button{background:#111;color:#ffca28}.pixFlow .proof{min-height:45px;background:#168b45;color:#fff}.pixFlow>small{color:#81764d;font-size:8px;line-height:1.4}
 @media(max-width:380px){.receipt{grid-template-columns:1fr}.receipt>div{display:flex;justify-content:space-between;align-items:center}.receipt strong{margin:0}.pixFlow>div{grid-template-columns:1fr}.pixFlow>div button{min-height:40px}}
+
+/* V55 — decisão segura após WhatsApp */
+.cartDecision{margin:10px 0 4px;padding:14px;text-align:left;border:1px solid #ddd8ce;border-radius:16px;background:#fff}
+.cartDecision[data-opened="true"]{border-color:#b9dfc4;background:#f3fbf5}
+.cartDecision>span{display:block;font-size:8px;font-weight:950;letter-spacing:.1em;color:#7a6d56}
+.cartDecision>strong{display:block;margin-top:4px;font-size:13px}
+.cartDecision>p{margin:5px 0 10px;color:#716b63;font-size:9px;line-height:1.5}
+.cartDecision>div{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.cartDecision button{min-height:42px;border-radius:11px;padding:8px 10px;font-size:9px;font-weight:950;cursor:pointer}
+.clearConfirmed{border:0;background:#111;color:#fff}
+.keepCart{border:1px solid #ddd8ce;background:#fff;color:#5e574d}
+.clearedNotice{margin:10px 0;padding:11px 13px;border-radius:13px;background:#effaf2;color:#176b31;font-size:9px;font-weight:800;line-height:1.45}
+@media(max-width:380px){.cartDecision>div{grid-template-columns:1fr}}

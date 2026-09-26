@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ModalBase } from "./ModalBase";
 import { useUIStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth.store";
@@ -28,8 +28,9 @@ function lastStatusTime(order: CustomerOrder) {
 
 export function OrdersModal(){
  const {closeModal,openModal}=useUIStore(); const {currentUser}=useAuthStore(); const {addItem,clearCart}=useCartStore(); const {products,addons}=useCatalog();
- const {orders,activeOrders,pastOrders,loading,error,historyLoading,hasMore,loadMore}=useCustomerOrders(currentUser); const [notice,setNotice]=useState(""); const [repeatTarget,setRepeatTarget]=useState<string|null>(null); const [tab,setTab]=useState<"active"|"history">("active"); const [scheduleTarget,setScheduleTarget]=useState<string|null>(null); const [scheduleSlots,setScheduleSlots]=useState<OrderScheduleSlot[]>([]); const [scheduleBusy,setScheduleBusy]=useState(false);
+ const {orders,activeOrders,pastOrders,loading,error,historyLoading,historyReady,hasMore,loadMore}=useCustomerOrders(currentUser); const [notice,setNotice]=useState(""); const [repeatTarget,setRepeatTarget]=useState<string|null>(null); const [tab,setTab]=useState<"active"|"history">("active"); const [scheduleTarget,setScheduleTarget]=useState<string|null>(null); const [scheduleSlots,setScheduleSlots]=useState<OrderScheduleSlot[]>([]); const [scheduleBusy,setScheduleBusy]=useState(false);
  const visible=useMemo(()=>tab==="active"?activeOrders:pastOrders,[activeOrders,pastOrders,tab]);
+ useEffect(()=>{if(!historyReady)void loadMore()},[historyReady,loadMore]);
  const repeat=(order:CustomerOrder)=>{const old=getOrderItems(order); if(!old.length){setNotice("Esse pedido antigo não possui itens reconhecíveis para repetir.");return;} const resolved=old.flatMap(item=>{const p=products.find(x=>x.id===item.id)??products.find(x=>normalizeText(x.name)===normalizeText(item.name)); if(!p||!p.disponivel)return[]; const allowedAddons=availableAddonsForProduct(p,addons); const resolvedAddons=item.selectedAddons.flatMap(a=>{const n=allowedAddons.find(x=>x.id===a.id)??allowedAddons.find(x=>normalizeText(x.name)===normalizeText(a.name));return n?[n]:[]});return[{item,product:p,addons:resolvedAddons}]}); if(!resolved.length){setNotice("Os produtos desse pedido não estão disponíveis no cardápio atual.");setRepeatTarget(null);return;} const skipped=old.length-resolved.length;clearCart();resolved.forEach(({item,product,addons})=>addItem(product,item.quantity,addons,item.observation));setNotice(skipped?`${skipped} item(ns) indisponível(is) foram ignorados. O restante usa preços atuais.`:"");setRepeatTarget(null);closeModal();openModal("cart")};
  return <ModalBase title="Meus pedidos" onClose={closeModal}><div className={styles.body}>
    {error&&<div className={styles.error}>{error}</div>}{notice&&<div className={styles.notice}>{notice}</div>}
