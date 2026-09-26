@@ -27,6 +27,7 @@ function containsProduct(candidate:Product,source:Product,products:Product[]){
   return resolveBundleItems(candidate,products).some(x=>x.product?.id===source.id) || words(source).some(w=>words(candidate).includes(w));
 }
 export type CommercialRecommendation={product:Product;eyebrow:string;reason:string;score:number;kind:"drink"|"upgrade"|"more"|"complement"};
+const stableHash=(value:string)=>[...value].reduce((hash,char)=>((hash*31)+char.charCodeAt(0))>>>0,7);
 export function getCommercialRecommendations(source:Product,products:Product[],cart:CartItem[]=[]):CommercialRecommendation[]{
   const cartIds=new Set(cart.map(x=>x.id)); const sourceDrink=hasDrink(source,products,cart); const sourceWords=words(source);
   const scored=products.filter(p=>p.id!==source.id&&p.disponivel!==false&&!alreadyIncluded(source,p,products)).map((p):CommercialRecommendation|null=>{
@@ -40,6 +41,9 @@ export function getCommercialRecommendations(source:Product,products:Product[],c
     if(cartIds.has(p.id)) score-=35;
     if(score<30) return null;
     return {product:p,eyebrow,reason,score,kind};
-  }).filter((x):x is CommercialRecommendation=>Boolean(x)).sort((a,b)=>b.score-a.score||a.product.price-b.product.price);
-  const out:CommercialRecommendation[]=[]; for(const item of scored){if(out.length>=3)break;if(!out.some(x=>x.product.id===item.product.id))out.push(item)} return out;
+  }).filter((x):x is CommercialRecommendation=>Boolean(x)).sort((a,b)=>b.score-a.score||stableHash(source.id+a.product.id)-stableHash(source.id+b.product.id));
+  const out:CommercialRecommendation[]=[]; const kinds=new Set<CommercialRecommendation["kind"]>();
+  for(const item of scored){if(out.length>=3)break;if(kinds.has(item.kind)||out.some(x=>x.product.id===item.product.id))continue;out.push(item);kinds.add(item.kind)}
+  for(const item of scored){if(out.length>=3)break;if(!out.some(x=>x.product.id===item.product.id))out.push(item)}
+  return out;
 }

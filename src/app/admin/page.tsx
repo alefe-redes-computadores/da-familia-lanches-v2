@@ -22,6 +22,7 @@ import { adminOrderSearchText, compareOperationalOrders, operationalAttention } 
 import styles from "./admin.module.css";
 import { FreeDeliveryAdmin } from "@/components/admin/FreeDeliveryAdmin";
 import { DeliveryRatesAdmin } from "@/components/admin/DeliveryRatesAdmin";
+import { haptic } from "@/lib/haptics";
 
 const ADMINS = [
   "alefejohsefe@gmail.com",
@@ -56,16 +57,6 @@ export default function AdminPage() {
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60000);
     return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const onClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target?.closest("button")) return;
-      if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(8);
-    };
-    document.addEventListener("click", onClick, { passive: true });
-    return () => document.removeEventListener("click", onClick);
   }, []);
 
   useEffect(() => {
@@ -107,9 +98,11 @@ export default function AdminPage() {
         : result.changed
           ? `Pedido atualizado para ${normalizarStatus(status)}.`
           : "Este pedido já estava nesta etapa.");
+      haptic("success");
     } catch (error) {
       console.error(error);
       setFeedback("Não foi possível atualizar o pedido. O status pode ter mudado em outro aparelho.");
+      haptic("error");
     } finally {
       setUpdatingOrderId((current) => current === id ? null : current);
     }

@@ -17,6 +17,7 @@ import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupo
 import styles from "./CheckoutModal.module.css";
 import { DEFAULT_COMMERCIAL_SETTINGS, freeDeliveryThreshold, getCommercialSettings, type CommercialSettings } from "@/lib/commercialSettings";
 import { BUSINESS_CONTACT, businessWhatsAppUrl } from "@/lib/businessContact";
+import { haptic } from "@/lib/haptics";
 
 type PaymentMethod = "pix" | "cartao" | "dinheiro";
 type DeliveryMode = "delivery" | "pickup";
@@ -537,34 +538,45 @@ export function CheckoutModal() {
     } catch (error) {
       console.error("Erro ao salvar pedido", error);
       const code = error instanceof Error ? error.message : "";
-      const fallbackAddress = isPickup
-        ? "Retirada no balcão"
-        : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}${referencia.trim() ? ` · Ref.: ${referencia.trim()}` : ""}`;
       const fallbackItems = items.map((item) => {
         const selected = item.selectedAddons?.length ? `\n   + ${item.selectedAddons.map((addon) => addon.name).join(", ")}` : "";
         const note = item.observation?.trim() ? `\n   Obs.: ${item.observation.trim()}` : "";
-        return `• ${item.quantity}x ${item.name} — ${money(item.price * item.quantity)}${selected}${note}`;
+        return `${item.quantity}x ${item.name} - ${money(item.price * item.quantity)}${selected}${note}`;
       }).join("\n");
       const fallbackPayment = method === "pix" ? "PIX" : method === "cartao" ? "Cartão — levar maquininha" : `Dinheiro${troco.trim() ? ` — troco para ${troco.trim()}` : " — sem troco informado"}`;
       const fallbackMessage = [
-        "⚠️ *PEDIDO PELO WHATSAPP — SITE EM CONTINGÊNCIA*",
-        "O site não conseguiu registrar este pedido automaticamente. Favor confirmar manualmente.",
+        "*PEDIDO PARA CONFIRMAÇÃO*",
+        "_Enviado pelo site em modo de contingência_",
         "",
-        `Cliente: *${customerName.trim() || currentUser.displayName || "Cliente"}*`,
+        "*CLIENTE*",
+        `Nome: ${customerName.trim() || currentUser.displayName || "Cliente"}`,
         `WhatsApp: ${userPhone.trim()}`,
         "",
+        "*ITENS DO PEDIDO*",
         fallbackItems,
         "",
-        `📍 ${fallbackAddress}`,
+        `*${isPickup ? "RETIRADA" : "ENTREGA"}*`,
+        isPickup ? "Retirada no balcão" : `Endereço: ${rua.trim()}, ${numero.trim()}`,
+        !isPickup ? `Bairro: ${bairro.trim()}` : null,
+        !isPickup && complemento.trim() ? `Complemento: ${complemento.trim()}` : null,
+        !isPickup && referencia.trim() ? `Referência: ${referencia.trim()}` : null,
+        "",
+        "*RESUMO*",
         `Subtotal: ${money(subtotal)}`,
         `Entrega: ${finalFee === 0 ? "Grátis" : money(finalFee)}`,
         safeDiscount > 0 ? `Desconto${appliedCouponCode ? ` (${appliedCouponCode})` : ""}: -${money(safeDiscount)}` : null,
         `*TOTAL: ${money(total)}*`,
-        `Pagamento: ${fallbackPayment}`,
-        orderObservation.trim() ? `\n📝 *Observação do pedido:* ${orderObservation.trim()}` : null,
-        shopClosed && scheduledFor ? `\n🕒 Horário solicitado: *${scheduleHumanLabel(scheduledFor)}*` : null,
+        "",
+        "*PAGAMENTO*",
+        fallbackPayment,
+        orderObservation.trim() ? `\n*OBSERVAÇÃO*\n${orderObservation.trim()}` : null,
+        shopClosed && scheduledFor ? `\n*HORÁRIO SOLICITADO*\n${scheduleHumanLabel(scheduledFor)}` : null,
+        "",
+        "Este pedido ainda não foi registrado automaticamente no sistema.",
+        "*Por favor, confirme o recebimento e o prazo com o cliente.*",
       ].filter(Boolean).join("\n");
       setFallbackWhatsAppUrl(businessWhatsAppUrl(fallbackMessage));
+      haptic("error");
       if (code === "SCHEDULE_REQUIRED") { setErrorMessage("Escolha um horário disponível para o pedido agendado."); } else if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {
         setAppliedCouponCode("");
         setAppliedRewardId("");
@@ -595,7 +607,7 @@ export function CheckoutModal() {
           <i data-active="true" /><i data-active={step === 2} />
         </div>
         <div className={styles.stepCaption}><strong>{step === 1 ? "Entrega" : "Pagamento"}</strong><span>{step}/2</span></div>
-        {errorMessage && <div className={styles.errorFallback}><div className={styles.error}>{errorMessage}</div>{fallbackWhatsAppUrl && <div className={styles.contingency}><span>Seu pedido continua montado neste aparelho.</span><strong>Quer concluir diretamente com a loja?</strong><button type="button" onClick={() => { window.location.href = fallbackWhatsAppUrl; }}>Finalizar pelo WhatsApp</button><small>O WhatsApp abrirá com itens, endereço, pagamento, cupom e observações preenchidos.</small></div>}</div>}
+        {errorMessage && <div className={styles.errorFallback}><div className={styles.error}>{errorMessage}</div>{fallbackWhatsAppUrl && <div className={styles.contingency}><span>PLANO B SEGURO</span><strong>Seu pedido continua completo</strong><p>Nada foi perdido. Envie os dados já organizados para a equipe confirmar manualmente.</p><button type="button" onClick={() => { haptic("success"); window.location.href = fallbackWhatsAppUrl; }}>Continuar no WhatsApp</button><small>O envio não é automático: confira a mensagem e toque em enviar.</small></div>}</div>}
 
         {step === 1 ? (
           <div className={styles.stack}>

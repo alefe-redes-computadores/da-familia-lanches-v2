@@ -29,3 +29,7 @@
 .offlineBanner{display:flex;flex-direction:column;gap:3px;margin:0 0 12px;padding:11px 13px;border:1px solid #ead18a;border-radius:14px;background:#fff9df;color:#5e4b13}
 .offlineBanner strong{font-size:12px}.offlineBanner span{font-size:10px;line-height:1.35}
 .primary[aria-busy="true"]{cursor:wait;opacity:.78}
+
+/* V54 — contingência clara, sem aparência de erro terminal */
+.contingency{padding:15px;border-color:#d9c36e;border-radius:17px;background:linear-gradient(145deg,#fffbe9,#fff5c7);color:#30290d;box-shadow:0 9px 24px rgba(90,70,0,.08)}
+.contingency span{font-size:7px;font-weight:950;letter-spacing:.14em;color:#8a6900}.contingency strong{font-size:14px;letter-spacing:-.02em}.contingency p{margin:1px 0 3px;font-size:9px;line-height:1.5;color:#6d6032}.contingency button{min-height:48px;border-radius:13px;background:#12833f;box-shadow:0 7px 18px rgba(18,131,63,.18)}.contingency small{text-align:center;font-size:8px}

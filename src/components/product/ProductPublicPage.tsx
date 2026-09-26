@@ -13,6 +13,7 @@ import styles from "./ProductPublicPage.module.css";
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const CartIcon = () => <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 10.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"/></svg>;
 import { getCommercialRecommendations } from "@/lib/commercialRecommendations";
+import { haptic } from "@/lib/haptics";
 
 export function ProductPublicPage({ section, slug }: { section: string; slug: string }) {
   const { products, loading } = useCatalog();
@@ -33,6 +34,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   const hasComposition = bundle.length > 0 || Boolean(product.detailsItems?.length) || Boolean(product.includedExtras);
   const share = async () => {
     const data = { title: `${product.name} | Da Família Lanches`, text: product.description, url: window.location.href };
+    haptic("step");
     if (navigator.share) await navigator.share(data).catch(() => undefined);
     else { await navigator.clipboard.writeText(window.location.href); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
   };
@@ -49,11 +51,11 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
           {product.includedExtras && <p className={styles.included}><b>Acompanha:</b> {product.includedExtras}</p>}
         </section>}
         <div className={styles.buyRow}><div className={styles.price}>{hasDiscount && <s>{money(product.oldPrice!)}</s>}<strong>{money(product.price)}</strong>{hasDiscount && <small>Economize {money(product.oldPrice! - product.price)}</small>}</div><button className={styles.share} onClick={share} aria-label="Compartilhar produto"><span aria-hidden="true">↗</span><span>{copied ? "Copiado" : "Compartilhar"}</span></button></div>
-        <button className={styles.primaryAction} disabled={!available} onClick={() => openModal("product-details", product)}><CartIcon /><span>{available ? "Personalizar e adicionar" : "Indisponível no momento"}</span><b>{available ? money(product.price) : ""}</b></button>
+        <button className={styles.primaryAction} disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><CartIcon /><span>{available ? "Personalizar e adicionar" : "Indisponível no momento"}</span><b>{available ? money(product.price) : ""}</b></button>
         {inCart > 0 && <button className={styles.inCart} onClick={() => openModal("cart")}><span>{inCart} no carrinho</span><b>Ver pedido <span aria-hidden="true">›</span></b></button>}
       </div>
     </section>
     {related.length > 0 && <section className={styles.related}><div className={styles.relatedHead}><div><span>ESCOLHAS PARA O SEU PEDIDO</span><h2>Complete do seu jeito</h2><p>Sem repetir o que já vem neste item ou no seu carrinho.</p></div></div><div className={styles.relatedGrid}>{related.map((entry) => <Link href={productHref(entry.product)} key={entry.product.id}><img src={entry.product.image} alt="" /><span><small>{entry.eyebrow}</small><strong>{entry.product.name}</strong><em>{entry.reason}</em><b>{money(entry.product.price)} <span aria-hidden="true">›</span></b></span></Link>)}</div></section>}
-    <div className={styles.mobileAction}><button disabled={!available} onClick={() => openModal("product-details", product)}><CartIcon /><span>{available ? "Adicionar ao carrinho" : "Indisponível"}</span>{available && <b>{money(product.price)}</b>}</button></div>
+    <div className={styles.mobileAction}><button disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><CartIcon /><span>{available ? "Adicionar ao carrinho" : "Indisponível"}</span>{available && <b>{money(product.price)}</b>}</button></div>
   </main>;
 }

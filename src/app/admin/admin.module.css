@@ -11,3 +11,10 @@
 @media(min-width:1080px){.page{padding-top:24px}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:680px){.brand span{display:none}.command{padding:13px}.commandHead h1{font-size:19px}.quickStats button{padding:0 7px}.quickStats b{font-size:18px}.quickStats span{font-size:8px}.primaryNav button{height:40px;font-size:9px}.managementHubHead small{display:none}.managementNav{grid-template-columns:repeat(4,minmax(0,1fr))}.sectionHeading{display:block;margin-top:13px}.sectionHeading p{margin-top:4px;text-align:left}.queueTools{align-items:flex-start}.queueTools .filters{overflow-x:auto}.searchTrigger b{display:none}.searchTrigger{width:35px;padding:0;justify-content:center}.attentionFilter{margin-left:0!important}}
 @media(max-width:390px){.primaryNav button{gap:3px}.primaryNav b{display:none}.quickStats span{font-size:7.5px}.managementNav{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* V54 — acabamento operacional amarelo, sem o roxo legado */
+.command{border-color:#292617;background:radial-gradient(circle at 92% 0,rgba(255,202,40,.16),transparent 38%),linear-gradient(145deg,#121317,#0d0f12);border-radius:19px;box-shadow:0 16px 44px rgba(0,0,0,.22)}
+.primaryNav button[data-active=true]{background:linear-gradient(145deg,#33290d,#211b0c);color:#fff0b3;box-shadow:inset 0 0 0 1px rgba(255,202,40,.26)}
+.managementNav button[data-active=true]{background:linear-gradient(145deg,#2b240f,#19160d);border-color:#6c5817;color:#ffe89a}.managementNav button[data-active=true] small{color:#c9a93a}
+.searchTrigger[data-active=true]{color:#ffe69a;border-color:#65551e;background:#201b0e}
+.grid>*{transition:border-color .16s ease,transform .16s ease}.grid>*:focus-within{border-color:rgba(255,202,40,.34)}

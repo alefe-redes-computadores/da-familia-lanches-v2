@@ -106,6 +106,7 @@ export function CartModal() {
       useCartStore.getState().addItem(suggestion.product,1,[],"",{upsellSourceId:suggestion.upsellSourceId,unitPrice:suggestion.explicitUnitPrice});
       haptic("add"); showCartToast({title:suggestion.product.name+" adicionado",message:"Preço especial de "+money(suggestion.explicitUnitPrice)+" aplicado.",kind:"add"}); return;
     }
+    haptic("step");
     openModal("product-details",suggestion.product);
   };
 

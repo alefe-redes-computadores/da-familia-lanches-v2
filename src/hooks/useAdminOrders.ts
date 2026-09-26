@@ -50,13 +50,11 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
     initializedRef.current = false;
     knownIdsRef.current = new Set();
-    const ordersQuery = query(
-      collection(db, "Pedidos"),
-      orderBy("data", "desc"),
-      limit(120),
-    );
-
-    const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+    const ordersQuery = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(40));
+    let unsubscribe: (() => void) | undefined;
+    const subscribe = () => {
+      if (unsubscribe || document.visibilityState === "hidden") return;
+      unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
       const docs = snapshot.docs.map((document): AdminOrder => ({ id: document.id, ...document.data() } as AdminOrder));
       const pendingIds = docs
         .filter((order) => normalizarStatus(order.status) === "Pendente")
@@ -76,12 +74,25 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       initializedRef.current = true;
       setPedidos(docs);
       setLoading(false);
-    }, (error) => {
-      console.error("Erro ao acompanhar pedidos:", error);
-      setLoading(false);
-    });
+      }, (error) => {
+        console.error("Erro ao acompanhar pedidos:", error);
+        setLoading(false);
+      });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        unsubscribe?.();
+        unsubscribe = undefined;
+        audioRef.current?.pause();
+      } else subscribe();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    subscribe();
 
-    return () => unsubscribe();
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      unsubscribe?.();
+    };
   }, [currentUser, admins]);
 
   return {
