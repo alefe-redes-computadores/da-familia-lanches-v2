@@ -253,22 +253,55 @@ async function releaseUnhydratable(raw:ClaimedRaw, workerId:string) {
 export async function claimMessagingProjections(limit=20) {
   const safeLimit = Math.max(1,Math.min(50,Math.trunc(limit)));
   const workerId = randomUUID();
-  const snap = await adminDb.collection(COLLECTION)
-    .where("messaging_eligible","==",true)
-    .limit(safeLimit*4).get();
-  const claimed:Projection[] = [];
+  const collection = adminDb.collection(COLLECTION);
 
-  for (const candidate of snap.docs) {
+  // Quota Shield V2:
+  // queued/finalizados nunca devem voltar ao polling.
+  //
+  // Consultamos por status, que é a dimensão real da fila. A elegibilidade
+  // continua sendo validada atomicamente dentro de claimRawCandidate().
+  //
+  // Mantemos uma segunda janela pequena de "processing" exclusivamente para
+  // recuperar locks abandonados após LOCK_TTL_MS.
+  //
+  // As consultas ficam separadas para não exigir índice composto novo.
+  const [pendingSnap,processingSnap] = await Promise.all([
+    collection
+      .where("status","==","pending")
+      .limit(safeLimit*2)
+      .get(),
+    collection
+      .where("status","==","processing")
+      .limit(safeLimit*2)
+      .get(),
+  ]);
+
+  const claimed:Projection[] = [];
+  const seen = new Set<string>();
+
+  const candidates = [
+    ...pendingSnap.docs,
+    ...processingSnap.docs,
+  ];
+
+  for (const candidate of candidates) {
     if (claimed.length >= safeLimit) break;
+    if (seen.has(candidate.id)) continue;
+    seen.add(candidate.id);
+
     const raw = await claimRawCandidate(candidate.id,workerId);
     if (!raw) continue;
+
     const projection = await hydrate(raw.docId,raw.data);
+
     if (!projection) {
       await releaseUnhydratable(raw,workerId);
       continue;
     }
+
     claimed.push(projection);
   }
+
   return {worker_id:workerId,events:claimed};
 }
 
@@ -287,6 +320,7 @@ export async function settleMessagingProjections(
       const now = new Date().toISOString();
       tx.update(ref,result.ok ? {
         status:"queued",
+        messaging_eligible:false,
         messaging_queued_at:now,
         processed_at:now,
         updated_at:now,
@@ -295,6 +329,7 @@ export async function settleMessagingProjections(
         last_error:null,
       } : {
         status:"pending",
+        messaging_eligible:true,
         updated_at:now,
         locked_by:null,
         locked_at:null,
