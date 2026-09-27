@@ -1,10 +1,76 @@
 "use client";
-import { useEffect,useMemo,useState } from "react";
-import { mergeAddons,mergeAllAddons,mergeProducts,normalizeRemoteAddonRecord,normalizeRemoteProductRecord,type CatalogSource } from "@/lib/catalog";
-import type { Product } from "@/data/products"; import type { Addon } from "@/data/addons";
-type Snap={remoteProducts:Product[];remoteAddons:Addon[];ready:boolean;error:string}; type ApiRecord={id?:unknown;data?:unknown}; type ApiPayload={products?:ApiRecord[];addons?:ApiRecord[]};
-let cache:Snap={remoteProducts:[],remoteAddons:[],ready:false,error:""}; let inflight:Promise<Snap>|null=null; const listeners=new Set<(snap:Snap)=>void>(); const emit=()=>listeners.forEach(fn=>fn(cache)); const recordData=(v:unknown):Record<string,unknown>=>v&&typeof v==="object"&&!Array.isArray(v)?v as Record<string,unknown>:{};
-async function loadCatalog():Promise<Snap>{if(cache.ready)return cache;if(inflight)return inflight;inflight=fetch("/api/public/catalog",{headers:{Accept:"application/json"}}).then(async r=>{if(!r.ok)throw new Error(`catalog_http_${r.status}`);return r.json() as Promise<ApiPayload>}).then(payload=>{const remoteProducts=(Array.isArray(payload.products)?payload.products:[]).map(x=>normalizeRemoteProductRecord(String(x?.id??""),recordData(x?.data))).filter((x):x is Product=>Boolean(x));const remoteAddons=(Array.isArray(payload.addons)?payload.addons:[]).map(x=>normalizeRemoteAddonRecord(String(x?.id??""),recordData(x?.data))).filter((x):x is Addon=>Boolean(x));cache={remoteProducts,remoteAddons,ready:true,error:""};emit();return cache}).catch(e=>{console.warn("[catalog] API pública indisponível; fallback local.",e);cache={remoteProducts:[],remoteAddons:[],ready:true,error:"Não foi possível atualizar o cardápio agora."};emit();return cache}).finally(()=>{inflight=null});return inflight}
-function subscribe(fn:(snap:Snap)=>void){listeners.add(fn);fn(cache);void loadCatalog();return()=>{listeners.delete(fn);}}
-export function reloadCatalog(){cache={...cache,ready:false,error:""};emit();inflight=null;return loadCatalog();}
-export function useCatalog(){const[snap,setSnap]=useState(cache);useEffect(()=>subscribe(setSnap),[]);const products=useMemo(()=>mergeProducts(snap.remoteProducts),[snap.remoteProducts]);const allAddons=useMemo(()=>mergeAllAddons(snap.remoteAddons),[snap.remoteAddons]);const addons=useMemo(()=>mergeAddons(snap.remoteAddons),[snap.remoteAddons]);const source:CatalogSource=snap.remoteProducts.length||snap.remoteAddons.length?"hybrid":"fallback";return{products,addons,allAddons,source,loading:!snap.ready,error:snap.error,reload:reloadCatalog,remoteProducts:snap.remoteProducts.length,remoteAddons:snap.remoteAddons.length}}
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  mergeAddons,
+  mergeAllAddons,
+  mergeProducts,
+  normalizeRemoteAddonRecord,
+  normalizeRemoteProductRecord,
+  type CatalogSource,
+} from "@/lib/catalog";
+import {
+  readPublicCatalog,
+  reloadPublicCatalog,
+  subscribePublicCatalog,
+} from "@/lib/publicCatalogClient";
+import type { Product } from "@/data/products";
+import type { Addon } from "@/data/addons";
+
+const recordData = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+export const reloadCatalog = reloadPublicCatalog;
+
+export function useCatalog() {
+  const [snapshot, setSnapshot] = useState(readPublicCatalog);
+
+  useEffect(() => subscribePublicCatalog(setSnapshot), []);
+
+  const records = snapshot.payload;
+  const remoteProducts = useMemo(
+    () =>
+      (Array.isArray(records?.products) ? records.products : [])
+        .map((item) =>
+          normalizeRemoteProductRecord(
+            String(item?.id ?? ""),
+            recordData(item?.data),
+          ),
+        )
+        .filter((item): item is Product => Boolean(item)),
+    [records],
+  );
+
+  const remoteAddons = useMemo(
+    () =>
+      (Array.isArray(records?.addons) ? records.addons : [])
+        .map((item) =>
+          normalizeRemoteAddonRecord(
+            String(item?.id ?? ""),
+            recordData(item?.data),
+          ),
+        )
+        .filter((item): item is Addon => Boolean(item)),
+    [records],
+  );
+
+  const products = useMemo(() => mergeProducts(remoteProducts), [remoteProducts]);
+  const allAddons = useMemo(() => mergeAllAddons(remoteAddons), [remoteAddons]);
+  const addons = useMemo(() => mergeAddons(remoteAddons), [remoteAddons]);
+  const source: CatalogSource =
+    remoteProducts.length || remoteAddons.length ? "hybrid" : "fallback";
+
+  return {
+    products,
+    addons,
+    allAddons,
+    source,
+    loading: !snapshot.ready,
+    error: snapshot.error,
+    reload: reloadCatalog,
+    remoteProducts: remoteProducts.length,
+    remoteAddons: remoteAddons.length,
+  };
+}
