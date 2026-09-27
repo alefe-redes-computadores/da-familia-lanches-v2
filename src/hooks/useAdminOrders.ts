@@ -8,6 +8,8 @@ import type { AdminOrder } from "@/lib/adminOrders";
 import { recordFirestoreReadEstimate } from "@/lib/firestoreReadBudget";
 
 export function useAdminOrders(currentUser: any, admins: string[]) {
+  const [adminOrdersRecoveryTick, setAdminOrdersRecoveryTick] = useState(0);
+
   const [pedidos, setPedidos] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [alarmeAtivo, setAlarmeAtivo] = useState(false);
@@ -88,7 +90,36 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       document.removeEventListener("visibilitychange", onVisibility);
       unsubscribe();
     };
-  }, [currentUser, admins]);
+  }, [currentUser, admins, adminOrdersRecoveryTick]);
+
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let lastRecovery = 0;
+
+    const recover = () => {
+      if (document.visibilityState !== "visible") return;
+
+      const now = Date.now();
+      if (now - lastRecovery < 15000) return;
+
+      lastRecovery = now;
+      setAdminOrdersRecoveryTick((value) => value + 1);
+    };
+
+    const interval = window.setInterval(recover, 30000);
+
+    window.addEventListener("focus", recover);
+    document.addEventListener("visibilitychange", recover);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", recover);
+      document.removeEventListener("visibilitychange", recover);
+    };
+  }, []);
+
 
   return {
     pedidos,

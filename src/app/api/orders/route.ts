@@ -361,19 +361,20 @@ export async function POST(request: NextRequest) {
       : { queued: true, sent: false };
 
     if (result.eventId) {
-      try {
-        const relay = await drainIntegrationOutboxEvent(result.eventId);
-
-        integration = {
-          queued: relay.sent !== 1,
-          sent: relay.sent === 1,
-        };
-      } catch (relayError) {
-        console.error(
-          "[orders/create] pedido salvo; relay seguirá na outbox",
-          relayError,
-        );
-      }
+      void drainIntegrationOutboxEvent(result.eventId)
+        .then((relay) => {
+          console.log("[orders/create] relay fast-lane", {
+            eventId: result.eventId,
+            sent: relay.sent,
+            failed: relay.failed,
+          });
+        })
+        .catch((relayError) => {
+          console.error(
+            "[orders/create] pedido salvo; relay seguirá na outbox",
+            relayError,
+          );
+        });
     }
 
     finishRouteTrace(trace,"ok",{status:result.reused?200:201,reused:result.reused,integrationSent:integration.sent});
