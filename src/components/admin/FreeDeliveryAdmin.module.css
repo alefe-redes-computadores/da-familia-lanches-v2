@@ -23,3 +23,14 @@
 
 /* ADMIN V6 FREE DELIVERY */
 .card{margin-top:14px!important;border-top:3px solid #ffca28!important;background:#111318!important}.head span{color:#ffd75e!important}.head strong{font-size:17px!important;color:#fff!important}.preview{background:#15131e!important;border:1px solid rgba(255,202,40,.18)!important}.preview span{color:#ffd75e!important}.preview i{background:#ffca28!important}.grid span,.full span{color:#b5bbc3!important}.card>button{background:#ffca28!important;color:#fff!important}
+
+/* ==========================================================
+   DFL ADMIN B — POLISH GLOBAL
+   Somente apresentação: zero Firestore I/O.
+   ========================================================== */
+@media(max-width:760px){
+  :global(button),
+  :global(a){
+    -webkit-tap-highlight-color:transparent;
+  }
+}

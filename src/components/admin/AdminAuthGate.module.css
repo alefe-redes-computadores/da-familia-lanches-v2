@@ -145,3 +145,14 @@
 .host strong {
   color: #959ba5;
 }
+
+/* ==========================================================
+   DFL ADMIN B — POLISH GLOBAL
+   Somente apresentação: zero Firestore I/O.
+   ========================================================== */
+@media(max-width:760px){
+  :global(button),
+  :global(a){
+    -webkit-tap-highlight-color:transparent;
+  }
+}

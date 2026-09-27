@@ -5,6 +5,7 @@ import { ModalBase } from "./ModalBase";
 import { useUIStore } from "@/store/ui";
 import { useCartStore } from "@/store/cart.store";
 import { haptic } from "@/lib/haptics";
+import { OrderRescueActions } from "./OrderRescueActions";
 import styles from "./OrderSuccessModal.module.css";
 
 type SuccessData = {
@@ -16,6 +17,7 @@ type SuccessData = {
   paymentMethod?: "pix" | "cartao" | "dinheiro";
   pixKey?: string;
   cartPreserved?: boolean;
+  rescueMessage?: string;
 };
 
 const money = (value: number) =>
@@ -61,6 +63,15 @@ export function OrderSuccessModal() {
         <span className={styles.eyebrow}>{data.isScheduled ? "PEDIDO AGENDADO" : "PEDIDO RECEBIDO"}</span>
         <h2>{isPix ? "Pedido salvo. Agora finalize o PIX." : "Pronto. Seu pedido já está salvo."}</h2>
         <p>As mudanças de status aparecem em <b>Meus pedidos</b>. O WhatsApp é um canal adicional e não cria outro pedido.</p>
+
+        {data.rescueMessage && (
+          <OrderRescueActions
+            message={data.rescueMessage}
+            whatsappUrl={data.whatsappUrl}
+            compact
+            title="Pedido salvo e pronto para compartilhar"
+          />
+        )}
 
         <div className={styles.receipt}>
           <div><span>Referência</span><strong>{ref}</strong></div>

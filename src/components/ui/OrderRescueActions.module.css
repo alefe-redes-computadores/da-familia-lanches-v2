@@ -1,0 +1,119 @@
+.rescue{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin-top:12px;
+  padding:14px;
+  border:1px solid rgba(20,20,20,.08);
+  border-radius:18px;
+  background:
+    radial-gradient(circle at 100% 0,rgba(255,200,0,.12),transparent 42%),
+    linear-gradient(145deg,#fff,#fbfaf5);
+  box-shadow:0 10px 30px rgba(20,20,20,.06);
+}
+.heading{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.heading>span{
+  color:#9a7200;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.16em;
+}
+.heading strong{
+  color:#171717;
+  font-size:14px;
+  letter-spacing:-.025em;
+}
+.heading p{
+  margin:0;
+  max-width:52ch;
+  color:#666;
+  font-size:10px;
+  line-height:1.45;
+}
+.actions{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+}
+.actions button{
+  min-width:0;
+  min-height:52px;
+  padding:9px 7px;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:13px;
+  background:#fff;
+  color:#252525;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.actions button:active{
+  transform:scale(.98);
+}
+.actions b{
+  font-size:10px;
+}
+.actions small{
+  color:#777;
+  font-size:8px;
+}
+.actions .whatsapp{
+  border-color:rgba(18,131,63,.18);
+  background:#effaf2;
+  color:#117238;
+}
+.instagram{
+  min-height:48px;
+  padding:10px 12px;
+  border-radius:13px;
+  background:#191919;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  text-decoration:none;
+}
+.instagram span{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  color:#aaa;
+  font-size:8px;
+}
+.instagram span b{
+  color:#fff;
+  font-size:10px;
+}
+.instagram>strong{
+  flex:0 0 auto;
+  font-size:9px;
+}
+.compact{
+  padding:12px;
+}
+@media(max-width:380px){
+  .actions{
+    grid-template-columns:1fr;
+  }
+  .actions button{
+    min-height:46px;
+    flex-direction:row;
+    justify-content:space-between;
+    padding-inline:12px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .actions button{
+    transition:none!important;
+  }
+}

@@ -14,3 +14,14 @@
 
 /* ADMIN DESIGN V5 — CATALOG ORGANIZER */
 .root,.card,.panel{background:#101216!important;border-color:#242830!important}.root [class*="row"],.root [class*="item"]{border-radius:10px!important}.root button{min-height:36px!important;border-radius:9px!important}
+
+/* ==========================================================
+   DFL ADMIN B — POLISH GLOBAL
+   Somente apresentação: zero Firestore I/O.
+   ========================================================== */
+@media(max-width:760px){
+  :global(button),
+  :global(a){
+    -webkit-tap-highlight-color:transparent;
+  }
+}

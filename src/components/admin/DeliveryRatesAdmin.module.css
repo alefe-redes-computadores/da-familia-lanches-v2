@@ -24,3 +24,14 @@
 /* ADMIN V6 DELIVERY */
 .toolbar{justify-content:space-between!important}.searchTrigger{min-height:36px;border:1px solid #2a2e33;border-radius:10px;background:#15181d;color:#b9c0c8;padding:0 11px;font-weight:850}.list{max-height:52dvh!important;background:#101217!important}.row{display:block!important;padding:0!important;border-bottom:1px solid #20242b!important;background:transparent!important}.rateView{width:100%;min-height:47px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;border:0;background:transparent;color:#e9ecf0;padding:0 10px;text-align:left}.rateView strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.rateView b{font-size:13px;color:#fff;font-variant-numeric:tabular-nums}.rateView span{font-size:10px;color:#d9aa22}.row[data-editing=true]{display:grid!important;grid-template-columns:minmax(0,1fr) 105px!important;gap:6px!important;padding:7px!important;background:#15181d!important}.rowActions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:6px}.done,.remove{min-height:32px!important;padding:0 10px!important}.done{border:1px solid rgba(255,202,40,.35);border-radius:9px;background:rgba(255,202,40,.14);color:#ffe082;font-weight:900}.remove{border-color:rgba(239,68,68,.22)!important;background:rgba(239,68,68,.08)!important;color:#ff8585!important}.remove[data-confirm=true]{background:#9b2f32!important;color:#fff!important}
 @media(max-width:600px){.row[data-editing=true]{grid-template-columns:minmax(0,1fr) 96px!important}}
+
+/* ==========================================================
+   DFL ADMIN B — POLISH GLOBAL
+   Somente apresentação: zero Firestore I/O.
+   ========================================================== */
+@media(max-width:760px){
+  :global(button),
+  :global(a){
+    -webkit-tap-highlight-color:transparent;
+  }
+}

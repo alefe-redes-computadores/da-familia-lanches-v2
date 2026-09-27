@@ -20,3 +20,14 @@
 
 /* ADMIN V6 REWARDS */
 .statusCard{background:linear-gradient(135deg,#12151a,#151322)!important;border-color:#2a2d37!important}.statusCard[data-active=true]{background:linear-gradient(135deg,#101a15,#121817)!important;border-color:rgba(34,197,94,.3)!important;color:#f5f7f6!important}.statusCard>div>span{color:#d9aa22!important}.statusCard[data-active=true]>div>span{color:#67d68e!important}.statusCard strong{font-size:17px!important;color:#fff!important}.statusCard p{color:#8d949e!important}.statusCard button{background:rgba(255,202,40,.14)!important;color:#ffe082!important;border:1px solid rgba(255,202,40,.28)!important}.statusCard[data-active=true] button{background:rgba(239,68,68,.08)!important;color:#ff8585!important;border-color:rgba(239,68,68,.18)!important}.card{background:#111318!important}.card label>span{color:#aeb4bd!important}.notice{border-left:3px solid #ffca28!important;background:#15131e!important}.notice strong{color:#ffe082!important}.save{background:#ffca28!important;color:#fff!important}
+
+/* ==========================================================
+   DFL ADMIN B — POLISH GLOBAL
+   Somente apresentação: zero Firestore I/O.
+   ========================================================== */
+@media(max-width:760px){
+  :global(button),
+  :global(a){
+    -webkit-tap-highlight-color:transparent;
+  }
+}

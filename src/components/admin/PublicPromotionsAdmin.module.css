@@ -17,3 +17,14 @@
 
 /* ADMIN DESIGN V5 — PUBLIC PROMOTIONS */
 .card{padding:13px!important;border-radius:15px!important;background:#101216!important;border-color:#242830!important}.card textarea{min-height:78px!important}.chips span{background:#171a1f!important}.card>button{min-height:42px!important;border-radius:10px!important}
+
+/* ==========================================================
+   DFL ADMIN B — POLISH GLOBAL
+   Somente apresentação: zero Firestore I/O.
+   ========================================================== */
+@media(max-width:760px){
+  :global(button),
+  :global(a){
+    -webkit-tap-highlight-color:transparent;
+  }
+}

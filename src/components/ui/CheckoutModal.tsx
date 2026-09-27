@@ -631,6 +631,7 @@ export function CheckoutModal() {
         paymentMethod: method,
         pixKey: method === "pix" ? BUSINESS_CONTACT.pixKey : undefined,
         cartPreserved: true,
+        rescueMessage: whatsappMessage,
       });
     } catch (error) {
       console.error("Erro ao salvar pedido", error);

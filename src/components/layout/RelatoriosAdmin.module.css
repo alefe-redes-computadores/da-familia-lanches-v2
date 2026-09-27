@@ -18,3 +18,14 @@
 .ranking>div{padding:10px 0}
 @media(max-width:620px){.hero{padding:15px}.hero strong{font-size:27px}.heroTicket b{font-size:14px}.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.kpis article{padding:11px}.kpis strong{font-size:16px}.kpis small{font-size:9px}}
 @media(max-width:390px){.hero{align-items:flex-start;flex-direction:column}.heroTicket{text-align:left}.kpis{grid-template-columns:1fr 1fr}.kpis article:first-child{grid-column:1/-1}}
+
+/* ==========================================================
+   DFL ADMIN B — POLISH GLOBAL
+   Somente apresentação: zero Firestore I/O.
+   ========================================================== */
+@media(max-width:760px){
+  :global(button),
+  :global(a){
+    -webkit-tap-highlight-color:transparent;
+  }
+}

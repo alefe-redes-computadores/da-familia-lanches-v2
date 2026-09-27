@@ -95,3 +95,29 @@
     padding:11px 12px;
   }
 }
+
+/* ==========================================================
+   RESILIÊNCIA V2 — estados mais legíveis e acessíveis
+   ========================================================== */
+.contingency{
+  position:relative;
+}
+.contingency::before{
+  content:"PEDIDO PRESERVADO";
+  display:inline-flex;
+  align-items:center;
+  min-height:20px;
+  margin-bottom:6px;
+  padding:3px 7px;
+  border-radius:999px;
+  background:rgba(138,105,0,.10);
+  color:#795d00;
+  font-size:7px;
+  font-weight:950;
+  letter-spacing:.13em;
+}
+@media(prefers-reduced-motion:reduce){
+  .errorFallback{
+    animation:none;
+  }
+}

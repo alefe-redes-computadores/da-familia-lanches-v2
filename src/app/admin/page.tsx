@@ -1,29 +1,48 @@
 "use client";
+import dynamic from "next/dynamic";
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useAdminOrders } from "@/hooks/useAdminOrders";
 import { OrderCard } from "@/components/layout/OrderCard";
-import { RelatoriosAdmin } from "@/components/layout/RelatoriosAdmin";
-import { CatalogAdmin } from "@/components/admin/CatalogAdmin";
-import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";
-import { SchedulingAdmin } from "@/components/admin/SchedulingAdmin";
-import { RewardsAdmin } from "@/components/admin/RewardsAdmin";
-import { CouponsAdmin } from "@/components/admin/CouponsAdmin";
-import { PublicPromotionsAdmin } from "@/components/admin/PublicPromotionsAdmin";
 import { prepareOrderSummaryTransition } from "@/lib/rewards";
 import { updateOrderStatus } from "@/lib/orderRepository";
 import { evaluateStoreStatus } from "@/lib/storeSchedule";
 import { useAdminStoreSettings } from "@/hooks/useAdminStoreSettings";
-import { FirestoreBudgetAdmin } from "@/components/admin/FirestoreBudgetAdmin";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
 import { adminOrderSearchText, compareOperationalOrders, operationalAttention } from "@/lib/adminOrders";
 import styles from "./admin.module.css";
-import { FreeDeliveryAdmin } from "@/components/admin/FreeDeliveryAdmin";
-import { DeliveryRatesAdmin } from "@/components/admin/DeliveryRatesAdmin";
 import { haptic } from "@/lib/haptics";
 import { AdminAuthGate } from "@/components/admin/AdminAuthGate";
+
+
+const AdminPanelLoading = () => (
+  <div
+    role="status"
+    aria-live="polite"
+    style={{
+      minHeight: 120,
+      display: "grid",
+      placeItems: "center",
+      opacity: 0.72,
+      fontSize: 14,
+    }}
+  >
+    Carregando painel…
+  </div>
+);
+
+const RelatoriosAdmin = dynamic(() => import("@/components/layout/RelatoriosAdmin").then((mod) => mod.RelatoriosAdmin), { loading: AdminPanelLoading });
+const CatalogAdmin = dynamic(() => import("@/components/admin/CatalogAdmin").then((mod) => mod.CatalogAdmin), { loading: AdminPanelLoading });
+const StoreOperationAdmin = dynamic(() => import("@/components/admin/StoreOperationAdmin").then((mod) => mod.StoreOperationAdmin), { loading: AdminPanelLoading });
+const SchedulingAdmin = dynamic(() => import("@/components/admin/SchedulingAdmin").then((mod) => mod.SchedulingAdmin), { loading: AdminPanelLoading });
+const RewardsAdmin = dynamic(() => import("@/components/admin/RewardsAdmin").then((mod) => mod.RewardsAdmin), { loading: AdminPanelLoading });
+const CouponsAdmin = dynamic(() => import("@/components/admin/CouponsAdmin").then((mod) => mod.CouponsAdmin), { loading: AdminPanelLoading });
+const PublicPromotionsAdmin = dynamic(() => import("@/components/admin/PublicPromotionsAdmin").then((mod) => mod.PublicPromotionsAdmin), { loading: AdminPanelLoading });
+const FirestoreBudgetAdmin = dynamic(() => import("@/components/admin/FirestoreBudgetAdmin").then((mod) => mod.FirestoreBudgetAdmin), { loading: AdminPanelLoading });
+const FreeDeliveryAdmin = dynamic(() => import("@/components/admin/FreeDeliveryAdmin").then((mod) => mod.FreeDeliveryAdmin), { loading: AdminPanelLoading });
+const DeliveryRatesAdmin = dynamic(() => import("@/components/admin/DeliveryRatesAdmin").then((mod) => mod.DeliveryRatesAdmin), { loading: AdminPanelLoading });
 
 const ADMINS = [
   "alefejohsefe@gmail.com",
