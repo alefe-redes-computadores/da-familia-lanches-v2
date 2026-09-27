@@ -33,3 +33,65 @@
 /* V54 — contingência clara, sem aparência de erro terminal */
 .contingency{padding:15px;border-color:#d9c36e;border-radius:17px;background:linear-gradient(145deg,#fffbe9,#fff5c7);color:#30290d;box-shadow:0 9px 24px rgba(90,70,0,.08)}
 .contingency span{font-size:7px;font-weight:950;letter-spacing:.14em;color:#8a6900}.contingency strong{font-size:14px;letter-spacing:-.02em}.contingency p{margin:1px 0 3px;font-size:9px;line-height:1.5;color:#6d6032}.contingency button{min-height:48px;border-radius:13px;background:#12833f;box-shadow:0 7px 18px rgba(18,131,63,.18)}.contingency small{text-align:center;font-size:8px}
+
+/* ==========================================================
+   SUPER CIRURGIA A+B — CHECKOUT RESILIENTE
+   ========================================================== */
+.recoveryBanner{
+  margin:0 0 12px;
+  padding:12px 13px;
+  border:1px solid rgba(31,122,62,.18);
+  border-radius:15px;
+  background:linear-gradient(145deg,#f5fbf6,#edf8f0);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  box-shadow:0 7px 22px rgba(20,90,44,.05);
+}
+.recoveryBanner>div{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.recoveryBanner strong{
+  color:#185c2c;
+  font-size:11px;
+  line-height:1.25;
+}
+.recoveryBanner span{
+  color:#57705e;
+  font-size:9px;
+  line-height:1.45;
+}
+.recoveryBanner button{
+  flex:0 0 30px;
+  width:30px;
+  height:30px;
+  border:0;
+  border-radius:10px;
+  background:rgba(24,92,44,.08);
+  color:#185c2c;
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+}
+.errorFallback{
+  animation:dflCheckoutReveal .18s ease-out;
+}
+.contingency{
+  overflow:hidden;
+}
+.contingency button{
+  touch-action:manipulation;
+}
+@keyframes dflCheckoutReveal{
+  from{opacity:.55;transform:translateY(-3px)}
+  to{opacity:1;transform:none}
+}
+@media(max-width:380px){
+  .recoveryBanner{
+    padding:11px 12px;
+  }
+}

@@ -19,6 +19,12 @@ import { DEFAULT_COMMERCIAL_SETTINGS, freeDeliveryThreshold, getCommercialSettin
 import { BUSINESS_CONTACT, businessWhatsAppUrl } from "@/lib/businessContact";
 import { buildOrderWhatsAppMessage } from "@/lib/orderWhatsApp";
 import { haptic } from "@/lib/haptics";
+import {
+  clearCheckoutDraft,
+  migrateGuestCheckoutDraft,
+  readCheckoutDraft,
+  saveCheckoutDraft,
+} from "@/lib/checkoutDraft";
 
 type PaymentMethod = "pix" | "cartao" | "dinheiro";
 type DeliveryMode = "delivery" | "pickup";
@@ -130,6 +136,8 @@ export function CheckoutModal() {
   const [scheduledFor, setScheduledFor] = useState("");
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [draftRecovered, setDraftRecovered] = useState(false);
+  const draftHydratedRef = useRef(false);
 
   const subtotal = getCartTotal();
   const isPickup = deliveryMode === "pickup";
@@ -148,6 +156,94 @@ export function CheckoutModal() {
   const canAdvance = nameReady && phoneReady && addressReady && items.length > 0;
 
   useEffect(() => { void getCommercialSettings().then(setCommercialSettings).catch(() => setCommercialSettings(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
+  useEffect(() => {
+    if (draftHydratedRef.current) return;
+
+    if (currentUser?.uid) {
+      migrateGuestCheckoutDraft(currentUser.uid);
+    }
+
+    const draft = readCheckoutDraft(currentUser?.uid || null);
+    draftHydratedRef.current = true;
+
+    if (!draft || items.length === 0) return;
+
+    customerEditingRef.current = true;
+
+    setStep(draft.step === 2 ? 2 : 1);
+    setDeliveryMode(draft.deliveryMode);
+    setCustomerName(draft.customerName || "");
+    setUserPhone(draft.userPhone || "");
+    setCep(draft.cep || "");
+    setRua(draft.rua || "");
+    setBairro(draft.bairro || "");
+    setNumero(draft.numero || "");
+    setComplemento(draft.complemento || "");
+    setReferencia(draft.referencia || "");
+    setMethod(draft.method);
+    setTroco(draft.troco || "");
+    setOrderObservation(draft.orderObservation || "");
+    setCouponCode(draft.couponCode || "");
+    setScheduledFor(draft.scheduledFor || "");
+
+    if (draft.rua || draft.bairro) {
+      setManualMode(true);
+      setAddressEditorOpen(false);
+    }
+
+    if (draft.bairro) {
+      void calculateDeliveryFee(draft.bairro);
+    }
+
+    setDraftRecovered(true);
+  // O draft deve ser hidratado uma única vez por abertura.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    if (!draftHydratedRef.current || items.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      saveCheckoutDraft(currentUser?.uid || null, {
+        step,
+        deliveryMode,
+        customerName,
+        userPhone,
+        cep,
+        rua,
+        bairro,
+        numero,
+        complemento,
+        referencia,
+        method,
+        troco,
+        orderObservation,
+        couponCode,
+        scheduledFor,
+      });
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    currentUser?.uid,
+    items.length,
+    step,
+    deliveryMode,
+    customerName,
+    userPhone,
+    cep,
+    rua,
+    bairro,
+    numero,
+    complemento,
+    referencia,
+    method,
+    troco,
+    orderObservation,
+    couponCode,
+    scheduledFor,
+  ]);
+
   useEffect(() => {
     if (
       !orderAttemptStorageKey ||
@@ -524,6 +620,8 @@ export function CheckoutModal() {
 
       const whatsappUrl = businessWhatsAppUrl(whatsappMessage);
       clearOrderAttempt();
+      clearCheckoutDraft(currentUser.uid);
+      clearCheckoutDraft(null);
       openModal("order-success", {
         orderId: created.id,
         isScheduled: isClosed,
@@ -595,12 +693,13 @@ export function CheckoutModal() {
   return (
     <ModalBase title={step === 1 ? "Como você quer receber?" : "Confirme seu pedido"} onClose={closeModal}>
       <div className={styles.body}>
-        {!isOnline && <div className={styles.offlineBanner} role="status"><strong>Sem conexão</strong><span>Seu carrinho está preservado. Reconecte antes de confirmar o pedido.</span></div>}
+        {!isOnline && <div className={styles.offlineBanner} role="status"><strong>Sem conexão</strong><span>Seu carrinho e os dados deste checkout ficam preservados neste aparelho. Reconecte antes de confirmar.</span></div>}
+        {draftRecovered && <div className={styles.recoveryBanner} role="status"><div><strong>Continuamos de onde você parou</strong><span>Recuperamos os dados deste pedido salvos neste aparelho.</span></div><button type="button" aria-label="Fechar aviso" onClick={() => setDraftRecovered(false)}>×</button></div>}
         <div className={styles.steps} aria-label={`Etapa ${step} de 2`}>
           <i data-active="true" /><i data-active={step === 2} />
         </div>
         <div className={styles.stepCaption}><strong>{step === 1 ? "Entrega" : "Pagamento"}</strong><span>{step}/2</span></div>
-        {errorMessage && <div className={styles.errorFallback}><div className={styles.error}>{errorMessage}</div>{fallbackWhatsAppUrl && <div className={styles.contingency}><span>PLANO B SEGURO</span><strong>Seu pedido continua completo</strong><p>Nada foi perdido. Envie os dados já organizados para a equipe confirmar manualmente.</p><button type="button" onClick={() => { haptic("success"); window.location.href = fallbackWhatsAppUrl; }}>Continuar no WhatsApp</button><small>O envio não é automático: confira a mensagem e toque em enviar.</small></div>}</div>}
+        {errorMessage && <div className={styles.errorFallback}><div className={styles.error}>{errorMessage}</div>{fallbackWhatsAppUrl && <div className={styles.contingency}><span>FINALIZAÇÃO ALTERNATIVA</span><strong>Seu pedido continua completo</strong><p>Os itens e os dados preenchidos foram preservados. Você pode tentar novamente ou enviar o pedido já organizado para confirmação pelo WhatsApp.</p><button type="button" onClick={() => { haptic("success"); window.location.href = fallbackWhatsAppUrl; }}>Continuar no WhatsApp</button><small>O envio não é automático: confira a mensagem e toque em enviar.</small></div>}</div>}
 
         {step === 1 ? (
           <div className={styles.stack}>

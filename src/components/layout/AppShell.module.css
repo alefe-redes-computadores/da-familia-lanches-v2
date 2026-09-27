@@ -2,3 +2,13 @@
 
 /* 12D: admin nao possui Header publico, portanto nao recebe offset dele */
 .adminShell{padding-bottom:0!important}.adminMain{padding-top:0!important;padding-bottom:0!important}
+
+/* DFL ADMIN B — shell operacional */
+.adminShell{
+  min-height:100dvh;
+  overflow-x:clip;
+}
+.adminMain{
+  min-width:0;
+  width:100%;
+}

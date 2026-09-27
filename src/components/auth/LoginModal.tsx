@@ -51,7 +51,7 @@ export function LoginModal() {
         <div className={styles.copy}>
           <span>RÁPIDO E SEGURO</span>
           <h3>Seus pedidos e seu histórico em um só lugar.</h3>
-          <p>Use sua conta Google. Seus dados de entrega podem ficar salvos para agilizar os próximos pedidos.</p>
+          <p>Use sua conta Google. Seu carrinho continua intacto e, ao entrar, você volta exatamente para a etapa que estava fazendo.</p>
         </div>
 
         {error && <div className={styles.error}>{error}</div>}
