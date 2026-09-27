@@ -24,16 +24,16 @@ const readPromotions = unstable_cache(async () => {
 
   finishRouteTrace(trace, "ok", { firestoreDocuments: snapshot.exists ? 1 : 0, promotions: items.length });
   return { items, generatedAt: new Date().toISOString() };
-}, ["public-promotions-v2"], { revalidate: 600, tags: ["public-promotions"] });
+}, ["public-promotions-v2"], { revalidate: 3600, tags: ["public-promotions"] });
 
 export async function GET() {
   const trace = startRouteTrace("public.promotions.request");
   try {
     const payload = await readPromotions();
-    finishRouteTrace(trace, "ok", { cachePolicy: "600s" });
+    finishRouteTrace(trace, "ok", { cachePolicy: "3600s" });
     return NextResponse.json(payload, {
       headers: {
-        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1200",
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
         "x-dfl-trace-id": trace.id,
       },
     });

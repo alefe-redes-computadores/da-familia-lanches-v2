@@ -37,14 +37,56 @@ export async function createCustomerOrder(input: CreateCustomerOrderInput) {
   const user = auth.currentUser;
   if (!user || user.uid !== input.userId) throw new Error("AUTH_REQUIRED");
   const token = await user.getIdToken();
-  const response = await fetch("/api/orders", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: JSON.stringify(input),
-  });
-  const payload = await response.json().catch(() => ({})) as { ok?: boolean; id?: string; error?: string };
-  if (!response.ok || !payload.ok || !payload.id) throw new Error(payload.error || "ORDER_FAILED");
-  return { id: payload.id };
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(
+    () => controller.abort(),
+    20_000,
+  );
+
+  try {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(input),
+      signal: controller.signal,
+    });
+
+    const payload = await response
+      .json()
+      .catch(() => ({})) as {
+        ok?: boolean;
+        id?: string;
+        error?: string;
+      };
+
+    if (!response.ok || !payload.ok || !payload.id) {
+      throw new Error(payload.error || "ORDER_FAILED");
+    }
+
+    return { id: payload.id };
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      error.name === "AbortError"
+    ) {
+      throw new Error("ORDER_TIMEOUT");
+    }
+
+    if (
+      error instanceof TypeError &&
+      /fetch|network|failed/i.test(error.message)
+    ) {
+      throw new Error("ORDER_NETWORK");
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export async function updateOrderStatus(input: {

@@ -24,5 +24,5 @@ const readCatalog = unstable_cache(async () => {
     })),
     generatedAt: new Date().toISOString(),
   };
-}, ["public-catalog-v2"], { revalidate:300, tags:["public-catalog"] });
-export async function GET(){const trace=startRouteTrace("public.catalog.request");try{const payload=await readCatalog();finishRouteTrace(trace,"ok",{cachePolicy:"300s"});return NextResponse.json(payload,{headers:{"Cache-Control":"public, s-maxage=300, stale-while-revalidate=600","x-dfl-trace-id":trace.id}})}catch(error){finishRouteTrace(trace,"error",{errorCode:errorCode(error)});return NextResponse.json({products:[],addons:[],categories:[],generatedAt:null,degraded:true},{status:503,headers:{"Cache-Control":"no-store","x-dfl-trace-id":trace.id}})}}
+}, ["public-catalog-v2"], { revalidate:3600, tags:["public-catalog"] });
+export async function GET(){const trace=startRouteTrace("public.catalog.request");try{const payload=await readCatalog();finishRouteTrace(trace,"ok",{cachePolicy:"3600s"});return NextResponse.json(payload,{headers:{"Cache-Control":"public, s-maxage=3600, stale-while-revalidate=7200","x-dfl-trace-id":trace.id}})}catch(error){finishRouteTrace(trace,"error",{errorCode:errorCode(error)});return NextResponse.json({products:[],addons:[],categories:[],generatedAt:null,degraded:true},{status:503,headers:{"Cache-Control":"no-store","x-dfl-trace-id":trace.id}})}}

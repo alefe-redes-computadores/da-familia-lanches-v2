@@ -577,12 +577,17 @@ export function CheckoutModal() {
         setErrorMessage("O sistema de pedidos atingiu o limite temporário do banco. Seu carrinho foi preservado; aguarde alguns minutos e tente novamente.");
       } else if (code === "SERVICE_UNAVAILABLE") {
         setErrorMessage("O serviço de pedidos está temporariamente indisponível. Seu carrinho foi preservado; tente novamente em instantes.");
+      } else if (code === "ORDER_TIMEOUT") {
+        setErrorMessage("O registro do pedido demorou mais que o esperado. Seu carrinho foi preservado. Você pode tentar novamente com segurança; não criaremos o mesmo pedido duas vezes.");
+      } else if (code === "ORDER_NETWORK") {
+        setErrorMessage("A conexão falhou durante o registro do pedido. Seu carrinho foi preservado. Confira sua internet e tente novamente.");
       } else if (code === "SERVICE_CONFIG") {
         setErrorMessage("O pedido não pôde ser gravado por uma configuração do servidor. Seu carrinho foi preservado e a loja precisa revisar o acesso ao banco.");
       } else {
         setErrorMessage("Não conseguimos registrar o pedido. Seu carrinho foi preservado. Tente novamente antes de enviar pelo WhatsApp.");
       }
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
