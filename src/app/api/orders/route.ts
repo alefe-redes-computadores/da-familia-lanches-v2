@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { getAuth } from "firebase-admin/auth";
+import { adminAuth } from "@/lib/integration/server/adminAuth";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { adminApp, adminDb } from "@/lib/integration/server/admin";
+import { adminDb } from "@/lib/integration/server/admin";
 import { products as fallbackProducts, type Product } from "@/data/products";
 import { ADDONS as fallbackAddons, type Addon } from "@/data/addons";
 import { buildOrderCreatedEvent } from "@/lib/integration/orderEvents";
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
   try {
     const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() || "";
     if (!bearer) return fail("AUTH_REQUIRED", 401);
-    const decoded = await getAuth(adminApp).verifyIdToken(bearer, true);
+    const decoded = await adminAuth.verifyIdToken(bearer, true);
     const rawText = await request.text();
     if (!rawText || rawText.length > MAX_BODY) return fail("PAYLOAD_INVALID", 413);
     const body = object(JSON.parse(rawText));

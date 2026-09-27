@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "firebase-admin/auth";
+import { adminAuth } from "@/lib/integration/server/adminAuth";
 import { FieldValue } from "firebase-admin/firestore";
-import { adminApp, adminDb } from "@/lib/integration/server/admin";
+import { adminDb } from "@/lib/integration/server/admin";
 import {
   errorCode,
   finishRouteTrace,
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
      * A validação criptográfica do ID token permanece; evitamos a
      * verificação remota de revogação em toda abertura de carrinho.
      */
-    const decoded = await getAuth(adminApp).verifyIdToken(bearer, false);
+    const decoded = await adminAuth.verifyIdToken(bearer, false);
 
     await ensureSummary(decoded.uid);
 
