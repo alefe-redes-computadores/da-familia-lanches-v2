@@ -8,8 +8,6 @@ import type { AdminOrder } from "@/lib/adminOrders";
 import { recordFirestoreReadEstimate } from "@/lib/firestoreReadBudget";
 
 export function useAdminOrders(currentUser: any, admins: string[]) {
-  const [adminOrdersRecoveryTick, setAdminOrdersRecoveryTick] = useState(0);
-
   const [pedidos, setPedidos] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [alarmeAtivo, setAlarmeAtivo] = useState(false);
@@ -53,6 +51,47 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
     initializedRef.current = false;
     knownIdsRef.current = new Set();
+
+    let cancelled = false;
+
+    const loadAuthoritativeOrders = async () => {
+      try {
+        const token = await currentUser.getIdToken();
+        const response = await fetch("/api/admin/orders", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`ADMIN_ORDERS_HTTP_${response.status}`);
+        }
+
+        const payload = await response.json() as {
+          ok?: boolean;
+          orders?: AdminOrder[];
+        };
+
+        if (cancelled || !payload.ok || !Array.isArray(payload.orders)) return;
+
+        const docs = payload.orders;
+        const pendingIds = docs
+          .filter((order) => normalizarStatus(order.status) === "Pendente")
+          .map((order) => String(order.id));
+
+        knownIdsRef.current = new Set(pendingIds);
+        initializedRef.current = true;
+        setPedidos(docs);
+        setLoading(false);
+      } catch (error) {
+        console.error("[admin/orders] bootstrap autoritativo falhou:", error);
+      }
+    };
+
+    void loadAuthoritativeOrders();
+
     const ordersQuery = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(40));
     const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
       const delivered = initializedRef.current ? snapshot.docChanges().length : snapshot.size;
@@ -87,38 +126,14 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
       unsubscribe();
     };
-  }, [currentUser, admins, adminOrdersRecoveryTick]);
+  }, [currentUser, admins]);
 
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
 
-    let lastRecovery = 0;
-
-    const recover = () => {
-      if (document.visibilityState !== "visible") return;
-
-      const now = Date.now();
-      if (now - lastRecovery < 15000) return;
-
-      lastRecovery = now;
-      setAdminOrdersRecoveryTick((value) => value + 1);
-    };
-
-    const interval = window.setInterval(recover, 30000);
-
-    window.addEventListener("focus", recover);
-    document.addEventListener("visibilitychange", recover);
-
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", recover);
-      document.removeEventListener("visibilitychange", recover);
-    };
-  }, []);
 
 
   return {
