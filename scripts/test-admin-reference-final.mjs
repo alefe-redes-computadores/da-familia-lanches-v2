@@ -1,0 +1,17 @@
+import fs from "node:fs";
+const read=(f)=>fs.readFileSync(f,"utf8");
+const ok=(v,l)=>{if(!v)throw new Error("FALHOU: "+l);console.log("OK: "+l)};
+const page=read("src/app/admin/page.tsx");
+const css=read("src/app/admin/admin.module.css");
+const card=read("src/components/layout/OrderCard.tsx");
+ok(page.includes("desktopRail")&&page.includes("railStore"),"sidebar desktop estrutural");
+ok(page.includes("selectedOrderId")&&page.includes("orderInspector"),"master-detail de pedidos");
+ok(page.includes("forceExpanded")&&page.includes("inspector"),"painel usa o card real");
+ok(css.includes("grid-template-columns:224px minmax(0,1fr)"),"shell desktop em duas áreas");
+ok(css.includes("sheetBackdrop")&&css.includes("88dvh"),"detalhes responsivos em bottom sheet");
+ok(card.includes("isExpanded = forceExpanded || expanded"),"expansão controlada preservada");
+ok(page.includes("updateOrderStatus")&&page.includes("useAdminOrders"),"motor operacional preservado");
+ok(!page.includes("getDocs(")&&!page.includes("onSnapshot("),"redesign não adiciona Firestore I/O");
+console.log("============================================================");
+console.log(" DFL ADMIN REFERENCE FINAL — CONTRATO OK");
+console.log("============================================================");

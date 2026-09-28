@@ -34,3 +34,7 @@
     -webkit-tap-highlight-color:transparent;
   }
 }
+
+
+/* ADMIN PREMIUM V1 — STORE OPERATION */
+.root{gap:12px!important}.current{position:relative;overflow:hidden;border:1px solid #94a3b824!important;border-radius:18px!important;padding:15px!important;background:linear-gradient(145deg,#111820,#0c1116)!important;box-shadow:0 14px 34px #0003!important}.current:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#ff5f68;box-shadow:0 0 18px #ff5f6859}.current[data-open=true]:before{background:#36d887;box-shadow:0 0 18px #36d88759}.current strong{font-size:20px!important}.block{padding:15px!important;border:1px solid #94a3b821!important;border-radius:18px!important;background:linear-gradient(180deg,#0f151b,#0b1015)!important;box-shadow:0 16px 36px #0003!important}.modes{gap:8px!important}.modes button{min-height:64px!important;border:1px solid #94a3b821!important;border-radius:13px!important;background:#111820!important;color:#dce3ea!important}.modes button[data-active=true]{border-color:#ffc9286b!important;background:#ffc92816!important;color:#ffd44b!important}.day{border:1px solid #94a3b81a!important;background:#10161c!important;border-radius:12px!important}.save{min-height:44px!important;border-radius:12px!important}.msg{position:sticky!important;bottom:12px!important;border:1px solid #36d88740!important;border-radius:13px!important;background:#0d2b1ff5!important;color:#dffbed!important;box-shadow:0 16px 40px #0005!important}

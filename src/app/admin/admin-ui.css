@@ -158,3 +158,12 @@
 [data-admin-ui] [data-active="true"]:not([data-earned="true"]){border-color:rgba(255,202,40,.34)!important}
 [data-admin-ui] button[data-active="true"],[data-admin-ui] [class*="tab"][data-active="true"]{background:rgba(255,202,40,.14)!important;color:#ffe082!important}
 @media(max-width:600px){[data-admin-ui]{overflow-x:hidden}[data-admin-ui] button{max-width:100%}}
+
+
+/* DFL ADMIN PREMIUM V1 — shared controls */
+[data-admin-ui]{--admin-bg:#070a0d!important;--admin-surface:#0d1217!important;--admin-surface-2:#11171d!important;--admin-surface-3:#161d24!important;--admin-line:#94a3b824!important;--admin-text:#f8fafc!important;--admin-muted:#929daa!important;--admin-accent:#ffc928!important;--admin-success:#36d887!important;--admin-danger:#ff5f68!important;background:#070a0d!important}
+[data-admin-ui] button{transition:transform .14s,background .16s,border-color .16s!important}[data-admin-ui] button:active:not(:disabled){transform:scale(.985)}
+[data-admin-ui] input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),[data-admin-ui] select,[data-admin-ui] textarea{border-color:#94a3b824!important;background:#0c1116!important;border-radius:12px!important;box-shadow:inset 0 1px #ffffff05!important}
+[data-admin-ui] input:focus,[data-admin-ui] select:focus,[data-admin-ui] textarea:focus{border-color:#ffc9287a!important;box-shadow:0 0 0 3px #ffc92814!important}
+[data-admin-ui] button[class*=primary],[data-admin-ui] button[class*=save],[data-admin-ui] button[class*=mainAction]{background:linear-gradient(135deg,#ffda4b,#f4b800)!important;border-color:#ffd449!important;color:#1b1503!important;box-shadow:0 9px 22px #f4b7001f,inset 0 1px #ffffff61!important}
+[data-admin-ui] button[class*=danger],[data-admin-ui] button[class*=remove],[data-admin-ui] button[data-danger=true]{background:#ff5f6811!important;border-color:#ff5f6838!important;color:#ff858b!important}

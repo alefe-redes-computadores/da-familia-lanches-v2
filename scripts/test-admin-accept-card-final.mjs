@@ -7,7 +7,7 @@ const card=read("src/components/layout/OrderCard.tsx");
 const css=read("src/components/layout/OrderCard.module.css");
 ok(rules.includes("match /integration_outbox/{eventId}")&&rules.includes("allow create: if isAdmin();"),"admin pode criar outbox atomico");
 ok(repo.includes("ensureIntegrationEventInTransaction"),"status mantem evento na mesma transacao");
-ok(card.includes("className={styles.summary}")&&card.includes("aria-expanded={expanded}"),"card compacto expansivel");
+ok(card.includes("className={styles.summary}")&&card.includes("aria-expanded={isExpanded}")&&card.includes("isExpanded = forceExpanded || expanded"),"card compacto com detalhe controlado");
 ok(card.includes("className={styles.details}"),"detalhes sob demanda");
 ok(css.includes("ADMIN FINAL — COMPACT OPERATION CARD"),"acabamento compacto aplicado");
 console.log("============================================================");

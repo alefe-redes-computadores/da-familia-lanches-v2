@@ -81,6 +81,7 @@ export default function AdminPage() {
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
 
@@ -171,6 +172,11 @@ export default function AdminPage() {
       .sort(compareOperationalOrders);
   }, [pedidos, search, tab, serviceFilter, attentionOnly, now]);
 
+  const selectedOrder = useMemo(
+    () => pedidos.find((pedido) => pedido.id === selectedOrderId) ?? null,
+    [pedidos, selectedOrderId],
+  );
+
   if (!currentUser) {
     return <AdminAuthGate />;
   }
@@ -208,6 +214,40 @@ export default function AdminPage() {
 
   return (
     <main className={styles.page}>
+      <aside className={styles.desktopRail} aria-label="Navegação administrativa">
+        <div className={styles.railBrand}>
+          <div className={styles.railMark} aria-hidden="true" />
+          <div><strong>Da Família</strong><span>Painel administrativo</span></div>
+        </div>
+
+        <nav className={styles.railNav}>
+          <button type="button" data-active={tab === "cozinha"} onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+            <i>01</i><span>Visão geral</span>{counts.cozinha > 0 && <b>{counts.cozinha}</b>}
+          </button>
+          <button type="button" data-active={tab === "expedicao"} onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+            <i>02</i><span>Expedição</span>{counts.expedicao > 0 && <b>{counts.expedicao}</b>}
+          </button>
+          <button type="button" data-active={tab === "concluidos"} onClick={() => { setTab("concluidos"); setAttentionOnly(false); }}>
+            <i>03</i><span>Histórico</span>
+          </button>
+
+          <div className={styles.railSection}>GESTÃO</div>
+          <button type="button" data-active={tab === "catalogo"} onClick={() => setTab("catalogo")}><i>04</i><span>Cardápio</span></button>
+          <button type="button" data-active={tab === "operacao"} onClick={() => setTab("operacao")}><i>05</i><span>Funcionamento</span></button>
+          <button type="button" data-active={tab === "agendamentos"} onClick={() => setTab("agendamentos")}><i>06</i><span>Agendamentos</span></button>
+          <button type="button" data-active={tab === "frete"} onClick={() => setTab("frete")}><i>07</i><span>Entrega & frete</span></button>
+          <button type="button" data-active={tab === "cupons"} onClick={() => setTab("cupons")}><i>08</i><span>Cupons</span></button>
+          <button type="button" data-active={tab === "fidelidade"} onClick={() => setTab("fidelidade")}><i>09</i><span>Fidelidade</span></button>
+          <button type="button" data-active={tab === "gestao"} onClick={() => setTab("gestao")}><i>10</i><span>Relatórios</span></button>
+        </nav>
+
+        <button type="button" className={styles.railStore} data-tone={storeState.tone} onClick={() => setTab("operacao")}>
+          <i />
+          <span><b>Loja {storeState.label}</b><small>{storeState.detail}</small></span>
+        </button>
+      </aside>
+
+      <div className={styles.workspace}>
       {alarmeAtivo && <button className={styles.alarm} onClick={pararAlarme}>NOVO PEDIDO <span>toque para silenciar</span></button>}
 
       <header className={styles.topbar}>
@@ -326,7 +366,7 @@ export default function AdminPage() {
         </section>
       )}
 
-      {feedback && <div className={styles.toast} role="status" aria-live="polite"><i /><span>{feedback}</span><button onClick={() => setFeedback("")} aria-label="Fechar aviso">×</button></div>}
+      {feedback && <div className={styles.toast} data-tone={feedback.startsWith("Não foi possível") ? "error" : "success"} role="status" aria-live="polite"><i /><span>{feedback}</span><button onClick={() => setFeedback("")} aria-label="Fechar aviso">×</button></div>}
 
       {tab === "catalogo" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogAdmin /></section>
@@ -386,10 +426,40 @@ export default function AdminPage() {
             </label>
           )}
 
-          <div className={styles.grid}>
-            {filtered.length
-              ? filtered.map((pedido) => <OrderCard key={pedido.id} pedido={pedido} updateStatus={updateStatus} imprimirPedido={imprimirPedido} />)
-              : <div className={styles.empty}><strong>Nenhum pedido aqui.</strong><span>{search || attentionOnly || serviceFilter !== "todos" ? "Tente limpar os filtros." : "A fila está limpa nesta etapa."}</span></div>}
+          <div className={styles.orderWorkspace} data-inspector-open={Boolean(selectedOrder)}>
+            <div className={styles.grid}>
+              {filtered.length
+                ? filtered.map((pedido) => (
+                    <OrderCard
+                      key={pedido.id}
+                      pedido={pedido}
+                      updateStatus={updateStatus}
+                      imprimirPedido={imprimirPedido}
+                      selected={selectedOrderId === pedido.id}
+                      onSelect={() => setSelectedOrderId(pedido.id)}
+                    />
+                  ))
+                : <div className={styles.empty}><strong>Nenhum pedido aqui.</strong><span>{search || attentionOnly || serviceFilter !== "todos" ? "Tente limpar os filtros." : "A fila está limpa nesta etapa."}</span></div>}
+            </div>
+
+            {selectedOrder && (
+              <>
+                <button type="button" className={styles.sheetBackdrop} aria-label="Fechar detalhes" onClick={() => setSelectedOrderId(null)} />
+                <aside className={styles.orderInspector} aria-label="Detalhes do pedido">
+                  <div className={styles.inspectorHead}>
+                    <div><span>PEDIDO SELECIONADO</span><strong>Detalhes e ações</strong></div>
+                    <button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Fechar detalhes">×</button>
+                  </div>
+                  <OrderCard
+                    pedido={selectedOrder}
+                    updateStatus={updateStatus}
+                    imprimirPedido={imprimirPedido}
+                    forceExpanded
+                    inspector
+                  />
+                </aside>
+              </>
+            )}
           </div>
 
           {(tab === "concluidos" || tab === "cancelados") && historyHasMore && (
@@ -414,6 +484,7 @@ export default function AdminPage() {
           )}
         </>
       ) : null}
+      </div>
     </main>
   );
 }

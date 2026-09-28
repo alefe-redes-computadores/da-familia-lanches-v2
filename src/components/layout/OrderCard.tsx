@@ -7,8 +7,9 @@ import { canTransitionOrderStatus, statusTitle } from "@/lib/orderStatus";
 import { ageLabel, operationalAttention } from "@/lib/adminOrders";
 import styles from "./OrderCard.module.css";
 
-export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
+export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false }: any) {
   const [expanded, setExpanded] = useState(false);
+  const isExpanded = forceExpanded || expanded;
   const statusAtual = normalizarStatus(pedido.status);
   const itens = getOrderItems(pedido);
   const telefone = String(pedido.userPhone || pedido.phone || "").trim();
@@ -46,6 +47,8 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
     <article
       className={styles.card}
       data-attention={attention?.level || "none"}
+      data-selected={selected}
+      data-inspector={inspector}
       style={{ "--status-color": getColorByStatus(pedido.status) } as React.CSSProperties}
     >
       <div className={styles.top}>
@@ -71,8 +74,11 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
       <button
         className={styles.summary}
         type="button"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={isExpanded}
+        onClick={() => {
+          if (onSelect) onSelect();
+          else if (!forceExpanded) setExpanded((value) => !value);
+        }}
       >
         <div className={styles.summaryMain}>
           <h3>{pedido.userName || "Cliente"}</h3>
@@ -83,11 +89,11 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
         </div>
         <div className={styles.summaryTotal}>
           <strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong>
-          <span>{expanded ? "Fechar" : "Detalhes"}</span>
+          <span>{isExpanded ? (inspector ? "Em foco" : "Fechar") : "Detalhes"}</span>
         </div>
       </button>
 
-      {expanded && (
+      {isExpanded && (
         <div className={styles.details}>
           <div className={styles.person}>
             <div className={styles.phone}>{telefone || "Telefone não informado"}</div>
