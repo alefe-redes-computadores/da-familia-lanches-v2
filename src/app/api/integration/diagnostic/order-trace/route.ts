@@ -252,6 +252,26 @@ export async function GET(req: NextRequest) {
         id: orderId,
         reference: `#${orderId.slice(-8).toUpperCase()}`,
         status: scalar(order.status),
+        data: (() => {
+          const value = order.data;
+          if (value && typeof value === "object" && "toDate" in value) {
+            try {
+              return {
+                type: "timestamp",
+                iso: (value as FirebaseFirestore.Timestamp).toDate().toISOString(),
+              };
+            } catch {}
+          }
+          return {
+            type:
+              value === null
+                ? "null"
+                : Array.isArray(value)
+                  ? "array"
+                  : typeof value,
+            value: scalar(value),
+          };
+        })(),
         created_at: scalar(order.created_at ?? order.createdAt),
         updated_at: scalar(order.updated_at ?? order.updatedAt),
       },
