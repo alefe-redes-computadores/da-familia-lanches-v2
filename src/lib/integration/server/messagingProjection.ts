@@ -235,17 +235,43 @@ async function claimRawCandidate(docId:string, workerId:string):Promise<ClaimedR
   });
 }
 
+function permanentlyUnsupportedIntent(data:Record<string,unknown>) {
+  if (text(data.messaging_event_type)) return false;
+
+  const intentType = text(data.intent_type);
+
+  return intentType === "delivery_assigned" ||
+    intentType === "delivery_position_changed";
+}
+
 async function releaseUnhydratable(raw:ClaimedRaw, workerId:string) {
   const ref = adminDb.collection(COLLECTION).doc(raw.docId);
+
   await adminDb.runTransaction(async tx => {
     const snap = await tx.get(ref);
     if (!snap.exists) return;
+
     const data = snap.data() as Record<string,unknown>;
     if (data.status !== "processing" || data.locked_by !== workerId) return;
+
     const now = new Date().toISOString();
-    tx.update(ref,{
-      status:"pending", locked_by:null, locked_at:null, updated_at:now,
-      last_error:"Intent elegível sem dados suficientes para projeção.",
+    const permanent = permanentlyUnsupportedIntent(data);
+
+    tx.update(ref, permanent ? {
+      status:"failed",
+      messaging_eligible:false,
+      locked_by:null,
+      locked_at:null,
+      updated_at:now,
+      processed_at:now,
+      last_error:"Intent legado sem projeção de mensagem; removido da fila de retry.",
+    } : {
+      status:"pending",
+      messaging_eligible:true,
+      locked_by:null,
+      locked_at:null,
+      updated_at:now,
+      last_error:"Intent temporariamente sem dados suficientes para projeção.",
     });
   });
 }

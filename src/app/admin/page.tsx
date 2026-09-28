@@ -61,7 +61,15 @@ const normalizeSearch = (value: unknown) =>
 
 export default function AdminPage() {
   const { currentUser } = useAuthStore();
-  const { pedidos, loading, alarmeAtivo, pararAlarme } = useAdminOrders(currentUser, ADMINS);
+  const {
+    pedidos,
+    loading,
+    historyLoading,
+    historyHasMore,
+    loadMoreHistory,
+    alarmeAtivo,
+    pararAlarme,
+  } = useAdminOrders(currentUser, ADMINS);
   const [tab, setTab] = useState<Tab>("cozinha");
   const authorized = Boolean(currentUser?.email && ADMINS.includes(currentUser.email));
   const { settings: adminStoreSettings } = useAdminStoreSettings(authorized);
@@ -352,7 +360,7 @@ export default function AdminPage() {
             <button data-active={serviceFilter === "delivery"} onClick={() => setServiceFilter("delivery")}>Entrega</button>
             <button data-active={serviceFilter === "pickup"} onClick={() => setServiceFilter("pickup")}>Retirada</button>
             <button className={styles.attentionFilter} data-active={attentionOnly} onClick={() => setAttentionOnly((value) => !value)}>
-              {attentionOnly ? "Voltar à etapa" : "Sem atualização"} {counts.attention > 0 && <b>{counts.attention}</b>}
+              {attentionOnly ? "Voltar à etapa" : "Atenção"} {counts.attention > 0 && <b>{counts.attention}</b>}
             </button>
             </div>
           </div>
@@ -371,6 +379,27 @@ export default function AdminPage() {
               ? filtered.map((pedido) => <OrderCard key={pedido.id} pedido={pedido} updateStatus={updateStatus} imprimirPedido={imprimirPedido} />)
               : <div className={styles.empty}><strong>Nenhum pedido aqui.</strong><span>{search || attentionOnly || serviceFilter !== "todos" ? "Tente limpar os filtros." : "A fila está limpa nesta etapa."}</span></div>}
           </div>
+
+          {(tab === "concluidos" || tab === "cancelados") && historyHasMore && (
+            <div style={{ display: "grid", placeItems: "center", padding: "18px 0 6px" }}>
+              <button
+                type="button"
+                onClick={() => void loadMoreHistory()}
+                disabled={historyLoading}
+                style={{
+                  minHeight: 44,
+                  padding: "0 18px",
+                  borderRadius: 12,
+                  border: "1px solid #2b3038",
+                  background: "#171a1f",
+                  color: "#f3f4f6",
+                  fontWeight: 850,
+                }}
+              >
+                {historyLoading ? "Carregando histórico…" : "Carregar pedidos mais antigos"}
+              </button>
+            </div>
+          )}
         </>
       ) : null}
     </main>

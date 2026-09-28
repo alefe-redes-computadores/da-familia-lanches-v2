@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FieldPath } from "firebase-admin/firestore";
 import { adminAuth } from "@/lib/integration/server/adminAuth";
 import { adminDb } from "@/lib/integration/server/admin";
 import { isAdminEmail } from "@/lib/adminAuthorization";
@@ -11,18 +12,16 @@ const ACTIVE_STATUSES = [
   "Em Produção",
   "Agendado",
   "Pronto",
+  "Saiu para Entrega",
   "Saiu para entrega",
   "Em rota",
 ] as const;
 
-const HISTORY_STATUSES = [
-  "Finalizado",
-  "Cancelado",
-] as const;
-
 const ACTIVE_LIMIT_PER_STATUS = 40;
-const HISTORY_LIMIT_PER_STATUS = 30;
-const RESULT_LIMIT = 80;
+const ACTIVE_RESULT_LIMIT = 100;
+const HISTORY_TARGET_SIZE = 20;
+const HISTORY_SCAN_SIZE = 50;
+const HISTORY_MAX_SCAN_PAGES = 4;
 
 type Raw = Record<string, unknown>;
 
@@ -33,13 +32,9 @@ function serialize(value: unknown): unknown {
     typeof value === "string" ||
     typeof value === "number" ||
     typeof value === "boolean"
-  ) {
-    return value;
-  }
+  ) return value;
 
-  if (Array.isArray(value)) {
-    return value.map(serialize);
-  }
+  if (Array.isArray(value)) return value.map(serialize);
 
   if (
     typeof value === "object" &&
@@ -77,94 +72,230 @@ function millis(value: unknown): number {
     }
   }
 
-  if (typeof value === "string") {
-    const parsed = Date.parse(value);
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value).getTime();
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
   return 0;
 }
 
+function looseStatus(value: unknown) {
+  const normalized = String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (normalized.includes("cancel")) return "Cancelado";
+  if (normalized.includes("final") || normalized.includes("conclu"))
+    return "Finalizado";
+  if (normalized.includes("agend")) return "Agendado";
+  if (normalized.includes("pend")) return "Pendente";
+  if (normalized.includes("produc") || normalized.includes("preparo"))
+    return "Em Produção";
+  if (normalized.includes("pronto")) return "Pronto";
+  if (
+    normalized.includes("saiu") ||
+    normalized.includes("em rota") ||
+    normalized.includes("a caminho")
+  ) return "Saiu para Entrega";
+
+  return String(value ?? "");
+}
+
 function sortDocs(
   docs: FirebaseFirestore.QueryDocumentSnapshot[],
-): FirebaseFirestore.QueryDocumentSnapshot[] {
+) {
   return [...docs].sort((a, b) => {
-    const byDate = millis(b.data().data) - millis(a.data().data);
-    return byDate || b.id.localeCompare(a.id);
+    const ad = a.data();
+    const bd = b.data();
+    const av =
+      millis(ad.statusUpdatedAt) ||
+      millis(ad.data) ||
+      millis(ad.createdAt);
+    const bv =
+      millis(bd.statusUpdatedAt) ||
+      millis(bd.data) ||
+      millis(bd.createdAt);
+
+    return bv - av || b.id.localeCompare(a.id);
   });
 }
 
-async function readStatusGroup(
-  statuses: readonly string[],
-  perStatusLimit: number,
-) {
+async function authenticate(request: NextRequest) {
+  const bearer =
+    request.headers
+      .get("authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim() || "";
+
+  if (!bearer) return null;
+
+  const decoded = await adminAuth.verifyIdToken(bearer, true);
+  return isAdminEmail(decoded.email) ? decoded : null;
+}
+
+async function readActiveOrders() {
   const snapshots = await Promise.all(
-    statuses.map((status) =>
+    ACTIVE_STATUSES.map((status) =>
       adminDb
         .collection("Pedidos")
         .where("status", "==", status)
-        .limit(perStatusLimit)
+        .limit(ACTIVE_LIMIT_PER_STATUS)
         .get(),
     ),
   );
 
-  const merged = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+  const merged =
+    new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
 
   for (const snapshot of snapshots) {
-    for (const doc of snapshot.docs) {
-      merged.set(doc.id, doc);
-    }
+    for (const doc of snapshot.docs) merged.set(doc.id, doc);
   }
 
-  return sortDocs([...merged.values()]);
+  return sortDocs([...merged.values()])
+    .slice(0, ACTIVE_RESULT_LIMIT)
+    .map((doc) => ({
+      id: doc.id,
+      ...(serialize(doc.data()) as Raw),
+    }));
+}
+
+/*
+ * Histórico deliberadamente pagina pelo ID físico do documento.
+ *
+ * Motivo: a coleção Pedidos contém gerações antigas com tipos de `data`
+ * heterogêneos. Ordenar a coleção inteira por `data` já provou esconder
+ * pedidos de 2026 atrás de documentos antigos.
+ *
+ * O cursor por documentId percorre a coleção inteira de forma estável,
+ * sem depender da representação histórica da data e sem índice composto.
+ * Só pedidos terminais entram na resposta.
+ */
+async function readHistory(cursor: string | null) {
+  const history: Array<{ id: string } & Raw> = [];
+  let scanCursor = cursor;
+  let scanned = 0;
+  let pages = 0;
+  let exhausted = false;
+
+  while (
+    history.length < HISTORY_TARGET_SIZE &&
+    pages < HISTORY_MAX_SCAN_PAGES &&
+    !exhausted
+  ) {
+    let query = adminDb
+      .collection("Pedidos")
+      .orderBy(FieldPath.documentId(), "desc")
+      .limit(HISTORY_SCAN_SIZE);
+
+    if (scanCursor) query = query.startAfter(scanCursor);
+
+    const snapshot = await query.get();
+    pages += 1;
+    scanned += snapshot.size;
+
+    if (snapshot.empty) {
+      exhausted = true;
+      break;
+    }
+
+    for (const doc of snapshot.docs) {
+      scanCursor = doc.id;
+      const data = doc.data();
+      const status = looseStatus(data.status);
+
+      if (status !== "Finalizado" && status !== "Cancelado")
+        continue;
+
+      history.push({
+        id: doc.id,
+        ...(serialize(data) as Raw),
+      });
+
+      if (history.length >= HISTORY_TARGET_SIZE) break;
+    }
+
+    if (snapshot.size < HISTORY_SCAN_SIZE) exhausted = true;
+  }
+
+  history.sort((a, b) => {
+    const av =
+      millis(a.statusUpdatedAt) ||
+      millis(a.data) ||
+      millis(a.createdAt);
+    const bv =
+      millis(b.statusUpdatedAt) ||
+      millis(b.data) ||
+      millis(b.createdAt);
+
+    return bv - av || b.id.localeCompare(a.id);
+  });
+
+  return {
+    orders: history,
+    cursor: exhausted ? null : scanCursor,
+    hasMore: !exhausted && Boolean(scanCursor),
+    scanned,
+  };
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const bearer =
-      request.headers
-        .get("authorization")
-        ?.replace(/^Bearer\s+/i, "")
-        .trim() || "";
+    const decoded = await authenticate(request);
 
-    if (!bearer) {
+    if (!decoded) {
       return NextResponse.json(
         { ok: false, error: "AUTH_REQUIRED" },
         { status: 401 },
       );
     }
 
-    const decoded = await adminAuth.verifyIdToken(bearer, true);
+    const mode =
+      request.nextUrl.searchParams.get("mode") === "history"
+        ? "history"
+        : "bootstrap";
 
-    if (!isAdminEmail(decoded.email)) {
+    if (mode === "history") {
+      const cursor =
+        request.nextUrl.searchParams.get("cursor")?.trim() || null;
+
+      const page = await readHistory(cursor);
+
       return NextResponse.json(
-        { ok: false, error: "FORBIDDEN" },
-        { status: 403 },
+        {
+          ok: true,
+          mode: "history",
+          orders: page.orders,
+          historyCursor: page.cursor,
+          historyHasMore: page.hasMore,
+          scanned: page.scanned,
+          authorityVersion: 4,
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store, max-age=0",
+          },
+        },
       );
     }
 
-    const [activeDocs, historyDocs] = await Promise.all([
-      readStatusGroup(ACTIVE_STATUSES, ACTIVE_LIMIT_PER_STATUS),
-      readStatusGroup(HISTORY_STATUSES, HISTORY_LIMIT_PER_STATUS),
+    const [active, historyPage] = await Promise.all([
+      readActiveOrders(),
+      readHistory(null),
     ]);
-
-    const active = activeDocs.slice(0, RESULT_LIMIT).map((doc) => ({
-      id: doc.id,
-      ...(serialize(doc.data()) as Raw),
-    }));
-
-    const history = historyDocs.slice(0, 40).map((doc) => ({
-      id: doc.id,
-      ...(serialize(doc.data()) as Raw),
-    }));
 
     return NextResponse.json(
       {
         ok: true,
-        orders: [...active, ...history],
+        mode: "bootstrap",
+        orders: [...active, ...historyPage.orders],
         activeCount: active.length,
-        historyCount: history.length,
-        authorityVersion: 3,
+        historyCount: historyPage.orders.length,
+        historyCursor: historyPage.cursor,
+        historyHasMore: historyPage.hasMore,
+        authorityVersion: 4,
       },
       {
         headers: {

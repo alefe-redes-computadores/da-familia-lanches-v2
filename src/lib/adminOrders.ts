@@ -35,9 +35,21 @@ export function operationalAttention(order: AdminOrder, now = Date.now()) {
   if (status === "Agendado" || status === "Finalizado" || status === "Cancelado") return null;
   const minutes = orderAgeMinutes(order, now);
   if (minutes == null || minutes < 30) return null;
+
+  if (status === "Pendente") {
+    return {
+      level: minutes >= 60 ? "high" : "medium",
+      label: minutes >= 60
+        ? "Aguardando aceite há mais de 1h"
+        : "Aguardando aceite há mais de 30 min",
+    } as const;
+  }
+
   return {
     level: minutes >= 60 ? "high" : "medium",
-    label: minutes >= 60 ? "Sem atualização há mais de 1h" : "Sem atualização há mais de 30 min",
+    label: minutes >= 60
+      ? "Sem atualização há mais de 1h"
+      : "Sem atualização há mais de 30 min",
   } as const;
 }
 

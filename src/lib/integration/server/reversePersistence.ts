@@ -262,12 +262,12 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
     }
 
     if (wins) {
+      // assigned/position_changed continuam atualizando tracking,
+      // mas não criam intent de mensagem: não possuem projeção automática.
       const intentType = event.event_type === "delivery.out_for_delivery" ? "delivery_started"
         : event.event_type === "delivery.next_stop" ? "delivery_next_stop"
         : event.event_type === "delivery.completed" ? "delivery_completed"
         : event.event_type === "delivery.failed" ? "delivery_failed"
-        : event.event_type === "delivery.assigned" ? "delivery_assigned"
-        : event.event_type === "delivery.position_changed" ? "delivery_position_changed"
         : null;
       if (intentType) {
         const intentId = encodeURIComponent(`intent-v1__${event.event_id}`);

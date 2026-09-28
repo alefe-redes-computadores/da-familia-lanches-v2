@@ -1,26 +1,101 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { collection, limit, onSnapshot, orderBy, query,
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  collection,
+  limit,
+  onSnapshot,
+  query,
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { normalizarStatus } from "@/lib/orderUtils";
+import { orderDateToMillis } from "@/lib/orderCompat";
 import type { AdminOrder } from "@/lib/adminOrders";
 import { recordFirestoreReadEstimate } from "@/lib/firestoreReadBudget";
+
+const ACTIVE_QUERY_STATUSES = [
+  "Pendente",
+  "Em Produção",
+  "Agendado",
+  "Pronto",
+  "Saiu para Entrega",
+  "Saiu para entrega",
+  "Em rota",
+] as const;
+
+const ACTIVE_CANONICAL = new Set([
+  "Pendente",
+  "Em Produção",
+  "Agendado",
+  "Pronto",
+  "Saiu para Entrega",
+]);
+
+function orderMillis(order: AdminOrder) {
+  return (
+    orderDateToMillis(order.statusUpdatedAt) ||
+    orderDateToMillis(order.data) ||
+    orderDateToMillis(order.createdAt)
+  );
+}
+
+function newestFirst(a: AdminOrder, b: AdminOrder) {
+  return orderMillis(b) - orderMillis(a) ||
+    String(b.id).localeCompare(String(a.id));
+}
 
 export function useAdminOrders(currentUser: any, admins: string[]) {
   const [pedidos, setPedidos] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
   const [alarmeAtivo, setAlarmeAtivo] = useState(false);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const initializedRef = useRef(false);
-  const knownIdsRef = useRef<Set<string>>(new Set());
-  const authoritativeOrdersRef = useRef<Map<string, AdminOrder>>(new Map());
+  const knownPendingIdsRef = useRef<Set<string>>(new Set());
+  const authoritativeOrdersRef =
+    useRef<Map<string, AdminOrder>>(new Map());
+  const realtimeOrdersRef =
+    useRef<Map<string, AdminOrder>>(new Map());
+  const historyCursorRef = useRef<string | null>(null);
+  const cancelledRef = useRef(false);
+
+  const publish = useCallback(() => {
+    const merged = new Map(authoritativeOrdersRef.current);
+
+    /*
+     * Versões realtime sempre vencem a autoridade bootstrap
+     * para pedidos ainda operacionais.
+     */
+    for (const [id, order] of realtimeOrdersRef.current) {
+      merged.set(id, order);
+    }
+
+    const active: AdminOrder[] = [];
+    const history: AdminOrder[] = [];
+
+    for (const order of merged.values()) {
+      if (ACTIVE_CANONICAL.has(normalizarStatus(order.status))) {
+        active.push(order);
+      } else {
+        history.push(order);
+      }
+    }
+
+    active.sort(newestFirst);
+    history.sort(newestFirst);
+
+    setPedidos([...active, ...history]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || audioRef.current) return;
-    const audio = new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg");
+
+    const audio =
+      new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg");
+
     audio.loop = true;
     audio.volume = 1;
     audio.preload = "auto";
@@ -29,6 +104,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     const unlock = () => {
       const target = audioRef.current;
       if (!target) return;
+
       void target.play().then(() => {
         target.pause();
         target.currentTime = 0;
@@ -36,8 +112,10 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
         window.removeEventListener("touchstart", unlock);
       }).catch(() => undefined);
     };
+
     window.addEventListener("click", unlock, { passive: true });
     window.addEventListener("touchstart", unlock, { passive: true });
+
     return () => {
       window.removeEventListener("click", unlock);
       window.removeEventListener("touchstart", unlock);
@@ -47,22 +125,25 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
   useEffect(() => {
     const email = currentUser?.email;
+
     if (!email || !admins.includes(email)) {
       setLoading(false);
       return;
     }
 
+    cancelledRef.current = false;
     initializedRef.current = false;
-    knownIdsRef.current = new Set();
+    knownPendingIdsRef.current = new Set();
     authoritativeOrdersRef.current = new Map();
+    realtimeOrdersRef.current = new Map();
+    historyCursorRef.current = null;
+    setHistoryHasMore(false);
+    setLoading(true);
 
-    let cancelled = false;
-
-    const loadAuthoritativeOrders = async () => {
+    const bootstrap = async () => {
       try {
         const token = await currentUser.getIdToken();
         const response = await fetch("/api/admin/orders", {
-          method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -76,116 +157,205 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
         const payload = await response.json() as {
           ok?: boolean;
           orders?: AdminOrder[];
+          historyCursor?: string | null;
+          historyHasMore?: boolean;
         };
 
-        if (cancelled || !payload.ok || !Array.isArray(payload.orders)) return;
-
-        const docs = payload.orders;
-        const pendingIds = docs
-          .filter((order) => normalizarStatus(order.status) === "Pendente")
-          .map((order) => String(order.id));
-
-        knownIdsRef.current = new Set(pendingIds);
-        initializedRef.current = true;
+        if (
+          cancelledRef.current ||
+          !payload.ok ||
+          !Array.isArray(payload.orders)
+        ) return;
 
         authoritativeOrdersRef.current = new Map(
-          docs.map((order) => [String(order.id), order]),
+          payload.orders.map((order) => [String(order.id), order]),
         );
 
-        setPedidos(docs);
+        historyCursorRef.current =
+          typeof payload.historyCursor === "string"
+            ? payload.historyCursor
+            : null;
+
+        setHistoryHasMore(payload.historyHasMore === true);
+
+        knownPendingIdsRef.current = new Set(
+          payload.orders
+            .filter(
+              (order) =>
+                normalizarStatus(order.status) === "Pendente",
+            )
+            .map((order) => String(order.id)),
+        );
+
+        initializedRef.current = true;
+        publish();
         setLoading(false);
-
-        console.info("[admin-orders] authority", {
-          serverCount: docs.length,
-        });
       } catch (error) {
-        console.error("[admin/orders] bootstrap autoritativo falhou:", error);
+        console.error(
+          "[admin/orders] bootstrap autoritativo falhou:",
+          error,
+        );
+
+        if (!cancelledRef.current) setLoading(false);
       }
     };
 
-    void loadAuthoritativeOrders();
+    void bootstrap();
 
-    const ACTIVE_STATUSES = [
-      "Pendente",
-      "Em Produção",
-      "Agendado",
-      "Pronto",
-      "Saiu para entrega",
-      "Em rota",
-    ] as const;
+    /*
+     * Um único listener para toda a fila operacional.
+     * Sem orderBy: não depende de índice composto.
+     * Ordenação acontece em memória.
+     */
+    const activeQuery = query(
+      collection(db, "Pedidos"),
+      where("status", "in", [...ACTIVE_QUERY_STATUSES]),
+      limit(100),
+    );
 
-    const realtimeByStatus = new Map<string, Map<string, AdminOrder>>();
-    const unsubscribers: Array<() => void> = [];
+    const unsubscribe = onSnapshot(
+      activeQuery,
+      (snapshot) => {
+        recordFirestoreReadEstimate(
+          "admin.orders.active",
+          snapshot.size,
+        );
 
-    const publishMergedOrders = () => {
-      const merged = new Map(authoritativeOrdersRef.current);
+        const realtime = new Map<string, AdminOrder>();
 
-      for (const docs of realtimeByStatus.values()) {
-        for (const [id, order] of docs) {
-          merged.set(id, order);
+        for (const doc of snapshot.docs) {
+          realtime.set(doc.id, {
+            id: doc.id,
+            ...(doc.data() as Omit<AdminOrder, "id">),
+          });
         }
-      }
 
-      const next = [...merged.values()]
-        .sort((a, b) => {
-          const av = new Date(String(a.data ?? "")).getTime() || 0;
-          const bv = new Date(String(b.data ?? "")).getTime() || 0;
-          return bv - av;
-        })
-        .slice(0, 120);
-
-      setPedidos(next);
-    };
-
-    for (const status of ACTIVE_STATUSES) {
-      const activeQuery = query(
-        collection(db, "Pedidos"),
-        where("status", "==", status),
-        limit(40),
-      );
-
-      const unsubscribe = onSnapshot(
-        activeQuery,
-        (snapshot) => {
-          const docs = new Map<string, AdminOrder>();
-
-          for (const doc of snapshot.docs) {
-            docs.set(doc.id, {
-              id: doc.id,
-              ...(doc.data() as Omit<AdminOrder, "id">),
-            });
-          }
-
-          realtimeByStatus.set(status, docs);
-
-          // Remove da autoridade qualquer versão antiga dos mesmos IDs
-          // antes de publicar a versão realtime.
-          for (const id of docs.keys()) {
+        /*
+         * Remove versões ativas antigas do bootstrap. Se um pedido
+         * saiu da fila ativa, o snapshot é a autoridade dessa fila.
+         */
+        for (const [id, order] of authoritativeOrdersRef.current) {
+          if (ACTIVE_CANONICAL.has(normalizarStatus(order.status))) {
             authoritativeOrdersRef.current.delete(id);
           }
+        }
 
-          publishMergedOrders();
-        },
-        (error) => {
-          console.error(`[admin/orders] realtime ${status}`, error);
+        realtimeOrdersRef.current = realtime;
+
+        const pendingIds = new Set(
+          [...realtime.values()]
+            .filter(
+              (order) =>
+                normalizarStatus(order.status) === "Pendente",
+            )
+            .map((order) => String(order.id)),
+        );
+
+        if (initializedRef.current) {
+          const hasNewPending =
+            [...pendingIds].some(
+              (id) => !knownPendingIdsRef.current.has(id),
+            );
+
+          if (hasNewPending) {
+            setAlarmeAtivo(true);
+            void audioRef.current?.play().catch(() => undefined);
+          }
+        }
+
+        knownPendingIdsRef.current = pendingIds;
+        initializedRef.current = true;
+
+        publish();
+        setLoading(false);
+      },
+      (error) => {
+        console.error("[admin/orders] realtime ativo", error);
+      },
+    );
+
+    return () => {
+      cancelledRef.current = true;
+      unsubscribe();
+    };
+  }, [currentUser, admins, publish]);
+
+  const loadMoreHistory = useCallback(async () => {
+    if (
+      historyLoading ||
+      !historyHasMore ||
+      !currentUser ||
+      cancelledRef.current
+    ) return;
+
+    setHistoryLoading(true);
+
+    try {
+      const token = await currentUser.getIdToken();
+      const cursor = historyCursorRef.current;
+
+      const params = new URLSearchParams({ mode: "history" });
+      if (cursor) params.set("cursor", cursor);
+
+      const response = await fetch(
+        `/api/admin/orders?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
         },
       );
 
-      unsubscribers.push(unsubscribe);
+      if (!response.ok) {
+        throw new Error(`ADMIN_HISTORY_HTTP_${response.status}`);
+      }
+
+      const payload = await response.json() as {
+        ok?: boolean;
+        orders?: AdminOrder[];
+        historyCursor?: string | null;
+        historyHasMore?: boolean;
+      };
+
+      if (
+        cancelledRef.current ||
+        !payload.ok ||
+        !Array.isArray(payload.orders)
+      ) return;
+
+      for (const order of payload.orders) {
+        authoritativeOrdersRef.current.set(
+          String(order.id),
+          order,
+        );
+      }
+
+      historyCursorRef.current =
+        typeof payload.historyCursor === "string"
+          ? payload.historyCursor
+          : null;
+
+      setHistoryHasMore(payload.historyHasMore === true);
+      publish();
+    } catch (error) {
+      console.error("[admin/orders] histórico:", error);
+    } finally {
+      if (!cancelledRef.current) setHistoryLoading(false);
     }
-
-    return () => {
-      for (const unsubscribe of unsubscribers) unsubscribe();
-    };
-  }, [currentUser, admins]);
-
-
-
-
+  }, [
+    currentUser,
+    historyHasMore,
+    historyLoading,
+    publish,
+  ]);
 
   return {
     pedidos,
     loading,
+    historyLoading,
+    historyHasMore,
+    loadMoreHistory,
     alarmeAtivo,
     pararAlarme: () => {
       setAlarmeAtivo(false);

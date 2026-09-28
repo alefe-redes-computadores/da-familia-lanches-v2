@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { adminAuth } from "@/lib/integration/server/adminAuth";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
@@ -361,20 +361,23 @@ export async function POST(request: NextRequest) {
       : { queued: true, sent: false };
 
     if (result.eventId) {
-      void drainIntegrationOutboxEvent(result.eventId)
-        .then((relay) => {
-          console.log("[orders/create] relay fast-lane", {
-            eventId: result.eventId,
+      const eventId = result.eventId;
+
+      after(async () => {
+        try {
+          const relay = await drainIntegrationOutboxEvent(eventId);
+          console.log("[orders/create] relay after-response", {
+            eventId,
             sent: relay.sent,
             failed: relay.failed,
           });
-        })
-        .catch((relayError) => {
+        } catch (relayError) {
           console.error(
             "[orders/create] pedido salvo; relay seguirá na outbox",
             relayError,
           );
-        });
+        }
+      });
     }
 
     finishRouteTrace(trace,"ok",{status:result.reused?200:201,reused:result.reused,integrationSent:integration.sent});
