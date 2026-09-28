@@ -9,6 +9,7 @@ import { getOrderItems, normalizeText } from "@/lib/orderCompat";
 import { useCustomerOrders } from "@/hooks/useCustomerOrders";
 import { useLastCustomerOrder } from "@/hooks/useLastCustomerOrder";
 import { useCatalog } from "@/hooks/useCatalog";
+import { haptic } from "@/lib/haptics";
 import styles from "./LastOrderCard.module.css";
 
 const money = (value: number) =>
@@ -70,10 +71,13 @@ export function LastOrderCard() {
 
       return {
         name,
+        // Para exibição usamos primeiro a imagem atual do catálogo.
+        // O snapshot antigo continua preservado no pedido, mas não deve
+        // manter foto desatualizada para sempre.
         image: String(
+          product?.image ??
           item?.image ??
           item?.imagem ??
-          product?.image ??
           ""
         ),
       };
@@ -86,12 +90,29 @@ export function LastOrderCard() {
       0
     );
 
+    const pickup = order.tipoEntrega === "pickup";
+
+    const deliverySnapshot =
+      order.deliverySnapshot &&
+      typeof order.deliverySnapshot === "object"
+        ? order.deliverySnapshot
+        : null;
+
+    const snapshotAddress = deliverySnapshot
+      ? [
+          deliverySnapshot.street,
+          deliverySnapshot.number,
+          deliverySnapshot.district,
+        ].filter(Boolean).join(", ")
+      : "";
+
     const rawAddress =
-      order.endereco ??
-      order.address ??
-      order.customerSnapshot?.address ??
-      order.customerSnapshot?.street ??
-      "";
+      pickup
+        ? ""
+        : snapshotAddress ||
+          order.endereco ||
+          order.address ||
+          "";
 
     const address =
       typeof rawAddress === "string"
@@ -103,10 +124,15 @@ export function LastOrderCard() {
             ""
           );
 
+    const safeAddress =
+      /retirada|balc[aã]o|local/i.test(address)
+        ? ""
+        : address;
+
     return {
       items,
       total,
-      address,
+      address: safeAddress,
     };
   }, [order, products]);
 
@@ -143,14 +169,29 @@ export function LastOrderCard() {
       return [{ item, product, selected }];
     });
     if (!resolved.length) {
-      setRepeatError("Os itens desse pedido não estão disponíveis agora. Veja os detalhes para escolher novamente.");
+      haptic("error");
+      setRepeatError("Esse pedido usa itens que não estão disponíveis agora. Abra os detalhes para escolher novamente.");
       return;
     }
-    if (resolved.length !== previous.length) {
-      setRepeatError("Alguns itens antigos não estão disponíveis e foram deixados de fora. Revise o carrinho antes de finalizar.");
+
+    const changedItems = previous.length - resolved.length;
+    const changedAddons = resolved.reduce(
+      (sum, entry) =>
+        sum + Math.max(0, entry.item.selectedAddons.length - entry.selected.length),
+      0,
+    );
+
+    if (changedItems > 0 || changedAddons > 0) {
+      setRepeatError(
+        "O cardápio mudou desde esse pedido. Recriamos apenas o que continua disponível; revise o carrinho antes de finalizar.",
+      );
     }
+
     clearCart();
-    resolved.forEach(({ item, product, selected }) => addItem(product, item.quantity, selected, item.observation));
+    resolved.forEach(({ item, product, selected }) =>
+      addItem(product, item.quantity, selected, item.observation)
+    );
+    haptic("restore");
     openModal("cart");
   };
 

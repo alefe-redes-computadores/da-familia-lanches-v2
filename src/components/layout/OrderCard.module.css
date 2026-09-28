@@ -307,3 +307,15 @@
 .person{padding:2px 0!important}.person h3{font-size:18px!important;color:#fff!important;letter-spacing:-.025em!important}.phone{color:#8d949f!important}.metaActions{flex-direction:row!important;flex-wrap:wrap!important}.iconBtn{min-height:36px!important;padding:0 12px!important;border:1px solid #2b3038!important;background:#191c22!important;color:#c8cdd4!important}.iconBtn:first-child{border-color:rgba(37,211,102,.26)!important;background:rgba(37,211,102,.12)!important;color:#67e394!important}
 .delivery{background:#15181e!important;border:1px solid #22262e!important}.delivery b{color:#9aa2ad!important}.delivery span{color:#e0e3e7!important}.itemsToggle{background:#15181e!important;border:1px solid #22262e!important}.itemsToggle span b{color:#fff!important}.itemsToggle strong{color:#bba7ff!important}.money{border-top:1px solid #20242b!important;padding-top:10px!important}.money small{color:#777f8a!important}.money b{color:#e8ebef!important}.total strong{font-size:21px!important;color:#fff!important}
 @media(max-width:420px){.metaActions{flex-direction:row!important}.iconBtn{min-height:34px!important}}
+
+
+/* ADMIN FINAL — COMPACT OPERATION CARD */
+.card{padding:11px!important;gap:8px!important;border-radius:14px!important}
+.top{min-height:34px}.status{min-height:22px!important;font-size:10px!important}.orderId{margin-top:3px!important;font-size:12px!important}.time span,.time b{font-size:10px!important}
+.attention{padding:6px 8px!important;font-size:11px!important;border-radius:8px!important}
+.summary{width:100%;min-height:52px!important;padding:8px 10px!important;border:1px solid #22262e!important;border-radius:11px!important;background:#15181e!important;color:inherit!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;text-align:left!important}
+.summaryMain{min-width:0}.summaryMain h3{margin:0!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;font-size:16px!important;line-height:1.15;letter-spacing:-.02em}.summaryMain span{display:block;margin-top:3px;color:#8d949f;font-size:11px}
+.summaryTotal{flex:none;display:flex;flex-direction:column;align-items:flex-end}.summaryTotal strong{color:#fff;font-size:17px;font-variant-numeric:tabular-nums}.summaryTotal span{margin-top:2px;color:#bba7ff;font-size:10px;font-weight:850}
+.details{display:flex;flex-direction:column;gap:8px;padding-top:1px}.person{padding:0!important}.delivery{padding:8px 9px!important}.items{padding:8px 9px!important;border:1px solid #22262e!important;border-left:2px solid #30343a!important;border-radius:10px;background:#15181e}.money{padding:7px 2px 0!important}
+.actions{gap:6px!important}.primary,.cancel{min-height:39px!important}
+@media(max-width:420px){.card{padding:10px!important;gap:7px!important}.summary{min-height:49px!important}.summaryMain h3{font-size:15px!important}.summaryTotal strong{font-size:16px!important}.actions{flex-direction:row!important}.primary,.cancel{min-height:39px!important}}

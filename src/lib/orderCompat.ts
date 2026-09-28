@@ -74,11 +74,17 @@ function normalizeAddons(value: unknown): Addon[] {
 export function getOrderItems(order: unknown): CompatOrderItem[] {
   if (!order || typeof order !== "object") return [];
   const rawOrder = order as Record<string, unknown>;
+  // A coleção Pedidos possui gerações diferentes.
+  // O checkout atual usa `itens`, mas versões intermediárias e integrações
+  // também persistiram `items` e `itensObj`. Repetir pedido precisa ler
+  // todas sem alterar o snapshot histórico.
   const source = Array.isArray(rawOrder.itens)
     ? rawOrder.itens
-    : Array.isArray(rawOrder.itensObj)
-      ? rawOrder.itensObj
-      : [];
+    : Array.isArray(rawOrder.items)
+      ? rawOrder.items
+      : Array.isArray(rawOrder.itensObj)
+        ? rawOrder.itensObj
+        : [];
 
   const items: CompatOrderItem[] = [];
 
@@ -96,8 +102,14 @@ export function getOrderItems(order: unknown): CompatOrderItem[] {
       observation: String(raw.observation ?? raw.observacao ?? "").trim(),
     };
 
-    if (raw.id != null && String(raw.id).trim()) {
-      normalized.id = String(raw.id);
+    const historicalId =
+      raw.id ??
+      raw.productId ??
+      raw.produtoId ??
+      raw.product_id;
+
+    if (historicalId != null && String(historicalId).trim()) {
+      normalized.id = String(historicalId).trim();
     }
 
     items.push(normalized);

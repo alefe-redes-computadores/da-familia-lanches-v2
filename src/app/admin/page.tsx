@@ -15,6 +15,7 @@ import { adminOrderSearchText, compareOperationalOrders, operationalAttention } 
 import styles from "./admin.module.css";
 import { haptic } from "@/lib/haptics";
 import { AdminAuthGate } from "@/components/admin/AdminAuthGate";
+import { OperationHealthAdmin } from "@/components/admin/OperationHealthAdmin";
 
 
 const AdminPanelLoading = () => (
@@ -340,7 +341,7 @@ export default function AdminPage() {
       ) : tab === "fidelidade" ? (
         <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><RewardsAdmin /></section>
       ) : tab === "gestao" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>DESEMPENHO</span><h2>Relatórios da loja</h2></div><p>Somente pedidos finalizados entram nos indicadores comerciais.</p></div><FirestoreBudgetAdmin /><RelatoriosAdmin pedidos={pedidos} /></section>
+        <section className={styles.management}><div className={styles.sectionHeading}><div><span>OPERAÇÃO & DESEMPENHO</span><h2>Saúde da loja</h2></div><p>Exceções operacionais, pressão de leituras e indicadores comerciais sem novas assinaturas em tempo real.</p></div><OperationHealthAdmin pedidos={pedidos} historyHasMore={historyHasMore} /><FirestoreBudgetAdmin /><RelatoriosAdmin pedidos={pedidos} /></section>
       ) : isOrderTab ? (
         <>
           <div className={styles.queueHead}>

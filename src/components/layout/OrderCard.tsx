@@ -68,48 +68,60 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido }: any) {
 
       {attention && <div className={styles.attention} data-level={attention.level}>{attention.label}</div>}
 
-      <div className={styles.person}>
-        <div>
+      <button
+        className={styles.summary}
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <div className={styles.summaryMain}>
           <h3>{pedido.userName || "Cliente"}</h3>
-          <div className={styles.phone}>{telefone || "Telefone não informado"}</div>
+          <span>
+            {pickup ? "Retirada" : "Entrega"} ·{" "}
+            {itens.reduce((sum, item) => sum + item.quantity, 0)} item(ns)
+          </span>
         </div>
-        <div className={styles.metaActions}>
-          {telefone && <button className={styles.iconBtn} onClick={openWhatsApp} title="Abrir WhatsApp">WhatsApp</button>}
-          <button className={styles.iconBtn} onClick={() => imprimirPedido(pedido)} title="Imprimir pedido">Imprimir</button>
+        <div className={styles.summaryTotal}>
+          <strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong>
+          <span>{expanded ? "Fechar" : "Detalhes"}</span>
         </div>
-      </div>
-
-      <div className={styles.delivery}>
-        <b>{pickup ? "RETIRADA NO BALCÃO" : "ENTREGA"}</b>
-        <span>{pedido.endereco || (pickup ? "Retirada no local" : "Endereço não informado")}</span>
-      </div>
-
-      <button className={styles.itemsToggle} type="button" onClick={() => setExpanded((value) => !value)}>
-        <span><b>{itens.reduce((sum, item) => sum + item.quantity, 0)}</b> item(ns) no pedido</span>
-        <strong>{expanded ? "Ocultar" : "Ver itens"}</strong>
       </button>
 
       {expanded && (
-        <div className={styles.items}>
-          {itens.length ? itens.map((item, i) => (
-            <div className={styles.item} key={`${item.name}-${i}`}>
-              <b>{item.quantity}x {item.name}</b>
-              {item.selectedAddons.map((a) => <div className={styles.addon} key={`${a.id}-${a.name}`}>+ {a.name}</div>)}
-              {item.observation && <div className={styles.obs}>Obs.: {item.observation}</div>}
+        <div className={styles.details}>
+          <div className={styles.person}>
+            <div className={styles.phone}>{telefone || "Telefone não informado"}</div>
+            <div className={styles.metaActions}>
+              {telefone && <button className={styles.iconBtn} onClick={openWhatsApp} title="Abrir WhatsApp">WhatsApp</button>}
+              <button className={styles.iconBtn} onClick={() => imprimirPedido(pedido)} title="Imprimir pedido">Imprimir</button>
             </div>
-          )) : <span>Pedido antigo sem itens reconhecíveis.</span>}
+          </div>
+
+          <div className={styles.delivery}>
+            <b>{pickup ? "RETIRADA NO BALCÃO" : "ENTREGA"}</b>
+            <span>{pedido.endereco || (pickup ? "Retirada no local" : "Endereço não informado")}</span>
+          </div>
+
+          <div className={styles.items}>
+            {itens.length ? itens.map((item, i) => (
+              <div className={styles.item} key={`${item.name}-${i}`}>
+                <b>{item.quantity}x {item.name}</b>
+                {item.selectedAddons.map((a) => <div className={styles.addon} key={`${a.id}-${a.name}`}>+ {a.name}</div>)}
+                {item.observation && <div className={styles.obs}>Obs.: {item.observation}</div>}
+              </div>
+            )) : <span>Pedido antigo sem itens reconhecíveis.</span>}
+          </div>
+
+          <div className={styles.money}>
+            <div>
+              <small>Pagamento</small>
+              <b>{paymentLabel(pedido.metodoPagamento)}</b>
+              {paymentLabel(pedido.metodoPagamento) === "DINHEIRO" && Number.isFinite(troco) && troco > 0 &&
+                <span className={styles.cash}>Troco para R$ {troco.toFixed(2)}</span>}
+            </div>
+          </div>
         </div>
       )}
-
-      <div className={styles.money}>
-        <div>
-          <small>Pagamento</small>
-          <b>{paymentLabel(pedido.metodoPagamento)}</b>
-          {paymentLabel(pedido.metodoPagamento) === "DINHEIRO" && Number.isFinite(troco) && troco > 0 &&
-            <span className={styles.cash}>Troco para R$ {troco.toFixed(2)}</span>}
-        </div>
-        <div className={styles.total}><small>Total</small><strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong></div>
-      </div>
 
       {(next || canCancel) && (
         <div className={styles.actions}>

@@ -21,6 +21,7 @@ type Projection = {
 type ClaimedRaw = { docId: string; data: Record<string, unknown> };
 
 const COLLECTION = "integration_notification_intents";
+const MAX_MESSAGING_ATTEMPTS = 6;
 const LOCK_TTL_MS = 5 * 60 * 1000;
 const text = (v: unknown) => String(v ?? "").trim();
 const obj = (v: unknown): Record<string, unknown> =>
@@ -255,7 +256,10 @@ async function releaseUnhydratable(raw:ClaimedRaw, workerId:string) {
     if (data.status !== "processing" || data.locked_by !== workerId) return;
 
     const now = new Date().toISOString();
-    const permanent = permanentlyUnsupportedIntent(data);
+    const attempts = Number(data.attempts || 0);
+    const unsupported = permanentlyUnsupportedIntent(data);
+    const exhausted = attempts >= MAX_MESSAGING_ATTEMPTS;
+    const permanent = unsupported || exhausted;
 
     tx.update(ref, permanent ? {
       status:"failed",
@@ -264,7 +268,9 @@ async function releaseUnhydratable(raw:ClaimedRaw, workerId:string) {
       locked_at:null,
       updated_at:now,
       processed_at:now,
-      last_error:"Intent legado sem projeção de mensagem; removido da fila de retry.",
+      last_error:unsupported
+        ? "Intent legado sem projeção de mensagem; removido da fila de retry."
+        : "Intent sem dados suficientes após o limite de tentativas; colocado em quarentena.",
     } : {
       status:"pending",
       messaging_eligible:true,
@@ -344,6 +350,9 @@ export async function settleMessagingProjections(
       const data = snap.data() as Record<string,unknown>;
       if (data.status !== "processing" || data.locked_by !== workerId) return;
       const now = new Date().toISOString();
+      const attempts = Number(data.attempts || 0);
+      const exhausted = !result.ok && attempts >= MAX_MESSAGING_ATTEMPTS;
+
       tx.update(ref,result.ok ? {
         status:"queued",
         messaging_eligible:false,
@@ -353,6 +362,16 @@ export async function settleMessagingProjections(
         locked_by:null,
         locked_at:null,
         last_error:null,
+      } : exhausted ? {
+        status:"failed",
+        messaging_eligible:false,
+        processed_at:now,
+        updated_at:now,
+        locked_by:null,
+        locked_at:null,
+        last_error:
+          (text(result.error).slice(0,420)||"Falha no relay de mensageria.") +
+          " Limite de tentativas atingido; colocado em quarentena.",
       } : {
         status:"pending",
         messaging_eligible:true,

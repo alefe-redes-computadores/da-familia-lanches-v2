@@ -1,0 +1,15 @@
+import fs from "node:fs";
+const read=f=>fs.readFileSync(f,"utf8");
+const ok=(v,l)=>{if(!v)throw new Error(`FALHOU: ${l}`);console.log(`OK: ${l}`)};
+const rules=read("firestore.rules");
+const repo=read("src/lib/orderRepository.ts");
+const card=read("src/components/layout/OrderCard.tsx");
+const css=read("src/components/layout/OrderCard.module.css");
+ok(rules.includes("match /integration_outbox/{eventId}")&&rules.includes("allow create: if isAdmin();"),"admin pode criar outbox atomico");
+ok(repo.includes("ensureIntegrationEventInTransaction"),"status mantem evento na mesma transacao");
+ok(card.includes("className={styles.summary}")&&card.includes("aria-expanded={expanded}"),"card compacto expansivel");
+ok(card.includes("className={styles.details}"),"detalhes sob demanda");
+ok(css.includes("ADMIN FINAL — COMPACT OPERATION CARD"),"acabamento compacto aplicado");
+console.log("============================================================");
+console.log(" ADMIN ACEITAR + CARD FINAL — CONTRATO OK");
+console.log("============================================================");

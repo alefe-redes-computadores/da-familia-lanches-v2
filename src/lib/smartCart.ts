@@ -28,10 +28,25 @@ const qty = (items: CartItem[], id: string) =>
 const stableHash = (value: string) =>
   [...value].reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0, 7);
 
-const getDailySeed = () => {
+const getRotationSeed = () => {
   const now = new Date();
-  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  // Rotação estável o suficiente para não "piscar" a cada render,
+  // mas não repete eternamente as mesmas sugestões para o mesmo carrinho.
+  const window = Math.floor(now.getHours() / 3);
+  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${window}`;
 };
+
+function commercialFamily(product: Product) {
+  const text = norm(`${product.category} ${product.name}`);
+  if (isDrink(product)) return "drink";
+  if (isCombo(product)) return "combo";
+  if (/hot dog|hotdog|padana/.test(text)) return "hotdog";
+  if (/artesanal|armaria|bitela|apruma|peleja|tudibom|custoso/.test(text))
+    return "artesanal";
+  if (/uai|bao|trem|cadim|burger|hamburg/.test(text))
+    return "lanche";
+  return norm(product.category) || "outro";
+}
 
 function includedProductIds(items: CartItem[], products: Product[]) {
   const ids = new Set<string>();
@@ -85,7 +100,7 @@ export function selectSmartCartSuggestions(
   );
 
   const cartSignature = items.map((item) => `${item.id}:${item.quantity}`).sort().join("|");
-  const rotationKey = `${getDailySeed()}|${cartSignature}|`;
+  const rotationKey = `${getRotationSeed()}|${cartSignature}|`;
   const result: SmartCartSuggestion[] = [];
 
   // 1. Upsell explícito: nunca inferir preço promocional dividindo combo.
@@ -162,6 +177,13 @@ export function selectSmartCartSuggestions(
 
   // 4. Preenche vagas restantes com complementos comerciais elegíveis.
   if (result.length < limit) {
+    const cartFamilies = new Set(
+      items
+        .map((item) => products.find((product) => product.id === item.id))
+        .filter((product): product is Product => Boolean(product))
+        .map(commercialFamily),
+    );
+
     const complements = available
       .filter((product) =>
         product.isSuggestion &&
@@ -169,21 +191,43 @@ export function selectSmartCartSuggestions(
         !isDrink(product) &&
         !result.some((entry) => entry.product.id === product.id)
       )
-      .sort((a, b) =>
-        Number(Boolean(b.oldPrice && b.oldPrice > b.price)) -
-          Number(Boolean(a.oldPrice && a.oldPrice > a.price)) ||
-        stableHash(rotationKey + a.id) - stableHash(rotationKey + b.id)
-      );
+      .sort((a, b) => {
+        const aNovel = cartFamilies.has(commercialFamily(a)) ? 0 : 1;
+        const bNovel = cartFamilies.has(commercialFamily(b)) ? 0 : 1;
+        return (
+          bNovel - aNovel ||
+          Number(Boolean(b.oldPrice && b.oldPrice > b.price)) -
+            Number(Boolean(a.oldPrice && a.oldPrice > a.price)) ||
+          stableHash(rotationKey + a.id) - stableHash(rotationKey + b.id)
+        );
+      });
+
+    const usedFamilies = new Set(
+      result.map((entry) => commercialFamily(entry.product)),
+    );
 
     for (const extra of complements) {
       if (result.length >= limit) break;
+
+      const family = commercialFamily(extra);
+      const hasAlternativeFamily = complements.some(
+        (candidate) =>
+          candidate.id !== extra.id &&
+          !usedFamilies.has(commercialFamily(candidate)),
+      );
+
+      if (usedFamilies.has(family) && hasAlternativeFamily) continue;
+
       result.push({
         kind: "complement",
         product: extra,
         eyebrow: "PARA COMPLETAR",
         title: extra.name,
-        description: "Uma sugestão da casa para completar seu pedido.",
+        description: cartFamilies.has(family)
+          ? "Uma opção da casa que combina com o restante do pedido."
+          : "Uma opção diferente para completar seu pedido.",
       });
+      usedFamilies.add(family);
     }
   }
 

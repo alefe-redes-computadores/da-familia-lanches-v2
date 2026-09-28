@@ -22,7 +22,10 @@ service cloud.firestore {
     }
 
     match /integration_outbox/{eventId} {
-      allow create: if false; // V60: outbox nasce atomicamente no backend confiável
+      // Checkout continua criando outbox somente no backend.
+      // A fila administrativa atualiza Pedidos em transação client-side e
+      // registra o evento atômico na mesma transação. Só admins podem criar.
+      allow create: if isAdmin();
 
       allow read, list, update, delete: if isAdmin();
     }
