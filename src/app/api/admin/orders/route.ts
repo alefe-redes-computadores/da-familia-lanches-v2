@@ -1,10 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/integration/server/admin";
 import { adminAuth } from "@/lib/integration/server/adminAuth";
+import { adminDb } from "@/lib/integration/server/admin";
 import { isAdminEmail } from "@/lib/adminAuthorization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const ACTIVE_STATUSES = [
+  "Pendente",
+  "Em Produção",
+  "Agendado",
+  "Pronto",
+  "Saiu para entrega",
+  "Em rota",
+] as const;
+
+const HISTORY_STATUSES = [
+  "Finalizado",
+  "Cancelado",
+] as const;
+
+const ACTIVE_LIMIT_PER_STATUS = 40;
+const HISTORY_LIMIT_PER_STATUS = 30;
+const RESULT_LIMIT = 80;
+
+type Raw = Record<string, unknown>;
 
 function serialize(value: unknown): unknown {
   if (value == null) return value;
@@ -13,29 +33,90 @@ function serialize(value: unknown): unknown {
     typeof value === "string" ||
     typeof value === "number" ||
     typeof value === "boolean"
-  ) return value;
-
-  if (Array.isArray(value)) return value.map(serialize);
-
-  if (typeof value === "object") {
-    const candidate = value as { toDate?: () => Date };
-
-    if (typeof candidate.toDate === "function") {
-      return candidate.toDate().toISOString();
-    }
-
-    const result: Record<string, unknown> = {};
-
-    for (const [key, child] of Object.entries(
-      value as Record<string, unknown>
-    )) {
-      result[key] = serialize(child);
-    }
-
-    return result;
+  ) {
+    return value;
   }
 
-  return String(value);
+  if (Array.isArray(value)) {
+    return value.map(serialize);
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  ) {
+    try {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Raw).map(([key, item]) => [key, serialize(item)]),
+    );
+  }
+
+  return null;
+}
+
+function millis(value: unknown): number {
+  if (
+    value &&
+    typeof value === "object" &&
+    "toMillis" in value &&
+    typeof (value as { toMillis?: unknown }).toMillis === "function"
+  ) {
+    try {
+      return Number((value as { toMillis: () => number }).toMillis()) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
+function sortDocs(
+  docs: FirebaseFirestore.QueryDocumentSnapshot[],
+): FirebaseFirestore.QueryDocumentSnapshot[] {
+  return [...docs].sort((a, b) => {
+    const byDate = millis(b.data().data) - millis(a.data().data);
+    return byDate || b.id.localeCompare(a.id);
+  });
+}
+
+async function readStatusGroup(
+  statuses: readonly string[],
+  perStatusLimit: number,
+) {
+  const snapshots = await Promise.all(
+    statuses.map((status) =>
+      adminDb
+        .collection("Pedidos")
+        .where("status", "==", status)
+        .limit(perStatusLimit)
+        .get(),
+    ),
+  );
+
+  const merged = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+
+  for (const snapshot of snapshots) {
+    for (const doc of snapshot.docs) {
+      merged.set(doc.id, doc);
+    }
+  }
+
+  return sortDocs([...merged.values()]);
 }
 
 export async function GET(request: NextRequest) {
@@ -49,57 +130,54 @@ export async function GET(request: NextRequest) {
     if (!bearer) {
       return NextResponse.json(
         { ok: false, error: "AUTH_REQUIRED" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
-    const decoded = await adminAuth.verifyIdToken(bearer, false);
+    const decoded = await adminAuth.verifyIdToken(bearer, true);
 
     if (!isAdminEmail(decoded.email)) {
       return NextResponse.json(
-        { ok: false, error: "ADMIN_REQUIRED" },
-        { status: 403 }
+        { ok: false, error: "FORBIDDEN" },
+        { status: 403 },
       );
     }
 
-    const snapshot = await adminDb
-      .collection("Pedidos")
-      .orderBy("data", "desc")
-      .limit(40)
-      .get();
+    const [activeDocs, historyDocs] = await Promise.all([
+      readStatusGroup(ACTIVE_STATUSES, ACTIVE_LIMIT_PER_STATUS),
+      readStatusGroup(HISTORY_STATUSES, HISTORY_LIMIT_PER_STATUS),
+    ]);
 
-    console.info("[ADMIN_ORDERS_DIAGNOSTIC]", {
-      count: snapshot.size,
-      latest: snapshot.docs.slice(0, 8).map((document) => {
-        const data = document.data();
-        const rawDate = data.data;
+    const active = activeDocs.slice(0, RESULT_LIMIT).map((doc) => ({
+      id: doc.id,
+      ...(serialize(doc.data()) as Raw),
+    }));
 
-        return {
-          id: document.id,
-          status: String(data.status ?? ""),
-          data:
-            rawDate && typeof rawDate.toDate === "function"
-              ? rawDate.toDate().toISOString()
-              : String(rawDate ?? ""),
-        };
-      }),
-    });
-
-    const orders = snapshot.docs.map((document) => ({
-      id: document.id,
-      ...(serialize(document.data()) as Record<string, unknown>),
+    const history = historyDocs.slice(0, 40).map((doc) => ({
+      id: doc.id,
+      ...(serialize(doc.data()) as Raw),
     }));
 
     return NextResponse.json(
-      { ok: true, orders, count: orders.length },
-      { headers: { "Cache-Control": "private, no-store" } }
+      {
+        ok: true,
+        orders: [...active, ...history],
+        activeCount: active.length,
+        historyCount: history.length,
+        authorityVersion: 3,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      },
     );
   } catch (error) {
-    console.error("[admin/orders] failed", error);
+    console.error("[api/admin/orders]", error);
 
     return NextResponse.json(
       { ok: false, error: "ADMIN_ORDERS_FAILED" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

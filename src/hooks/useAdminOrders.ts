@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, limit, onSnapshot, orderBy, query,
+  where,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { normalizarStatus } from "@/lib/orderUtils";
 import type { AdminOrder } from "@/lib/adminOrders";
@@ -103,82 +105,77 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
     void loadAuthoritativeOrders();
 
-    const ordersQuery = query(collection(db, "Pedidos"), orderBy("data", "desc"), limit(40));
-    const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-      const delivered = initializedRef.current ? snapshot.docChanges().length : snapshot.size;
-      recordFirestoreReadEstimate("admin.orders.realtime", delivered);
-      const realtimeDocs = snapshot.docs.map(
-        (document): AdminOrder =>
-          ({ id: document.id, ...document.data() } as AdminOrder),
-      );
+    const ACTIVE_STATUSES = [
+      "Pendente",
+      "Em Produção",
+      "Agendado",
+      "Pronto",
+      "Saiu para entrega",
+      "Em rota",
+    ] as const;
 
-      const mergedById = new Map(authoritativeOrdersRef.current);
+    const realtimeByStatus = new Map<string, Map<string, AdminOrder>>();
+    const unsubscribers: Array<() => void> = [];
 
-      for (const order of realtimeDocs) {
-        mergedById.set(String(order.id), order);
-      }
+    const publishMergedOrders = () => {
+      const merged = new Map(authoritativeOrdersRef.current);
 
-      const toMillis = (order: AdminOrder) => {
-        const value = order.data as unknown;
-
-        if (
-          value &&
-          typeof value === "object" &&
-          "toMillis" in value &&
-          typeof (value as { toMillis?: unknown }).toMillis === "function"
-        ) {
-          return (value as { toMillis: () => number }).toMillis();
+      for (const docs of realtimeByStatus.values()) {
+        for (const [id, order] of docs) {
+          merged.set(id, order);
         }
-
-        const parsed = new Date(String(value ?? "")).getTime();
-        return Number.isFinite(parsed) ? parsed : 0;
-      };
-
-      const docs = Array.from(mergedById.values())
-        .sort((a, b) => toMillis(b) - toMillis(a))
-        .slice(0, 40);
-
-      authoritativeOrdersRef.current = new Map(
-        docs.map((order) => [String(order.id), order]),
-      );
-
-      console.info("[admin-orders] realtime-merge", {
-        realtimeCount: realtimeDocs.length,
-        mergedCount: docs.length,
-      });
-
-      const pendingIds = docs
-        .filter((order) => normalizarStatus(order.status) === "Pendente")
-        .map((order) => String(order.id));
-      const pendingSet = new Set(pendingIds);
-      const hasNewPending = initializedRef.current && pendingIds.some((id) => !knownIdsRef.current.has(id));
-
-      if (hasNewPending) {
-        setAlarmeAtivo(true);
-        audioRef.current?.play().catch(() => undefined);
-      } else if (!pendingIds.length) {
-        setAlarmeAtivo(false);
-        audioRef.current?.pause();
       }
 
-      knownIdsRef.current = pendingSet;
-      initializedRef.current = true;
-      setPedidos(docs);
-      setLoading(false);
-    }, (error) => {
-      console.error("Erro ao acompanhar pedidos:", error);
-      setLoading(false);
-    });
+      const next = [...merged.values()]
+        .sort((a, b) => {
+          const av = new Date(String(a.data ?? "")).getTime() || 0;
+          const bv = new Date(String(b.data ?? "")).getTime() || 0;
+          return bv - av;
+        })
+        .slice(0, 120);
 
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") audioRef.current?.pause();
+      setPedidos(next);
     };
-    document.addEventListener("visibilitychange", onVisibility);
+
+    for (const status of ACTIVE_STATUSES) {
+      const activeQuery = query(
+        collection(db, "Pedidos"),
+        where("status", "==", status),
+        limit(40),
+      );
+
+      const unsubscribe = onSnapshot(
+        activeQuery,
+        (snapshot) => {
+          const docs = new Map<string, AdminOrder>();
+
+          for (const doc of snapshot.docs) {
+            docs.set(doc.id, {
+              id: doc.id,
+              ...(doc.data() as Omit<AdminOrder, "id">),
+            });
+          }
+
+          realtimeByStatus.set(status, docs);
+
+          // Remove da autoridade qualquer versão antiga dos mesmos IDs
+          // antes de publicar a versão realtime.
+          for (const id of docs.keys()) {
+            authoritativeOrdersRef.current.delete(id);
+          }
+
+          publishMergedOrders();
+        },
+        (error) => {
+          console.error(`[admin/orders] realtime ${status}`, error);
+        },
+      );
+
+      unsubscribers.push(unsubscribe);
+    }
 
     return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", onVisibility);
-      unsubscribe();
+      for (const unsubscribe of unsubscribers) unsubscribe();
     };
   }, [currentUser, admins]);
 
