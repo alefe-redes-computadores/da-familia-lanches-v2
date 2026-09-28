@@ -14,6 +14,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const initializedRef = useRef(false);
   const knownIdsRef = useRef<Set<string>>(new Set());
+  const authoritativeOrdersRef = useRef<Map<string, AdminOrder>>(new Map());
 
   useEffect(() => {
     if (typeof window === "undefined" || audioRef.current) return;
@@ -51,6 +52,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
     initializedRef.current = false;
     knownIdsRef.current = new Set();
+    authoritativeOrdersRef.current = new Map();
 
     let cancelled = false;
 
@@ -83,8 +85,17 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
         knownIdsRef.current = new Set(pendingIds);
         initializedRef.current = true;
+
+        authoritativeOrdersRef.current = new Map(
+          docs.map((order) => [String(order.id), order]),
+        );
+
         setPedidos(docs);
         setLoading(false);
+
+        console.info("[admin-orders] authority", {
+          serverCount: docs.length,
+        });
       } catch (error) {
         console.error("[admin/orders] bootstrap autoritativo falhou:", error);
       }
@@ -96,7 +107,46 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
       const delivered = initializedRef.current ? snapshot.docChanges().length : snapshot.size;
       recordFirestoreReadEstimate("admin.orders.realtime", delivered);
-      const docs = snapshot.docs.map((document): AdminOrder => ({ id: document.id, ...document.data() } as AdminOrder));
+      const realtimeDocs = snapshot.docs.map(
+        (document): AdminOrder =>
+          ({ id: document.id, ...document.data() } as AdminOrder),
+      );
+
+      const mergedById = new Map(authoritativeOrdersRef.current);
+
+      for (const order of realtimeDocs) {
+        mergedById.set(String(order.id), order);
+      }
+
+      const toMillis = (order: AdminOrder) => {
+        const value = order.data as unknown;
+
+        if (
+          value &&
+          typeof value === "object" &&
+          "toMillis" in value &&
+          typeof (value as { toMillis?: unknown }).toMillis === "function"
+        ) {
+          return (value as { toMillis: () => number }).toMillis();
+        }
+
+        const parsed = new Date(String(value ?? "")).getTime();
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+
+      const docs = Array.from(mergedById.values())
+        .sort((a, b) => toMillis(b) - toMillis(a))
+        .slice(0, 40);
+
+      authoritativeOrdersRef.current = new Map(
+        docs.map((order) => [String(order.id), order]),
+      );
+
+      console.info("[admin-orders] realtime-merge", {
+        realtimeCount: realtimeDocs.length,
+        mergedCount: docs.length,
+      });
+
       const pendingIds = docs
         .filter((order) => normalizarStatus(order.status) === "Pendente")
         .map((order) => String(order.id));
