@@ -117,7 +117,18 @@ export default function AdminPage() {
       haptic("success");
     } catch (error) {
       console.error(error);
-      setFeedback("Não foi possível atualizar o pedido. O status pode ter mudado em outro aparelho.");
+      const message = error instanceof Error ? error.message : "";
+      if (message.startsWith("ORDER_STATUS_CONFLICT:")) {
+        const transition = message.slice("ORDER_STATUS_CONFLICT:".length);
+        const current = transition.split("->")[0] || "";
+        setFeedback(
+          current
+            ? `Pedido já está em "${current}". A fila foi atualizada com o estado mais recente.`
+            : "O pedido mudou de etapa em outro fluxo. A fila foi atualizada.",
+        );
+      } else {
+        setFeedback("Não foi possível atualizar o pedido agora. Tente novamente.");
+      }
       haptic("error");
     } finally {
       setUpdatingOrderId((current) => current === id ? null : current);

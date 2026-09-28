@@ -111,18 +111,20 @@ export async function updateOrderStatus(input: {
     );
     const next = normalizarStatus(input.nextStatus);
 
-    if (!canTransitionOrderStatus(current, next, input.pickup === true)) {
-      throw new Error(
-        `INVALID_STATUS_TRANSITION:${current}->${next}`,
-      );
-    }
-
+    // Idempotência primeiro: se outro dispositivo/integração já colocou
+    // exatamente no estado solicitado, a ação é sucesso sem nova escrita.
     if (current === next) {
       return {
         changed: false,
         status: current,
         rewardAwarded: false,
       };
+    }
+
+    if (!canTransitionOrderStatus(current, next, input.pickup === true)) {
+      throw new Error(
+        `ORDER_STATUS_CONFLICT:${current}->${next}`,
+      );
     }
 
     let rewardAwarded = false;

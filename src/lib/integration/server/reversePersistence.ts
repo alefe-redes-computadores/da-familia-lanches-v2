@@ -107,7 +107,11 @@ function commercialStatus(value: unknown): CommercialStatus {
   return "Pendente";
 }
 function projectedStatus(type: ReverseEventType): CommercialStatus | null {
-  if (["delivery.out_for_delivery","delivery.position_changed","delivery.next_stop","route.started"].includes(type)) return "Saiu para Entrega";
+  // Autoridade comercial x logística:
+  // alocação, reordenação, posição, próxima parada e início da rota
+  // atualizam tracking, mas NÃO significam que este pedido saiu para entrega.
+  // Somente o evento explícito da própria entrega cruza essa fronteira.
+  if (type === "delivery.out_for_delivery") return "Saiu para Entrega";
   if (type === "delivery.completed") return "Finalizado";
   return null;
 }
