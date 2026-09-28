@@ -68,6 +68,23 @@ export async function GET(request: NextRequest) {
       .limit(40)
       .get();
 
+    console.info("[ADMIN_ORDERS_DIAGNOSTIC]", {
+      count: snapshot.size,
+      latest: snapshot.docs.slice(0, 8).map((document) => {
+        const data = document.data();
+        const rawDate = data.data;
+
+        return {
+          id: document.id,
+          status: String(data.status ?? ""),
+          data:
+            rawDate && typeof rawDate.toDate === "function"
+              ? rawDate.toDate().toISOString()
+              : String(rawDate ?? ""),
+        };
+      }),
+    });
+
     const orders = snapshot.docs.map((document) => ({
       id: document.id,
       ...(serialize(document.data()) as Record<string, unknown>),
