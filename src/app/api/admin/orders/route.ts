@@ -198,16 +198,44 @@ async function readHistory(_cursor: string | null) {
     }
   }
 
+  const statusSample: Record<string, number> = {};
+
+  /*
+   * Só entra aqui quando as consultas terminais conhecidas retornam zero.
+   * É uma amostra única e limitada — não é paginação, polling nem listener.
+   * Nenhum dado de cliente é exposto no diagnóstico; somente texto do status
+   * e quantidade observada.
+   */
+  if (merged.size === 0) {
+    const sample = await adminDb
+      .collection("Pedidos")
+      .limit(80)
+      .get();
+
+    readDocuments += sample.size;
+
+    for (const doc of sample.docs) {
+      const rawStatus = String(doc.data().status ?? "").trim() || "(vazio)";
+      statusSample[rawStatus] = (statusSample[rawStatus] ?? 0) + 1;
+
+      const normalized = looseStatus(rawStatus);
+      if (normalized === "Finalizado" || normalized === "Cancelado") {
+        merged.set(doc.id, doc);
+      }
+    }
+  }
+
   const selected = sortDocs([...merged.values()]).slice(0, HISTORY_TARGET_SIZE);
+
   return {
     orders: selected.map((doc) => ({
       id: doc.id,
       ...(serialize(doc.data()) as Raw),
     })),
-    // Não fingimos cursor global sobre múltiplas queries independentes.
     cursor: null,
     hasMore: false,
     scanned: readDocuments,
+    statusSample,
   };
 }
 
@@ -241,7 +269,10 @@ export async function GET(request: NextRequest) {
           historyCursor: page.cursor,
           historyHasMore: page.hasMore,
           scanned: page.scanned,
-          authorityVersion: 4,
+          ...(Object.keys(page.statusSample).length
+            ? { statusSample: page.statusSample }
+            : {}),
+          authorityVersion: 5,
         },
         {
           headers: {
@@ -265,7 +296,7 @@ export async function GET(request: NextRequest) {
         historyCount: historyPage.orders.length,
         historyCursor: historyPage.cursor,
         historyHasMore: historyPage.hasMore,
-        authorityVersion: 4,
+        authorityVersion: 5,
       },
       {
         headers: {
