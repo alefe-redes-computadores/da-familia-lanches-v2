@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldPath } from "firebase-admin/firestore";
 import { adminAuth } from "@/lib/integration/server/adminAuth";
 import { adminDb } from "@/lib/integration/server/admin";
 import { isAdminEmail } from "@/lib/adminAuthorization";
@@ -20,8 +19,11 @@ const ACTIVE_STATUSES = [
 const ACTIVE_LIMIT_PER_STATUS = 40;
 const ACTIVE_RESULT_LIMIT = 100;
 const HISTORY_TARGET_SIZE = 20;
-const HISTORY_SCAN_SIZE = 50;
-const HISTORY_MAX_SCAN_PAGES = 4;
+const HISTORY_QUERY_LIMIT = 24;
+const TERMINAL_STATUS_ALIASES = [
+  "Finalizado", "Cancelado", "Concluído", "Concluido",
+  "Concluída", "Concluida", "Finalizada", "Canceled", "Cancelled",
+] as const;
 
 type Raw = Record<string, unknown>;
 
@@ -173,71 +175,39 @@ async function readActiveOrders() {
  * sem depender da representação histórica da data e sem índice composto.
  * Só pedidos terminais entram na resposta.
  */
-async function readHistory(cursor: string | null) {
-  const history: Array<{ id: string } & Raw> = [];
-  let scanCursor = cursor;
-  let scanned = 0;
-  let pages = 0;
-  let exhausted = false;
+async function readHistory(_cursor: string | null) {
+  // Histórico operacional: consulta somente estados terminais conhecidos.
+  // Evita varrer Pedidos por documentId e mantém custo previsível.
+  const snapshots = await Promise.all(
+    TERMINAL_STATUS_ALIASES.map((status) =>
+      adminDb.collection("Pedidos")
+        .where("status", "==", status)
+        .limit(HISTORY_QUERY_LIMIT)
+        .get(),
+    ),
+  );
 
-  while (
-    history.length < HISTORY_TARGET_SIZE &&
-    pages < HISTORY_MAX_SCAN_PAGES &&
-    !exhausted
-  ) {
-    let query = adminDb
-      .collection("Pedidos")
-      .orderBy(FieldPath.documentId(), "desc")
-      .limit(HISTORY_SCAN_SIZE);
+  const merged = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+  let readDocuments = 0;
 
-    if (scanCursor) query = query.startAfter(scanCursor);
-
-    const snapshot = await query.get();
-    pages += 1;
-    scanned += snapshot.size;
-
-    if (snapshot.empty) {
-      exhausted = true;
-      break;
-    }
-
+  for (const snapshot of snapshots) {
+    readDocuments += snapshot.size;
     for (const doc of snapshot.docs) {
-      scanCursor = doc.id;
-      const data = doc.data();
-      const status = looseStatus(data.status);
-
-      if (status !== "Finalizado" && status !== "Cancelado")
-        continue;
-
-      history.push({
-        id: doc.id,
-        ...(serialize(data) as Raw),
-      });
-
-      if (history.length >= HISTORY_TARGET_SIZE) break;
+      const status = looseStatus(doc.data().status);
+      if (status === "Finalizado" || status === "Cancelado") merged.set(doc.id, doc);
     }
-
-    if (snapshot.size < HISTORY_SCAN_SIZE) exhausted = true;
   }
 
-  history.sort((a, b) => {
-    const av =
-      millis(a.statusUpdatedAt) ||
-      millis(a.data) ||
-      millis(a.createdAt);
-    const bv =
-      millis(b.statusUpdatedAt) ||
-      millis(b.data) ||
-      millis(b.createdAt);
-
-    return bv - av || b.id.localeCompare(a.id);
-  });
-
+  const selected = sortDocs([...merged.values()]).slice(0, HISTORY_TARGET_SIZE);
   return {
-    orders: history,
-    cursor: exhausted ? null : scanCursor,
-    hasMore: !exhausted && Boolean(scanCursor),
-    scanned,
+    orders: selected.map((doc) => ({
+      id: doc.id,
+      ...(serialize(doc.data()) as Raw),
+    })),
+    // Não fingimos cursor global sobre múltiplas queries independentes.
+    cursor: null,
+    hasMore: false,
+    scanned: readDocuments,
   };
 }
 

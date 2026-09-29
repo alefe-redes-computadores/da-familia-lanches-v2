@@ -1408,3 +1408,43 @@
   .primaryNav button { font-size:7px; }
   .mobileBrand strong { font-size:14px; }
 }
+
+/* DFL ADMIN — MOBILE OPERATION STRIP V2 */
+@media (max-width: 820px) {
+  .overviewGrid {
+    display:grid !important;
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+    gap:6px !important;
+    align-items:stretch !important;
+  }
+  .overviewGrid > :first-child,
+  .metricLead {
+    grid-column:1 / -1 !important;
+    min-height:0 !important;
+  }
+  .overviewGrid > :not(:first-child),
+  .metricCard:not(.metricLead) {
+    min-width:0 !important;
+    min-height:48px !important;
+    padding:7px 4px !important;
+    border-radius:12px !important;
+  }
+  .overviewGrid > :not(:first-child) svg,
+  .overviewGrid > :not(:first-child) [class*="Icon"],
+  .metricCard:not(.metricLead) .metricIcon { display:none !important; }
+  .overviewGrid > :not(:first-child) b,
+  .overviewGrid > :not(:first-child) strong,
+  .metricCard:not(.metricLead) b {
+    font-size:16px !important;
+    line-height:1 !important;
+  }
+  .overviewGrid > :not(:first-child) span,
+  .overviewGrid > :not(:first-child) small,
+  .metricCard:not(.metricLead) span {
+    font-size:9px !important;
+    line-height:1.15 !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+}
