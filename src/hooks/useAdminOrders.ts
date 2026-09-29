@@ -50,6 +50,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historySearchLoading, setHistorySearchLoading] = useState(false);
   const [alarmeAtivo, setAlarmeAtivo] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -384,13 +385,31 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     publish,
   ]);
 
+  const searchHistoryIdentifier = useCallback(async (term: string) => {
+    const clean=term.trim(); if(!clean||!currentUser||cancelledRef.current)return;
+    setHistorySearchLoading(true);
+    try {
+      const token=await currentUser.getIdToken();
+      const params=new URLSearchParams({mode:"search",q:clean});
+      const response=await fetch(`/api/admin/orders?${params.toString()}`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+      if(!response.ok) throw new Error(`ADMIN_HISTORY_SEARCH_HTTP_${response.status}`);
+      const payload=await response.json() as {ok?:boolean;orders?:AdminOrder[]};
+      if(cancelledRef.current||!payload.ok||!Array.isArray(payload.orders))return;
+      for(const order of payload.orders) authoritativeOrdersRef.current.set(String(order.id),order);
+      publish();
+    } catch(error){console.error("[admin/orders] busca histórica:",error)}
+    finally{if(!cancelledRef.current)setHistorySearchLoading(false)}
+  },[currentUser,publish]);
+
   return {
     pedidos,
     loading,
     historyLoading,
     historyHasMore,
+    historySearchLoading,
     refreshHistory,
     loadMoreHistory,
+    searchHistoryIdentifier,
     alarmeAtivo,
     pararAlarme: () => {
       setAlarmeAtivo(false);

@@ -117,8 +117,10 @@ export default function AdminPage() {
     loading,
     historyLoading,
     historyHasMore,
+    historySearchLoading,
     refreshHistory,
     loadMoreHistory,
+    searchHistoryIdentifier,
     alarmeAtivo,
     pararAlarme,
   } = useAdminOrders(currentUser, ADMINS);
@@ -152,6 +154,12 @@ export default function AdminPage() {
     if (tab !== "concluidos" && tab !== "cancelados") return;
     void refreshHistory();
   }, [tab, refreshHistory]);
+  useEffect(() => {
+    if (tab !== "concluidos" && tab !== "cancelados") return;
+    const term=search.trim(); if(term.length<4)return;
+    const timer=window.setTimeout(()=>void searchHistoryIdentifier(term),550);
+    return ()=>window.clearTimeout(timer);
+  },[tab,search,searchHistoryIdentifier]);
 
   const updateStatus = async (id: string, status: string, pedido?: Record<string, unknown>) => {
     if (updatingOrderId === id) return;
@@ -554,7 +562,7 @@ export default function AdminPage() {
                 <span>{tab === "cozinha" ? "AGORA" : tab === "expedicao" ? "SAÍDA" : "HISTÓRICO"}</span>
                 <h2>{attentionOnly ? "Precisam de atenção" : tabItems.find(([key]) => key === tab)?.[1]}</h2>
               </div>
-              <b>{filtered.length}</b>
+              <b>{filtered.length}{(tab === "concluidos" || tab === "cancelados") ? " carregados" : ""}</b>
             </div>
 
             <div className={styles.queueTools}>
@@ -630,7 +638,7 @@ export default function AdminPage() {
             {(tab === "concluidos" || tab === "cancelados") && historyHasMore && (
               <div className={styles.loadMore}>
                 <button type="button" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
-                  {historyLoading ? "Carregando histórico…" : "Carregar pedidos mais antigos"}
+                  {historyLoading ? "Carregando histórico…" : "Carregar mais 20 pedidos"}
                 </button>
               </div>
             )}

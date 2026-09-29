@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FieldPath } from "firebase-admin/firestore";
 import { adminAuth } from "@/lib/integration/server/adminAuth";
 import { adminDb } from "@/lib/integration/server/admin";
 import { isAdminEmail } from "@/lib/adminAuthorization";
@@ -19,7 +20,7 @@ const ACTIVE_STATUSES = [
 const ACTIVE_LIMIT_PER_STATUS = 40;
 const ACTIVE_RESULT_LIMIT = 100;
 const HISTORY_TARGET_SIZE = 20;
-const HISTORY_QUERY_LIMIT = 24;
+const HISTORY_PAGE_SIZE = 20;
 const TERMINAL_STATUS_ALIASES = [
   "Finalizado", "Cancelado", "Concluído", "Concluido",
   "Concluída", "Concluida", "Finalizada", "Canceled", "Cancelled",
@@ -164,79 +165,36 @@ async function readActiveOrders() {
     }));
 }
 
-/*
- * Histórico deliberadamente pagina pelo ID físico do documento.
- *
- * Motivo: a coleção Pedidos contém gerações antigas com tipos de `data`
- * heterogêneos. Ordenar a coleção inteira por `data` já provou esconder
- * pedidos de 2026 atrás de documentos antigos.
- *
- * O cursor por documentId percorre a coleção inteira de forma estável,
- * sem depender da representação histórica da data e sem índice composto.
- * Só pedidos terminais entram na resposta.
- */
-async function readHistory(_cursor: string | null) {
-  // Histórico operacional: consulta somente estados terminais conhecidos.
-  // Evita varrer Pedidos por documentId e mantém custo previsível.
-  const snapshots = await Promise.all(
-    TERMINAL_STATUS_ALIASES.map((status) =>
-      adminDb.collection("Pedidos")
-        .where("status", "==", status)
-        .limit(HISTORY_QUERY_LIMIT)
-        .get(),
-    ),
-  );
-
-  const merged = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
-  let readDocuments = 0;
-
-  for (const snapshot of snapshots) {
-    readDocuments += snapshot.size;
-    for (const doc of snapshot.docs) {
-      const status = looseStatus(doc.data().status);
-      if (status === "Finalizado" || status === "Cancelado") merged.set(doc.id, doc);
-    }
-  }
-
-  const statusSample: Record<string, number> = {};
-
-  /*
-   * Só entra aqui quando as consultas terminais conhecidas retornam zero.
-   * É uma amostra única e limitada — não é paginação, polling nem listener.
-   * Nenhum dado de cliente é exposto no diagnóstico; somente texto do status
-   * e quantidade observada.
-   */
-  if (merged.size === 0) {
-    const sample = await adminDb
-      .collection("Pedidos")
-      .limit(80)
-      .get();
-
-    readDocuments += sample.size;
-
-    for (const doc of sample.docs) {
-      const rawStatus = String(doc.data().status ?? "").trim() || "(vazio)";
-      statusSample[rawStatus] = (statusSample[rawStatus] ?? 0) + 1;
-
-      const normalized = looseStatus(rawStatus);
-      if (normalized === "Finalizado" || normalized === "Cancelado") {
-        merged.set(doc.id, doc);
-      }
-    }
-  }
-
-  const selected = sortDocs([...merged.values()]).slice(0, HISTORY_TARGET_SIZE);
-
+/* Histórico terminal paginado: somente estados terminais, cursor físico estável. */
+async function readHistory(cursor: string | null) {
+  let historyQuery = adminDb.collection("Pedidos")
+    .where("status", "in", [...TERMINAL_STATUS_ALIASES])
+    .orderBy(FieldPath.documentId(), "desc")
+    .limit(HISTORY_PAGE_SIZE + 1);
+  if (cursor) historyQuery = historyQuery.startAfter(cursor);
+  const snapshot = await historyQuery.get();
+  const hasMore = snapshot.docs.length > HISTORY_PAGE_SIZE;
+  const pageDocs = snapshot.docs.slice(0, HISTORY_PAGE_SIZE);
+  const nextCursor = pageDocs.at(-1)?.id ?? null;
   return {
-    orders: selected.map((doc) => ({
-      id: doc.id,
-      ...(serialize(doc.data()) as Raw),
-    })),
-    cursor: null,
-    hasMore: false,
-    scanned: readDocuments,
-    statusSample,
+    orders: sortDocs(pageDocs).map((doc) => ({ id: doc.id, ...(serialize(doc.data()) as Raw) })),
+    cursor: hasMore ? nextCursor : null, hasMore, scanned: snapshot.size,
   };
+}
+
+async function searchHistoryIdentifier(term: string) {
+  const clean = term.trim(); if (!clean) return [];
+  const merged = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+  const direct = await adminDb.collection("Pedidos").doc(clean).get();
+  if (direct.exists && ["Finalizado","Cancelado"].includes(looseStatus(direct.data()?.status)))
+    merged.set(direct.id, direct as FirebaseFirestore.QueryDocumentSnapshot);
+  const candidates=[...new Set([clean,clean.replace(/\D/g,"")].filter(Boolean))];
+  const queries: Promise<FirebaseFirestore.QuerySnapshot>[]=[];
+  for(const field of ["userPhone","phone"] as const) for(const phone of candidates)
+    queries.push(adminDb.collection("Pedidos").where(field,"==",phone).limit(20).get());
+  for(const snap of await Promise.all(queries)) for(const doc of snap.docs)
+    if(["Finalizado","Cancelado"].includes(looseStatus(doc.data().status))) merged.set(doc.id,doc);
+  return sortDocs([...merged.values()]).slice(0,20).map(doc=>({id:doc.id,...(serialize(doc.data()) as Raw)}));
 }
 
 export async function GET(request: NextRequest) {
@@ -250,10 +208,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const mode =
-      request.nextUrl.searchParams.get("mode") === "history"
-        ? "history"
-        : "bootstrap";
+    const requestedMode=request.nextUrl.searchParams.get("mode");
+    const mode=requestedMode==="history"||requestedMode==="search"?requestedMode:"bootstrap";
+    if(mode==="search"){
+      const orders=await searchHistoryIdentifier(request.nextUrl.searchParams.get("q")?.trim()||"");
+      return NextResponse.json({ok:true,mode:"search",orders,authorityVersion:6},{headers:{"Cache-Control":"no-store, max-age=0"}});
+    }
 
     if (mode === "history") {
       const cursor =
@@ -269,10 +229,7 @@ export async function GET(request: NextRequest) {
           historyCursor: page.cursor,
           historyHasMore: page.hasMore,
           scanned: page.scanned,
-          ...(Object.keys(page.statusSample).length
-            ? { statusSample: page.statusSample }
-            : {}),
-          authorityVersion: 5,
+          authorityVersion: 6,
         },
         {
           headers: {
@@ -296,7 +253,7 @@ export async function GET(request: NextRequest) {
         historyCount: historyPage.orders.length,
         historyCursor: historyPage.cursor,
         historyHasMore: historyPage.hasMore,
-        authorityVersion: 5,
+        authorityVersion: 6,
       },
       {
         headers: {
