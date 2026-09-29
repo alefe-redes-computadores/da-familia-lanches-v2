@@ -280,6 +280,40 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     };
   }, [currentUser, admins, publish]);
 
+  const refreshHistory = useCallback(async () => {
+    if (!currentUser || cancelledRef.current || historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch("/api/admin/orders?mode=history", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(`ADMIN_HISTORY_REFRESH_HTTP_${response.status}`);
+      const payload = await response.json() as {
+        ok?: boolean;
+        orders?: AdminOrder[];
+        historyCursor?: string | null;
+        historyHasMore?: boolean;
+      };
+      if (cancelledRef.current || !payload.ok || !Array.isArray(payload.orders)) return;
+
+      for (const [id, order] of authoritativeOrdersRef.current) {
+        const status = normalizarStatus(order.status);
+        if (status === "Finalizado" || status === "Cancelado") authoritativeOrdersRef.current.delete(id);
+      }
+      for (const order of payload.orders) authoritativeOrdersRef.current.set(String(order.id), order);
+
+      historyCursorRef.current = typeof payload.historyCursor === "string" ? payload.historyCursor : null;
+      setHistoryHasMore(payload.historyHasMore === true);
+      publish();
+    } catch (error) {
+      console.error("[admin/orders] refresh histórico:", error);
+    } finally {
+      if (!cancelledRef.current) setHistoryLoading(false);
+    }
+  }, [currentUser, historyLoading, publish]);
+
   const loadMoreHistory = useCallback(async () => {
     if (
       historyLoading ||
@@ -355,6 +389,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     loading,
     historyLoading,
     historyHasMore,
+    refreshHistory,
     loadMoreHistory,
     alarmeAtivo,
     pararAlarme: () => {

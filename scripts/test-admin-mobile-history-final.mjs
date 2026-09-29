@@ -1,0 +1,15 @@
+import fs from "node:fs";
+const r=(f)=>fs.readFileSync(f,"utf8");
+const ok=(v,l)=>{if(!v)throw new Error("FALHOU: "+l);console.log("OK: "+l)};
+const hook=r("src/hooks/useAdminOrders.ts");
+const page=r("src/app/admin/page.tsx");
+const css=r("src/app/admin/admin.module.css");
+ok(hook.includes('fetch("/api/admin/orders?mode=history"'),"histórico possui refresh explícito sob demanda");
+ok(hook.includes('status === "Finalizado" || status === "Cancelado"'),"refresh substitui somente histórico terminal");
+ok(page.includes('tab !== "concluidos" && tab !== "cancelados"'),"refresh só acontece nas abas terminais");
+ok(page.includes("void refreshHistory()"),"entrada no histórico dispara refresh");
+ok(css.includes("min-height:56px"),"overview mobile compactado");
+ok(css.includes("grid-template-columns:repeat(4,minmax(0,1fr))"),"quatro métricas cabem na mesma faixa");
+console.log("============================================================");
+console.log(" DFL ADMIN MOBILE + HISTORY FINAL — CONTRATO OK");
+console.log("============================================================");

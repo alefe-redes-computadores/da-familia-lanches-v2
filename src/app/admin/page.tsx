@@ -117,6 +117,7 @@ export default function AdminPage() {
     loading,
     historyLoading,
     historyHasMore,
+    refreshHistory,
     loadMoreHistory,
     alarmeAtivo,
     pararAlarme,
@@ -146,6 +147,11 @@ export default function AdminPage() {
     const timer = window.setTimeout(() => setFeedback(""), 4200);
     return () => window.clearTimeout(timer);
   }, [feedback]);
+
+  useEffect(() => {
+    if (tab !== "concluidos" && tab !== "cancelados") return;
+    void refreshHistory();
+  }, [tab, refreshHistory]);
 
   const updateStatus = async (id: string, status: string, pedido?: Record<string, unknown>) => {
     if (updatingOrderId === id) return;
