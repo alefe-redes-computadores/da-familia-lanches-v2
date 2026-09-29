@@ -1,0 +1,23 @@
+import fs from "node:fs";
+const read=(f)=>fs.readFileSync(f,"utf8");
+const ok=(v,l)=>{if(!v)throw new Error(`FALHOU: ${l}`);console.log(`OK: ${l}`)};
+const page=read("src/app/admin/page.tsx");
+const css=read("src/app/admin/admin.module.css");
+const card=read("src/components/layout/OrderCard.tsx");
+const cardCss=read("src/components/layout/OrderCard.module.css");
+
+ok(page.includes("desktopToolbar")&&page.includes("desktopRail"),"desktop segue shell da referencia");
+ok(page.includes("overviewGrid")&&page.includes("metricLead"),"metricas horizontais da referencia");
+ok(page.includes("desktopSearch")&&page.includes("operationBar"),"tabs e busca compartilham a barra operacional");
+ok(page.includes("selectedOrderId")&&page.includes("orderInspector"),"master-detail preservado");
+ok(page.includes("AdminIcon")&&page.includes("Saúde da operação"),"sidebar operacional refatorada");
+ok(css.includes("DFL ADMIN — REFERENCE REFACTOR"),"css antigo consolidado em uma folha canonica");
+ok(css.includes("grid-template-columns: repeat(4, minmax(0,1fr))"),"quatro tabs responsivas cabem sem carrossel");
+ok(!css.includes("overflow-x: auto"),"navegacao principal sem scroll horizontal");
+ok(card.includes("detailsAction")&&card.includes("toggleDetails"),"card possui acao de detalhes explicita");
+ok(cardCss.includes("DFL ORDER CARD — REFERENCE REFACTOR"),"card reconstruido na linguagem da referencia");
+ok(page.includes("updateOrderStatus")&&page.includes("useAdminOrders"),"motor operacional preservado");
+ok(!page.includes("getDocs(")&&!page.includes("onSnapshot("),"refactor nao adiciona Firestore I/O");
+console.log("============================================================");
+console.log(" DFL ADMIN REFERENCE REFACTOR — CONTRATO OK");
+console.log("============================================================");

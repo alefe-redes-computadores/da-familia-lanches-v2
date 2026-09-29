@@ -34,14 +34,22 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   };
 
   const next =
-    statusAtual === "Pendente" || statusAtual === "Agendado" ? ["Em Produção", "ACEITAR", "warm"] :
-    statusAtual === "Em Produção" ? ["Pronto", "MARCAR PRONTO", "green"] :
-    statusAtual === "Pronto" && !pickup ? ["Saiu para Entrega", "DESPACHAR", "blue"] :
-    (statusAtual === "Saiu para Entrega" || (statusAtual === "Pronto" && pickup)) ? ["Finalizado", "CONCLUIR", ""] :
+    statusAtual === "Pendente" || statusAtual === "Agendado" ? ["Em Produção", "Aceitar", "warm"] :
+    statusAtual === "Em Produção" ? ["Pronto", "Marcar pronto", "green"] :
+    statusAtual === "Pronto" && !pickup ? ["Saiu para Entrega", "Despachar", "blue"] :
+    (statusAtual === "Saiu para Entrega" || (statusAtual === "Pronto" && pickup)) ? ["Finalizado", "Concluir", ""] :
     null;
 
   const canCancel = !["Finalizado", "Cancelado"].includes(statusAtual)
     && canTransitionOrderStatus(statusAtual, "Cancelado", pickup);
+
+  const toggleDetails = () => {
+    if (onSelect) {
+      onSelect();
+      return;
+    }
+    if (!forceExpanded) setExpanded((value) => !value);
+  };
 
   return (
     <article
@@ -75,10 +83,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         className={styles.summary}
         type="button"
         aria-expanded={isExpanded}
-        onClick={() => {
-          if (onSelect) onSelect();
-          else if (!forceExpanded) setExpanded((value) => !value);
-        }}
+        onClick={toggleDetails}
       >
         <div className={styles.summaryMain}>
           <h3>{pedido.userName || "Cliente"}</h3>
@@ -129,10 +134,11 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         </div>
       )}
 
-      {(next || canCancel) && (
+      {(next || canCancel || !inspector) && (
         <div className={styles.actions}>
           {next && <button className={styles.primary} data-tone={next[2]} onClick={() => updateStatus(pedido.id, next[0], pedido)}>{next[1]}</button>}
-          {canCancel && <button className={styles.cancel} onClick={() => {
+          {!inspector && <button className={styles.detailsAction} type="button" onClick={toggleDetails}>Detalhes</button>}
+          {canCancel && <button className={styles.cancel} data-danger="true" onClick={() => {
             if (window.confirm(`Cancelar o pedido #${String(pedido.id).slice(-8).toUpperCase()}?`)) {
               updateStatus(pedido.id, "Cancelado", pedido);
             }

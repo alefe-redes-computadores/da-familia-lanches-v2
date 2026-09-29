@@ -60,6 +60,56 @@ type ServiceFilter = "todos" | "delivery" | "pickup";
 const normalizeSearch = (value: unknown) =>
   String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+
+type AdminIconName =
+  | "orders"
+  | "kitchen"
+  | "dispatch"
+  | "history"
+  | "management"
+  | "health"
+  | "store"
+  | "bell"
+  | "search";
+
+function AdminIcon({ name }: { name: AdminIconName }) {
+  const common = {
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  if (name === "orders") {
+    return <svg {...common}><rect x="6" y="4" width="12" height="16" rx="2" /><path d="M9 4.5h6M9 9h6M9 13h6M9 17h4" /></svg>;
+  }
+  if (name === "kitchen") {
+    return <svg {...common}><path d="M5 11h14l-1 7H6l-1-7Z" /><path d="M8 11V8a4 4 0 0 1 8 0v3M4 20h16" /></svg>;
+  }
+  if (name === "dispatch") {
+    return <svg {...common}><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>;
+  }
+  if (name === "history") {
+    return <svg {...common}><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2M4 7V3m0 0h4" /></svg>;
+  }
+  if (name === "management") {
+    return <svg {...common}><path d="M4 7h10M18 7h2M4 17h2M10 17h10M8 5v4M8 15v4M16 5v4M16 15v4" /></svg>;
+  }
+  if (name === "health") {
+    return <svg {...common}><path d="M3 12h4l2.2-5 4.2 10 2.1-5H21" /></svg>;
+  }
+  if (name === "store") {
+    return <svg {...common}><path d="M4 9h16l-1-5H5L4 9Z" /><path d="M6 9v10h12V9M9 19v-5h6v5" /></svg>;
+  }
+  if (name === "bell") {
+    return <svg {...common}><path d="M6 9a6 6 0 0 1 12 0v4l2 3H4l2-3V9Z" /><path d="M10 19h4" /></svg>;
+  }
+  return <svg {...common}><circle cx="11" cy="11" r="7" /><path d="m16 16 4 4" /></svg>;
+}
+
 export default function AdminPage() {
   const { currentUser } = useAuthStore();
   const {
@@ -211,279 +261,375 @@ export default function AdminPage() {
       ? { label: "Aberta", tone: "open", detail: storeStatus.source === "manual" ? "Abertura manual" : storeStatus.message }
       : { label: "Fechada", tone: "closed", detail: storeStatus.message };
   const managementActive = ["cancelados","catalogo","operacao","agendamentos","frete","cupons","fidelidade","gestao"].includes(tab);
+  const activeOrders = counts.cozinha + counts.expedicao;
+  const currentMoment = new Date(now);
+  const desktopDate = new Intl.DateTimeFormat("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "long",
+  }).format(currentMoment).replace(".", "");
+  const desktopTime = new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(currentMoment);
+  const adminInitial = String(currentUser.email || "A").trim().charAt(0).toUpperCase() || "A";
 
   return (
     <main className={styles.page}>
       <aside className={styles.desktopRail} aria-label="Navegação administrativa">
         <div className={styles.railBrand}>
           <div className={styles.railMark} aria-hidden="true" />
-          <div><strong>Da Família</strong><span>Painel administrativo</span></div>
+          <div>
+            <strong>DA FAMÍLIA</strong>
+            <span>LANCHES</span>
+          </div>
         </div>
 
         <nav className={styles.railNav}>
-          <button type="button" data-active={tab === "cozinha"} onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
-            <i>01</i><span>Visão geral</span>{counts.cozinha > 0 && <b>{counts.cozinha}</b>}
+          <button type="button" data-active={isOrderTab} onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+            <span className={styles.railIcon}><AdminIcon name="orders" /></span>
+            <span>Pedidos</span>
+            {activeOrders > 0 && <b>{activeOrders}</b>}
           </button>
-          <button type="button" data-active={tab === "expedicao"} onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
-            <i>02</i><span>Expedição</span>{counts.expedicao > 0 && <b>{counts.expedicao}</b>}
+          <button type="button" data-stage-active={tab === "cozinha"} onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+            <span className={styles.railIcon}><AdminIcon name="kitchen" /></span>
+            <span>Cozinha</span>
+            {counts.cozinha > 0 && <b>{counts.cozinha}</b>}
           </button>
-          <button type="button" data-active={tab === "concluidos"} onClick={() => { setTab("concluidos"); setAttentionOnly(false); }}>
-            <i>03</i><span>Histórico</span>
+          <button type="button" data-stage-active={tab === "expedicao"} onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+            <span className={styles.railIcon}><AdminIcon name="dispatch" /></span>
+            <span>Expedição</span>
+            {counts.expedicao > 0 && <b>{counts.expedicao}</b>}
           </button>
-
-          <div className={styles.railSection}>GESTÃO</div>
-          <button type="button" data-active={tab === "catalogo"} onClick={() => setTab("catalogo")}><i>04</i><span>Cardápio</span></button>
-          <button type="button" data-active={tab === "operacao"} onClick={() => setTab("operacao")}><i>05</i><span>Funcionamento</span></button>
-          <button type="button" data-active={tab === "agendamentos"} onClick={() => setTab("agendamentos")}><i>06</i><span>Agendamentos</span></button>
-          <button type="button" data-active={tab === "frete"} onClick={() => setTab("frete")}><i>07</i><span>Entrega & frete</span></button>
-          <button type="button" data-active={tab === "cupons"} onClick={() => setTab("cupons")}><i>08</i><span>Cupons</span></button>
-          <button type="button" data-active={tab === "fidelidade"} onClick={() => setTab("fidelidade")}><i>09</i><span>Fidelidade</span></button>
-          <button type="button" data-active={tab === "gestao"} onClick={() => setTab("gestao")}><i>10</i><span>Relatórios</span></button>
+          <button type="button" data-stage-active={tab === "concluidos"} onClick={() => { setTab("concluidos"); setAttentionOnly(false); }}>
+            <span className={styles.railIcon}><AdminIcon name="history" /></span>
+            <span>Histórico</span>
+          </button>
+          <button type="button" data-active={managementActive && tab !== "gestao"} onClick={() => { setTab("operacao"); setAttentionOnly(false); }}>
+            <span className={styles.railIcon}><AdminIcon name="management" /></span>
+            <span>Gestão</span>
+          </button>
+          <button type="button" data-active={tab === "gestao"} onClick={() => { setTab("gestao"); setAttentionOnly(false); }}>
+            <span className={styles.railIcon}><AdminIcon name="health" /></span>
+            <span>Saúde da operação</span>
+          </button>
         </nav>
 
-        <button type="button" className={styles.railStore} data-tone={storeState.tone} onClick={() => setTab("operacao")}>
+        <button type="button" className={styles.railStatus} data-tone={storeState.tone} onClick={() => setTab("operacao")}>
           <i />
-          <span><b>Loja {storeState.label}</b><small>{storeState.detail}</small></span>
+          <span>
+            <b>Loja {storeState.label}</b>
+            <small>{storeState.detail}</small>
+          </span>
         </button>
       </aside>
 
       <div className={styles.workspace}>
-      {alarmeAtivo && <button className={styles.alarm} onClick={pararAlarme}>NOVO PEDIDO <span>toque para silenciar</span></button>}
+        {alarmeAtivo && (
+          <button className={styles.alarm} onClick={pararAlarme}>
+            NOVO PEDIDO <span>toque para silenciar</span>
+          </button>
+        )}
 
-      <header className={styles.topbar}>
-        <div className={styles.brand}>
-          <div className={styles.brandMark} aria-hidden="true" />
-          <div>
-            <strong>Da Família</strong>
-            <span>Operação da loja</span>
-          </div>
-        </div>
-
-        <button
-          className={styles.storePill}
-          data-tone={storeState.tone}
-          onClick={() => setTab("operacao")}
-          aria-label={`Loja ${storeState.label}. ${storeState.detail}`}
-          title={storeState.detail}
-        >
-          <i />
-          <span><b>{storeState.label}</b><small>{storeStatus.mode === "test_open" ? "teste" : storeStatus.source === "manual" ? "manual" : "agenda"}</small></span>
-        </button>
-      </header>
-
-      <section className={styles.command}>
-        <div className={styles.commandHead}>
-          <div>
-            <span>VISÃO GERAL</span>
-            <h1>
-              {counts.cozinha || counts.expedicao
-                ? `${counts.cozinha + counts.expedicao} pedidos em andamento`
-                : "Operação sob controle"}
-            </h1>
-          </div>
-
-          {counts.attention > 0 && (
+        <header className={styles.desktopToolbar}>
+          <div className={styles.toolbarLeft}>
             <button
-              className={styles.alertPill}
+              type="button"
+              className={styles.storeControl}
+              data-tone={storeState.tone}
+              onClick={() => setTab("operacao")}
+              aria-label={`Loja ${storeState.label}. ${storeState.detail}`}
+              title={storeState.detail}
+            >
+              <span className={styles.storeIcon}><AdminIcon name="store" /></span>
+              <b>{storeState.label}</b>
+              <span className={styles.storeChevron}>⌄</span>
+            </button>
+            <div className={styles.clock}>
+              <span>{desktopDate}</span>
+              <i />
+              <b>{desktopTime}</b>
+            </div>
+          </div>
+
+          <div className={styles.toolbarRight}>
+            <button
+              type="button"
+              className={styles.notificationButton}
+              data-active={counts.attention > 0}
               onClick={() => {
                 setTab("cozinha");
                 setAttentionOnly(true);
               }}
+              aria-label={counts.attention > 0 ? `${counts.attention} pedidos precisam de atenção` : "Nenhum pedido precisa de atenção"}
             >
-              {counts.attention} atenção
+              <AdminIcon name="bell" />
+              {counts.attention > 0 && <b>{counts.attention}</b>}
             </button>
-          )}
-        </div>
+            <div className={styles.adminIdentity}>
+              <span>{adminInitial}</span>
+              <div>
+                <b>Admin</b>
+                <small>{currentUser.email}</small>
+              </div>
+            </div>
+          </div>
+        </header>
 
-        <div className={styles.quickStats}>
-          <button onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+        <header className={styles.mobileTopbar}>
+          <div className={styles.mobileBrand}>
+            <div className={styles.mobileBrandMark} aria-hidden="true" />
+            <strong>Da Família</strong>
+          </div>
+          <button
+            type="button"
+            className={styles.mobileStore}
+            data-tone={storeState.tone}
+            onClick={() => setTab("operacao")}
+            aria-label={`Loja ${storeState.label}. ${storeState.detail}`}
+          >
+            <i />
+            <span><b>{storeState.label}</b><small>{storeStatus.mode === "test_open" ? "teste" : storeStatus.source === "manual" ? "manual" : "agenda"}</small></span>
+          </button>
+        </header>
+
+        <section className={styles.overviewGrid} aria-label="Visão geral da operação">
+          <button
+            type="button"
+            className={`${styles.metricCard} ${styles.metricLead}`}
+            onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}
+          >
+            <span className={styles.metricIcon}><AdminIcon name="orders" /></span>
+            <b>{activeOrders}</b>
+            <strong>Pedidos em andamento</strong>
+            <small data-attention={counts.attention > 0}>
+              {counts.attention > 0 ? `${counts.attention} precisam de atenção` : "Fila sob controle"}
+            </small>
+          </button>
+
+          <button type="button" className={styles.metricCard} onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+            <span className={styles.metricIcon}><AdminIcon name="history" /></span>
             <b>{counts.pendentes}</b>
-            <span>Novos</span>
+            <strong>Novos</strong>
+            <small>{counts.pendentes > 0 ? "Aguardando aceite" : "Sem pendências"}</small>
           </button>
 
-          <button onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+          <button type="button" className={styles.metricCard} onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+            <span className={styles.metricIcon}><AdminIcon name="kitchen" /></span>
             <b>{counts.producao}</b>
-            <span>Preparo</span>
+            <strong>Em preparo</strong>
+            <small>{counts.producao > 0 ? "Na cozinha" : "Sem pedidos"}</small>
           </button>
 
-          <button onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+          <button type="button" className={styles.metricCard} onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+            <span className={styles.metricIcon}><AdminIcon name="orders" /></span>
             <b>{counts.prontos}</b>
-            <span>Prontos</span>
+            <strong>Prontos</strong>
+            <small>{counts.prontos > 0 ? "Aguardando expedição" : "Sem pedidos"}</small>
           </button>
 
-          <button onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+          <button type="button" className={styles.metricCard} onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+            <span className={styles.metricIcon}><AdminIcon name="dispatch" /></span>
             <b>{counts.rota}</b>
-            <span>Em rota</span>
+            <strong>Em rota</strong>
+            <small>{counts.rota > 0 ? "Com entregadores" : "Sem entregas"}</small>
           </button>
-        </div>
-      </section>
+        </section>
 
-      <nav className={styles.primaryNav} aria-label="Operação">
-        {tabItems
-          .filter(([key]) =>
-            ["cozinha", "expedicao", "concluidos"].includes(key)
-          )
-          .map(([key, label, count]) => (
+        <section className={styles.operationBar}>
+          <nav className={styles.primaryNav} aria-label="Operação">
             <button
-              key={key}
-              data-active={tab === key}
+              type="button"
+              data-active={tab === "cozinha"}
+              onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}
+            >
+              <AdminIcon name="kitchen" />
+              <span>Cozinha</span>
+              <b>{counts.cozinha}</b>
+            </button>
+            <button
+              type="button"
+              data-active={tab === "expedicao"}
+              onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}
+            >
+              <AdminIcon name="dispatch" />
+              <span>Expedição</span>
+              <b>{counts.expedicao}</b>
+            </button>
+            <button
+              type="button"
+              data-active={tab === "concluidos"}
+              onClick={() => { setTab("concluidos"); setAttentionOnly(false); }}
+            >
+              <AdminIcon name="history" />
+              <span>Histórico</span>
+              <b>{counts.concluidos}</b>
+            </button>
+            <button
+              type="button"
+              data-active={managementActive}
               onClick={() => {
-                setTab(key);
-                setAttentionOnly(false);
+                if (!managementActive) setTab("operacao");
+                window.requestAnimationFrame(() =>
+                  document.getElementById("admin-management")?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+                );
               }}
             >
-              <span>{key === "concluidos" ? "Histórico" : label}</span>
-              {count !== null && <b>{count}</b>}
+              <AdminIcon name="management" />
+              <span>Gestão</span>
             </button>
-          ))}
+          </nav>
 
-        <button
-          data-active={managementActive}
-          onClick={() => {
-            if (!managementActive) setTab("operacao");
-            window.requestAnimationFrame(() => document.getElementById("admin-management")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
-          }}
-        >
-          Gestão
-        </button>
-      </nav>
-
-      {managementActive && (
-        <section id="admin-management" className={styles.managementHub} aria-label="Gestão da loja">
-          <div className={styles.managementHubHead}>
-            <div><span>GESTÃO</span><strong>Controles da loja</strong></div>
-            <small>{storeState.label} · {storeStatus.source === "manual" ? "controle manual" : storeStatus.source === "exception" ? "exceção" : "agenda automática"}</small>
-          </div>
-          <div className={styles.managementNav}>
-            {tabItems.filter(([key]) => ["operacao","catalogo","agendamentos","frete","cupons","fidelidade","gestao","cancelados"].includes(key)).map(([key,label]) => (
-              <button key={key} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
-                <span>{key === "operacao" ? "Loja" : key === "frete" ? "Entrega" : key === "gestao" ? "Relatórios" : label}</span>
-                {key === "operacao" && <small>{storeState.label}</small>}
-                {key === "cancelados" && counts.cancelados > 0 && <small>{counts.cancelados}</small>}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {feedback && <div className={styles.toast} data-tone={feedback.startsWith("Não foi possível") ? "error" : "success"} role="status" aria-live="polite"><i /><span>{feedback}</span><button onClick={() => setFeedback("")} aria-label="Fechar aviso">×</button></div>}
-
-      {tab === "catalogo" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogAdmin /></section>
-      ) : tab === "operacao" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>FUNCIONAMENTO</span><h2>Loja agora & horários</h2></div><p>Abertura automática, forçada, modo de teste e agenda semanal.</p></div><StoreOperationAdmin /></section>
-      ) : tab === "agendamentos" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>AGENDAMENTOS</span><h2>Pedidos futuros</h2></div><p>Intervalo, antecedência, horários disponíveis e capacidade por faixa.</p></div><SchedulingAdmin /></section>
-      ) : tab === "frete" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>ENTREGA & FRETE</span><h2>Taxas e benefícios de entrega</h2></div><p>Taxa padrão, bairros e regras de frete grátis em um único lugar.</p></div><DeliveryRatesAdmin /><FreeDeliveryAdmin /></section>
-      ) : tab === "cupons" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>PROMOÇÕES</span><h2>Cupons de desconto</h2></div><p>Crie, agende, pause e edite cupons sem mexer diretamente no banco.</p></div><CouponsAdmin /><PublicPromotionsAdmin /></section>
-      ) : tab === "fidelidade" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><RewardsAdmin /></section>
-      ) : tab === "gestao" ? (
-        <section className={styles.management}><div className={styles.sectionHeading}><div><span>OPERAÇÃO & DESEMPENHO</span><h2>Saúde da loja</h2></div><p>Exceções operacionais, pressão de leituras e indicadores comerciais sem novas assinaturas em tempo real.</p></div><OperationHealthAdmin pedidos={pedidos} historyHasMore={historyHasMore} /><FirestoreBudgetAdmin /><RelatoriosAdmin pedidos={pedidos} /></section>
-      ) : isOrderTab ? (
-        <>
-          <div className={styles.queueHead}>
-            <div>
-              <span>
-                {tab === "cozinha"
-                  ? "AGORA"
-                  : tab === "expedicao"
-                    ? "SAÍDA"
-                    : "HISTÓRICO"}
-              </span>
-              <h2>
-                {attentionOnly
-                  ? "Precisam de atenção"
-                  : tabItems.find(([key]) => key === tab)?.[1]}
-              </h2>
-            </div>
-            <b>{filtered.length}</b>
-          </div>
-
-          <div className={styles.queueTools}>
-            <button type="button" className={styles.searchTrigger} data-active={searchOpen || Boolean(search)}
-              onClick={() => setSearchOpen((value) => !value)} aria-label={searchOpen ? "Fechar busca" : "Buscar pedido"} title="Buscar pedido">
-              <span aria-hidden="true">⌕</span><b>Buscar</b>
-            </button>
-            <div className={styles.filters}>
-            <button data-active={serviceFilter === "todos"} onClick={() => setServiceFilter("todos")}>Todos</button>
-            <button data-active={serviceFilter === "delivery"} onClick={() => setServiceFilter("delivery")}>Entrega</button>
-            <button data-active={serviceFilter === "pickup"} onClick={() => setServiceFilter("pickup")}>Retirada</button>
-            <button className={styles.attentionFilter} data-active={attentionOnly} onClick={() => setAttentionOnly((value) => !value)}>
-              {attentionOnly ? "Voltar à etapa" : "Atenção"} {counts.attention > 0 && <b>{counts.attention}</b>}
-            </button>
-            </div>
-          </div>
-
-          {(searchOpen || search) && (
-            <label className={styles.search} data-open="true">
-              <span>Buscar pedido</span>
-              <input autoFocus value={search} onChange={(event) => setSearch(event.target.value)}
-                placeholder="Cliente, telefone, pedido ou endereço" />
-              <button type="button" onClick={() => { setSearch(""); setSearchOpen(false); }} aria-label="Fechar busca">×</button>
+          {isOrderTab ? (
+            <label className={styles.desktopSearch}>
+              <AdminIcon name="search" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar pedido, cliente..."
+              />
+              {search && <button type="button" onClick={() => setSearch("")} aria-label="Limpar busca">×</button>}
             </label>
+          ) : (
+            <div className={styles.managementContext}>
+              <span>GESTÃO DA LOJA</span>
+              <b>{storeState.label}</b>
+            </div>
           )}
+        </section>
 
-          <div className={styles.orderWorkspace} data-inspector-open={Boolean(selectedOrder)}>
-            <div className={styles.grid}>
-              {filtered.length
-                ? filtered.map((pedido) => (
-                    <OrderCard
-                      key={pedido.id}
-                      pedido={pedido}
-                      updateStatus={updateStatus}
-                      imprimirPedido={imprimirPedido}
-                      selected={selectedOrderId === pedido.id}
-                      onSelect={() => setSelectedOrderId(pedido.id)}
-                    />
-                  ))
-                : <div className={styles.empty}><strong>Nenhum pedido aqui.</strong><span>{search || attentionOnly || serviceFilter !== "todos" ? "Tente limpar os filtros." : "A fila está limpa nesta etapa."}</span></div>}
+        {managementActive && (
+          <section id="admin-management" className={styles.managementHub} aria-label="Gestão da loja">
+            <div className={styles.managementHubHead}>
+              <div><span>GESTÃO</span><strong>Controles da loja</strong></div>
+              <small>{storeState.label} · {storeStatus.source === "manual" ? "controle manual" : storeStatus.source === "exception" ? "exceção" : "agenda automática"}</small>
+            </div>
+            <div className={styles.managementNav}>
+              {tabItems.filter(([key]) => ["operacao","catalogo","agendamentos","frete","cupons","fidelidade","gestao","cancelados"].includes(key)).map(([key,label]) => (
+                <button key={key} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
+                  <span>{key === "operacao" ? "Loja" : key === "frete" ? "Entrega" : key === "gestao" ? "Saúde" : label}</span>
+                  {key === "operacao" && <small>{storeState.label}</small>}
+                  {key === "cancelados" && counts.cancelados > 0 && <small>{counts.cancelados}</small>}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {feedback && (
+          <div className={styles.toast} data-tone={feedback.startsWith("Não foi possível") ? "error" : "success"} role="status" aria-live="polite">
+            <i />
+            <div>
+              <strong>{feedback.startsWith("Não foi possível") ? "Não foi possível atualizar" : "Pedido atualizado"}</strong>
+              <span>{feedback}</span>
+            </div>
+            <button type="button" onClick={() => setFeedback("")} aria-label="Fechar aviso">×</button>
+          </div>
+        )}
+
+        {tab === "catalogo" ? (
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogAdmin /></section>
+        ) : tab === "operacao" ? (
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>FUNCIONAMENTO</span><h2>Loja agora & horários</h2></div><p>Abertura automática, forçada, modo de teste e agenda semanal.</p></div><StoreOperationAdmin /></section>
+        ) : tab === "agendamentos" ? (
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>AGENDAMENTOS</span><h2>Pedidos futuros</h2></div><p>Intervalo, antecedência, horários disponíveis e capacidade por faixa.</p></div><SchedulingAdmin /></section>
+        ) : tab === "frete" ? (
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>ENTREGA & FRETE</span><h2>Taxas e benefícios de entrega</h2></div><p>Taxa padrão, bairros e regras de frete grátis em um único lugar.</p></div><DeliveryRatesAdmin /><FreeDeliveryAdmin /></section>
+        ) : tab === "cupons" ? (
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>PROMOÇÕES</span><h2>Cupons de desconto</h2></div><p>Crie, agende, pause e edite cupons sem mexer diretamente no banco.</p></div><CouponsAdmin /><PublicPromotionsAdmin /></section>
+        ) : tab === "fidelidade" ? (
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><RewardsAdmin /></section>
+        ) : tab === "gestao" ? (
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>SAÚDE DA OPERAÇÃO</span><h2>Saúde da loja</h2></div><p>Exceções operacionais, pressão de leituras e indicadores comerciais sem novas assinaturas em tempo real.</p></div><OperationHealthAdmin pedidos={pedidos} historyHasMore={historyHasMore} /><FirestoreBudgetAdmin /><RelatoriosAdmin pedidos={pedidos} /></section>
+        ) : isOrderTab ? (
+          <>
+            <div className={styles.queueHead}>
+              <div>
+                <span>{tab === "cozinha" ? "AGORA" : tab === "expedicao" ? "SAÍDA" : "HISTÓRICO"}</span>
+                <h2>{attentionOnly ? "Precisam de atenção" : tabItems.find(([key]) => key === tab)?.[1]}</h2>
+              </div>
+              <b>{filtered.length}</b>
             </div>
 
-            {selectedOrder && (
-              <>
-                <button type="button" className={styles.sheetBackdrop} aria-label="Fechar detalhes" onClick={() => setSelectedOrderId(null)} />
-                <aside className={styles.orderInspector} aria-label="Detalhes do pedido">
-                  <div className={styles.inspectorHead}>
-                    <div><span>PEDIDO SELECIONADO</span><strong>Detalhes e ações</strong></div>
-                    <button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Fechar detalhes">×</button>
-                  </div>
-                  <OrderCard
-                    pedido={selectedOrder}
-                    updateStatus={updateStatus}
-                    imprimirPedido={imprimirPedido}
-                    forceExpanded
-                    inspector
-                  />
-                </aside>
-              </>
-            )}
-          </div>
-
-          {(tab === "concluidos" || tab === "cancelados") && historyHasMore && (
-            <div style={{ display: "grid", placeItems: "center", padding: "18px 0 6px" }}>
+            <div className={styles.queueTools}>
               <button
                 type="button"
-                onClick={() => void loadMoreHistory()}
-                disabled={historyLoading}
-                style={{
-                  minHeight: 44,
-                  padding: "0 18px",
-                  borderRadius: 12,
-                  border: "1px solid #2b3038",
-                  background: "#171a1f",
-                  color: "#f3f4f6",
-                  fontWeight: 850,
-                }}
+                className={styles.searchTrigger}
+                data-active={searchOpen || Boolean(search)}
+                onClick={() => setSearchOpen((value) => !value)}
+                aria-label={searchOpen ? "Fechar busca" : "Buscar pedido"}
+                title="Buscar pedido"
               >
-                {historyLoading ? "Carregando histórico…" : "Carregar pedidos mais antigos"}
+                <AdminIcon name="search" /><b>Buscar</b>
               </button>
+              <div className={styles.filters}>
+                <button data-active={serviceFilter === "todos"} onClick={() => setServiceFilter("todos")}>Todos</button>
+                <button data-active={serviceFilter === "delivery"} onClick={() => setServiceFilter("delivery")}>Entrega</button>
+                <button data-active={serviceFilter === "pickup"} onClick={() => setServiceFilter("pickup")}>Retirada</button>
+                <button className={styles.attentionFilter} data-active={attentionOnly} onClick={() => setAttentionOnly((value) => !value)}>
+                  {attentionOnly ? "Voltar" : "Atenção"} {counts.attention > 0 && <b>{counts.attention}</b>}
+                </button>
+              </div>
             </div>
-          )}
-        </>
-      ) : null}
+
+            {(searchOpen || search) && (
+              <label className={styles.search} data-open="true">
+                <span>Buscar pedido</span>
+                <input
+                  autoFocus
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Cliente, telefone, pedido ou endereço"
+                />
+                <button type="button" onClick={() => { setSearch(""); setSearchOpen(false); }} aria-label="Fechar busca">×</button>
+              </label>
+            )}
+
+            <div className={styles.orderWorkspace} data-inspector-open={Boolean(selectedOrder)}>
+              <div className={styles.grid}>
+                {filtered.length
+                  ? filtered.map((pedido) => (
+                      <OrderCard
+                        key={pedido.id}
+                        pedido={pedido}
+                        updateStatus={updateStatus}
+                        imprimirPedido={imprimirPedido}
+                        selected={selectedOrderId === pedido.id}
+                        onSelect={() => setSelectedOrderId(pedido.id)}
+                      />
+                    ))
+                  : <div className={styles.empty}><strong>Nenhum pedido aqui.</strong><span>{search || attentionOnly || serviceFilter !== "todos" ? "Tente limpar os filtros." : "A fila está limpa nesta etapa."}</span></div>}
+              </div>
+
+              {selectedOrder && (
+                <>
+                  <button type="button" className={styles.sheetBackdrop} aria-label="Fechar detalhes" onClick={() => setSelectedOrderId(null)} />
+                  <aside className={styles.orderInspector} aria-label="Detalhes do pedido">
+                    <div className={styles.inspectorHead}>
+                      <div><span>PEDIDO SELECIONADO</span><strong>Detalhes e ações</strong></div>
+                      <button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Fechar detalhes">×</button>
+                    </div>
+                    <OrderCard
+                      pedido={selectedOrder}
+                      updateStatus={updateStatus}
+                      imprimirPedido={imprimirPedido}
+                      forceExpanded
+                      inspector
+                    />
+                  </aside>
+                </>
+              )}
+            </div>
+
+            {(tab === "concluidos" || tab === "cancelados") && historyHasMore && (
+              <div className={styles.loadMore}>
+                <button type="button" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
+                  {historyLoading ? "Carregando histórico…" : "Carregar pedidos mais antigos"}
+                </button>
+              </div>
+            )}
+          </>
+        ) : null}
       </div>
     </main>
   );
