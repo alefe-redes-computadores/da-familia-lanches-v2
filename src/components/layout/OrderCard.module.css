@@ -504,3 +504,18 @@
     flex: .78;
   }
 }
+
+/* DFL ADMIN HISTORY V7 — TERMINAL CARDS */
+.card[data-terminal="success"],.card[data-terminal="danger"]{position:relative;overflow:hidden;cursor:pointer;background:radial-gradient(circle at 100% 0,rgba(255,255,255,.025),transparent 34%),linear-gradient(180deg,rgba(15,21,26,.98),rgba(10,15,19,.98));border-color:rgba(148,163,184,.14);box-shadow:0 10px 30px rgba(0,0,0,.16);transition:transform .16s ease,border-color .16s ease}
+.card[data-terminal="success"]::before,.card[data-terminal="danger"]::before{content:"";position:absolute;inset:0 auto 0 0;width:4px}
+.card[data-terminal="success"]::before{background:#20c875;box-shadow:0 0 18px rgba(32,200,117,.28)}
+.card[data-terminal="danger"]::before{background:#ef5a67;box-shadow:0 0 18px rgba(239,90,103,.24)}
+.card[data-terminal="success"] .status,.card[data-terminal="danger"] .status{width:max-content;display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-weight:850}
+.card[data-terminal="success"] .status{color:#7ee5ac;border:1px solid rgba(32,200,117,.22);background:rgba(32,200,117,.08)}
+.card[data-terminal="danger"] .status{color:#ff8c96;border:1px solid rgba(239,90,103,.22);background:rgba(239,90,103,.08)}
+.statusDot{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 9px currentColor}
+.card[data-terminal="success"] .orderId,.card[data-terminal="danger"] .orderId{margin-top:9px;font-size:16px;letter-spacing:.035em}
+.card[data-terminal="success"] .summaryMain h3,.card[data-terminal="danger"] .summaryMain h3{font-size:19px;letter-spacing:-.025em}
+.card[data-terminal="success"] .summaryTotal strong,.card[data-terminal="danger"] .summaryTotal strong{font-size:20px}
+.card[data-terminal="success"] .summaryTotal span,.card[data-terminal="danger"] .summaryTotal span{width:max-content;margin-left:auto;padding:5px 8px;border:1px solid rgba(148,163,184,.12);border-radius:8px;background:rgba(255,255,255,.025)}
+@media(hover:hover){.card[data-terminal="success"]:hover{border-color:rgba(32,200,117,.28)}.card[data-terminal="danger"]:hover{border-color:rgba(239,90,103,.28)}}

@@ -117,6 +117,7 @@ export default function AdminPage() {
     loading,
     historyLoading,
     historyHasMore,
+    historyError,
     historySearchLoading,
     refreshHistory,
     loadMoreHistory,
@@ -635,11 +636,20 @@ export default function AdminPage() {
               )}
             </div>
 
-            {(tab === "concluidos" || tab === "cancelados") && historyHasMore && (
-              <div className={styles.loadMore}>
-                <button type="button" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
-                  {historyLoading ? "Carregando histórico…" : "Carregar mais 20 pedidos"}
-                </button>
+            {(tab === "concluidos" || tab === "cancelados") && (
+              <div className={styles.loadMore} data-error={Boolean(historyError)}>
+                {historyLoading ? (
+                  <div className={styles.historyProgress}><span /><b>Carregando pedidos...</b></div>
+                ) : historyError ? (
+                  <>
+                    <span className={styles.historyMessage}>{historyError}</span>
+                    <button type="button" onClick={() => void loadMoreHistory()}>Tentar novamente</button>
+                  </>
+                ) : historyHasMore ? (
+                  <button type="button" onClick={() => void loadMoreHistory()}>Carregar mais 20 pedidos</button>
+                ) : (
+                  <span className={styles.historyEnd}>Fim do histórico carregado.</span>
+                )}
               </div>
             )}
           </>

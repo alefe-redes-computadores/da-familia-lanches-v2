@@ -9,12 +9,19 @@ export function isActiveAdminOrder(order: AdminOrder) {
   return ACTIVE.has(normalizarStatus(order.status));
 }
 
+export function orderCreatedTimestamp(order: AdminOrder) {
+  return orderDateToMillis(order.data) || orderDateToMillis(order.createdAt);
+}
+
 export function orderOperationalTimestamp(order: AdminOrder) {
-  return orderDateToMillis(order.statusUpdatedAt) || orderDateToMillis(order.data);
+  return orderDateToMillis(order.statusUpdatedAt) || orderCreatedTimestamp(order);
 }
 
 export function orderAgeMinutes(order: AdminOrder, now = Date.now()) {
-  const stamp = orderOperationalTimestamp(order);
+  const status = normalizarStatus(order.status);
+  const stamp = status === "Finalizado" || status === "Cancelado"
+    ? orderCreatedTimestamp(order)
+    : orderOperationalTimestamp(order);
   return stamp > 0 ? Math.max(0, Math.floor((now - stamp) / 60000)) : null;
 }
 

@@ -50,6 +50,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [historySearchLoading, setHistorySearchLoading] = useState(false);
   const [alarmeAtivo, setAlarmeAtivo] = useState(false);
 
@@ -283,6 +284,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
   const refreshHistory = useCallback(async () => {
     if (!currentUser || cancelledRef.current || historyLoading) return;
+    setHistoryError(null);
     setHistoryLoading(true);
     try {
       const token = await currentUser.getIdToken();
@@ -310,6 +312,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       publish();
     } catch (error) {
       console.error("[admin/orders] refresh histórico:", error);
+      setHistoryError("Não foi possível carregar o histórico.");
     } finally {
       if (!cancelledRef.current) setHistoryLoading(false);
     }
@@ -323,6 +326,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       cancelledRef.current
     ) return;
 
+    setHistoryError(null);
     setHistoryLoading(true);
 
     try {
@@ -375,6 +379,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       publish();
     } catch (error) {
       console.error("[admin/orders] histórico:", error);
+      setHistoryError("Não foi possível carregar pedidos mais antigos.");
     } finally {
       if (!cancelledRef.current) setHistoryLoading(false);
     }
@@ -406,6 +411,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     loading,
     historyLoading,
     historyHasMore,
+    historyError,
     historySearchLoading,
     refreshHistory,
     loadMoreHistory,

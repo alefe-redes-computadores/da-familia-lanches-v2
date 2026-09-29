@@ -1388,3 +1388,10 @@
   from { transform: translateY(28px); opacity: .72; }
   to { transform: none; opacity: 1; }
 }
+
+/* DFL ADMIN HISTORY V7 — FOOTER */
+.loadMore{min-height:70px;display:flex;align-items:center;justify-content:center;gap:10px;padding:18px 0 8px}
+.loadMore button{min-height:42px;padding:0 18px;border:1px solid rgba(246,196,45,.22);border-radius:12px;background:linear-gradient(180deg,rgba(246,196,45,.10),rgba(246,196,45,.045));color:#f5d76d;font-size:10px;font-weight:850}
+.historyProgress{display:flex;align-items:center;gap:9px;color:#9aa5ae;font-size:10px}.historyProgress span{width:15px;height:15px;border-radius:50%;border:2px solid rgba(148,163,184,.18);border-top-color:#f2c72f;animation:historySpin .75s linear infinite}
+.historyMessage{color:#ff8c96;font-size:10px;font-weight:700}.historyEnd{color:#65717b;font-size:9px;font-weight:700}
+@keyframes historySpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.historyProgress span{animation:none}}

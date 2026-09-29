@@ -11,6 +11,8 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const [expanded, setExpanded] = useState(false);
   const isExpanded = forceExpanded || expanded;
   const statusAtual = normalizarStatus(pedido.status);
+  const terminal = statusAtual === "Finalizado" || statusAtual === "Cancelado";
+  const terminalTone = statusAtual === "Finalizado" ? "success" : statusAtual === "Cancelado" ? "danger" : "active";
   const itens = getOrderItems(pedido);
   const telefone = String(pedido.userPhone || pedido.phone || "").trim();
   const pickup = pedido.tipoEntrega === "pickup";
@@ -57,11 +59,13 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
       data-attention={attention?.level || "none"}
       data-selected={selected}
       data-inspector={inspector}
+      data-terminal={terminal ? terminalTone : "active"}
+      onClick={terminal && onSelect ? onSelect : undefined}
       style={{ "--status-color": getColorByStatus(pedido.status) } as React.CSSProperties}
     >
       <div className={styles.top}>
         <div>
-          <div className={styles.status}>{statusTitle(pedido.status, pickup)}</div>
+          <div className={styles.status}><span className={styles.statusDot} aria-hidden="true" />{statusAtual === "Finalizado" ? "Pedido entregue" : statusAtual === "Cancelado" ? "Pedido cancelado" : statusTitle(pedido.status, pickup)}</div>
           <div className={styles.orderId}>#{String(pedido.id).slice(-8).toUpperCase()}</div>
         </div>
         <div className={styles.time}>
@@ -83,7 +87,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         className={styles.summary}
         type="button"
         aria-expanded={isExpanded}
-        onClick={toggleDetails}
+        onClick={(event) => { event.stopPropagation(); toggleDetails(); }}
       >
         <div className={styles.summaryMain}>
           <h3>{pedido.userName || "Cliente"}</h3>

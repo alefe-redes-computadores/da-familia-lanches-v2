@@ -165,20 +165,59 @@ async function readActiveOrders() {
     }));
 }
 
-/* Histórico terminal paginado: somente estados terminais, cursor físico estável. */
+/*
+ * Histórico cronológico real pela data de criação do pedido.
+ * `data` é gravado pelo checkout com serverTimestamp e representa quando o
+ * pedido nasceu. statusUpdatedAt continua sendo apenas auditoria de transição.
+ *
+ * O cursor é o próprio documento da 20ª ocorrência terminal. Na página
+ * seguinte recuperamos esse snapshot e usamos startAfter(snapshot), preservando
+ * inclusive documentos legados com representações heterogêneas de `data`.
+ */
 async function readHistory(cursor: string | null) {
-  let historyQuery = adminDb.collection("Pedidos")
-    .where("status", "in", [...TERMINAL_STATUS_ALIASES])
-    .orderBy(FieldPath.documentId(), "desc")
-    .limit(HISTORY_PAGE_SIZE + 1);
-  if (cursor) historyQuery = historyQuery.startAfter(cursor);
-  const snapshot = await historyQuery.get();
-  const hasMore = snapshot.docs.length > HISTORY_PAGE_SIZE;
-  const pageDocs = snapshot.docs.slice(0, HISTORY_PAGE_SIZE);
+  let baseQuery = adminDb.collection("Pedidos")
+    .orderBy("data", "desc")
+    .orderBy(FieldPath.documentId(), "desc");
+
+  let scanned = 0;
+  if (cursor) {
+    const cursorDoc = await adminDb.collection("Pedidos").doc(cursor).get();
+    scanned += 1;
+    if (cursorDoc.exists) baseQuery = baseQuery.startAfter(cursorDoc);
+  }
+
+  const wanted = HISTORY_PAGE_SIZE + 1;
+  const collected: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  let scanCursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  let exhausted = false;
+
+  while (collected.length < wanted && scanned < 201 && !exhausted) {
+    let batchQuery = baseQuery.limit(40);
+    if (scanCursor) batchQuery = batchQuery.startAfter(scanCursor);
+    const snapshot = await batchQuery.get();
+    scanned += snapshot.size;
+    if (snapshot.empty) { exhausted = true; break; }
+    scanCursor = snapshot.docs.at(-1) ?? null;
+    if (snapshot.size < 40) exhausted = true;
+
+    for (const doc of snapshot.docs) {
+      const status = looseStatus(doc.data().status);
+      if (status === "Finalizado" || status === "Cancelado") {
+        collected.push(doc);
+        if (collected.length >= wanted) break;
+      }
+    }
+  }
+
+  const pageDocs = collected.slice(0, HISTORY_PAGE_SIZE);
   const nextCursor = pageDocs.at(-1)?.id ?? null;
+  const hasMore = Boolean(nextCursor) && (collected.length > HISTORY_PAGE_SIZE || !exhausted);
+
   return {
-    orders: sortDocs(pageDocs).map((doc) => ({ id: doc.id, ...(serialize(doc.data()) as Raw) })),
-    cursor: hasMore ? nextCursor : null, hasMore, scanned: snapshot.size,
+    orders: pageDocs.map((doc) => ({ id: doc.id, ...(serialize(doc.data()) as Raw) })),
+    cursor: hasMore ? nextCursor : null,
+    hasMore,
+    scanned,
   };
 }
 
