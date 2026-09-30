@@ -173,83 +173,54 @@ async function readActiveOrders() {
  * seguinte recuperamos esse snapshot e usamos startAfter(snapshot), preservando
  * inclusive documentos legados com representações heterogêneas de `data`.
  */
-type HistoryCursor = { at: string };
+type HistoryCursor = { offset: number };
 
 function terminalMillis(data: Raw) {
   return millis(data.statusUpdatedAt) || millis(data.data) || millis(data.createdAt);
 }
-
-function encodeHistoryCursor(at: number) {
-  if (!Number.isFinite(at) || at <= 0) return null;
-  return Buffer.from(JSON.stringify({ at: new Date(at).toISOString() } satisfies HistoryCursor), "utf8").toString("base64url");
+function encodeHistoryCursor(offset: number) {
+  return Buffer.from(JSON.stringify({ offset } satisfies HistoryCursor), "utf8").toString("base64url");
 }
-
-function decodeHistoryCursor(value: string | null): number | null {
-  if (!value) return null;
+function decodeHistoryCursor(value: string | null): number {
+  if (!value) return 0;
   try {
-    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as HistoryCursor;
-    const at = new Date(parsed.at).getTime();
-    return Number.isFinite(at) ? at : null;
-  } catch { return null; }
+    const parsed=JSON.parse(Buffer.from(value,"base64url").toString("utf8")) as HistoryCursor;
+    return Number.isInteger(parsed.offset) && parsed.offset >= 0 ? parsed.offset : 0;
+  } catch { return 0; }
 }
 
-/*
- * Histórico operacional: a ordem é pela ÚLTIMA TRANSIÇÃO terminal.
- * `data` continua sendo exibida como data de criação do pedido.
- * Consultamos cada status isoladamente para não depender de índice composto e
- * para impedir que strings legadas em `data` fiquem acima de Timestamps atuais.
- */
-async function readHistory(cursorValue: string | null) {
-  const before = decodeHistoryCursor(cursorValue);
-  const scanLimit = 120;
-
-  // Fast lane sem índice composto: statusUpdatedAt usa o índice simples nativo.
-  // Buscamos um bloco cronológico e filtramos apenas estados terminais em memória.
-  let modernQuery: FirebaseFirestore.Query = adminDb
-    .collection("Pedidos")
-    .orderBy("statusUpdatedAt", "desc")
-    .limit(scanLimit);
-  if (before) modernQuery = modernQuery.startAfter(new Date(before));
-
-  const modernSnap = await modernQuery.get();
-  const terminalDocs = modernSnap.docs.filter((doc) => {
-    const status = looseStatus(doc.data().status);
-    return status === "Finalizado" || status === "Cancelado";
+/* HISTORY V12: snapshot on-demand. Sem listener, backfill ou escrita. */
+const HISTORY_SNAPSHOT_LIMIT = 500;
+async function readHistorySnapshot() {
+  const snap=await adminDb.collection("Pedidos").limit(HISTORY_SNAPSHOT_LIMIT).get();
+  const terminal=snap.docs.filter((doc)=>{
+    const status=looseStatus(doc.data().status);
+    return status==="Finalizado" || status==="Cancelado";
   });
-
-  // Compatibilidade: se a janela moderna não completar a página, usa a data
-  // original como fallback bounded. Nenhum backfill, listener ou escrita.
-  const merged = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
-  for (const doc of terminalDocs) merged.set(doc.id, doc);
-
-  if (merged.size < HISTORY_PAGE_SIZE && !before) {
-    const legacySnap = await adminDb
-      .collection("Pedidos")
-      .orderBy("data", "desc")
-      .limit(scanLimit)
-      .get();
-    for (const doc of legacySnap.docs) {
-      const status = looseStatus(doc.data().status);
-      if (status === "Finalizado" || status === "Cancelado") merged.set(doc.id, doc);
-    }
-  }
-
-  const ordered = [...merged.values()].sort((a, b) => {
-    const av = terminalMillis(a.data() as Raw);
-    const bv = terminalMillis(b.data() as Raw);
-    return bv - av || b.id.localeCompare(a.id);
+  terminal.sort((a,b)=>{
+    const av=terminalMillis(a.data() as Raw), bv=terminalMillis(b.data() as Raw);
+    return bv-av || b.id.localeCompare(a.id);
   });
-  const docs = ordered.slice(0, HISTORY_PAGE_SIZE);
-  const last = docs.at(-1);
-  const lastAt = last ? terminalMillis(last.data() as Raw) : 0;
-
-  // Só promete próxima página quando a janela moderna realmente veio cheia.
-  const hasMore = modernSnap.size === scanLimit && Boolean(lastAt);
   return {
-    orders: docs.map((doc) => ({ id: doc.id, ...(serialize(doc.data()) as Raw) })),
-    cursor: hasMore ? encodeHistoryCursor(lastAt) : null,
+    orders:terminal.map((doc)=>({id:doc.id,...(serialize(doc.data()) as Raw)})),
+    scanned:snap.size,
+    truncated:snap.size>=HISTORY_SNAPSHOT_LIMIT,
+  };
+}
+async function readHistory(cursorValue: string | null) {
+  const snapshot=await readHistorySnapshot();
+  const offset=decodeHistoryCursor(cursorValue);
+  const orders=snapshot.orders.slice(offset,offset+HISTORY_PAGE_SIZE);
+  const nextOffset=offset+orders.length;
+  const hasMore=nextOffset<snapshot.orders.length;
+  return {
+    orders,
+    historyCatalog:offset===0?snapshot.orders:undefined,
+    cursor:hasMore?encodeHistoryCursor(nextOffset):null,
     hasMore,
-    scanned: modernSnap.size,
+    scanned:snapshot.scanned,
+    total:snapshot.orders.length,
+    truncated:snapshot.truncated,
   };
 }
 async function searchHistoryIdentifier(term: string) {
@@ -282,7 +253,7 @@ export async function GET(request: NextRequest) {
     const mode=requestedMode==="history"||requestedMode==="search"?requestedMode:"bootstrap";
     if(mode==="search"){
       const orders=await searchHistoryIdentifier(request.nextUrl.searchParams.get("q")?.trim()||"");
-      return NextResponse.json({ok:true,mode:"search",orders,authorityVersion: 10},{headers:{"Cache-Control":"no-store, max-age=0"}});
+      return NextResponse.json({ok:true,mode:"search",orders,authorityVersion: 12},{headers:{"Cache-Control":"no-store, max-age=0"}});
     }
 
     if (mode === "history") {
@@ -298,8 +269,11 @@ export async function GET(request: NextRequest) {
           orders: page.orders,
           historyCursor: page.cursor,
           historyHasMore: page.hasMore,
+          historyCatalog: page.historyCatalog,
+          historyTotal: page.total,
+          historyTruncated: page.truncated,
           scanned: page.scanned,
-          authorityVersion: 10,
+          authorityVersion: 12,
         },
         {
           headers: {
@@ -323,7 +297,10 @@ export async function GET(request: NextRequest) {
         historyCount: historyPage.orders.length,
         historyCursor: historyPage.cursor,
         historyHasMore: historyPage.hasMore,
-        authorityVersion: 10,
+        historyCatalog: historyPage.historyCatalog,
+        historyTotal: historyPage.total,
+        historyTruncated: historyPage.truncated,
+        authorityVersion: 12,
       },
       {
         headers: {

@@ -64,6 +64,8 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const realtimeOrdersRef =
     useRef<Map<string, AdminOrder>>(new Map());
   const historyCursorRef = useRef<string | null>(null);
+  const historyCatalogRef = useRef<AdminOrder[]>([]);
+  const historyVisibleRef = useRef(20);
   const historyBusyRef = useRef(false);
   const cancelledRef = useRef(false);
 
@@ -142,6 +144,8 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     authoritativeOrdersRef.current = new Map();
     realtimeOrdersRef.current = new Map();
     historyCursorRef.current = null;
+    historyCatalogRef.current = [];
+    historyVisibleRef.current = 20;
     setHistoryHasMore(false);
     setLoading(true);
 
@@ -164,6 +168,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
           orders?: AdminOrder[];
           historyCursor?: string | null;
           historyHasMore?: boolean;
+          historyCatalog?: AdminOrder[];
         };
 
         if (
@@ -181,7 +186,11 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
             ? payload.historyCursor
             : null;
 
-        setHistoryHasMore(payload.historyHasMore === true);
+        if (Array.isArray(payload.historyCatalog)) {
+          historyCatalogRef.current=payload.historyCatalog;
+          historyVisibleRef.current=Math.min(20,payload.historyCatalog.length);
+          setHistoryHasMore(historyVisibleRef.current<payload.historyCatalog.length);
+        } else setHistoryHasMore(payload.historyHasMore===true);
 
         knownPendingIdsRef.current = new Set(
           payload.orders
@@ -302,6 +311,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
         orders?: AdminOrder[];
         historyCursor?: string | null;
         historyHasMore?: boolean;
+        historyCatalog?: AdminOrder[];
       };
       if (cancelledRef.current || !payload.ok || !Array.isArray(payload.orders)) return;
 
@@ -309,10 +319,14 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
         const status = normalizarStatus(order.status);
         if (status === "Finalizado" || status === "Cancelado") authoritativeOrdersRef.current.delete(id);
       }
-      for (const order of payload.orders) authoritativeOrdersRef.current.set(String(order.id), order);
+      const catalog=Array.isArray(payload.historyCatalog)?payload.historyCatalog:payload.orders;
+      historyCatalogRef.current=catalog;
+      historyVisibleRef.current=Math.min(20,catalog.length);
+      for (const order of catalog.slice(0,historyVisibleRef.current))
+        authoritativeOrdersRef.current.set(String(order.id),order);
 
       historyCursorRef.current = typeof payload.historyCursor === "string" ? payload.historyCursor : null;
-      setHistoryHasMore(payload.historyHasMore === true);
+      setHistoryHasMore(historyVisibleRef.current<catalog.length);
       publish();
     } catch (error) {
       console.error("[admin/orders] refresh histórico:", error);
@@ -324,78 +338,27 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   }, [currentUser, publish]);
 
   const loadMoreHistory = useCallback(async () => {
-    if (
-      historyBusyRef.current ||
-      !historyHasMore ||
-      !currentUser ||
-      cancelledRef.current
-    ) return;
-
-    historyBusyRef.current = true;
+    if (historyBusyRef.current || !historyHasMore || cancelledRef.current) return;
+    historyBusyRef.current=true;
     setHistoryError(null);
     setHistoryLoading(true);
-
     try {
-      const token = await currentUser.getIdToken();
-      const cursor = historyCursorRef.current;
-
-      const params = new URLSearchParams({ mode: "history" });
-      if (cursor) params.set("cursor", cursor);
-
-      const response = await fetch(
-        `/api/admin/orders?${params.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store",
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`ADMIN_HISTORY_HTTP_${response.status}`);
-      }
-
-      const payload = await response.json() as {
-        ok?: boolean;
-        orders?: AdminOrder[];
-        historyCursor?: string | null;
-        historyHasMore?: boolean;
-      };
-
-      if (
-        cancelledRef.current ||
-        !payload.ok ||
-        !Array.isArray(payload.orders)
-      ) return;
-
-      for (const order of payload.orders) {
-        authoritativeOrdersRef.current.set(
-          String(order.id),
-          order,
-        );
-      }
-
-      historyCursorRef.current =
-        typeof payload.historyCursor === "string"
-          ? payload.historyCursor
-          : null;
-
-      setHistoryHasMore(payload.historyHasMore === true);
+      const catalog=historyCatalogRef.current;
+      const from=historyVisibleRef.current;
+      const to=Math.min(from+20,catalog.length);
+      for (const order of catalog.slice(from,to))
+        authoritativeOrdersRef.current.set(String(order.id),order);
+      historyVisibleRef.current=to;
+      setHistoryHasMore(to<catalog.length);
       publish();
-    } catch (error) {
-      console.error("[admin/orders] histórico:", error);
-      setHistoryError("Não foi possível carregar pedidos mais antigos.");
+    } catch(error) {
+      console.error("[admin/orders] histórico local:",error);
+      setHistoryError("Não foi possível abrir os próximos pedidos.");
     } finally {
-      historyBusyRef.current = false;
-      if (!cancelledRef.current) setHistoryLoading(false);
+      historyBusyRef.current=false;
+      if(!cancelledRef.current)setHistoryLoading(false);
     }
-  }, [
-    currentUser,
-    historyHasMore,
-    historyLoading,
-    publish,
-  ]);
+  },[historyHasMore,publish]);
 
   const searchHistoryIdentifier = useCallback(async (term: string) => {
     const clean=term.trim(); if(!clean||!currentUser||cancelledRef.current)return;

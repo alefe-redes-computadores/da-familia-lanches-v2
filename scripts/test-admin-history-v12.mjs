@@ -1,0 +1,14 @@
+import fs from "node:fs";
+const r=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw new Error("V12: "+m);console.log("OK:",m)};
+const api=r("src/app/api/admin/orders/route.ts"),hook=r("src/hooks/useAdminOrders.ts"),card=r("src/components/layout/OrderCard.module.css"),css=r("src/app/admin/admin.module.css");
+ok(api.includes("HISTORY_SNAPSHOT_LIMIT = 500"),"snapshot bounded");
+ok(api.includes("historyCatalog"),"catalogo terminal");
+ok(api.includes("terminalMillis"),"ordem V11 preservada");
+ok(hook.includes("historyCatalogRef"),"cache em memoria");
+ok(hook.includes("Math.min(from+20,catalog.length)"),"20 em 20");
+ok(hook.includes("setHistoryHasMore(to<catalog.length)"),"fim real");
+const lm=hook.slice(hook.indexOf("const loadMoreHistory"),hook.indexOf("const searchHistoryIdentifier"));
+ok(!lm.includes("fetch("),"carregar mais sem nova leitura Firestore");
+ok(card.includes("DFL ADMIN HISTORY V12 — PREMIUM TERMINAL"),"cards premium");
+ok(css.includes("DFL ADMIN HISTORY V12 — PREMIUM FOOTER"),"footer premium");
+console.log("DFL ADMIN HISTORY V12 — CONTRATO OK");
