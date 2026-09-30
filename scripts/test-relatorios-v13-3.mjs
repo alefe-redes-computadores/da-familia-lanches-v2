@@ -1,0 +1,10 @@
+import fs from "node:fs";
+const h=fs.readFileSync("src/hooks/useAnalyticsReportsV2.ts","utf8"),r=fs.readFileSync("src/components/layout/RelatoriosAdmin.tsx","utf8");
+const ok=(v,m)=>{if(!v)throw new Error("V13.3: "+m);console.log("OK",m)};
+ok(h.includes('import { doc,getDoc }'),"leitura direta por documento");
+ok(h.includes('history==="all"?366:31'),"orçamento 31/366 preservado");
+ok(h.includes('getDoc(doc(db,"analytics_daily_v2",dk(d)))'),"analytics diário sem índice composto");
+ok(!h.includes("orderBy(documentId()"),"query dependente de índice removida");
+ok(r.includes("Consolidado temporariamente indisponível."),"erro técnico ocultado");
+ok(!r.includes("Integração de relatórios: {persistentError}"),"detalhe Firestore não exposto");
+console.log("DFL RELATÓRIOS V13.3 — CONTRATO OK");
