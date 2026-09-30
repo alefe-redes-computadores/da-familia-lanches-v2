@@ -19,9 +19,8 @@ const ACTIVE_STATUSES = [
 
 const ACTIVE_LIMIT_PER_STATUS = 40;
 const ACTIVE_RESULT_LIMIT = 100;
+const HISTORY_TARGET_SIZE = 20;
 const HISTORY_PAGE_SIZE = 20;
-const HISTORY_INDEX = "admin_order_history";
-const HISTORY_INDEX_VERSION = 8;
 const TERMINAL_STATUS_ALIASES = [
   "Finalizado", "Cancelado", "Concluído", "Concluido",
   "Concluída", "Concluida", "Finalizada", "Canceled", "Cancelled",
@@ -175,101 +174,50 @@ async function readActiveOrders() {
  * seguinte recuperamos esse snapshot e usamos startAfter(snapshot), preservando
  * inclusive documentos legados com representações heterogêneas de `data`.
  */
-function legacyDateMillis(value: unknown): number {
-  const direct = millis(value);
-  if (direct) return direct;
-  if (typeof value !== "string") return 0;
-  const raw=value.trim();
-  const br=raw.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?:[,\s]+(\d{1,2}):(\d{2}))?/);
-  if(!br) return 0;
-  const year=br[3] ? (br[3].length===2 ? 2000+Number(br[3]) : Number(br[3])) : new Date().getFullYear();
-  const d=new Date(year,Number(br[2])-1,Number(br[1]),Number(br[4]||0),Number(br[5]||0));
-  return Number.isFinite(d.getTime()) ? d.getTime() : 0;
-}
+async function readHistory(cursor: string | null) {
+  let baseQuery = adminDb.collection("Pedidos")
+    .orderBy("data", "desc")
+    .orderBy(FieldPath.documentId(), "desc");
 
-function historyIdentity(data: Raw) {
-  const customer=data.customerSnapshot && typeof data.customerSnapshot==="object"
-    ? data.customerSnapshot as Raw : {};
-  const name=String(data.userName ?? customer.name ?? data.nomeCliente ?? data.customerName ?? data.nome ?? "Cliente").trim() || "Cliente";
-  const phone=String(data.userPhone ?? customer.phone ?? data.phone ?? "").trim();
-  return {name,phone};
-}
+  let scanned = 0;
+  if (cursor) {
+    const cursorDoc = await adminDb.collection("Pedidos").doc(cursor).get();
+    scanned += 1;
+    if (cursorDoc.exists) baseQuery = baseQuery.startAfter(cursorDoc);
+  }
 
-async function ensureHistoryIndex() {
-  const metaRef=adminDb.collection(HISTORY_INDEX).doc("__meta__");
-  const meta=await metaRef.get();
-  if(meta.exists && Number(meta.data()?.version)===HISTORY_INDEX_VERSION && meta.data()?.complete===true) return;
+  const wanted = HISTORY_PAGE_SIZE + 1;
+  const collected: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  let scanCursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  let exhausted = false;
 
-  const seen=new Set<string>();
-  let batch=adminDb.batch(), writes=0;
-  const flush=async()=>{ if(!writes)return; await batch.commit(); batch=adminDb.batch(); writes=0; };
+  while (collected.length < wanted && scanned < 201 && !exhausted) {
+    let batchQuery = baseQuery.limit(40);
+    if (scanCursor) batchQuery = batchQuery.startAfter(scanCursor);
+    const snapshot = await batchQuery.get();
+    scanned += snapshot.size;
+    if (snapshot.empty) { exhausted = true; break; }
+    scanCursor = snapshot.docs.at(-1) ?? null;
+    if (snapshot.size < 40) exhausted = true;
 
-  for(const status of TERMINAL_STATUS_ALIASES){
-    let cursor: FirebaseFirestore.QueryDocumentSnapshot | null=null;
-    while(true){
-      let q=adminDb.collection("Pedidos").where("status","==",status).orderBy(FieldPath.documentId()).limit(200);
-      if(cursor) q=q.startAfter(cursor);
-      const snap=await q.get();
-      if(snap.empty) break;
-      for(const doc of snap.docs){
-        if(seen.has(doc.id)) continue;
-        seen.add(doc.id);
-        const data=doc.data() as Raw;
-        const createdAtMs=legacyDateMillis(data.data) || legacyDateMillis(data.createdAt) || legacyDateMillis(data.statusUpdatedAt);
-        const identity=historyIdentity(data);
-        batch.set(adminDb.collection(HISTORY_INDEX).doc(doc.id),{
-          orderId:doc.id,
-          createdAtMs,
-          status:looseStatus(data.status),
-          customerName:identity.name,
-          customerPhone:identity.phone,
-          version:HISTORY_INDEX_VERSION,
-        },{merge:true});
-        writes++;
-        if(writes>=400) await flush();
+    for (const doc of snapshot.docs) {
+      const status = looseStatus(doc.data().status);
+      if (status === "Finalizado" || status === "Cancelado") {
+        collected.push(doc);
+        if (collected.length >= wanted) break;
       }
-      cursor=snap.docs.at(-1) ?? null;
-      if(snap.size<200) break;
     }
   }
-  await flush();
-  await metaRef.set({version:HISTORY_INDEX_VERSION,complete:true,updatedAt:new Date().toISOString(),count:seen.size},{merge:true});
-}
 
-async function readHistory(cursor: string | null) {
-  await ensureHistoryIndex();
-  let q=adminDb.collection(HISTORY_INDEX)
-    .where("version","==",HISTORY_INDEX_VERSION)
-    .orderBy("createdAtMs","desc")
-    .orderBy(FieldPath.documentId(),"desc")
-    .limit(HISTORY_PAGE_SIZE+1);
+  const pageDocs = collected.slice(0, HISTORY_PAGE_SIZE);
+  const nextCursor = pageDocs.at(-1)?.id ?? null;
+  const hasMore = Boolean(nextCursor) && (collected.length > HISTORY_PAGE_SIZE || !exhausted);
 
-  if(cursor){
-    const snap=await adminDb.collection(HISTORY_INDEX).doc(cursor).get();
-    if(snap.exists) q=q.startAfter(snap);
-  }
-
-  const idx=await q.get();
-  const visible=idx.docs.filter(doc=>doc.id!=="__meta__");
-  const page=visible.slice(0,HISTORY_PAGE_SIZE);
-  const orderDocs=await Promise.all(page.map(doc=>adminDb.collection("Pedidos").doc(doc.id).get()));
-  const orders=orderDocs.filter(doc=>doc.exists).map((doc,i)=>{
-    const raw=doc.data() as Raw;
-    const identity=historyIdentity(raw);
-    return {
-      id:doc.id,
-      ...(serialize(raw) as Raw),
-      userName:identity.name,
-      userPhone:identity.phone || raw.userPhone,
-      __historyCreatedAtMs:page[i]?.data().createdAtMs ?? 0,
-    };
-  });
-  const hasMore=visible.length>HISTORY_PAGE_SIZE;
   return {
-    orders,
-    cursor:hasMore ? page.at(-1)?.id ?? null : null,
+    orders: pageDocs.map((doc) => ({ id: doc.id, ...(serialize(doc.data()) as Raw) })),
+    cursor: hasMore ? nextCursor : null,
     hasMore,
-    scanned:idx.size,
+    scanned,
   };
 }
 
@@ -303,7 +251,7 @@ export async function GET(request: NextRequest) {
     const mode=requestedMode==="history"||requestedMode==="search"?requestedMode:"bootstrap";
     if(mode==="search"){
       const orders=await searchHistoryIdentifier(request.nextUrl.searchParams.get("q")?.trim()||"");
-      return NextResponse.json({ok:true,mode:"search",orders,authorityVersion: 8},{headers:{"Cache-Control":"no-store, max-age=0"}});
+      return NextResponse.json({ok:true,mode:"search",orders,authorityVersion:6},{headers:{"Cache-Control":"no-store, max-age=0"}});
     }
 
     if (mode === "history") {
@@ -320,7 +268,7 @@ export async function GET(request: NextRequest) {
           historyCursor: page.cursor,
           historyHasMore: page.hasMore,
           scanned: page.scanned,
-          authorityVersion: 8,
+          authorityVersion: 6,
         },
         {
           headers: {
@@ -344,7 +292,7 @@ export async function GET(request: NextRequest) {
         historyCount: historyPage.orders.length,
         historyCursor: historyPage.cursor,
         historyHasMore: historyPage.hasMore,
-        authorityVersion: 8,
+        authorityVersion: 6,
       },
       {
         headers: {

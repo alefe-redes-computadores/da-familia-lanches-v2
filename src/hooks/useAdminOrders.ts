@@ -33,15 +33,11 @@ const ACTIVE_CANONICAL = new Set([
 ]);
 
 function orderMillis(order: AdminOrder) {
-  const canonical = Number(order.__historyCreatedAtMs);
-  if (Number.isFinite(canonical) && canonical > 0) return canonical;
-  const status = normalizarStatus(order.status);
-  if (status === "Finalizado" || status === "Cancelado") {
-    return orderDateToMillis(order.data) || orderDateToMillis(order.createdAt);
-  }
-  return orderDateToMillis(order.statusUpdatedAt) ||
+  return (
+    orderDateToMillis(order.statusUpdatedAt) ||
     orderDateToMillis(order.data) ||
-    orderDateToMillis(order.createdAt);
+    orderDateToMillis(order.createdAt)
+  );
 }
 
 function newestFirst(a: AdminOrder, b: AdminOrder) {
