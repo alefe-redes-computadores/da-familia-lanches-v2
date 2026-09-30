@@ -19,7 +19,6 @@ const ACTIVE_STATUSES = [
 
 const ACTIVE_LIMIT_PER_STATUS = 40;
 const ACTIVE_RESULT_LIMIT = 100;
-const HISTORY_TARGET_SIZE = 20;
 const HISTORY_PAGE_SIZE = 20;
 const TERMINAL_STATUS_ALIASES = [
   "Finalizado", "Cancelado", "Concluído", "Concluido",
@@ -174,50 +173,40 @@ async function readActiveOrders() {
  * seguinte recuperamos esse snapshot e usamos startAfter(snapshot), preservando
  * inclusive documentos legados com representações heterogêneas de `data`.
  */
-async function readHistory(cursor: string | null) {
-  let baseQuery = adminDb.collection("Pedidos")
-    .orderBy("data", "desc")
-    .orderBy(FieldPath.documentId(), "desc");
+type HistoryCursor = { data: string; id: string };
 
-  let scanned = 0;
-  if (cursor) {
-    const cursorDoc = await adminDb.collection("Pedidos").doc(cursor).get();
-    scanned += 1;
-    if (cursorDoc.exists) baseQuery = baseQuery.startAfter(cursorDoc);
+function encodeHistoryCursor(doc: FirebaseFirestore.QueryDocumentSnapshot) {
+  const iso=serialize(doc.data().data);
+  if(typeof iso!=="string" || !iso) return null;
+  return Buffer.from(JSON.stringify({data:iso,id:doc.id} satisfies HistoryCursor),"utf8").toString("base64url");
+}
+function decodeHistoryCursor(value: string | null): HistoryCursor | null {
+  if(!value) return null;
+  try {
+    const parsed=JSON.parse(Buffer.from(value,"base64url").toString("utf8")) as HistoryCursor;
+    return parsed?.data && parsed?.id ? parsed : null;
+  } catch { return null; }
+}
+async function readHistory(cursorValue: string | null) {
+  const cursor=decodeHistoryCursor(cursorValue);
+  let q=adminDb.collection("Pedidos")
+    .where("status","in",[...TERMINAL_STATUS_ALIASES])
+    .orderBy("data","desc")
+    .orderBy(FieldPath.documentId(),"desc")
+    .limit(HISTORY_PAGE_SIZE+1);
+  if(cursor){
+    const d=new Date(cursor.data);
+    if(Number.isFinite(d.getTime())) q=q.startAfter(d,cursor.id);
   }
-
-  const wanted = HISTORY_PAGE_SIZE + 1;
-  const collected: FirebaseFirestore.QueryDocumentSnapshot[] = [];
-  let scanCursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
-  let exhausted = false;
-
-  while (collected.length < wanted && scanned < 201 && !exhausted) {
-    let batchQuery = baseQuery.limit(40);
-    if (scanCursor) batchQuery = batchQuery.startAfter(scanCursor);
-    const snapshot = await batchQuery.get();
-    scanned += snapshot.size;
-    if (snapshot.empty) { exhausted = true; break; }
-    scanCursor = snapshot.docs.at(-1) ?? null;
-    if (snapshot.size < 40) exhausted = true;
-
-    for (const doc of snapshot.docs) {
-      const status = looseStatus(doc.data().status);
-      if (status === "Finalizado" || status === "Cancelado") {
-        collected.push(doc);
-        if (collected.length >= wanted) break;
-      }
-    }
-  }
-
-  const pageDocs = collected.slice(0, HISTORY_PAGE_SIZE);
-  const nextCursor = pageDocs.at(-1)?.id ?? null;
-  const hasMore = Boolean(nextCursor) && (collected.length > HISTORY_PAGE_SIZE || !exhausted);
-
+  const snap=await q.get();
+  const docs=snap.docs.slice(0,HISTORY_PAGE_SIZE);
+  const hasMore=snap.docs.length>HISTORY_PAGE_SIZE;
+  const last=docs.at(-1);
   return {
-    orders: pageDocs.map((doc) => ({ id: doc.id, ...(serialize(doc.data()) as Raw) })),
-    cursor: hasMore ? nextCursor : null,
+    orders:docs.map(doc=>({id:doc.id,...(serialize(doc.data()) as Raw)})),
+    cursor:hasMore && last ? encodeHistoryCursor(last) : null,
     hasMore,
-    scanned,
+    scanned:snap.size,
   };
 }
 
@@ -251,7 +240,7 @@ export async function GET(request: NextRequest) {
     const mode=requestedMode==="history"||requestedMode==="search"?requestedMode:"bootstrap";
     if(mode==="search"){
       const orders=await searchHistoryIdentifier(request.nextUrl.searchParams.get("q")?.trim()||"");
-      return NextResponse.json({ok:true,mode:"search",orders,authorityVersion:6},{headers:{"Cache-Control":"no-store, max-age=0"}});
+      return NextResponse.json({ok:true,mode:"search",orders,authorityVersion: 9},{headers:{"Cache-Control":"no-store, max-age=0"}});
     }
 
     if (mode === "history") {
@@ -268,7 +257,7 @@ export async function GET(request: NextRequest) {
           historyCursor: page.cursor,
           historyHasMore: page.hasMore,
           scanned: page.scanned,
-          authorityVersion: 6,
+          authorityVersion: 9,
         },
         {
           headers: {
@@ -292,7 +281,7 @@ export async function GET(request: NextRequest) {
         historyCount: historyPage.orders.length,
         historyCursor: historyPage.cursor,
         historyHasMore: historyPage.hasMore,
-        authorityVersion: 6,
+        authorityVersion: 9,
       },
       {
         headers: {

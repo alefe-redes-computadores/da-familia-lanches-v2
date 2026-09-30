@@ -101,5 +101,6 @@ export function compareOperationalOrders(a: AdminOrder, b: AdminOrder) {
   if (isActiveAdminOrder(a) && isActiveAdminOrder(b)) {
     return orderOperationalTimestamp(a) - orderOperationalTimestamp(b);
   }
-  return orderOperationalTimestamp(b) - orderOperationalTimestamp(a);
+  return orderCreatedTimestamp(b) - orderCreatedTimestamp(a) ||
+    String(b.id).localeCompare(String(a.id));
 }
