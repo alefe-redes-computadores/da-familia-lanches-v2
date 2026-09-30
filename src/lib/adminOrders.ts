@@ -17,6 +17,10 @@ export function orderOperationalTimestamp(order: AdminOrder) {
   return orderDateToMillis(order.statusUpdatedAt) || orderCreatedTimestamp(order);
 }
 
+export function orderHistoryTimestamp(order: AdminOrder) {
+  return orderDateToMillis(order.statusUpdatedAt) || orderCreatedTimestamp(order);
+}
+
 export function orderAgeMinutes(order: AdminOrder, now = Date.now()) {
   const status = normalizarStatus(order.status);
   const stamp = status === "Finalizado" || status === "Cancelado"
@@ -101,6 +105,6 @@ export function compareOperationalOrders(a: AdminOrder, b: AdminOrder) {
   if (isActiveAdminOrder(a) && isActiveAdminOrder(b)) {
     return orderOperationalTimestamp(a) - orderOperationalTimestamp(b);
   }
-  return orderCreatedTimestamp(b) - orderCreatedTimestamp(a) ||
+  return orderHistoryTimestamp(b) - orderHistoryTimestamp(a) ||
     String(b.id).localeCompare(String(a.id));
 }

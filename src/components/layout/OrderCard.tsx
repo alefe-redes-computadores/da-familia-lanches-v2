@@ -14,7 +14,9 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const terminal = statusAtual === "Finalizado" || statusAtual === "Cancelado";
   const terminalTone = statusAtual === "Finalizado" ? "success" : statusAtual === "Cancelado" ? "danger" : "active";
   const itens = getOrderItems(pedido);
-  const telefone = String(pedido.userPhone || pedido.phone || "").trim();
+  const customer = pedido.customerSnapshot && typeof pedido.customerSnapshot === "object" ? pedido.customerSnapshot : {};
+  const customerName = String(pedido.userName || customer.name || pedido.nomeCliente || pedido.customerName || pedido.nome || "Cliente").trim();
+  const telefone = String(pedido.userPhone || pedido.phone || customer.phone || customer.phoneE164 || "").trim();
   const pickup = pedido.tipoEntrega === "pickup";
   const total = Number(pedido.total || 0);
   const troco = Number(String(pedido.trocoPara ?? pedido.troco ?? "").replace(",", "."));
@@ -90,7 +92,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         onClick={(event) => { event.stopPropagation(); toggleDetails(); }}
       >
         <div className={styles.summaryMain}>
-          <h3>{pedido.userName || "Cliente"}</h3>
+          <h3>{customerName}</h3>
           <span>
             {pickup ? "Retirada" : "Entrega"} ·{" "}
             {itens.reduce((sum, item) => sum + item.quantity, 0)} item(ns)
@@ -141,7 +143,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
       {(next || canCancel || !inspector) && (
         <div className={styles.actions}>
           {next && <button className={styles.primary} data-tone={next[2]} onClick={() => updateStatus(pedido.id, next[0], pedido)}>{next[1]}</button>}
-          {!inspector && <button className={styles.detailsAction} type="button" onClick={toggleDetails}>Detalhes</button>}
+          {!inspector && !terminal && <button className={styles.detailsAction} type="button" onClick={toggleDetails}>Detalhes</button>}
           {canCancel && <button className={styles.cancel} data-danger="true" onClick={() => {
             if (window.confirm(`Cancelar o pedido #${String(pedido.id).slice(-8).toUpperCase()}?`)) {
               updateStatus(pedido.id, "Cancelado", pedido);

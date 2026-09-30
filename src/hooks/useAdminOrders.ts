@@ -11,7 +11,7 @@ import {
 import { db } from "@/lib/firebase";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { orderDateToMillis } from "@/lib/orderCompat";
-import type { AdminOrder } from "@/lib/adminOrders";
+import { orderHistoryTimestamp, type AdminOrder } from "@/lib/adminOrders";
 import { recordFirestoreReadEstimate } from "@/lib/firestoreReadBudget";
 
 const ACTIVE_QUERY_STATUSES = [
@@ -35,7 +35,7 @@ const ACTIVE_CANONICAL = new Set([
 function orderMillis(order: AdminOrder) {
   const status = normalizarStatus(order.status);
   if (status === "Finalizado" || status === "Cancelado") {
-    return orderDateToMillis(order.data) || orderDateToMillis(order.createdAt);
+    return orderHistoryTimestamp(order);
   }
   return orderDateToMillis(order.statusUpdatedAt) ||
     orderDateToMillis(order.data) ||
@@ -64,6 +64,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const realtimeOrdersRef =
     useRef<Map<string, AdminOrder>>(new Map());
   const historyCursorRef = useRef<string | null>(null);
+  const historyBusyRef = useRef(false);
   const cancelledRef = useRef(false);
 
   const publish = useCallback(() => {
@@ -285,7 +286,8 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   }, [currentUser, admins, publish]);
 
   const refreshHistory = useCallback(async () => {
-    if (!currentUser || cancelledRef.current || historyLoading) return;
+    if (!currentUser || cancelledRef.current || historyBusyRef.current) return;
+    historyBusyRef.current = true;
     setHistoryError(null);
     setHistoryLoading(true);
     try {
@@ -316,18 +318,20 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       console.error("[admin/orders] refresh histórico:", error);
       setHistoryError("Não foi possível carregar o histórico.");
     } finally {
+      historyBusyRef.current = false;
       if (!cancelledRef.current) setHistoryLoading(false);
     }
-  }, [currentUser, historyLoading, publish]);
+  }, [currentUser, publish]);
 
   const loadMoreHistory = useCallback(async () => {
     if (
-      historyLoading ||
+      historyBusyRef.current ||
       !historyHasMore ||
       !currentUser ||
       cancelledRef.current
     ) return;
 
+    historyBusyRef.current = true;
     setHistoryError(null);
     setHistoryLoading(true);
 
@@ -383,6 +387,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       console.error("[admin/orders] histórico:", error);
       setHistoryError("Não foi possível carregar pedidos mais antigos.");
     } finally {
+      historyBusyRef.current = false;
       if (!cancelledRef.current) setHistoryLoading(false);
     }
   }, [

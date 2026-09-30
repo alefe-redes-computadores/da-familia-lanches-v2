@@ -519,3 +519,10 @@
 .card[data-terminal="success"] .summaryTotal strong,.card[data-terminal="danger"] .summaryTotal strong{font-size:20px}
 .card[data-terminal="success"] .summaryTotal span,.card[data-terminal="danger"] .summaryTotal span{width:max-content;margin-left:auto;padding:5px 8px;border:1px solid rgba(148,163,184,.12);border-radius:8px;background:rgba(255,255,255,.025)}
 @media(hover:hover){.card[data-terminal="success"]:hover{border-color:rgba(32,200,117,.28)}.card[data-terminal="danger"]:hover{border-color:rgba(239,90,103,.28)}}
+
+
+/* DFL ADMIN HISTORY V10 — terminal cards are the detail trigger */
+.card[data-terminal="success"] .actions,.card[data-terminal="danger"] .actions{display:none}
+.card[data-terminal="success"] .summary,.card[data-terminal="danger"] .summary{cursor:pointer}
+.card[data-terminal="success"] .summaryTotal span,.card[data-terminal="danger"] .summaryTotal span{display:none!important}
+@media(max-width:820px){.card[data-terminal="success"],.card[data-terminal="danger"]{padding-bottom:13px}.card[data-terminal="success"] .summary,.card[data-terminal="danger"] .summary{min-height:50px}}

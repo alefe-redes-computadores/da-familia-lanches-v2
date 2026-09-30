@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(p,'utf8');
+const api=read('src/app/api/admin/orders/route.ts');
+const hook=read('src/hooks/useAdminOrders.ts');
+const card=read('src/components/layout/OrderCard.tsx');
+const page=read('src/app/admin/page.tsx');
+const css=read('src/app/admin/admin.module.css');
+const ok=(v,m)=>{if(!v)throw new Error(`V10: ${m}`)};
+ok(api.includes('.orderBy("statusUpdatedAt", "desc")'),'histórico não ordena pela transição terminal');
+ok(api.includes('authorityVersion: 10'),'authorityVersion não é 10');
+ok(hook.includes('historyBusyRef'),'trava anti-loop ausente');
+ok(!hook.includes('[currentUser, historyLoading, publish]'),'refresh ainda depende de historyLoading');
+ok(card.includes('customer.name'),'fallback de nome legado ausente');
+ok(card.includes('!inspector && !terminal'),'botão Detalhes terminal ainda presente');
+ok(page.includes('styles.historyCount'),'contador premium ausente');
+ok(css.includes('.historyCount'),'CSS do contador ausente');
+console.log('DFL ADMIN HISTORY V10 — CONTRATO OK');

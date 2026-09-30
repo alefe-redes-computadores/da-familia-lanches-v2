@@ -563,7 +563,7 @@ export default function AdminPage() {
                 <span>{tab === "cozinha" ? "AGORA" : tab === "expedicao" ? "SAÍDA" : "HISTÓRICO"}</span>
                 <h2>{attentionOnly ? "Precisam de atenção" : tabItems.find(([key]) => key === tab)?.[1]}</h2>
               </div>
-              <b>{filtered.length}{(tab === "concluidos" || tab === "cancelados") ? " carregados" : ""}</b>
+              <b className={(tab === "concluidos" || tab === "cancelados") ? styles.historyCount : undefined}>{filtered.length}{(tab === "concluidos" || tab === "cancelados") ? <span>pedidos</span> : null}</b>
             </div>
 
             <div className={styles.queueTools}>

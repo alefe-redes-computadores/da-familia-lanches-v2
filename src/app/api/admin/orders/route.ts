@@ -173,43 +173,64 @@ async function readActiveOrders() {
  * seguinte recuperamos esse snapshot e usamos startAfter(snapshot), preservando
  * inclusive documentos legados com representações heterogêneas de `data`.
  */
-type HistoryCursor = { data: string; id: string };
+type HistoryCursor = { at: string };
 
-function encodeHistoryCursor(doc: FirebaseFirestore.QueryDocumentSnapshot) {
-  const iso=serialize(doc.data().data);
-  if(typeof iso!=="string" || !iso) return null;
-  return Buffer.from(JSON.stringify({data:iso,id:doc.id} satisfies HistoryCursor),"utf8").toString("base64url");
+function terminalMillis(data: Raw) {
+  return millis(data.statusUpdatedAt) || millis(data.data) || millis(data.createdAt);
 }
-function decodeHistoryCursor(value: string | null): HistoryCursor | null {
-  if(!value) return null;
+
+function encodeHistoryCursor(at: number) {
+  if (!Number.isFinite(at) || at <= 0) return null;
+  return Buffer.from(JSON.stringify({ at: new Date(at).toISOString() } satisfies HistoryCursor), "utf8").toString("base64url");
+}
+
+function decodeHistoryCursor(value: string | null): number | null {
+  if (!value) return null;
   try {
-    const parsed=JSON.parse(Buffer.from(value,"base64url").toString("utf8")) as HistoryCursor;
-    return parsed?.data && parsed?.id ? parsed : null;
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as HistoryCursor;
+    const at = new Date(parsed.at).getTime();
+    return Number.isFinite(at) ? at : null;
   } catch { return null; }
 }
+
+/*
+ * Histórico operacional: a ordem é pela ÚLTIMA TRANSIÇÃO terminal.
+ * `data` continua sendo exibida como data de criação do pedido.
+ * Consultamos cada status isoladamente para não depender de índice composto e
+ * para impedir que strings legadas em `data` fiquem acima de Timestamps atuais.
+ */
 async function readHistory(cursorValue: string | null) {
-  const cursor=decodeHistoryCursor(cursorValue);
-  let q=adminDb.collection("Pedidos")
-    .where("status","in",[...TERMINAL_STATUS_ALIASES])
-    .orderBy("data","desc")
-    .orderBy(FieldPath.documentId(),"desc")
-    .limit(HISTORY_PAGE_SIZE+1);
-  if(cursor){
-    const d=new Date(cursor.data);
-    if(Number.isFinite(d.getTime())) q=q.startAfter(d,cursor.id);
-  }
-  const snap=await q.get();
-  const docs=snap.docs.slice(0,HISTORY_PAGE_SIZE);
-  const hasMore=snap.docs.length>HISTORY_PAGE_SIZE;
-  const last=docs.at(-1);
+  const before = decodeHistoryCursor(cursorValue);
+  const perStatus = await Promise.all(
+    TERMINAL_STATUS_ALIASES.map(async (status) => {
+      let q: FirebaseFirestore.Query = adminDb.collection("Pedidos")
+        .where("status", "==", status)
+        .orderBy("statusUpdatedAt", "desc")
+        .limit(HISTORY_PAGE_SIZE + 1);
+      if (before) q = q.startAfter(new Date(before));
+      return q.get();
+    }),
+  );
+
+  const merged = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+  for (const snap of perStatus) for (const doc of snap.docs) merged.set(doc.id, doc);
+  const ordered = [...merged.values()].sort((a, b) => {
+    const av = terminalMillis(a.data() as Raw);
+    const bv = terminalMillis(b.data() as Raw);
+    return bv - av || b.id.localeCompare(a.id);
+  });
+  const docs = ordered.slice(0, HISTORY_PAGE_SIZE);
+  const last = docs.at(-1);
+  const lastAt = last ? terminalMillis(last.data() as Raw) : 0;
+  const hasMore = ordered.length > HISTORY_PAGE_SIZE;
+
   return {
-    orders:docs.map(doc=>({id:doc.id,...(serialize(doc.data()) as Raw)})),
-    cursor:hasMore && last ? encodeHistoryCursor(last) : null,
+    orders: docs.map((doc) => ({ id: doc.id, ...(serialize(doc.data()) as Raw) })),
+    cursor: hasMore ? encodeHistoryCursor(lastAt) : null,
     hasMore,
-    scanned:snap.size,
+    scanned: perStatus.reduce((sum, snap) => sum + snap.size, 0),
   };
 }
-
 async function searchHistoryIdentifier(term: string) {
   const clean = term.trim(); if (!clean) return [];
   const merged = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
@@ -240,7 +261,7 @@ export async function GET(request: NextRequest) {
     const mode=requestedMode==="history"||requestedMode==="search"?requestedMode:"bootstrap";
     if(mode==="search"){
       const orders=await searchHistoryIdentifier(request.nextUrl.searchParams.get("q")?.trim()||"");
-      return NextResponse.json({ok:true,mode:"search",orders,authorityVersion: 9},{headers:{"Cache-Control":"no-store, max-age=0"}});
+      return NextResponse.json({ok:true,mode:"search",orders,authorityVersion: 10},{headers:{"Cache-Control":"no-store, max-age=0"}});
     }
 
     if (mode === "history") {
@@ -257,7 +278,7 @@ export async function GET(request: NextRequest) {
           historyCursor: page.cursor,
           historyHasMore: page.hasMore,
           scanned: page.scanned,
-          authorityVersion: 9,
+          authorityVersion: 10,
         },
         {
           headers: {
@@ -281,7 +302,7 @@ export async function GET(request: NextRequest) {
         historyCount: historyPage.orders.length,
         historyCursor: historyPage.cursor,
         historyHasMore: historyPage.hasMore,
-        authorityVersion: 9,
+        authorityVersion: 10,
       },
       {
         headers: {
