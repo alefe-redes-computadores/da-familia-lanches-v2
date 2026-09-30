@@ -643,7 +643,7 @@ export default function AdminPage() {
                 ) : historyError ? (
                   <>
                     <span className={styles.historyMessage}>{historyError}</span>
-                    <button type="button" onClick={() => void loadMoreHistory()}>Tentar novamente</button>
+                    <button type="button" onClick={() => void refreshHistory()}>Tentar novamente</button>
                   </>
                 ) : historyHasMore ? (
                   <button type="button" onClick={() => void loadMoreHistory()}>Carregar mais 20 pedidos</button>

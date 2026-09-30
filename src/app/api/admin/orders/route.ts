@@ -201,19 +201,39 @@ function decodeHistoryCursor(value: string | null): number | null {
  */
 async function readHistory(cursorValue: string | null) {
   const before = decodeHistoryCursor(cursorValue);
-  const perStatus = await Promise.all(
-    TERMINAL_STATUS_ALIASES.map(async (status) => {
-      let q: FirebaseFirestore.Query = adminDb.collection("Pedidos")
-        .where("status", "==", status)
-        .orderBy("statusUpdatedAt", "desc")
-        .limit(HISTORY_PAGE_SIZE + 1);
-      if (before) q = q.startAfter(new Date(before));
-      return q.get();
-    }),
-  );
+  const scanLimit = 120;
 
+  // Fast lane sem índice composto: statusUpdatedAt usa o índice simples nativo.
+  // Buscamos um bloco cronológico e filtramos apenas estados terminais em memória.
+  let modernQuery: FirebaseFirestore.Query = adminDb
+    .collection("Pedidos")
+    .orderBy("statusUpdatedAt", "desc")
+    .limit(scanLimit);
+  if (before) modernQuery = modernQuery.startAfter(new Date(before));
+
+  const modernSnap = await modernQuery.get();
+  const terminalDocs = modernSnap.docs.filter((doc) => {
+    const status = looseStatus(doc.data().status);
+    return status === "Finalizado" || status === "Cancelado";
+  });
+
+  // Compatibilidade: se a janela moderna não completar a página, usa a data
+  // original como fallback bounded. Nenhum backfill, listener ou escrita.
   const merged = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
-  for (const snap of perStatus) for (const doc of snap.docs) merged.set(doc.id, doc);
+  for (const doc of terminalDocs) merged.set(doc.id, doc);
+
+  if (merged.size < HISTORY_PAGE_SIZE && !before) {
+    const legacySnap = await adminDb
+      .collection("Pedidos")
+      .orderBy("data", "desc")
+      .limit(scanLimit)
+      .get();
+    for (const doc of legacySnap.docs) {
+      const status = looseStatus(doc.data().status);
+      if (status === "Finalizado" || status === "Cancelado") merged.set(doc.id, doc);
+    }
+  }
+
   const ordered = [...merged.values()].sort((a, b) => {
     const av = terminalMillis(a.data() as Raw);
     const bv = terminalMillis(b.data() as Raw);
@@ -222,13 +242,14 @@ async function readHistory(cursorValue: string | null) {
   const docs = ordered.slice(0, HISTORY_PAGE_SIZE);
   const last = docs.at(-1);
   const lastAt = last ? terminalMillis(last.data() as Raw) : 0;
-  const hasMore = ordered.length > HISTORY_PAGE_SIZE;
 
+  // Só promete próxima página quando a janela moderna realmente veio cheia.
+  const hasMore = modernSnap.size === scanLimit && Boolean(lastAt);
   return {
     orders: docs.map((doc) => ({ id: doc.id, ...(serialize(doc.data()) as Raw) })),
     cursor: hasMore ? encodeHistoryCursor(lastAt) : null,
     hasMore,
-    scanned: perStatus.reduce((sum, snap) => sum + snap.size, 0),
+    scanned: modernSnap.size,
   };
 }
 async function searchHistoryIdentifier(term: string) {

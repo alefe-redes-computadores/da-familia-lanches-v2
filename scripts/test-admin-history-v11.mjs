@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+const route=fs.readFileSync('src/app/api/admin/orders/route.ts','utf8');
+const page=fs.readFileSync('src/app/admin/page.tsx','utf8');
+const hook=fs.readFileSync('src/hooks/useAdminOrders.ts','utf8');
+const ok=(v,m)=>{if(!v)throw new Error('V11: '+m);console.log('OK',m)};
+ok(route.includes('.orderBy("statusUpdatedAt", "desc")'),'fast lane por statusUpdatedAt sem where composto');
+ok(!route.includes('TERMINAL_STATUS_ALIASES.map(async (status)'), 'remove fanout por 9 aliases');
+ok(route.includes('.orderBy("data", "desc")') && route.includes('merged.size < HISTORY_PAGE_SIZE'), 'fallback legado bounded');
+ok(route.includes('const scanLimit = 120'), 'scan bounded');
+ok(page.includes('onClick={() => void refreshHistory()}>Tentar novamente'), 'retry chama refresh real');
+ok(!page.includes('onClick={() => void loadMoreHistory()}>Tentar novamente'), 'retry não depende de hasMore');
+ok(hook.includes('historyBusyRef'), 'trava de concorrência preservada');
+console.log('DFL ADMIN HISTORY V11 — CONTRATO OK');
