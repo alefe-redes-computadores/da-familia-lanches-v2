@@ -28,6 +28,16 @@ async function count(collection: string, status: string) {
   return Number(snap.data().count || 0);
 }
 
+async function countEligibleMessaging(status: "pending" | "processing") {
+  const snap = await adminDb
+    .collection("integration_notification_intents")
+    .where("status", "==", status)
+    .where("messaging_eligible", "==", true)
+    .count()
+    .get();
+  return Number(snap.data().count || 0);
+}
+
 export async function GET(req: NextRequest) {
   if (!(await authorize(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -42,6 +52,8 @@ export async function GET(req: NextRequest) {
       msgPending,
       msgProcessing,
       msgFailed,
+      msgEligiblePending,
+      msgEligibleProcessing,
     ] = await Promise.all([
       count(INTEGRATION_COLLECTIONS.outbox, "pending"),
       count(INTEGRATION_COLLECTIONS.outbox, "failed"),
@@ -50,11 +62,17 @@ export async function GET(req: NextRequest) {
       count("integration_notification_intents", "pending"),
       count("integration_notification_intents", "processing"),
       count("integration_notification_intents", "failed"),
+      countEligibleMessaging("pending"),
+      countEligibleMessaging("processing"),
     ]);
 
+    const msgLegacyOrIneligible = Math.max(
+      0,
+      (msgPending + msgProcessing) - (msgEligiblePending + msgEligibleProcessing),
+    );
     const backlog =
       outboxPending + outboxFailed + outboxProcessing +
-      msgPending + msgProcessing;
+      msgEligiblePending + msgEligibleProcessing;
     const quarantine = outboxDead + msgFailed;
 
     return NextResponse.json({
@@ -76,8 +94,11 @@ export async function GET(req: NextRequest) {
           deadLetter: outboxDead,
         },
         messaging: {
-          pending: msgPending,
-          processing: msgProcessing,
+          pending: msgEligiblePending,
+          processing: msgEligibleProcessing,
+          rawPending: msgPending,
+          rawProcessing: msgProcessing,
+          legacyOrIneligible: msgLegacyOrIneligible,
           quarantined: msgFailed,
         },
       },

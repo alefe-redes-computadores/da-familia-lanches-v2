@@ -21,6 +21,9 @@ type RemoteHealth = {
     messaging: {
       pending: number;
       processing: number;
+      rawPending: number;
+      rawProcessing: number;
+      legacyOrIneligible: number;
       quarantined: number;
     };
   };
@@ -173,7 +176,8 @@ export function OperationHealthAdmin({
           {remote && (
             <small style={{ display: "block", color: "#707986", marginTop: 2 }}>
               Outbox: {remote.integration.outbox.pending} pend. ·
-              Mensagens: {remote.integration.messaging.pending} pend. ·
+              Mensagens enviáveis: {remote.integration.messaging.pending} ·
+              Legado/inelegível: {remote.integration.messaging.legacyOrIneligible} ·
               Quarentena: {remote.integration.quarantine}
             </small>
           )}

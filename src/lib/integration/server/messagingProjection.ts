@@ -300,10 +300,12 @@ export async function claimMessagingProjections(limit=20) {
   const [pendingSnap,processingSnap] = await Promise.all([
     collection
       .where("status","==","pending")
+      .where("messaging_eligible","==",true)
       .limit(safeLimit*2)
       .get(),
     collection
       .where("status","==","processing")
+      .where("messaging_eligible","==",true)
       .limit(safeLimit*2)
       .get(),
   ]);

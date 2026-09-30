@@ -1,0 +1,11 @@
+import fs from "node:fs";
+const h=fs.readFileSync("src/app/api/admin/operation-health/route.ts","utf8");
+const u=fs.readFileSync("src/components/admin/OperationHealthAdmin.tsx","utf8");
+const m=fs.readFileSync("src/lib/integration/server/messagingProjection.ts","utf8");
+const ok=(v,x)=>{if(!v)throw new Error("V14: "+x)};
+ok(h.includes("msgEligiblePending"),"contador elegível ausente");
+ok(h.includes("legacyOrIneligible"),"legado não separado");
+ok(u.includes("Mensagens enviáveis:"),"UI sem fila real");
+ok(u.includes("Legado/inelegível:"),"UI sem legado");
+ok((m.match(/where\("messaging_eligible","==",true\)/g)||[]).length>=2,"claim sem elegibilidade");
+console.log("V14 contratos de fila real: OK");
