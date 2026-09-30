@@ -90,7 +90,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         onClick={(event) => { event.stopPropagation(); toggleDetails(); }}
       >
         <div className={styles.summaryMain}>
-          <h3>{pedido.userName || "Cliente"}</h3>
+          <h3>{pedido.userName || pedido.customerSnapshot?.name || pedido.nomeCliente || pedido.customerName || pedido.nome || "Cliente"}</h3>
           <span>
             {pickup ? "Retirada" : "Entrega"} ·{" "}
             {itens.reduce((sum, item) => sum + item.quantity, 0)} item(ns)

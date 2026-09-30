@@ -10,6 +10,8 @@ export function isActiveAdminOrder(order: AdminOrder) {
 }
 
 export function orderCreatedTimestamp(order: AdminOrder) {
+  const canonical = Number(order.__historyCreatedAtMs);
+  if (Number.isFinite(canonical) && canonical > 0) return canonical;
   return orderDateToMillis(order.data) || orderDateToMillis(order.createdAt);
 }
 
@@ -101,5 +103,6 @@ export function compareOperationalOrders(a: AdminOrder, b: AdminOrder) {
   if (isActiveAdminOrder(a) && isActiveAdminOrder(b)) {
     return orderOperationalTimestamp(a) - orderOperationalTimestamp(b);
   }
-  return orderOperationalTimestamp(b) - orderOperationalTimestamp(a);
+  return orderCreatedTimestamp(b) - orderCreatedTimestamp(a) ||
+    String(b.id).localeCompare(String(a.id));
 }
