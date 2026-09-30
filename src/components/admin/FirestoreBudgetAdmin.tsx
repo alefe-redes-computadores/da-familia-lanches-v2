@@ -13,7 +13,7 @@ export function FirestoreBudgetAdmin() {
   const perHour = Math.round(snapshot.totalDocuments / hours);
 
   return (
-    <section className="firestoreBudget">
+    <section className="firestoreBudget" data-pressure={perHour >= 500 ? "high" : perHour >= 150 ? "medium" : "low"}>
       <div className="firestoreBudgetHead">
         <div><span>DIAGNÓSTICO LOCAL</span><strong>Pressão de leituras Firestore</strong><p>Estimativa desta sessão neste aparelho. O billing oficial continua sendo o painel Firebase.</p></div>
         <div className="firestoreBudgetTotal"><b>{snapshot.totalDocuments}</b><small>docs estimados</small></div>

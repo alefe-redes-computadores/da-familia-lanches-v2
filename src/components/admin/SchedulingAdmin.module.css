@@ -39,3 +39,19 @@
     -webkit-tap-highlight-color:transparent;
   }
 }
+
+/* DFL ADMIN V13 — STATE AUTHORITY */
+.card{transition:border-color .18s,background .18s,box-shadow .18s}
+.status{min-width:104px!important;position:relative!important;padding-left:30px!important;transition:.18s!important}
+.status::before{content:"";position:absolute;left:12px;top:50%;width:9px;height:9px;border-radius:50%;transform:translateY(-50%);background:#ff6670;box-shadow:0 0 0 5px rgba(255,102,112,.09),0 0 16px rgba(255,102,112,.32)}
+.status[data-enabled=true]{border-color:rgba(54,216,135,.38)!important;background:rgba(54,216,135,.10)!important;color:#76e6aa!important}
+.status[data-enabled=true]::before{background:#36d887;box-shadow:0 0 0 5px rgba(54,216,135,.09),0 0 18px rgba(54,216,135,.42)}
+.status[data-enabled=false]{border-color:rgba(255,102,112,.28)!important;background:rgba(255,102,112,.07)!important;color:#ff8e95!important}
+.card[data-scheduling-enabled=false] .settings,.card[data-scheduling-enabled=false] .quick,.card[data-scheduling-enabled=false] .slotHead,.card[data-scheduling-enabled=false] .slots,.card[data-scheduling-enabled=false] .emptySlots{opacity:.48;filter:saturate(.55)}
+.card[data-scheduling-enabled=false]{border-color:rgba(255,102,112,.18)!important;box-shadow:inset 3px 0 rgba(255,102,112,.55),0 8px 26px rgba(0,0,0,.12)!important}
+.card[data-scheduling-enabled=true]{border-color:rgba(54,216,135,.16)!important;box-shadow:inset 3px 0 rgba(54,216,135,.55),0 8px 26px rgba(0,0,0,.12)!important}
+.save:disabled{background:#171b20!important;border:1px solid #282e35!important;color:#69737d!important;box-shadow:none!important;opacity:1!important}
+.save[data-dirty=true]:not(:disabled){background:linear-gradient(135deg,#ffd84d,#f2b900)!important;color:#171203!important;box-shadow:0 10px 28px rgba(242,185,0,.16)!important}
+.slots article[data-enabled=true]{background:rgba(54,216,135,.055)!important;border-left:2px solid rgba(54,216,135,.55)!important}
+.slots article[data-enabled=true] button span{color:#6fe1a4!important}.slots article:not([data-enabled=true]) button span{color:#69737d!important}
+@media(max-width:600px){.status{min-width:96px!important}.card[data-scheduling-enabled=false] .slots{max-height:260px!important}.head strong{font-size:17px!important}}

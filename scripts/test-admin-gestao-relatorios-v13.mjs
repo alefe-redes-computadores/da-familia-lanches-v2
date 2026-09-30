@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(p,'utf8');
+const ok=(v,m)=>{if(!v)throw new Error(`V13: ${m}`);console.log('OK',m)};
+const sched=read('src/components/admin/SchedulingAdmin.tsx');
+const scss=read('src/components/admin/SchedulingAdmin.module.css');
+const rep=read('src/components/layout/RelatoriosAdmin.tsx');
+const rcss=read('src/components/layout/RelatoriosAdmin.module.css');
+const admin=read('src/app/admin/admin.module.css');
+ok(sched.includes('data-scheduling-enabled={c.enabled}'),'scheduling semantic state');
+ok(sched.includes('data-dirty={dirty}'),'scheduling dirty save');
+ok(scss.includes('.status[data-enabled=true]'),'enabled green authority');
+ok(scss.includes('.status[data-enabled=false]'),'disabled red authority');
+ok(rep.includes('Consolidado Site + Entregas'),'report consolidated source label');
+ok(rep.includes('Modo parcial · somente Site'),'report partial state explicit');
+ok(rcss.includes('REPORT SOURCE AUTHORITY'),'report source visual authority');
+ok(admin.includes('MANAGEMENT VISUAL AUTHORITY'),'management diagnostic visual authority');
+console.log('DFL ADMIN GESTÃO + RELATÓRIOS V13 — CONTRATO SITE OK');

@@ -29,3 +29,8 @@
     -webkit-tap-highlight-color:transparent;
   }
 }
+
+/* DFL ADMIN V13 — REPORT SOURCE AUTHORITY */
+.sourceBar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;border:1px solid rgba(54,216,135,.18);border-radius:13px;background:linear-gradient(135deg,rgba(54,216,135,.07),rgba(54,216,135,.025))}
+.sourceBar>div{min-width:0;display:grid;grid-template-columns:9px minmax(0,1fr);column-gap:8px;align-items:center}.sourceBar i{width:8px;height:8px;border-radius:50%;background:#36d887;box-shadow:0 0 14px rgba(54,216,135,.45)}.sourceBar span{font-size:10px;font-weight:900;color:#bfe9d2}.sourceBar small{grid-column:2;display:block;margin-top:2px;color:#6f8278;font-size:8px;line-height:1.4}.sourceBar button{flex:0 0 auto;min-height:34px;padding:0 11px;border:1px solid rgba(255,201,40,.24);border-radius:9px;background:rgba(255,201,40,.07);color:#f2cf59;font-size:8px;font-weight:900}.sourceBar[data-source="live-fallback"]{border-color:rgba(255,201,40,.22);background:rgba(255,201,40,.045)}.sourceBar[data-source="live-fallback"] i{background:#ffc928;box-shadow:0 0 14px rgba(255,201,40,.4)}.sourceBar[data-source="live-fallback"] span{color:#f1d36a}.sourceBar[data-source="live-fallback"] small{color:#8e825d}.sourceError{margin-top:-5px;padding:0 5px;color:#8a6f73;font-size:7px;overflow-wrap:anywhere}
+@media(max-width:620px){.sourceBar{align-items:flex-start;padding:10px}.sourceBar button{min-height:32px}.sourceBar small{font-size:7.5px}}
