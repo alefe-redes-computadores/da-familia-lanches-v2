@@ -10,11 +10,13 @@ const n=(v:unknown)=>Number.isInteger(v)&&Number(v)>=0?Number(v):null;
 const s=(v:unknown)=>typeof v==="string"?v.trim():"";
 export function paymentGuidance(order:OrderLike){
   const raw=s(order.metodoPagamento).toLowerCase();
+  const paymentStatus=s(order.paymentStatus||order.statusPagamento).toLowerCase();
+  const paid=order.isPaid===true||order.pago===true||["paid","pago","approved","aprovado","confirmed","confirmado"].includes(paymentStatus);
+  if(paid||raw.includes("pix")) return null;
   if(raw.includes("dinheiro")){
     const troco=Number(String(order.trocoPara??"").replace(",","."));
     return Number.isFinite(troco)&&troco>0?`Pagamento em dinheiro · troco para ${troco.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}.`:`Pagamento em dinheiro · se possível, deixe o valor preparado.`;
   }
-  if(raw.includes("pix")) return "Pagamento via PIX · deixe o celular por perto para concluir o pagamento.";
   if(raw.includes("debito")||raw.includes("débito")) return "Pagamento no débito · deixe o cartão preparado.";
   if(raw.includes("credito")||raw.includes("crédito")||raw.includes("cartao")||raw.includes("cartão")) return "Pagamento no cartão · deixe o cartão preparado.";
   return raw?`Pagamento: ${s(order.metodoPagamento)}.`:null;

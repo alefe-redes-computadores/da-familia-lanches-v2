@@ -42,46 +42,20 @@ export function LastOrderCard() {
   const data = useMemo(() => {
     if (!order) return null;
 
-    const raw = Array.isArray(order.items)
-      ? order.items
-      : Array.isArray(order.itens)
-        ? order.itens
-        : [];
-
-    const items = raw.slice(0, 3).map((item: any) => {
-      const id = String(
-        item?.id ??
-        item?.productId ??
-        item?.produtoId ??
-        ""
-      );
-
-      const name = String(
-        item?.name ??
-        item?.nome ??
-        "Item"
-      );
-
-      const product =
-        products.find((candidate) => candidate.id === id) ??
-        products.find(
-          (candidate) =>
-            normalize(candidate.name) === normalize(name)
-        );
-
-      return {
-        name,
-        // Para exibição usamos primeiro a imagem atual do catálogo.
-        // O snapshot antigo continua preservado no pedido, mas não deve
-        // manter foto desatualizada para sempre.
-        image: String(
-          product?.image ??
-          item?.image ??
-          item?.imagem ??
-          ""
-        ),
-      };
-    });
+    const compatibleItems = getOrderItems(order);
+    const items = compatibleItems
+      .map((item) => {
+        const product =
+          products.find((candidate) => candidate.id === item.id) ??
+          products.find((candidate) => normalizeText(candidate.name) === normalizeText(item.name));
+        return {
+          name: item.name,
+          image: String(product?.image ?? ""),
+          weight: Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)),
+        };
+      })
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 3);
 
     const total = Number(
       order.total ??
@@ -250,7 +224,7 @@ export function LastOrderCard() {
         <button
           className={styles.secondary}
           type="button"
-          onClick={() => openModal("orders")}
+          onClick={() => openModal("orders", { orderId: order.id, tab: "history" })}
         >
           Ver detalhes
         </button>
