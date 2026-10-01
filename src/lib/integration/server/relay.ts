@@ -11,6 +11,7 @@ import {
 } from "./outboxRepository";
 import { integrationSignature } from "./signature";
 import { ensureCommercialMessagingIntent } from "./messagingProjection";
+import { drainMessagingIntentFastLane } from "./messagingFastLane";
 import { projectOrderEvent } from "@/lib/analytics/server/projector";
 
 export interface RelayDrainResult {
@@ -81,7 +82,11 @@ async function processClaimed(
     try {
       const event = eventFromOutbox(item.record as unknown as Record<string, unknown>);
       const status = await sendEvent(config.targetUrl!, config.signingSecret!, event, config.requestTimeoutMs);
-      await ensureCommercialMessagingIntent(event);
+      const messagingIntent=await ensureCommercialMessagingIntent(event);
+      if ("intentId" in messagingIntent && messagingIntent.intentId) {
+        const fastLane=await drainMessagingIntentFastLane(messagingIntent.intentId);
+        if(fastLane.attempted&&!fastLane.queued) console.warn("[integration/messaging] fast-lane falhou; fallback preservado",{eventId:event.event_id,reason:fastLane.reason});
+      }
       if (event.entity_type === "order" && (event.event_type === "order.created" || event.event_type === "order.updated")) {
         await projectOrderEvent(event);
       }

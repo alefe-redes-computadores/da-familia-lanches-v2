@@ -1,0 +1,10 @@
+import fs from "node:fs";
+const s=fs.readFileSync("src/lib/integration/server/messagingFastLane.ts","utf8");
+const ok=(v,m)=>{if(!v)throw new Error("V15.1: "+m)};
+ok(s.includes("DFL_MESSAGING_INGEST_URL"),"ingest URL ausente");
+ok(s.includes("DFL_MESSAGING_INGEST_TOKEN"),"ingest token ausente");
+ok(s.includes("DFL_MESSAGING_WORKER_URL"),"worker URL ausente");
+ok(s.includes("DFL_MESSAGING_WORKER_TOKEN"),"worker token ausente");
+ok(s.includes('if(ok){'),"wake não condicionado ao ingest");
+ok(s.includes('source:"site_fastlane"'),"wake sem origem");
+console.log("V15.1 fast-lane completo: OK");

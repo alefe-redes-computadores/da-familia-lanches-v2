@@ -3,6 +3,7 @@ import { Timestamp, type DocumentReference } from "firebase-admin/firestore";
 import { adminDb } from "./admin";
 import type { IntegrationEventEnvelope } from "../contracts";
 import { projectOrderById } from "@/lib/analytics/server/projector";
+import { drainMessagingIntentFastLane } from "./messagingFastLane";
 
 type ReverseEventType =
   | "delivery.assigned"
@@ -265,6 +266,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       if(loyaltyWrite) tx.set(loyaltyWrite.ref,loyaltyWrite.data,{merge:true});
     }
 
+    let messagingIntentDocId:string|null=null;
     if (wins) {
       // assigned/position_changed continuam atualizando tracking,
       // mas não criam intent de mensagem: não possuem projeção automática.
@@ -275,6 +277,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         : null;
       if (intentType) {
         const intentId = encodeURIComponent(`intent-v1__${event.event_id}`);
+        messagingIntentDocId=intentId;
         tx.set(adminDb.collection("integration_notification_intents").doc(intentId), {
           intent_id: `intent-v1__${event.event_id}`,
           intent_type: intentType,
@@ -331,10 +334,15 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       commercial_projection_target: projectionDeferred ? targetStatus : null,
       commercial_projection_decision: projection.reason,
       reward_awarded: Boolean(rewardWrite),
+      messaging_intent_doc_id: messagingIntentDocId,
     };
   });
   if (!result.already_processed && result.applied) {
     await projectOrderById(event.payload.externalOrderId, event.event_id);
+  }
+  if (!result.already_processed && result.messaging_intent_doc_id) {
+    const fastLane=await drainMessagingIntentFastLane(result.messaging_intent_doc_id);
+    if(fastLane.attempted&&!fastLane.queued) console.warn("[integration/reverse] fast-lane falhou; fallback preservado",{eventId:event.event_id,reason:fastLane.reason});
   }
   return result;
 }

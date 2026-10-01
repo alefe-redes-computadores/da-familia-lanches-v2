@@ -1,0 +1,11 @@
+import fs from "node:fs";
+const r=p=>fs.readFileSync(p,"utf8"), ok=(v,m)=>{if(!v)throw new Error("V15: "+m)};
+const p=r("src/lib/integration/server/messagingProjection.ts"),f=r("src/lib/integration/server/messagingFastLane.ts"),l=r("src/lib/integration/server/relay.ts"),v=r("src/lib/integration/server/reversePersistence.ts");
+ok(p.includes("claimMessagingProjectionByIntentId"),"claim direcionado ausente");
+ok(p.includes("intentId:ref.id"),"intent id ausente");
+ok(f.includes("DFL_MESSAGING_INGEST_URL")&&f.includes("DFL_MESSAGING_INGEST_TOKEN"),"config fast-lane ausente");
+ok(f.includes("settleMessagingProjections"),"settle ausente");
+ok(l.includes("drainMessagingIntentFastLane"),"relay sem fast-lane");
+ok(v.includes("messaging_intent_doc_id")&&v.includes("drainMessagingIntentFastLane"),"reverse sem fast-lane");
+ok(v.includes('event.event_type === "delivery.out_for_delivery" ? "delivery_started"'),"out_for_delivery alterado");
+console.log("V15 contratos de fast-lane: OK");

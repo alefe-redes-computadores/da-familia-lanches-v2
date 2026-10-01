@@ -80,11 +80,11 @@ export async function ensureCommercialMessagingIntent(event: IntegrationEventEnv
       created_at:now,
       updated_at:now,
     });
-    return {created:true};
+    return {created:true, intentId:ref.id};
   } catch (error) {
     const code = text((error as {code?:unknown}|null)?.code).toLowerCase();
     if (code === "6" || code.includes("already") || code.includes("exists"))
-      return {created:false, reason:"exists" as const};
+      return {created:false, reason:"exists" as const, intentId:ref.id};
     throw error;
   }
 }
@@ -280,6 +280,15 @@ async function releaseUnhydratable(raw:ClaimedRaw, workerId:string) {
       last_error:"Intent temporariamente sem dados suficientes para projeção.",
     });
   });
+}
+
+export async function claimMessagingProjectionByIntentId(intentId:string) {
+  const workerId=randomUUID();
+  const raw=await claimRawCandidate(intentId,workerId);
+  if(!raw) return {worker_id:workerId,events:[] as Projection[]};
+  const projection=await hydrate(raw.docId,raw.data);
+  if(!projection){ await releaseUnhydratable(raw,workerId); return {worker_id:workerId,events:[] as Projection[]}; }
+  return {worker_id:workerId,events:[projection]};
 }
 
 export async function claimMessagingProjections(limit=20) {
