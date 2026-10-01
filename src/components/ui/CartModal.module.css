@@ -48,3 +48,18 @@
 /* V43 CONVERSION POLISH */
 .smartSuggestions{contain:content}.smartCard:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 .smartCopy strong{font-weight:850}
+
+/* V16 — CART NOTICE CONTRAST
+   O aviso existia, mas o texto claro sobre fundo amarelo translúcido
+   podia parecer uma faixa vazia no tema claro. */
+.catalogNotice{
+  color:#5f4800!important;
+  background:#fff6d8!important;
+  border-color:#ead27c!important;
+  font-weight:750
+}
+
+.catalogNotice button{
+  background:rgba(95,72,0,.08)!important;
+  color:#5f4800!important
+}
