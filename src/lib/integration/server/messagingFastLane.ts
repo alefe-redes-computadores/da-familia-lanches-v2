@@ -43,8 +43,8 @@ export async function drainMessagingIntentFastLane(intentId:string){
       try{
         const wake=await fetch(workerUrl,{
           method:"POST",
-          headers:{"content-type":"application/json","x-dfl-messaging-token":workerToken},
-          body:JSON.stringify({source:"site_fastlane",limit:20}),
+          headers:{"content-type":"application/json","x-dfl-messaging-worker-token":workerToken},
+          body:JSON.stringify({}),
           cache:"no-store",
           signal:wakeController.signal,
         });
