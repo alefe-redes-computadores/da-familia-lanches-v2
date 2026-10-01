@@ -46,6 +46,20 @@ function commercialType(event: IntegrationEventEnvelope): DflMessagingEventType 
   const n = text(payload.status).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (n.includes("producao")) return "order.production";
   if (n === "pronto") return "order.ready";
+
+  // Finalização feita diretamente no Site só representa conclusão
+  // comercial quando o pedido é RETIRADA.
+  //
+  // Pedidos de entrega continuam sob autoridade logística do
+  // DFL Entregas, que projeta delivery.completed separadamente.
+  // Isso evita mensagem duplicada e preserva o contrato de status.
+  if (
+    n === "finalizado" &&
+    text(payload.tipoEntrega) === "pickup"
+  ) {
+    return "delivery.completed";
+  }
+
   if (n.includes("cancel")) return "order.cancelled";
   return null;
 }
