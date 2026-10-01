@@ -99,7 +99,7 @@ export async function updateOrderStatus(input: {
   const now = Timestamp.now();
   const occurredAt = now.toDate().toISOString();
 
-  return runTransaction(db, async (transaction) => {
+  const result = await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(orderRef);
     if (!snapshot.exists()) throw new Error("ORDER_NOT_FOUND");
 
@@ -214,8 +214,52 @@ export async function updateOrderStatus(input: {
       changed: true,
       status: next,
       rewardAwarded,
+      eventId: event.event_id,
     };
   });
+
+  if (
+    result.changed &&
+    "eventId" in result &&
+    result.eventId
+  ) {
+    try {
+      const user = auth.currentUser;
+
+      if (user) {
+        const token = await user.getIdToken();
+        const controller = new AbortController();
+
+        const timer = window.setTimeout(
+          () => controller.abort(),
+          5000,
+        );
+
+        try {
+          await fetch("/api/admin/orders/relay", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              eventId: result.eventId,
+            }),
+            signal: controller.signal,
+          });
+        } finally {
+          window.clearTimeout(timer);
+        }
+      }
+    } catch (error) {
+      console.warn(
+        "[orders/status] fast-lane indisponível; fallback preservado",
+        error,
+      );
+    }
+  }
+
+  return result;
 }
 
 
