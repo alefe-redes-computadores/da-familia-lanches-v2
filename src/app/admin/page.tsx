@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useAdminOrders } from "@/hooks/useAdminOrders";
 import { OrderCard } from "@/components/layout/OrderCard";
@@ -56,6 +56,7 @@ const ADMINS = [
 
 type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons" | "fidelidade" | "gestao";
 type ServiceFilter = "todos" | "delivery" | "pickup";
+type FeedbackState = { tone: "progress" | "success" | "error" | "info"; title: string; message: string } | null;
 
 const normalizeSearch = (value: unknown) =>
   String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -133,9 +134,11 @@ export default function AdminPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("todos");
   const [attentionOnly, setAttentionOnly] = useState(false);
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [unreadStages, setUnreadStages] = useState({ cozinha: false, expedicao: false });
+  const previousStageCounts = useRef<{ cozinha: number; expedicao: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
 
@@ -146,8 +149,8 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (!feedback) return;
-    const timer = window.setTimeout(() => setFeedback(""), 4200);
+    if (!feedback || feedback.tone === "progress") return;
+    const timer = window.setTimeout(() => setFeedback(null), 4200);
     return () => window.clearTimeout(timer);
   }, [feedback]);
 
@@ -165,6 +168,9 @@ export default function AdminPage() {
   const updateStatus = async (id: string, status: string, pedido?: Record<string, unknown>) => {
     if (updatingOrderId === id) return;
     setUpdatingOrderId(id);
+    const nextLabel = normalizarStatus(status);
+    setFeedback({ tone: "progress", title: "Atualizando pedido", message: `Movendo o pedido para ${nextLabel}…` });
+    haptic("step");
     try {
       const normalizedNext=normalizarStatus(status);
       const rewardPlan = pedido && (normalizedNext === "Finalizado" || normalizedNext === "Cancelado")
@@ -176,11 +182,15 @@ export default function AdminPage() {
         pickup: pedido?.tipoEntrega === "pickup",
         rewardPlan,
       });
-      setFeedback(result.rewardAwarded
-        ? "Pedido concluído e benefício de fidelidade liberado."
-        : result.changed
-          ? `Pedido atualizado para ${normalizarStatus(status)}.`
-          : "Este pedido já estava nesta etapa.");
+      setFeedback({
+        tone: result.changed ? "success" : "info",
+        title: result.rewardAwarded ? "Pedido concluído + fidelidade" : result.changed ? "Pedido atualizado" : "Etapa já confirmada",
+        message: result.rewardAwarded
+          ? "Pedido concluído e benefício de fidelidade liberado."
+          : result.changed
+            ? `Pedido atualizado para ${normalizarStatus(status)}.`
+            : "Este pedido já estava nesta etapa.",
+      });
       haptic("success");
     } catch (error) {
       console.error(error);
@@ -188,13 +198,11 @@ export default function AdminPage() {
       if (message.startsWith("ORDER_STATUS_CONFLICT:")) {
         const transition = message.slice("ORDER_STATUS_CONFLICT:".length);
         const current = transition.split("->")[0] || "";
-        setFeedback(
-          current
-            ? `Pedido já está em "${current}". A fila foi atualizada com o estado mais recente.`
-            : "O pedido mudou de etapa em outro fluxo. A fila foi atualizada.",
-        );
+        setFeedback({ tone: "info", title: "Fila sincronizada", message: current
+          ? `Pedido já está em "${current}". A fila foi atualizada com o estado mais recente.`
+          : "O pedido mudou de etapa em outro fluxo. A fila foi atualizada." });
       } else {
-        setFeedback("Não foi possível atualizar o pedido agora. Tente novamente.");
+        setFeedback({ tone: "error", title: "Não foi possível atualizar", message: "O pedido foi preservado. Tente novamente em instantes." });
       }
       haptic("error");
     } finally {
@@ -214,6 +222,24 @@ export default function AdminPage() {
     cancelados: pedidos.filter((p) => normalizarStatus(p.status) === "Cancelado").length,
     attention: pedidos.filter((p) => Boolean(operationalAttention(p, now))).length,
   }), [pedidos, now]);
+
+  useEffect(() => {
+    const previous = previousStageCounts.current;
+    if (previous) {
+      if (counts.cozinha > previous.cozinha && tab !== "cozinha") {
+        setUnreadStages((value) => ({ ...value, cozinha: true }));
+      }
+      if (counts.expedicao > previous.expedicao && tab !== "expedicao") {
+        setUnreadStages((value) => ({ ...value, expedicao: true }));
+      }
+    }
+    previousStageCounts.current = { cozinha: counts.cozinha, expedicao: counts.expedicao };
+  }, [counts.cozinha, counts.expedicao, tab]);
+
+  useEffect(() => {
+    if (tab === "cozinha") setUnreadStages((value) => value.cozinha ? ({ ...value, cozinha: false }) : value);
+    if (tab === "expedicao") setUnreadStages((value) => value.expedicao ? ({ ...value, expedicao: false }) : value);
+  }, [tab]);
 
   const filtered = useMemo(() => {
     const term = normalizeSearch(search);
@@ -241,6 +267,20 @@ export default function AdminPage() {
     () => pedidos.find((pedido) => pedido.id === selectedOrderId) ?? null,
     [pedidos, selectedOrderId],
   );
+
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !updatingOrderId) setSelectedOrderId(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [selectedOrder, updatingOrderId]);
 
   if (!currentUser) {
     return <AdminAuthGate />;
@@ -306,12 +346,12 @@ export default function AdminPage() {
             <span>Pedidos</span>
             {activeOrders > 0 && <b>{activeOrders}</b>}
           </button>
-          <button type="button" data-stage-active={tab === "cozinha"} onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+          <button type="button" data-stage-active={tab === "cozinha"} data-unread={unreadStages.cozinha} onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
             <span className={styles.railIcon}><AdminIcon name="kitchen" /></span>
             <span>Cozinha</span>
             {counts.cozinha > 0 && <b>{counts.cozinha}</b>}
           </button>
-          <button type="button" data-stage-active={tab === "expedicao"} onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+          <button type="button" data-stage-active={tab === "expedicao"} data-unread={unreadStages.expedicao} onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
             <span className={styles.railIcon}><AdminIcon name="dispatch" /></span>
             <span>Expedição</span>
             {counts.expedicao > 0 && <b>{counts.expedicao}</b>}
@@ -456,6 +496,7 @@ export default function AdminPage() {
             <button
               type="button"
               data-active={tab === "cozinha"}
+              data-unread={unreadStages.cozinha}
               onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}
             >
               <AdminIcon name="kitchen" />
@@ -465,6 +506,7 @@ export default function AdminPage() {
             <button
               type="button"
               data-active={tab === "expedicao"}
+              data-unread={unreadStages.expedicao}
               onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}
             >
               <AdminIcon name="dispatch" />
@@ -532,13 +574,13 @@ export default function AdminPage() {
         )}
 
         {feedback && (
-          <div className={styles.toast} data-tone={feedback.startsWith("Não foi possível") ? "error" : "success"} role="status" aria-live="polite">
+          <div className={styles.toast} data-tone={feedback.tone} role="status" aria-live="polite">
             <i />
             <div>
-              <strong>{feedback.startsWith("Não foi possível") ? "Não foi possível atualizar" : "Pedido atualizado"}</strong>
-              <span>{feedback}</span>
+              <strong>{feedback.title}</strong>
+              <span>{feedback.message}</span>
             </div>
-            <button type="button" onClick={() => setFeedback("")} aria-label="Fechar aviso">×</button>
+            {feedback.tone !== "progress" && <button type="button" onClick={() => setFeedback(null)} aria-label="Fechar aviso">×</button>}
           </div>
         )}
 
@@ -610,6 +652,7 @@ export default function AdminPage() {
                         updateStatus={updateStatus}
                         imprimirPedido={imprimirPedido}
                         selected={selectedOrderId === pedido.id}
+                        updating={updatingOrderId === pedido.id}
                         onSelect={() => setSelectedOrderId(pedido.id)}
                       />
                     ))
@@ -618,11 +661,11 @@ export default function AdminPage() {
 
               {selectedOrder && (
                 <>
-                  <button type="button" className={styles.sheetBackdrop} aria-label="Fechar detalhes" onClick={() => setSelectedOrderId(null)} />
-                  <aside className={styles.orderInspector} aria-label="Detalhes do pedido">
+                  <button type="button" disabled={Boolean(updatingOrderId)} className={styles.sheetBackdrop} aria-label="Fechar detalhes" onClick={() => setSelectedOrderId(null)} />
+                  <aside className={styles.orderInspector} role="dialog" aria-modal="true" aria-label="Detalhes do pedido">
                     <div className={styles.inspectorHead}>
                       <div><span>PEDIDO SELECIONADO</span><strong>Detalhes e ações</strong></div>
-                      <button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Fechar detalhes">×</button>
+                      <button type="button" disabled={Boolean(updatingOrderId)} onClick={() => setSelectedOrderId(null)} aria-label="Fechar detalhes">×</button>
                     </div>
                     <OrderCard
                       pedido={selectedOrder}
@@ -630,6 +673,7 @@ export default function AdminPage() {
                       imprimirPedido={imprimirPedido}
                       forceExpanded
                       inspector
+                      updating={updatingOrderId === selectedOrder.id}
                     />
                   </aside>
                 </>

@@ -167,3 +167,14 @@
 [data-admin-ui] input:focus,[data-admin-ui] select:focus,[data-admin-ui] textarea:focus{border-color:#ffc9287a!important;box-shadow:0 0 0 3px #ffc92814!important}
 [data-admin-ui] button[class*=primary],[data-admin-ui] button[class*=save],[data-admin-ui] button[class*=mainAction]{background:linear-gradient(135deg,#ffda4b,#f4b800)!important;border-color:#ffd449!important;color:#1b1503!important;box-shadow:0 9px 22px #f4b7001f,inset 0 1px #ffffff61!important}
 [data-admin-ui] button[class*=danger],[data-admin-ui] button[class*=remove],[data-admin-ui] button[data-danger=true]{background:#ff5f6811!important;border-color:#ff5f6838!important;color:#ff858b!important}
+
+/* V18 visual authority: operational actions keep their semantic destination. */
+[data-admin-ui] button[data-tone="warm"]{background:linear-gradient(135deg,#ffda4b,#f4b800)!important;border-color:#ffd449!important;color:#1b1503!important;box-shadow:0 8px 24px #f4b70022!important}
+[data-admin-ui] button[data-tone="green"]{background:linear-gradient(135deg,#50e7a1,#24bd72)!important;border-color:#5ce9a8!important;color:#042716!important;box-shadow:0 8px 24px #36d88724!important}
+[data-admin-ui] button[data-tone="blue"]{background:linear-gradient(135deg,#70b4ff,#3d82e8)!important;border-color:#7bbaff!important;color:#06182e!important;box-shadow:0 8px 24px #60a5fa24!important}
+[data-admin-ui] button:disabled{transform:none!important;box-shadow:none!important}
+
+/* Management modules share one premium surface language without changing contracts. */
+[data-admin-ui] [class*="panel"],[data-admin-ui] [class*="section"],[data-admin-ui] [class*="card"]{border-radius:14px!important;background-color:#0d1217!important}
+[data-admin-ui] [class*="panel"] h2,[data-admin-ui] [class*="panel"] h3,[data-admin-ui] [class*="section"] h2,[data-admin-ui] [class*="section"] h3{color:#f4f7f9!important}
+[data-admin-ui] [class*="panel"] small,[data-admin-ui] [class*="panel"] p,[data-admin-ui] [class*="section"] small,[data-admin-ui] [class*="section"] p{color:#828d98}

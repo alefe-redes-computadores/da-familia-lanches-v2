@@ -5,6 +5,6 @@ ok(a.includes("DFL ADMIN — REFERENCE REFACTOR"),"pele premium consolidada no r
 ok(c.includes("DFL ORDER CARD — REFERENCE REFACTOR"),"cards premium consolidados");
 ok(u.includes("shared controls"),"controles premium preservados");
 ok(s.includes("ADMIN PREMIUM V1 — STORE OPERATION"),"funcionamento premium preservado");
-ok(p.includes('data-tone={feedback.startsWith("Não foi possível")'),"toast semantico");
+ok(p.includes('data-tone={feedback.tone}')&&p.includes('tone: "progress"'),"toast semantico com progresso");
 ok(p.includes("updateOrderStatus"),"status preservado");
 console.log("DFL ADMIN PREMIUM — COMPATIBILIDADE OK");

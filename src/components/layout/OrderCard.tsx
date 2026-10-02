@@ -7,7 +7,7 @@ import { canTransitionOrderStatus, statusTitle } from "@/lib/orderStatus";
 import { ageLabel, operationalAttention } from "@/lib/adminOrders";
 import styles from "./OrderCard.module.css";
 
-export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false }: any) {
+export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false, updating = false }: any) {
   const [expanded, setExpanded] = useState(false);
   const isExpanded = forceExpanded || expanded;
   const statusAtual = normalizarStatus(pedido.status);
@@ -29,6 +29,16 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     logisticsCompleted &&
     statusAtual !== "Finalizado" &&
     statusAtual !== "Cancelado";
+  const stageTone =
+    statusAtual === "Pendente" || statusAtual === "Agendado" ? "new" :
+    statusAtual === "Em Produção" ? "production" :
+    statusAtual === "Pronto" ? "ready" :
+    statusAtual === "Saiu para Entrega" ? "route" :
+    statusAtual === "Finalizado" ? "completed" : "canceled";
+  const stages = pickup
+    ? ["Pendente", "Em Produção", "Pronto", "Finalizado"]
+    : ["Pendente", "Em Produção", "Pronto", "Saiu para Entrega", "Finalizado"];
+  const currentStageIndex = Math.max(0, stages.indexOf(statusAtual));
 
   const openWhatsApp = () => {
     let d = telefone.replace(/\D/g, "");
@@ -41,7 +51,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     statusAtual === "Pendente" || statusAtual === "Agendado" ? ["Em Produção", "Aceitar", "warm"] :
     statusAtual === "Em Produção" ? ["Pronto", "Marcar pronto", "green"] :
     statusAtual === "Pronto" && !pickup ? ["Saiu para Entrega", "Despachar", "blue"] :
-    (statusAtual === "Saiu para Entrega" || (statusAtual === "Pronto" && pickup)) ? ["Finalizado", "Concluir", ""] :
+    (statusAtual === "Saiu para Entrega" || (statusAtual === "Pronto" && pickup)) ? ["Finalizado", "Concluir entrega", "green"] :
     null;
 
   const canCancel = !["Finalizado", "Cancelado"].includes(statusAtual)
@@ -62,6 +72,8 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
       data-selected={selected}
       data-inspector={inspector}
       data-terminal={terminal ? terminalTone : "active"}
+      data-stage={stageTone}
+      data-updating={updating}
       onClick={terminal && onSelect ? onSelect : undefined}
       style={{ "--status-color": getColorByStatus(pedido.status) } as React.CSSProperties}
     >
@@ -106,6 +118,13 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
 
       {isExpanded && (
         <div className={styles.details}>
+          {inspector && !terminal && (
+            <div className={styles.stageTrack} aria-label={`Etapa atual: ${statusTitle(pedido.status, pickup)}`}>
+              {stages.map((stage, index) => (
+                <span key={stage} data-done={index <= currentStageIndex} data-current={index === currentStageIndex} title={stage} />
+              ))}
+            </div>
+          )}
           <div className={styles.person}>
             <div className={styles.phone}>{telefone || "Telefone não informado"}</div>
             <div className={styles.metaActions}>
@@ -142,9 +161,10 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
 
       {(next || canCancel || !inspector) && (
         <div className={styles.actions}>
-          {next && <button className={styles.primary} data-tone={next[2]} onClick={() => updateStatus(pedido.id, next[0], pedido)}>{next[1]}</button>}
-          {!inspector && !terminal && <button className={styles.detailsAction} type="button" onClick={toggleDetails}>Detalhes</button>}
-          {canCancel && <button className={styles.cancel} data-danger="true" onClick={() => {
+          {next && <button type="button" disabled={updating} className={styles.primary} data-tone={next[2]} onClick={(event) => { event.stopPropagation(); updateStatus(pedido.id, next[0], pedido); }}>{updating ? "Atualizando…" : next[1]}</button>}
+          {!inspector && !terminal && <button className={styles.detailsAction} type="button" disabled={updating} onClick={(event) => { event.stopPropagation(); toggleDetails(); }}>Detalhes</button>}
+          {canCancel && <button type="button" disabled={updating} className={styles.cancel} data-danger="true" onClick={(event) => {
+            event.stopPropagation();
             if (window.confirm(`Cancelar o pedido #${String(pedido.id).slice(-8).toUpperCase()}?`)) {
               updateStatus(pedido.id, "Cancelado", pedido);
             }
