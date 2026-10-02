@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "DFL Admin",
   description: "Painel administrativo da Da Família Lanches",
   applicationName: "DFL Admin",
-  manifest: "/admin-manifest.webmanifest?v=68",
+  manifest: "/admin-manifest.webmanifest?v=19",
   appleWebApp: {
     capable: true,
     title: "DFL Admin",

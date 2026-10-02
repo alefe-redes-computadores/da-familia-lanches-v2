@@ -59,6 +59,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const initializedRef = useRef(false);
   const knownPendingIdsRef = useRef<Set<string>>(new Set());
+  const knownActiveStatusRef = useRef<Map<string, string>>(new Map());
   const authoritativeOrdersRef =
     useRef<Map<string, AdminOrder>>(new Map());
   const realtimeOrdersRef =
@@ -100,8 +101,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   useEffect(() => {
     if (typeof window === "undefined" || audioRef.current) return;
 
-    const audio =
-      new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg");
+    const audio = new Audio("/notification-default.wav");
 
     audio.loop = true;
     audio.volume = 1;
@@ -141,6 +141,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     cancelledRef.current = false;
     initializedRef.current = false;
     knownPendingIdsRef.current = new Set();
+    knownActiveStatusRef.current = new Map();
     authoritativeOrdersRef.current = new Map();
     realtimeOrdersRef.current = new Map();
     historyCursorRef.current = null;
@@ -199,6 +200,11 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
                 normalizarStatus(order.status) === "Pendente",
             )
             .map((order) => String(order.id)),
+        );
+        knownActiveStatusRef.current = new Map(
+          payload.orders
+            .filter((order) => ACTIVE_CANONICAL.has(normalizarStatus(order.status)))
+            .map((order) => [String(order.id), normalizarStatus(order.status)]),
         );
 
         initializedRef.current = true;
@@ -266,18 +272,62 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
         );
 
         if (initializedRef.current) {
-          const hasNewPending =
-            [...pendingIds].some(
-              (id) => !knownPendingIdsRef.current.has(id),
-            );
+          const newPendingOrders = [...realtime.values()].filter(
+            (order) =>
+              normalizarStatus(order.status) === "Pendente" &&
+              !knownPendingIdsRef.current.has(String(order.id)),
+          );
+          const hasNewPending = newPendingOrders.length > 0;
 
           if (hasNewPending) {
             setAlarmeAtivo(true);
             void audioRef.current?.play().catch(() => undefined);
+            for (const order of newPendingOrders) {
+              window.dispatchEvent(new CustomEvent("dfl:admin-alert", {
+                detail: {
+                  id: String(order.id),
+                  title: "Novo pedido na cozinha",
+                  body: `${String(order.clienteNome || order.nomeCliente || "Cliente")} · pedido #${String(order.id).slice(-8).toUpperCase()}`,
+                  url: "/admin?stage=cozinha",
+                  tag: `order-${String(order.id)}`,
+                },
+              }));
+            }
+          }
+
+          for (const order of realtime.values()) {
+            const id = String(order.id);
+            const nextStatus = normalizarStatus(order.status);
+            const previousStatus = knownActiveStatusRef.current.get(id);
+            if (nextStatus === "Pronto" && previousStatus && previousStatus !== "Pronto") {
+              window.dispatchEvent(new CustomEvent("dfl:admin-alert", {
+                detail: {
+                  id,
+                  title: "Pedido pronto para sair",
+                  body: `${String(order.clienteNome || order.nomeCliente || "Cliente")} · confira na Expedição`,
+                  url: "/admin",
+                  tag: `ready-${id}`,
+                },
+              }));
+            }
           }
         }
 
+        window.dispatchEvent(new CustomEvent("dfl:admin-badge", {
+          detail: {
+            count: [...realtime.values()].filter((order) =>
+              ["Pendente", "Pronto"].includes(normalizarStatus(order.status)),
+            ).length,
+          },
+        }));
+
         knownPendingIdsRef.current = pendingIds;
+        knownActiveStatusRef.current = new Map(
+          [...realtime.values()].map((order) => [
+            String(order.id),
+            normalizarStatus(order.status),
+          ]),
+        );
         initializedRef.current = true;
 
         publish();

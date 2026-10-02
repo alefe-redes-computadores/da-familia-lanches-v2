@@ -18,6 +18,8 @@ export function GET(request: NextRequest) {
     orientation: "portrait-primary",
     background_color: "#0b0b0c",
     theme_color: "#0b0b0c",
+    categories: ["business", "productivity"],
+    prefer_related_applications: false,
     icons: [
       { src: "/admin-icon-192x192.png?v=54", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/admin-icon-512x512.png?v=54", sizes: "512x512", type: "image/png", purpose: "any" },
