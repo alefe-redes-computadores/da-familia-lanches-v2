@@ -1,5 +1,5 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { IntegrationEventEnvelope } from "../contracts";
 import { adminDb } from "./admin";
 
@@ -21,6 +21,8 @@ type Projection = {
 type ClaimedRaw = { docId: string; data: Record<string, unknown> };
 
 const COLLECTION = "integration_notification_intents";
+const BURST_COLLECTION = "integration_notification_bursts";
+const COMMERCIAL_BURST_MS = 60 * 1000;
 const MAX_MESSAGING_ATTEMPTS = 6;
 const LOCK_TTL_MS = 5 * 60 * 1000;
 const text = (v: unknown) => String(v ?? "").trim();
@@ -37,6 +39,35 @@ function millis(v: unknown): number | null {
     try { return (v as {toMillis:()=>number}).toMillis(); } catch { return null; }
   }
   return null;
+}
+
+function stableHash(value: string) {
+  return createHash("sha256")
+    .update(value)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+function burstEligible(eventType: DflMessagingEventType) {
+  return (
+    eventType === "order.production" ||
+    eventType === "order.ready"
+  );
+}
+
+function burstRefFor(
+  eventType: DflMessagingEventType,
+  phone: string,
+) {
+  const normalizedPhone = phone.replace(/\D/g, "");
+
+  if (!burstEligible(eventType) || !normalizedPhone) return null;
+
+  const key = stableHash(`${normalizedPhone}|${eventType}`);
+
+  return adminDb
+    .collection(BURST_COLLECTION)
+    .doc(`burst-v1__${key}`);
 }
 
 function commercialType(event: IntegrationEventEnvelope): DflMessagingEventType | null {
@@ -66,18 +97,134 @@ function commercialType(event: IntegrationEventEnvelope): DflMessagingEventType 
 
 export async function ensureCommercialMessagingIntent(event: IntegrationEventEnvelope) {
   const eventType = commercialType(event);
-  if (!eventType) return {created:false, reason:"not_messaging_event" as const};
+
+  if (!eventType) {
+    return {created:false, reason:"not_messaging_event" as const};
+  }
+
   const payload = obj(event.payload);
   const customer = obj(payload.customerSnapshot);
   const orderId = text(payload.orderId) || text(event.entity_id);
-  if (!orderId) return {created:false, reason:"missing_order" as const};
+
+  if (!orderId) {
+    return {created:false, reason:"missing_order" as const};
+  }
+
+  const phone =
+    text(customer.phoneE164) ||
+    text(customer.phone) ||
+    "";
 
   const ref = adminDb.collection(COLLECTION).doc(
     encodeURIComponent(`intent-msg-v1__${event.event_id}`)
   );
-  const now = new Date().toISOString();
-  try {
-    await ref.create({
+
+  const burstRef = burstRefFor(eventType, phone);
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
+
+  // Recebido, cancelamento e logística mantêm comportamento por pedido.
+  if (!burstRef) {
+    try {
+      await ref.create({
+        intent_id:`intent-msg-v1__${event.event_id}`,
+        intent_type:"commercial_message",
+        source_event_id:event.event_id,
+        source_event_type:event.event_type,
+        messaging_event_type:eventType,
+        messaging_source:"site",
+        messaging_eligible:true,
+        order_id:orderId,
+        customer_phone:phone || null,
+        customer_name:text(customer.name)||null,
+        total:Number(payload.total)||0,
+        status:"pending",
+        schema_version:2,
+        created_at:now,
+        updated_at:now,
+      });
+
+      return {created:true, intentId:ref.id};
+    } catch (error) {
+      const code = text((error as {code?:unknown}|null)?.code).toLowerCase();
+
+      if (
+        code === "6" ||
+        code.includes("already") ||
+        code.includes("exists")
+      ) {
+        return {created:false, reason:"exists" as const, intentId:ref.id};
+      }
+
+      throw error;
+    }
+  }
+
+  /*
+   * Dois pedidos do mesmo telefone podem entrar em Produção/Pronto juntos.
+   * Cada pedido mantém evento e status próprios, mas só um aviso do estágio
+   * é enviado em uma janela de 60 segundos.
+   */
+  return adminDb.runTransaction(async tx => {
+    const intentSnap = await tx.get(ref);
+
+    if (intentSnap.exists) {
+      return {created:false, reason:"exists" as const, intentId:ref.id};
+    }
+
+    const burstSnap = await tx.get(burstRef);
+    const burstData = burstSnap.exists
+      ? burstSnap.data() as Record<string, unknown>
+      : {};
+
+    const lastNotifiedAt = millis(burstData.last_notified_at);
+
+    const insideWindow =
+      lastNotifiedAt !== null &&
+      nowMs - lastNotifiedAt >= 0 &&
+      nowMs - lastNotifiedAt < COMMERCIAL_BURST_MS;
+
+    if (insideWindow) {
+      // Marker determinístico: retry futuro não ressuscita a mensagem.
+      tx.set(ref, {
+        intent_id:`intent-msg-v1__${event.event_id}`,
+        intent_type:"commercial_message",
+        source_event_id:event.event_id,
+        source_event_type:event.event_type,
+        messaging_event_type:eventType,
+        messaging_source:"site",
+        messaging_eligible:false,
+        order_id:orderId,
+        customer_phone:phone || null,
+        customer_name:text(customer.name)||null,
+        total:Number(payload.total)||0,
+        status:"suppressed",
+        schema_version:2,
+        burst_protocol:"commercial-burst-v1",
+        suppressed_reason:"same_recipient_same_stage_60s",
+        processed_at:now,
+        created_at:now,
+        updated_at:now,
+      });
+
+      return {created:false, reason:"burst_coalesced" as const};
+    }
+
+    tx.set(
+      burstRef,
+      {
+        protocol:"commercial-burst-v1",
+        messaging_event_type:eventType,
+        last_event_id:event.event_id,
+        last_order_id:orderId,
+        last_notified_at:now,
+        updated_at:now,
+        ...(burstSnap.exists ? {} : {created_at:now}),
+      },
+      {merge:true},
+    );
+
+    tx.set(ref, {
       intent_id:`intent-msg-v1__${event.event_id}`,
       intent_type:"commercial_message",
       source_event_id:event.event_id,
@@ -86,21 +233,18 @@ export async function ensureCommercialMessagingIntent(event: IntegrationEventEnv
       messaging_source:"site",
       messaging_eligible:true,
       order_id:orderId,
-      customer_phone:text(customer.phoneE164)||text(customer.phone)||null,
+      customer_phone:phone || null,
       customer_name:text(customer.name)||null,
       total:Number(payload.total)||0,
       status:"pending",
       schema_version:2,
+      burst_protocol:"commercial-burst-v1",
       created_at:now,
       updated_at:now,
     });
+
     return {created:true, intentId:ref.id};
-  } catch (error) {
-    const code = text((error as {code?:unknown}|null)?.code).toLowerCase();
-    if (code === "6" || code.includes("already") || code.includes("exists"))
-      return {created:false, reason:"exists" as const, intentId:ref.id};
-    throw error;
-  }
+  });
 }
 
 function reverseType(v: unknown): DflMessagingEventType | null {
