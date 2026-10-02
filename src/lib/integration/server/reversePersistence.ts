@@ -31,6 +31,7 @@ type ReversePayload = {
   nextStop?: boolean;
   completedAt?: string | null;
   failedReason?: string | null;
+  recoveryReplay?: boolean;
 };
 
 export type ReverseIntegrationEvent = IntegrationEventEnvelope<ReversePayload> & {
@@ -82,6 +83,17 @@ function projectionDecision(
 
   if (before === "Saiu para Entrega" && target === "Finalizado") {
     return { apply: true, deferred: false, reason: "delivery_completed" as const };
+  }
+
+  // Se o evento de saída se perdeu, a conclusão logística comprova que
+  // a entrega necessariamente saiu da loja. Recuperamos a fronteira
+  // comercial sem deixar o pedido preso eternamente em "Pronto".
+  if (before === "Pronto" && target === "Finalizado") {
+    return {
+      apply: true,
+      deferred: false,
+      reason: "delivery_completed_catch_up" as const,
+    };
   }
 
   return { apply: false, deferred: true, reason: "commercial_step_pending" as const };
@@ -258,7 +270,24 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         ...(statusChanged && targetStatus ? {
           status: targetStatus,
           statusUpdatedAt: Timestamp.fromMillis(incoming.time),
-          statusHistory: [...(Array.isArray(order.statusHistory)?order.statusHistory:[]), {status:targetStatus,at:Timestamp.fromMillis(incoming.time),source:"dfl_entregas",sourceEventId:event.event_id}],
+          statusHistory: [
+            ...(Array.isArray(order.statusHistory) ? order.statusHistory : []),
+            ...(beforeStatus === "Pronto" && targetStatus === "Finalizado"
+              ? [{
+                  status: "Saiu para Entrega",
+                  at: Timestamp.fromMillis(Math.max(0, incoming.time - 1)),
+                  source: "dfl_entregas",
+                  sourceEventId: event.event_id,
+                  recoveredFromCompleted: true,
+                }]
+              : []),
+            {
+              status: targetStatus,
+              at: Timestamp.fromMillis(incoming.time),
+              source: "dfl_entregas",
+              sourceEventId: event.event_id,
+            },
+          ],
           statusProjectionSource: "dfl_entregas", statusProjectionEventId:event.event_id, statusProjectionEventType:event.event_type, statusProjectionAt:Timestamp.fromMillis(incoming.time),
         } : {}),
       });
@@ -275,7 +304,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         : event.event_type === "delivery.completed" ? "delivery_completed"
         : event.event_type === "delivery.failed" ? "delivery_failed"
         : null;
-      if (intentType) {
+      if (intentType && event.payload.recoveryReplay !== true) {
         const intentId = encodeURIComponent(`intent-v1__${event.event_id}`);
         messagingIntentDocId=intentId;
         tx.set(adminDb.collection("integration_notification_intents").doc(intentId), {
