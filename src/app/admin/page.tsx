@@ -136,6 +136,8 @@ export default function AdminPage() {
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [optimisticStatuses, setOptimisticStatuses] = useState<Record<string, string>>({});
+  const actionLocksRef = useRef<Set<string>>(new Set());
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [unreadStages, setUnreadStages] = useState({ cozinha: false, expedicao: false });
   const previousStageCounts = useRef<{ cozinha: number; expedicao: number } | null>(null);
@@ -165,63 +167,231 @@ export default function AdminPage() {
     return ()=>window.clearTimeout(timer);
   },[tab,search,searchHistoryIdentifier]);
 
-  const updateStatus = async (id: string, status: string, pedido?: Record<string, unknown>) => {
-    if (updatingOrderId === id) return;
-    setUpdatingOrderId(id);
+  const operationalPedidos = useMemo(
+    () => pedidos.map((pedido) => {
+      const optimistic = optimisticStatuses[String(pedido.id)];
+
+      if (
+        !optimistic ||
+        normalizarStatus(pedido.status) === optimistic
+      ) {
+        return pedido;
+      }
+
+      return {
+        ...pedido,
+        status: optimistic,
+      };
+    }),
+    [pedidos, optimisticStatuses],
+  );
+
+  useEffect(() => {
+    setOptimisticStatuses((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      for (const pedido of pedidos) {
+        const id = String(pedido.id);
+        const expected = current[id];
+
+        if (
+          expected &&
+          normalizarStatus(pedido.status) === expected
+        ) {
+          delete next[id];
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [pedidos]);
+
+  const updateStatus = async (
+    id: string,
+    status: string,
+    pedido?: Record<string, unknown>,
+  ) => {
+    const locks = actionLocksRef.current;
+
+    // Lock síncrono: impede dois taps antes mesmo do React rerenderizar.
+    if (locks.has(id)) return;
+    locks.add(id);
+
     const nextLabel = normalizarStatus(status);
-    setFeedback({ tone: "progress", title: "Atualizando pedido", message: `Movendo o pedido para ${nextLabel}…` });
+    const previousLabel = normalizarStatus(
+      typeof pedido?.status === "string"
+        ? pedido.status
+        : undefined,
+    );
+
+    if (
+      pedido &&
+      previousLabel !== nextLabel
+    ) {
+      setOptimisticStatuses((current) => ({
+        ...current,
+        [id]: nextLabel,
+      }));
+    }
+
+    // Pedido novo saiu da fila inicial: para o alarme na mesma hora.
+    if (
+      previousLabel === "Pendente" ||
+      previousLabel === "Agendado"
+    ) {
+      pararAlarme();
+    }
+
+    setUpdatingOrderId(id);
+    setFeedback({
+      tone: "progress",
+      title: "Atualizando pedido",
+      message: `Movendo o pedido para ${nextLabel}…`,
+    });
     haptic("step");
+
     try {
-      const normalizedNext=normalizarStatus(status);
-      const rewardPlan = pedido && (normalizedNext === "Finalizado" || normalizedNext === "Cancelado")
-        ? await prepareOrderSummaryTransition(pedido,normalizedNext)
-        : null;
+      const rewardPlan =
+        pedido &&
+        (
+          nextLabel === "Finalizado" ||
+          nextLabel === "Cancelado"
+        )
+          ? await prepareOrderSummaryTransition(
+              pedido,
+              nextLabel,
+            )
+          : null;
+
       const result = await updateOrderStatus({
         orderId: id,
         nextStatus: status,
         pickup: pedido?.tipoEntrega === "pickup",
         rewardPlan,
       });
+
       setFeedback({
         tone: result.changed ? "success" : "info",
-        title: result.rewardAwarded ? "Pedido concluído + fidelidade" : result.changed ? "Pedido atualizado" : "Etapa já confirmada",
+        title: result.rewardAwarded
+          ? "Pedido concluído + fidelidade"
+          : result.changed
+            ? "Pedido atualizado"
+            : "Etapa já confirmada",
         message: result.rewardAwarded
           ? "Pedido concluído e benefício de fidelidade liberado."
           : result.changed
-            ? `Pedido atualizado para ${normalizarStatus(status)}.`
+            ? `Pedido atualizado para ${nextLabel}.`
             : "Este pedido já estava nesta etapa.",
       });
+
       haptic("success");
+
+      // O snapshot autoritativo deve substituir o estado otimista rapidamente.
+      // Este timeout impede override visual preso em caso de conectividade ruim.
+      window.setTimeout(() => {
+        setOptimisticStatuses((current) => {
+          if (!(id in current)) return current;
+
+          const next = { ...current };
+          delete next[id];
+          return next;
+        });
+      }, 5000);
     } catch (error) {
+      setOptimisticStatuses((current) => {
+        if (!(id in current)) return current;
+
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+
       console.error(error);
-      const message = error instanceof Error ? error.message : "";
-      if (message.startsWith("ORDER_STATUS_CONFLICT:")) {
-        const transition = message.slice("ORDER_STATUS_CONFLICT:".length);
-        const current = transition.split("->")[0] || "";
-        setFeedback({ tone: "info", title: "Fila sincronizada", message: current
-          ? `Pedido já está em "${current}". A fila foi atualizada com o estado mais recente.`
-          : "O pedido mudou de etapa em outro fluxo. A fila foi atualizada." });
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "";
+
+      if (
+        message.startsWith(
+          "ORDER_STATUS_CONFLICT:",
+        )
+      ) {
+        const transition = message.slice(
+          "ORDER_STATUS_CONFLICT:".length,
+        );
+
+        const current =
+          transition.split("->")[0] || "";
+
+        setFeedback({
+          tone: "info",
+          title: "Fila sincronizada",
+          message: current
+            ? `Pedido já está em "${current}". A fila foi atualizada com o estado mais recente.`
+            : "O pedido mudou de etapa em outro fluxo. A fila foi atualizada.",
+        });
       } else {
-        setFeedback({ tone: "error", title: "Não foi possível atualizar", message: "O pedido foi preservado. Tente novamente em instantes." });
+        setFeedback({
+          tone: "error",
+          title: "Não foi possível atualizar",
+          message:
+            "O pedido foi preservado. Tente novamente em instantes.",
+        });
       }
+
       haptic("error");
     } finally {
-      setUpdatingOrderId((current) => current === id ? null : current);
+      locks.delete(id);
+
+      setUpdatingOrderId(
+        (current) =>
+          current === id
+            ? null
+            : current,
+      );
     }
   };
 
   const counts = useMemo(() => ({
-    pendentes: pedidos.filter((p) => normalizarStatus(p.status) === "Pendente").length,
-    producao: pedidos.filter((p) => normalizarStatus(p.status) === "Em Produção").length,
-    agendados: pedidos.filter((p) => normalizarStatus(p.status) === "Agendado").length,
-    prontos: pedidos.filter((p) => normalizarStatus(p.status) === "Pronto").length,
-    rota: pedidos.filter((p) => normalizarStatus(p.status) === "Saiu para Entrega").length,
-    cozinha: pedidos.filter((p) => ["Pendente", "Em Produção", "Agendado"].includes(normalizarStatus(p.status))).length,
-    expedicao: pedidos.filter((p) => ["Pronto", "Saiu para Entrega"].includes(normalizarStatus(p.status))).length,
-    concluidos: pedidos.filter((p) => normalizarStatus(p.status) === "Finalizado").length,
-    cancelados: pedidos.filter((p) => normalizarStatus(p.status) === "Cancelado").length,
-    attention: pedidos.filter((p) => Boolean(operationalAttention(p, now))).length,
-  }), [pedidos, now]);
+    pendentes: operationalPedidos.filter(
+      (p) => normalizarStatus(p.status) === "Pendente",
+    ).length,
+    producao: operationalPedidos.filter(
+      (p) => normalizarStatus(p.status) === "Em Produção",
+    ).length,
+    agendados: operationalPedidos.filter(
+      (p) => normalizarStatus(p.status) === "Agendado",
+    ).length,
+    prontos: operationalPedidos.filter(
+      (p) => normalizarStatus(p.status) === "Pronto",
+    ).length,
+    rota: operationalPedidos.filter(
+      (p) => normalizarStatus(p.status) === "Saiu para Entrega",
+    ).length,
+    cozinha: operationalPedidos.filter((p) =>
+      ["Pendente", "Em Produção", "Agendado"].includes(
+        normalizarStatus(p.status),
+      ),
+    ).length,
+    expedicao: operationalPedidos.filter((p) =>
+      ["Pronto", "Saiu para Entrega"].includes(
+        normalizarStatus(p.status),
+      ),
+    ).length,
+    concluidos: operationalPedidos.filter(
+      (p) => normalizarStatus(p.status) === "Finalizado",
+    ).length,
+    cancelados: operationalPedidos.filter(
+      (p) => normalizarStatus(p.status) === "Cancelado",
+    ).length,
+    attention: operationalPedidos.filter(
+      (p) => Boolean(operationalAttention(p, now)),
+    ).length,
+  }), [operationalPedidos, now]);
 
   useEffect(() => {
     const previous = previousStageCounts.current;
@@ -243,7 +413,7 @@ export default function AdminPage() {
 
   const filtered = useMemo(() => {
     const term = normalizeSearch(search);
-    return pedidos
+    return operationalPedidos
       .filter((pedido) => {
         const status = normalizarStatus(pedido.status);
         const inTab = attentionOnly
@@ -261,11 +431,14 @@ export default function AdminPage() {
         return true;
       })
       .sort(compareOperationalOrders);
-  }, [pedidos, search, tab, serviceFilter, attentionOnly, now]);
+  }, [operationalPedidos, search, tab, serviceFilter, attentionOnly, now]);
 
   const selectedOrder = useMemo(
-    () => pedidos.find((pedido) => pedido.id === selectedOrderId) ?? null,
-    [pedidos, selectedOrderId],
+    () =>
+      operationalPedidos.find(
+        (pedido) => pedido.id === selectedOrderId,
+      ) ?? null,
+    [operationalPedidos, selectedOrderId],
   );
 
   useEffect(() => {

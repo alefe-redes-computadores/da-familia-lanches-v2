@@ -121,3 +121,21 @@
     animation:none;
   }
 }
+
+/* ==========================================================
+   V21.2 — SCHEDULING EXPERIENCE
+   ========================================================== */
+.scheduleDays{display:flex;flex-direction:column;gap:10px}
+.scheduleDay{display:flex;flex-direction:column;gap:7px;padding:9px;border:1px solid rgba(255,201,40,.14);border-radius:13px;background:rgba(255,255,255,.025)}
+.scheduleDayHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.scheduleDayHead strong{color:#f5f0dc;font-size:10px}
+.scheduleDayHead span{color:#948a68;font-size:7px;font-weight:850}
+.scheduleSlots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.scheduleSlots button{min-height:52px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;padding:8px 9px;border:1px solid #373325;border-radius:11px;background:#242116;color:#f4e7b0;text-align:left;transition:transform .14s ease,border-color .14s ease,background .14s ease}
+.scheduleSlots button strong{font-size:12px;line-height:1}
+.scheduleSlots button span{color:#a99f7d;font-size:7px;font-weight:750}
+.scheduleSlots button[data-active="true"]{border-color:#ffc928;background:#ffc928;color:#151005;box-shadow:0 7px 18px rgba(255,201,40,.16)}
+.scheduleSlots button[data-active="true"] span{color:#594600}
+.scheduleSlots button:disabled{opacity:.38;cursor:not-allowed;text-decoration:none}
+.scheduleSlots button:not(:disabled):active{transform:scale(.98)}
+@media(max-width:420px){.scheduleSlots{grid-template-columns:repeat(2,minmax(0,1fr))}}

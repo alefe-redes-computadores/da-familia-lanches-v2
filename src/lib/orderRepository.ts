@@ -89,6 +89,50 @@ export async function createCustomerOrder(input: CreateCustomerOrderInput) {
   }
 }
 
+async function relayOrderStatusEvent(
+  eventId: string,
+) {
+  try {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const token = await user.getIdToken();
+    const controller = new AbortController();
+
+    const timer = window.setTimeout(
+      () => controller.abort(),
+      5000,
+    );
+
+    try {
+      await fetch(
+        "/api/admin/orders/relay",
+        {
+          method: "POST",
+          headers: {
+            "content-type":
+              "application/json",
+            authorization:
+              `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            eventId,
+          }),
+          signal: controller.signal,
+          keepalive: true,
+        },
+      );
+    } finally {
+      window.clearTimeout(timer);
+    }
+  } catch (error) {
+    console.warn(
+      "[orders/status] fast-lane indisponível; fallback preservado",
+      error,
+    );
+  }
+}
+
 export async function updateOrderStatus(input: {
   orderId: string;
   nextStatus: string;
@@ -207,7 +251,7 @@ export async function updateOrderStatus(input: {
       });
     }
     if(summaryRef&&summaryCounts){
-      transaction.set(summaryRef,{version:2,initialized:true,totalOrders:summaryCounts.total,completedOrders:summaryCounts.completed,cancelledOrders:summaryCounts.cancelled,lastOrderId:input.orderId,updatedAt:serverTimestamp()},{merge:true});
+      transaction.set(summaryRef,{version:2,initialized:true,totalOrders:summaryCounts.total,completedOrders:summaryCounts.completed,cancelledOrders:summaryCounts.cancelled,lastOrderId:input.orderId,...(next==="Finalizado"?{lastCompletedOrderId:input.orderId}:{}),updatedAt:serverTimestamp()},{merge:true});
     }
 
     return {
@@ -223,40 +267,11 @@ export async function updateOrderStatus(input: {
     "eventId" in result &&
     result.eventId
   ) {
-    try {
-      const user = auth.currentUser;
-
-      if (user) {
-        const token = await user.getIdToken();
-        const controller = new AbortController();
-
-        const timer = window.setTimeout(
-          () => controller.abort(),
-          5000,
-        );
-
-        try {
-          await fetch("/api/admin/orders/relay", {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              eventId: result.eventId,
-            }),
-            signal: controller.signal,
-          });
-        } finally {
-          window.clearTimeout(timer);
-        }
-      }
-    } catch (error) {
-      console.warn(
-        "[orders/status] fast-lane indisponível; fallback preservado",
-        error,
-      );
-    }
+    // Status + outbox já estão gravados. O fast-lane só acelera
+    // a integração e não deve segurar a resposta do botão.
+    void relayOrderStatusEvent(
+      result.eventId,
+    );
   }
 
   return result;

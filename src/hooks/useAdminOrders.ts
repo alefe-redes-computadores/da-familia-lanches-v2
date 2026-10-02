@@ -106,6 +106,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     audio.loop = true;
     audio.volume = 1;
     audio.preload = "auto";
+    audio.load();
     audioRef.current = audio;
 
     const unlock = () => {
@@ -281,18 +282,54 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
           if (hasNewPending) {
             setAlarmeAtivo(true);
-            void audioRef.current?.play().catch(() => undefined);
-            for (const order of newPendingOrders) {
-              window.dispatchEvent(new CustomEvent("dfl:admin-alert", {
-                detail: {
-                  id: String(order.id),
-                  title: "Novo pedido na cozinha",
-                  body: `${String(order.clienteNome || order.nomeCliente || "Cliente")} · pedido #${String(order.id).slice(-8).toUpperCase()}`,
-                  url: "/admin?stage=cozinha",
-                  tag: `order-${String(order.id)}`,
-                },
-              }));
-            }
+
+            void (async () => {
+              let audible = false;
+              const target = audioRef.current;
+
+              if (target) {
+                try {
+                  target.currentTime = 0;
+                  await target.play();
+                  audible = true;
+                } catch (error) {
+                  console.warn(
+                    "[admin/orders] navegador bloqueou áudio local; usando notificação do sistema",
+                    error,
+                  );
+                }
+              }
+
+              if (!audible) {
+                navigator.vibrate?.([
+                  220, 100, 220, 100, 320,
+                ]);
+              }
+
+              for (const order of newPendingOrders) {
+                const id = String(order.id);
+
+                window.dispatchEvent(
+                  new CustomEvent("dfl:admin-alert", {
+                    detail: {
+                      id,
+                      title: "Novo pedido na cozinha",
+                      body: `${String(
+                        order.userName ||
+                        order.clienteNome ||
+                        order.nomeCliente ||
+                        "Cliente",
+                      )} · pedido #${id
+                        .slice(-8)
+                        .toUpperCase()}`,
+                      url: "/admin?stage=cozinha",
+                      tag: `new-order-${id}`,
+                      forceVisible: !audible,
+                    },
+                  }),
+                );
+              }
+            })();
           }
 
           for (const order of realtime.values()) {

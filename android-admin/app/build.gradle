@@ -1,0 +1,48 @@
+plugins {
+    id "com.android.application"
+}
+
+def signingPath = System.getenv("DFL_ADMIN_KEYSTORE_PATH")
+def runNumber = System.getenv("GITHUB_RUN_NUMBER") ?: "1"
+
+android {
+    namespace "br.com.dafamilialanches.admin"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "br.com.dafamilialanches.admin"
+        minSdk 26
+        targetSdk 36
+        versionCode Math.max(1, runNumber.toInteger())
+        versionName "1.0.${runNumber}"
+    }
+
+    signingConfigs {
+        release {
+            if (signingPath) {
+                storeFile file(signingPath)
+                storePassword "android"
+                keyAlias "dfladmin"
+                keyPassword "android"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (signingPath) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.7.3"
+}

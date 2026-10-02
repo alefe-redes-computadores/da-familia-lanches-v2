@@ -1,0 +1,134 @@
+name: Build Android APK DFL Admin
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+
+      - name: Instalar dependências web
+        run: npm ci
+
+      - name: Validar contratos Admin
+        shell: bash
+        run: |
+          node scripts/test-admin-runtime-v19.mjs
+          node scripts/test-admin-web-push-v20.mjs
+          node scripts/test-admin-android-v21.mjs
+          node node_modules/typescript/bin/tsc --noEmit
+          git diff --check
+
+      - name: Gerar assets Android do Master
+        shell: bash
+        run: |
+          python3 -m pip install --disable-pip-version-check pillow
+          python3 scripts/generate-admin-android-assets.py
+          test -s android-admin/app/src/main/res/drawable-nodpi/ic_launcher_foreground.png
+          test -s android-admin/app/src/main/res/drawable-nodpi/ic_stat_dfl_admin.png
+          test -s android-admin/app/src/main/res/drawable-nodpi/splash.png
+          test -s android-admin/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+      - name: Restaurar assinatura Android estável
+        shell: bash
+        env:
+          DFL_ADMIN_KEYSTORE_BASE64: ${{ secrets.DFL_ADMIN_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "$DFL_ADMIN_KEYSTORE_BASE64" || {
+            echo "ERRO: secret DFL_ADMIN_KEYSTORE_BASE64 ausente."
+            exit 1
+          }
+
+          KEYSTORE="$RUNNER_TEMP/dfl-admin.keystore"
+          printf '%s' "$DFL_ADMIN_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+
+          keytool -list -v \
+            -keystore "$KEYSTORE" \
+            -alias dfladmin \
+            -storepass android \
+            -keypass android >/dev/null
+
+          SHA256="$(keytool -list -v \
+            -keystore "$KEYSTORE" \
+            -alias dfladmin \
+            -storepass android \
+            -keypass android \
+            | sed -n 's/^[[:space:]]*SHA256: //p' \
+            | head -n1)"
+
+          EXPECTED="77:F6:88:B5:32:06:0E:41:35:C2:9F:4E:24:22:4A:6C:34:C0:F1:74:DB:D2:65:E4:BD:27:50:6D:88:17:55:63"
+
+          test "$SHA256" = "$EXPECTED" || {
+            echo "ERRO: keystore não corresponde ao Digital Asset Links."
+            echo "Esperado: $EXPECTED"
+            echo "Recebido: $SHA256"
+            exit 1
+          }
+
+          echo "DFL_ADMIN_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Compilar APK release
+        shell: bash
+        run: |
+          gradle -p android-admin clean assembleRelease
+
+      - name: Validar assinatura do APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android-admin/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKSIGNER="$(find "$SDK/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n1)"
+          test -n "$APKSIGNER"
+
+          CERTS="$("$APKSIGNER" verify --print-certs "$APK")"
+          printf '%s\n' "$CERTS"
+
+          ACTUAL="$(printf '%s\n' "$CERTS" \
+            | sed -nE '/[Ss][Hh][Aa]-256[[:space:]]+[Dd][Ii][Gg][Ee][Ss][Tt]:/ { s/^.*:[[:space:]]*//; p; q; }' \
+            | tr -d '[:space:]' \
+            | tr '[:lower:]' '[:upper:]')"
+
+          EXPECTED="77F688B532060E4135C29F4E24224A6C34C0F174DBD265E4BD27506D88175563"
+
+          test "$ACTUAL" = "$EXPECTED" || {
+            echo "ERRO: assinatura real do APK diverge da assinatura oficial."
+            exit 1
+          }
+
+          echo "ASSINATURA DFL ADMIN VALIDADA."
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DFL-Admin-${{ github.run_number }}-${{ github.sha }}
+          path: android-admin/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7

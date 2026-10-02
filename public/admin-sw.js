@@ -36,7 +36,7 @@ async function hasVisibleAdminClient(){
   return clients.some((client)=>client.visibilityState==="visible");
 }
 async function showAdminNotification(payload){
-  const data=payload||{}; if(await hasVisibleAdminClient()) return;
+  const data=payload||{}; if(!data.forceVisible && await hasVisibleAdminClient()) return;
   await self.registration.showNotification(data.title||"DFL Admin",{
     body:data.body||"Há uma atualização na operação.",
     tag:data.tag||data.orderId||"dfl-admin-operation",

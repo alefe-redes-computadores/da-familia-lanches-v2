@@ -6,7 +6,7 @@ import { app, auth } from "@/lib/firebase";
 import styles from "./AdminPwa.module.css";
 
 type InstallPromptEvent = Event & { prompt:()=>Promise<void>; userChoice:Promise<{outcome:"accepted"|"dismissed"}> };
-type AdminAlert = { title:string; body:string; tag?:string; url?:string };
+type AdminAlert = { title:string; body:string; tag?:string; url?:string; forceVisible?:boolean };
 
 const DISMISSED_KEY="dfl-admin-alert-setup-dismissed-v1";
 const PUSH_SYNC_KEY="dfl-admin-push-sync-v20";

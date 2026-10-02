@@ -59,7 +59,7 @@ const normalizeText = (value: string) =>
 
 export function CheckoutModal() {
   const { closeModal, openModal } = useUIStore();
-  const { items, getCartTotal } = useCartStore();
+  const { items, getCartTotal, clearCart } = useCartStore();
   const currentUser = useAuthStore((s) => s.currentUser);
   const { profile, loading: profileLoading } = useUserProfile(currentUser);
   const hydratedProfileRef = useRef<string>("");
@@ -147,6 +147,36 @@ export function CheckoutModal() {
   const finalFee = isPickup || hasFreeDelivery ? 0 : deliveryFee;
   const safeDiscount = Math.min(Math.max(0, discount), subtotal);
   const total = Math.max(0, subtotal + finalFee - safeDiscount);
+
+  const scheduleGroups = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        date: string;
+        label: string;
+        slots: OrderScheduleSlot[];
+      }
+    >();
+
+    for (const slot of scheduleSlots) {
+      const current = groups.get(slot.date);
+      const label =
+        slot.label.split(" · ")[0] ||
+        slot.date;
+
+      if (current) {
+        current.slots.push(slot);
+      } else {
+        groups.set(slot.date, {
+          date: slot.date,
+          label,
+          slots: [slot],
+        });
+      }
+    }
+
+    return [...groups.values()];
+  }, [scheduleSlots]);
 
   const phoneDigits = userPhone.replace(/\D/g, "");
   const addressReady = isPickup || Boolean(rua.trim() && numero.trim() && bairro.trim());
@@ -272,7 +302,79 @@ export function CheckoutModal() {
     window.addEventListener("online",online); window.addEventListener("offline",offline);
     return()=>{window.removeEventListener("online",online);window.removeEventListener("offline",offline);};
   },[]);
-  useEffect(() => { let alive=true; setScheduleLoading(true); void (async()=>{ try{const {status,testAccess}=await getCheckoutStoreAccess(currentUser?.email);if(!alive)return;const closedForUser=!status.isOpen&&!testAccess;setShopClosed(closedForUser);if(closedForUser){const slots=await getOrderScheduleSlots();if(!alive)return;setScheduleSlots(slots);setScheduledFor(v=>v||slots[0]?.value||"")}else{setScheduleSlots([]);setScheduledFor("")}}catch(error){console.error("Falha ao preparar agendamento",error)}finally{if(alive)setScheduleLoading(false)}})();return()=>{alive=false}}, [currentUser?.email]);
+  useEffect(() => {
+    let alive = true;
+
+    setScheduleLoading(true);
+
+    void (async () => {
+      try {
+        const {
+          status,
+          testAccess,
+        } =
+          await getCheckoutStoreAccess(
+            currentUser?.email,
+          );
+
+        if (!alive) return;
+
+        const closedForUser =
+          !status.isOpen &&
+          !testAccess;
+
+        setShopClosed(
+          closedForUser,
+        );
+
+        if (closedForUser) {
+          const slots =
+            await getOrderScheduleSlots();
+
+          if (!alive) return;
+
+          setScheduleSlots(slots);
+
+          const firstAvailable =
+            slots.find(
+              (slot) =>
+                !slot.disabled,
+            )?.value ?? "";
+
+          setScheduledFor(
+            (current) => {
+              const stillAvailable =
+                slots.some(
+                  (slot) =>
+                    slot.value === current &&
+                    !slot.disabled,
+                );
+
+              return stillAvailable
+                ? current
+                : firstAvailable;
+            },
+          );
+        } else {
+          setScheduleSlots([]);
+          setScheduledFor("");
+        }
+      } catch (error) {
+        console.error(
+          "Falha ao preparar agendamento",
+          error,
+        );
+      } finally {
+        if (alive) {
+          setScheduleLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [currentUser?.email]);
 
   useEffect(() => {
     if (!currentUser || profileLoading) return;
@@ -619,9 +721,12 @@ export function CheckoutModal() {
       });
 
       const whatsappUrl = businessWhatsAppUrl(whatsappMessage);
+
+      clearCart();
       clearOrderAttempt();
       clearCheckoutDraft(currentUser.uid);
       clearCheckoutDraft(null);
+
       openModal("order-success", {
         orderId: created.id,
         isScheduled: isClosed,
@@ -630,7 +735,7 @@ export function CheckoutModal() {
         whatsappUrl,
         paymentMethod: method,
         pixKey: method === "pix" ? BUSINESS_CONTACT.pixKey : undefined,
-        cartPreserved: true,
+        cartPreserved: false,
         rescueMessage: whatsappMessage,
       });
     } catch (error) {
@@ -743,7 +848,91 @@ export function CheckoutModal() {
               </section>
               {!isPickup && freeThreshold !== null && !hasFreeDelivery && <div className={styles.freightProgress}>Faltam <strong>{money(missingForFreeDelivery)}</strong> para ganhar entrega grátis.</div>}{hasFreeDelivery && <div className={styles.successHint}>Entrega grátis conquistada para este pedido.</div>}
             </> : <div className={styles.pickupCard}><strong>Retirada no balcão</strong><span>Sem taxa de entrega. O pedido ficará identificado pelo seu nome e referência.</span></div>}
-            {shopClosed && <section className={styles.scheduleCard}><div><span>LOJA FECHADA AGORA</span><strong>Agende seu pedido</strong><small>Escolha um horário disponível. O horário é uma previsão e pode variar conforme o movimento.</small></div>{scheduleLoading ? <p>Carregando horários…</p> : scheduleSlots.length ? <select value={scheduledFor} onChange={e=>setScheduledFor(e.target.value)}>{scheduleSlots.map(slot=><option key={slot.value} value={slot.value} disabled={slot.disabled}>{slot.label}</option>)}</select> : <p>Nenhum horário disponível nos próximos dias.</p>}</section>}
+            {shopClosed && (
+              <section className={styles.scheduleCard}>
+                <div>
+                  <span>LOJA FECHADA AGORA</span>
+                  <strong>Agende seu pedido</strong>
+                  <small>
+                    Escolha o melhor dia e horário.
+                    Mostramos apenas vagas realmente
+                    disponíveis.
+                  </small>
+                </div>
+
+                {scheduleLoading ? (
+                  <p>Carregando horários…</p>
+                ) : scheduleGroups.length ? (
+                  <div className={styles.scheduleDays}>
+                    {scheduleGroups.map((group) => (
+                      <div
+                        className={styles.scheduleDay}
+                        key={group.date}
+                      >
+                        <div
+                          className={styles.scheduleDayHead}
+                        >
+                          <strong>{group.label}</strong>
+                          <span>
+                            {
+                              group.slots.filter(
+                                (slot) =>
+                                  !slot.disabled,
+                              ).length
+                            }{" "}
+                            horários
+                          </span>
+                        </div>
+
+                        <div
+                          className={styles.scheduleSlots}
+                        >
+                          {group.slots.map((slot) => {
+                            const availability =
+                              slot.label
+                                .split(" · ")
+                                .slice(2)
+                                .join(" · ");
+
+                            return (
+                              <button
+                                type="button"
+                                key={slot.value}
+                                disabled={slot.disabled}
+                                data-active={
+                                  scheduledFor ===
+                                  slot.value
+                                }
+                                onClick={() =>
+                                  setScheduledFor(
+                                    slot.value,
+                                  )
+                                }
+                              >
+                                <strong>
+                                  {slot.time}
+                                </strong>
+                                <span>
+                                  {availability ||
+                                    (slot.disabled
+                                      ? "Lotado"
+                                      : "Disponível")}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p>
+                    Nenhum horário disponível nos
+                    próximos dias.
+                  </p>
+                )}
+              </section>
+            )}
             <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance && (!shopClosed || Boolean(scheduledFor))) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : !addressReady ? "Complete o endereço para continuar." : "Escolha um horário disponível para o agendamento."); }}>Continuar</button>
           </div>
         ) : (

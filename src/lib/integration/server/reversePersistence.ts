@@ -224,7 +224,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         const summaryRef=adminDb.doc(`Usuarios/${userId}/Loyalty/state`),summarySnap=await tx.get(summaryRef),summary=summarySnap.data()||{};
         const base=summary.initialized===true?{total:Math.max(0,Number(summary.totalOrders)||0),completed:Math.max(0,Number(summary.completedOrders)||0),cancelled:Math.max(0,Number(summary.cancelledOrders)||0)}:loyaltySeed;
         const completed=base.completed+1;
-        loyaltyWrite={ref:summaryRef,data:{version:2,initialized:true,totalOrders:Math.max(base.total,1),completedOrders:completed,cancelledOrders:base.cancelled,lastOrderId:event.payload.externalOrderId,updatedAt:Timestamp.fromMillis(incoming.time)}};
+        loyaltyWrite={ref:summaryRef,data:{version:2,initialized:true,totalOrders:Math.max(base.total,1),completedOrders:completed,cancelledOrders:base.cancelled,lastOrderId:event.payload.externalOrderId,lastCompletedOrderId:event.payload.externalOrderId,updatedAt:Timestamp.fromMillis(incoming.time)}};
         const configRef=adminDb.collection("RecompensasConfig").doc("loyalty");
         const configSnap=await tx.get(configRef); const cfg=configSnap.exists?(configSnap.data()||{}):{};
         if(configSnap.exists&&cfg.active===true){
