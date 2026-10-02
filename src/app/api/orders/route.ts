@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { adminAuth } from "@/lib/integration/server/adminAuth";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/integration/server/admin";
+import { sendAdminNewOrderPush } from "@/lib/adminPush/server";
 import { products as fallbackProducts, type Product } from "@/data/products";
 import { ADDONS as fallbackAddons, type Addon } from "@/data/addons";
 import { buildOrderCreatedEvent } from "@/lib/integration/orderEvents";
@@ -171,6 +172,7 @@ export async function POST(request: NextRequest) {
           id: orderRef.id,
           eventId: null,
           reused: true,
+          adminPush: null,
         };
       }
       const productFallback = new Map(fallbackProducts.map((p) => [p.id, p]));
@@ -248,7 +250,7 @@ export async function POST(request: NextRequest) {
       const subtotal = canonicalItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
       if (cents(subtotal) !== cents(Number(body.subtotal)) || cents(subtotal) !== cents(Number(incoming.subtotal))) throw new Error("PRICE_CHANGED");
 
-      const deliveryMode = incoming.tipoEntrega === "pickup" ? "pickup" : "delivery";
+      const deliveryMode: "pickup" | "delivery" = incoming.tipoEntrega === "pickup" ? "pickup" : "delivery";
       const delivery = object(incoming.deliverySnapshot);
       const district = text(delivery.district, 120);
       const [ratesSnap, deliverySettingsSnap, commercialSnap] = await Promise.all([
@@ -354,28 +356,41 @@ export async function POST(request: NextRequest) {
         id: orderRef.id,
         eventId: event.event_id,
         reused: false,
+        adminPush: {
+          orderId: orderRef.id,
+          customerName: text(customer.name, 120) || text(incoming.userName, 120) || "Cliente",
+          total,
+          deliveryMode,
+        },
       };
     });
     let integration = result.reused
       ? { queued: false, sent: true }
       : { queued: true, sent: false };
 
-    if (result.eventId) {
+    if (result.eventId || result.adminPush) {
       const eventId = result.eventId;
+      const adminPush = result.adminPush;
 
       after(async () => {
-        try {
-          const relay = await drainIntegrationOutboxEvent(eventId);
-          console.log("[orders/create] relay after-response", {
-            eventId,
-            sent: relay.sent,
-            failed: relay.failed,
-          });
-        } catch (relayError) {
-          console.error(
-            "[orders/create] pedido salvo; relay seguirá na outbox",
-            relayError,
-          );
+        const jobs: Promise<unknown>[] = [];
+
+        if (eventId) {
+          jobs.push((async () => {
+            try {
+              const relay = await drainIntegrationOutboxEvent(eventId);
+              console.log("[orders/create] relay after-response", { eventId, sent: relay.sent, failed: relay.failed });
+            } catch (relayError) {
+              console.error("[orders/create] pedido salvo; relay seguirá na outbox", relayError);
+            }
+          })());
+        }
+
+        if (adminPush) jobs.push(sendAdminNewOrderPush(adminPush));
+
+        const outcomes = await Promise.allSettled(jobs);
+        for (const outcome of outcomes) {
+          if (outcome.status === "rejected") console.error("[orders/create] pós-gravação não bloqueante falhou", outcome.reason);
         }
       });
     }
