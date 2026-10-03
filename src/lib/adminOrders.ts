@@ -30,6 +30,27 @@ export function orderAgeMinutes(order: AdminOrder, now = Date.now()) {
 }
 
 export function ageLabel(order: AdminOrder, now = Date.now()) {
+  const status = normalizarStatus(order.status);
+  if (status === "Agendado" && typeof order.scheduledFor === "string") {
+    const scheduled = Date.parse(order.scheduledFor);
+    if (Number.isFinite(scheduled)) {
+      const diff = Math.ceil((scheduled - now) / 60000);
+      if (diff <= 0) return "horário chegou";
+      if (diff < 60) return `em ${diff} min`;
+      if (diff < 1440) {
+        const hours = Math.floor(diff / 60);
+        const rest = diff % 60;
+        return rest ? `em ${hours}h ${rest}min` : `em ${hours}h`;
+      }
+      return new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Sao_Paulo",
+      }).format(new Date(scheduled));
+    }
+  }
   const minutes = orderAgeMinutes(order, now);
   if (minutes == null) return "horário indisponível";
   if (minutes < 1) return "atualizado agora";
@@ -79,6 +100,8 @@ export function adminOrderSearchText(order: AdminOrder) {
     order.phone,
     order.endereco,
     order.metodoPagamento,
+    order.scheduledFor,
+    order.scheduledLabel,
     address,
     customer,
   ].join(" "));
@@ -100,6 +123,12 @@ export function compareOperationalOrders(a: AdminOrder, b: AdminOrder) {
   const pa = priority[sa] ?? 99;
   const pb = priority[sb] ?? 99;
   if (pa !== pb) return pa - pb;
+
+  if (sa === "Agendado" && sb === "Agendado") {
+    const aa = Date.parse(String(a.scheduledFor ?? ""));
+    const bb = Date.parse(String(b.scheduledFor ?? ""));
+    if (Number.isFinite(aa) && Number.isFinite(bb) && aa !== bb) return aa - bb;
+  }
 
   // Em filas ativas, o registro operacional mais antigo aparece primeiro.
   if (isActiveAdminOrder(a) && isActiveAdminOrder(b)) {

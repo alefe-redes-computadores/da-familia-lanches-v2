@@ -44,6 +44,13 @@ jobs:
           node scripts/test-admin-clean-launch-intent-v21-5-3.mjs
           node scripts/test-admin-new-task-v21-5-4.mjs
           node scripts/test-admin-production-polish-v22.mjs
+          node scripts/test-admin-scheduling-v23.mjs
+          node scripts/test-admin-operational-experience-v24.mjs
+          node scripts/test-admin-entregas-bridge-v25.mjs
+          node scripts/test-admin-release-v26.mjs
+          node scripts/test-admin-final-experience-v27.mjs
+          node scripts/test-admin-production-runtime-v28.mjs
+          node scripts/test-admin-release-v28.mjs
           node node_modules/typescript/bin/tsc --noEmit
           git diff --check
 

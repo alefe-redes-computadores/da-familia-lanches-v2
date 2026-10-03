@@ -1,0 +1,27 @@
+import fs from "node:fs";
+const read=(p)=>fs.readFileSync(p,"utf8");
+const ok=(v,m)=>{if(!v)throw new Error("V24: "+m)};
+const page=read("src/app/admin/page.tsx");
+const hook=read("src/hooks/useAdminOrders.ts");
+const push=read("src/lib/adminPush/server.ts");
+const card=read("src/components/layout/OrderCard.tsx");
+const css=read("src/app/admin/admin.module.css");
+const cardCss=read("src/components/layout/OrderCard.module.css");
+
+ok(page.includes("useSearchParams"),"Admin não lê deep-link interno");
+ok(page.includes('searchParams.get("stage")'),"stage URL ausente");
+ok(page.includes('searchParams.get("order")'),"order URL ausente");
+ok(page.includes("operationHero"),"hero operacional ausente");
+ok(page.includes('setTab("agendados")'),"fila Agendados não integrada ao hero");
+ok(hook.includes("stage=cozinha&order="),"alerta novo pedido não aponta pedido exato");
+ok(hook.includes("stage=expedicao&order="),"alerta pronto não aponta pedido exato");
+ok(push.includes("stage=cozinha&order="),"push remoto não aponta pedido exato");
+ok(card.includes('statusAtual === "Agendado"'),"card não trata agendado");
+ok(card.includes("scheduledLabel"),"horário agendado não destacado");
+ok(card.includes("deliveryId"),"tracking Entregas não surfaced");
+ok(card.includes("deliveryIsNextStop"),"próxima parada não surfaced");
+ok(css.includes("V24 — Operational Experience"),"polimento visual principal ausente");
+ok(cardCss.includes("V24 — schedule + logistics intelligence"),"polimento card ausente");
+const listenerCount=(hook.match(/onSnapshot\s*\(/g)||[]).length;
+ok(listenerCount===1,`listener operacional mudou: ${listenerCount}`);
+console.log("V24 OK — ADMIN OPERACIONAL + DEEP-LINK INTERNO + UX");

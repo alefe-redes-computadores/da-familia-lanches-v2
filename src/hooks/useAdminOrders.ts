@@ -66,7 +66,7 @@ function alarmCandidate(order: AdminOrder): AdminAlarmCandidate {
       order.nomeCliente ||
       "Cliente",
     )} - pedido #${id.slice(-8).toUpperCase()}`,
-    url: "/admin?stage=cozinha",
+    url: `/admin?stage=cozinha&order=${encodeURIComponent(id)}`,
     tag: `new-order-${id}`,
   };
 }
@@ -136,7 +136,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
             id: candidate.id,
             title: candidate.title,
             body: candidate.body,
-            url: candidate.url ?? "/admin?stage=cozinha",
+            url: candidate.url ?? `/admin?stage=cozinha&order=${encodeURIComponent(candidate.id)}`,
             tag: candidate.tag ?? `new-order-${candidate.id}`,
             forceVisible: !audible,
           },
@@ -389,7 +389,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
                   id,
                   title: "Pedido pronto para sair",
                   body: `${String(order.clienteNome || order.nomeCliente || "Cliente")} · confira na Expedição`,
-                  url: "/admin",
+                  url: `/admin?stage=expedicao&order=${encodeURIComponent(id)}`,
                   tag: `ready-${id}`,
                 },
               }));
@@ -438,7 +438,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
         title: detail.title ?? "Novo pedido na cozinha",
         body: detail.body ?? `Pedido #${detail.orderId.slice(-8).toUpperCase()}`,
         tag: detail.tag ?? `new-order-${detail.orderId}`,
-        url: detail.url ?? "/admin?stage=cozinha",
+        url: detail.url ?? `/admin?stage=cozinha&order=${encodeURIComponent(detail.orderId)}`,
       }]);
     };
 

@@ -5,6 +5,7 @@ import { getOrderItems, paymentLabel } from "@/lib/orderCompat";
 import { normalizarStatus, getColorByStatus, formatarData } from "@/lib/orderUtils";
 import { canTransitionOrderStatus, statusTitle } from "@/lib/orderStatus";
 import { ageLabel, operationalAttention } from "@/lib/adminOrders";
+import { dflEntregasIntentUrl } from "@/lib/adminDeliveryBridge";
 import styles from "./OrderCard.module.css";
 
 export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false, updating = false }: any) {
@@ -29,6 +30,27 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     logisticsCompleted &&
     statusAtual !== "Finalizado" &&
     statusAtual !== "Cancelado";
+  const scheduledAt = typeof pedido.scheduledFor === "string" ? Date.parse(pedido.scheduledFor) : Number.NaN;
+  const scheduledLabel = Number.isFinite(scheduledAt)
+    ? new Intl.DateTimeFormat("pt-BR", {
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Sao_Paulo",
+      }).format(new Date(scheduledAt)).replace(".", "")
+    : String(pedido.scheduledLabel || "").trim();
+  const hasLogisticsLink = Boolean(pedido.deliveryId);
+  const fulfillmentLabel = pickup ? "RETIRADA" : "ENTREGA";
+  const itemCount = itens.reduce((sum, item) => sum + item.quantity, 0);
+  const logisticsSummary = pedido.deliveryOperationalCompleted
+    ? "Entrega concluída"
+    : pedido.deliveryIsNextStop
+      ? "Próxima parada"
+      : Number.isFinite(Number(pedido.deliveryStopsAhead))
+        ? `${Number(pedido.deliveryStopsAhead)} parada(s) antes`
+        : pedido.deliveryRouteName || pedido.deliveryMotoboyName || "Vinculado ao DFL Entregas";
   const stageTone =
     statusAtual === "Pendente" || statusAtual === "Agendado" ? "new" :
     statusAtual === "Em Produção" ? "production" :
@@ -39,6 +61,11 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     ? ["Pendente", "Em Produção", "Pronto", "Finalizado"]
     : ["Pendente", "Em Produção", "Pronto", "Saiu para Entrega", "Finalizado"];
   const currentStageIndex = Math.max(0, stages.indexOf(statusAtual));
+
+  const openDflEntregas = () => {
+    const url = dflEntregasIntentUrl(pedido.deliveryId, pedido.id);
+    if (url) window.location.href = url;
+  };
 
   const openWhatsApp = () => {
     let d = telefone.replace(/\D/g, "");
@@ -88,6 +115,25 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         </div>
       </div>
 
+      {statusAtual === "Agendado" && scheduledLabel && (
+        <div className={styles.scheduledNotice}>
+          <span>AGENDADO</span>
+          <strong>{scheduledLabel}</strong>
+          <small>{pickup ? "Retirada programada" : "Entrega programada"}</small>
+        </div>
+      )}
+
+      {hasLogisticsLink && !terminal && (
+        <div className={styles.logisticsMini} data-next={pedido.deliveryIsNextStop === true}>
+          <div className={styles.logisticsMiniCopy}>
+            <span>DFL ENTREGAS</span>
+            <strong>{logisticsSummary}</strong>
+            {pedido.deliveryMotoboyName && <small>{String(pedido.deliveryMotoboyName)}</small>}
+          </div>
+          <button type="button" className={styles.bridgeAction} onClick={(event) => { event.stopPropagation(); openDflEntregas(); }}>Abrir no Entregas</button>
+        </div>
+      )}
+
       {commercialCompletionPending && (
         <div className={styles.logisticsDoneNotice}>
           <strong>Entrega concluída no DFL Entregas</strong>
@@ -104,11 +150,13 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         onClick={(event) => { event.stopPropagation(); toggleDetails(); }}
       >
         <div className={styles.summaryMain}>
+          <div className={styles.summaryMeta}>
+            <span>{fulfillmentLabel}</span>
+            <i aria-hidden="true" />
+            <b>{itemCount} {itemCount === 1 ? "item" : "itens"}</b>
+          </div>
           <h3>{customerName}</h3>
-          <span>
-            {pickup ? "Retirada" : "Entrega"} ·{" "}
-            {itens.reduce((sum, item) => sum + item.quantity, 0)} item(ns)
-          </span>
+          <span>{pedido.endereco || (pickup ? "Retirada no local" : "Endereço não informado")}</span>
         </div>
         <div className={styles.summaryTotal}>
           <strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong>

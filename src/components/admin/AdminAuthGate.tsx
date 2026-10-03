@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import {
   GoogleAuthProvider,
+  browserLocalPersistence,
   getRedirectResult,
+  setPersistence,
   signInWithPopup,
   signInWithRedirect,
 } from "firebase/auth";
@@ -68,17 +70,19 @@ export function AdminAuthGate({
       "admin.dafamilialanches.com.br";
 
   useEffect(() => {
-    void getRedirectResult(auth).catch((error) => {
-      const code = getAuthCode(error);
+    void setPersistence(auth, browserLocalPersistence)
+      .then(() => getRedirectResult(auth))
+      .catch((error) => {
+        const code = getAuthCode(error);
 
-      console.error(
-        "[admin-auth] redirect-result",
-        code,
-        error,
-      );
+        console.error(
+          "[admin-auth] redirect-result",
+          code,
+          error,
+        );
 
-      setErrorCode(code || "auth/unknown");
-    });
+        setErrorCode(code || "auth/unknown");
+      });
   }, []);
 
   const login = async () => {

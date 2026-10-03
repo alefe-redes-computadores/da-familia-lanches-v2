@@ -55,7 +55,7 @@ export async function sendAdminNewOrderPush(input: AdminNewOrderPush) {
         body:`${input.customerName || "Cliente"} · ${money(input.total)} · ${input.deliveryMode === "pickup" ? "Retirada" : "Entrega"}`,
         orderId,
         tag:`new-order-${orderId}`,
-        url:"/admin?stage=cozinha",
+        url:`/admin?stage=cozinha&order=${encodeURIComponent(orderId)}`,
       },
       webpush: { headers:{ Urgency:"high", TTL:"120" }, fcmOptions:{ link:"https://admin.dafamilialanches.com.br/" } },
     };

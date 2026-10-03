@@ -12,6 +12,8 @@ import { normalizeReward, rewardDiscount, rewardIsExpired, type RewardGrantPlan 
 import { canTransitionOrderStatus } from "@/lib/orderStatus";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { capacityForTime, normalizeSchedulingConfig, scheduleSlotId } from "@/lib/schedulingConfig";
+import { normalizeStoreSettings } from "@/lib/storeSchedule";
+import { isScheduledValueAllowed } from "@/lib/orderSchedulePolicy";
 import { ensureIntegrationEventInTransaction } from "@/lib/integration/firestore";
 import {
   buildOrderCreatedEvent,
@@ -171,6 +173,27 @@ export async function updateOrderStatus(input: {
       );
     }
 
+    let scheduleSlotRef: ReturnType<typeof doc> | null = null;
+    let scheduleReserved = 0;
+    const leavingSchedule = current === "Agendado" && next !== "Agendado";
+
+    if (
+      leavingSchedule &&
+      typeof orderData.scheduledFor === "string" &&
+      orderData.scheduledFor &&
+      !orderData.scheduleSlotReleasedAt
+    ) {
+      scheduleSlotRef = doc(
+        db,
+        "schedule_slots",
+        scheduleSlotId(orderData.scheduledFor),
+      );
+      const scheduleSnapshot = await transaction.get(scheduleSlotRef);
+      scheduleReserved = scheduleSnapshot.exists()
+        ? Math.max(0, Number(scheduleSnapshot.data().reserved) || 0)
+        : 0;
+    }
+
     let rewardAwarded = false;
     let rewardRef: ReturnType<typeof doc> | null = null;
     let summaryRef: ReturnType<typeof doc> | null = null;
@@ -231,6 +254,10 @@ export async function updateOrderStatus(input: {
         ...history,
         { status: next, at: now },
       ],
+      ...(scheduleSlotRef ? {
+        scheduleSlotReleasedAt: now,
+        scheduleSlotReleasedBy: "admin_status_transition",
+      } : {}),
       ...(clearsDeferredProjection ? {
         deliveryCommercialProjectionPending: false,
         deliveryCommercialProjectionTarget: null,
@@ -239,6 +266,17 @@ export async function updateOrderStatus(input: {
         deliveryCommercialProjectionAt: null,
       } : {}),
     });
+
+    if (scheduleSlotRef) {
+      transaction.set(
+        scheduleSlotRef,
+        {
+          reserved: Math.max(0, scheduleReserved - 1),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
 
     if (
       rewardRef &&
@@ -312,20 +350,31 @@ export async function rescheduleCustomerOrder(input: {
     }
 
     const configRef = doc(db, "settings", "orderScheduling");
-    const configSnapshot = await transaction.get(configRef);
+    const storeRef = doc(db, "settings", "loja");
+    const [configSnapshot, storeSnapshot] = await Promise.all([
+      transaction.get(configRef),
+      transaction.get(storeRef),
+    ]);
     const config = normalizeSchedulingConfig(
       configSnapshot.exists()
         ? configSnapshot.data()
+        : {},
+    );
+    const store = normalizeStoreSettings(
+      storeSnapshot.exists()
+        ? storeSnapshot.data()
         : {},
     );
 
     const time = input.scheduledFor.slice(11, 16);
 
     if (
-      !config.enabled ||
-      (
-        config.enabledTimes.length &&
-        !config.enabledTimes.includes(time)
+      !isScheduledValueAllowed(
+        input.scheduledFor,
+        config,
+        store,
+        new Date(),
+        7,
       )
     ) {
       throw new Error("SCHEDULE_SLOT_DISABLED");

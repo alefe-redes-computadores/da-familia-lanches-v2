@@ -135,6 +135,7 @@ export function CheckoutModal() {
   const [scheduleSlots, setScheduleSlots] = useState<OrderScheduleSlot[]>([]);
   const [scheduledFor, setScheduledFor] = useState("");
   const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [scheduleError, setScheduleError] = useState("");
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [draftRecovered, setDraftRecovered] = useState(false);
   const draftHydratedRef = useRef(false);
@@ -306,6 +307,7 @@ export function CheckoutModal() {
     let alive = true;
 
     setScheduleLoading(true);
+    setScheduleError("");
 
     void (async () => {
       try {
@@ -364,6 +366,13 @@ export function CheckoutModal() {
           "Falha ao preparar agendamento",
           error,
         );
+        if (alive) {
+          setScheduleSlots([]);
+          setScheduledFor("");
+          setScheduleError(
+            "Não foi possível consultar a agenda agora. Tente novamente em instantes.",
+          );
+        }
       } finally {
         if (alive) {
           setScheduleLoading(false);
@@ -927,8 +936,8 @@ export function CheckoutModal() {
                   </div>
                 ) : (
                   <p>
-                    Nenhum horário disponível nos
-                    próximos dias.
+                    {scheduleError ||
+                      "Nenhum horário disponível nos próximos dias."}
                   </p>
                 )}
               </section>

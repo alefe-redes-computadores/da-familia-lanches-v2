@@ -10,6 +10,8 @@ import { buildOrderCreatedEvent } from "@/lib/integration/orderEvents";
 import { buildOutboxRecord } from "@/lib/integration/contracts";
 import { INTEGRATION_COLLECTIONS } from "@/lib/integration/firestore";
 import { capacityForTime, normalizeSchedulingConfig, scheduleSlotId } from "@/lib/schedulingConfig";
+import { normalizeStoreSettings } from "@/lib/storeSchedule";
+import { isScheduledValueAllowed } from "@/lib/orderSchedulePolicy";
 import { normalizeCommercialSettings, freeDeliveryThreshold, normalizeCommercialText } from "@/lib/commercialSettings";
 import { drainIntegrationOutboxEvent } from "@/lib/integration/server/relay";
 import { errorCode,finishRouteTrace,startRouteTrace } from "@/lib/server/observability";
@@ -300,9 +302,16 @@ export async function POST(request: NextRequest) {
       let slotData: Raw | null = null;
       if (isScheduled) {
         if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00-03:00$/.test(scheduledFor)) throw new Error("SCHEDULE_REQUIRED");
-        const configSnap = await tx.get(adminDb.doc("settings/orderScheduling"));
-        const config = normalizeSchedulingConfig(configSnap.exists ? configSnap.data() : {}); const time = scheduledFor.slice(11, 16);
-        if (!config.enabled || (config.enabledTimes.length && !config.enabledTimes.includes(time))) throw new Error("SCHEDULE_SLOT_DISABLED");
+        const [configSnap, storeSnap] = await Promise.all([
+          tx.get(adminDb.doc("settings/orderScheduling")),
+          tx.get(adminDb.doc("settings/loja")),
+        ]);
+        const config = normalizeSchedulingConfig(configSnap.exists ? configSnap.data() : {});
+        const store = normalizeStoreSettings(storeSnap.exists ? storeSnap.data() : {});
+        const time = scheduledFor.slice(11, 16);
+        if (!isScheduledValueAllowed(scheduledFor, config, store, new Date(), 7)) {
+          throw new Error("SCHEDULE_SLOT_DISABLED");
+        }
         slotRef = adminDb.collection("schedule_slots").doc(scheduleSlotId(scheduledFor)); const slot = await tx.get(slotRef);
         const reserved = slot.exists ? Math.max(0, Number(slot.data()?.reserved) || 0) : 0; const capacity = capacityForTime(config, time);
         if (reserved >= capacity) throw new Error("SCHEDULE_SLOT_FULL");

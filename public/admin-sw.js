@@ -11,7 +11,7 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
-const CACHE = "dfl-admin-v22";
+const CACHE = "dfl-admin-v28";
 const SHELL = ["/admin", "/admin-manifest.webmanifest", "/admin-icon-192x192.png", "/admin-icon-512x512.png", "/admin-notification-badge.png"];
 
 self.addEventListener("install", (event) => {
@@ -43,14 +43,41 @@ async function showAdminNotification(payload){
     renotify:true,
     requireInteraction:Boolean(data.requireInteraction),
     icon:"/admin-icon-192x192.png?v=54",
-    badge:"/admin-notification-badge.png?v=22",
+    badge:"/admin-notification-badge.png?v=28",
     vibrate:[180,90,180],
     data:{url:data.url||"/admin",orderId:data.orderId||null,type:data.type||"admin.operation"},
   });
 }
 messaging.onBackgroundMessage((payload)=>showAdminNotification(payload?.data||{}));
 self.addEventListener("message",(event)=>{if(event.data?.type!=="DFL_ADMIN_NOTIFY")return;event.waitUntil(showAdminNotification(event.data.payload||{}));});
+function safeAdminTarget(value){
+  try{
+    const url=new URL(value||"/admin",self.location.origin);
+    if(url.origin!==self.location.origin)return new URL("/admin",self.location.origin).href;
+    if(url.pathname!=="/admin"&&!url.pathname.startsWith("/admin/"))return new URL("/admin",self.location.origin).href;
+    return url.href;
+  }catch{
+    return new URL("/admin",self.location.origin).href;
+  }
+}
+
 self.addEventListener("notificationclick",(event)=>{
-  event.notification.close(); const target=new URL(event.notification.data?.url||"/admin",self.location.origin).href;
-  event.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then((clients)=>{for(const client of clients){if("focus" in client){client.navigate(target);return client.focus();}}return self.clients.openWindow(target);}));
+  event.notification.close();
+  const target=safeAdminTarget(event.notification.data?.url);
+
+  event.waitUntil(
+    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(async(clients)=>{
+      for(const client of clients){
+        if("focus" in client){
+          try{
+            await client.navigate(target);
+          }catch{
+            // foco continua útil mesmo se a navegação falhar
+          }
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    }),
+  );
 });

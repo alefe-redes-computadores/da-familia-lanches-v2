@@ -61,7 +61,7 @@ export function AdminPwa(){
     const adminHost=window.location.hostname==="admin.dafamilialanches.com.br";
     const scope=adminHost?"/":"/admin/";
     if("serviceWorker" in navigator){
-      navigator.serviceWorker.register("/admin-sw.js?v=22",{scope}).then(async(registration)=>{
+      navigator.serviceWorker.register("/admin-sw.js?v=28",{scope}).then(async(registration)=>{
         registrationRef.current=registration; await registration.update();
         if("Notification" in window&&Notification.permission==="granted"){
           const lastSync=Number(localStorage.getItem(PUSH_SYNC_KEY)||0);
@@ -71,7 +71,22 @@ export function AdminPwa(){
       }).catch((error)=>console.warn("[admin-pwa] Service worker indisponível.",error));
     }
 
-    const onOnline=()=>setOnline(true); const onOffline=()=>setOnline(false);
+    const onOnline=()=>{
+      setOnline(true);
+      const lastSync=Number(localStorage.getItem(PUSH_SYNC_KEY)||0);
+      if(!Number.isFinite(lastSync)||Date.now()-lastSync>PUSH_SYNC_MS){
+        void syncPush().catch((error)=>console.warn("[admin-pwa] resync ao reconectar pendente",error));
+      }
+    };
+    const onOffline=()=>setOnline(false);
+    const onVisible=()=>{
+      if(document.visibilityState!=="visible")return;
+      if(!("Notification" in window)||Notification.permission!=="granted")return;
+      const lastSync=Number(localStorage.getItem(PUSH_SYNC_KEY)||0);
+      if(!Number.isFinite(lastSync)||Date.now()-lastSync>PUSH_SYNC_MS){
+        void syncPush().catch((error)=>console.warn("[admin-pwa] resync ao retornar pendente",error));
+      }
+    };
     const onInstall=(event:Event)=>{event.preventDefault();setInstallPrompt(event as InstallPromptEvent);setDismissed(false);};
     const onAlert=(event:Event)=>{
       const detail=(event as CustomEvent<AdminAlert>).detail;
@@ -86,9 +101,9 @@ export function AdminPwa(){
       if(count>0)void badgeNavigator.setAppBadge?.(count).catch(()=>undefined); else void badgeNavigator.clearAppBadge?.().catch(()=>undefined);
     };
 
-    window.addEventListener("online",onOnline);window.addEventListener("offline",onOffline);window.addEventListener("beforeinstallprompt",onInstall);window.addEventListener("dfl:admin-alert",onAlert);window.addEventListener("dfl:admin-badge",onBadge);
-    return()=>{window.removeEventListener("online",onOnline);window.removeEventListener("offline",onOffline);window.removeEventListener("beforeinstallprompt",onInstall);window.removeEventListener("dfl:admin-alert",onAlert);window.removeEventListener("dfl:admin-badge",onBadge);};
-  },[]);
+    window.addEventListener("online",onOnline);window.addEventListener("offline",onOffline);document.addEventListener("visibilitychange",onVisible);window.addEventListener("beforeinstallprompt",onInstall);window.addEventListener("dfl:admin-alert",onAlert);window.addEventListener("dfl:admin-badge",onBadge);
+    return()=>{window.removeEventListener("online",onOnline);window.removeEventListener("offline",onOffline);document.removeEventListener("visibilitychange",onVisible);window.removeEventListener("beforeinstallprompt",onInstall);window.removeEventListener("dfl:admin-alert",onAlert);window.removeEventListener("dfl:admin-badge",onBadge);};
+  },[syncPush]);
 
   useEffect(() => {
     let active = true;

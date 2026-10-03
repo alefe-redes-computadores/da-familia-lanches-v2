@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
@@ -54,7 +55,7 @@ const ADMINS = [
   "viniciusrdefreitas@gmail.com",
 ];
 
-type Tab = "cozinha" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons" | "fidelidade" | "gestao";
+type Tab = "cozinha" | "agendados" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons" | "fidelidade" | "gestao";
 type ServiceFilter = "todos" | "delivery" | "pickup";
 type FeedbackState = { tone: "progress" | "success" | "error" | "info"; title: string; message: string } | null;
 
@@ -66,6 +67,7 @@ type AdminIconName =
   | "orders"
   | "kitchen"
   | "dispatch"
+  | "calendar"
   | "history"
   | "management"
   | "health"
@@ -93,6 +95,9 @@ function AdminIcon({ name }: { name: AdminIconName }) {
   if (name === "dispatch") {
     return <svg {...common}><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>;
   }
+  if (name === "calendar") {
+    return <svg {...common}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h3M13 14h3" /></svg>;
+  }
   if (name === "history") {
     return <svg {...common}><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2M4 7V3m0 0h4" /></svg>;
   }
@@ -112,6 +117,7 @@ function AdminIcon({ name }: { name: AdminIconName }) {
 }
 
 export default function AdminPage() {
+  const searchParams = useSearchParams();
   const { currentUser } = useAuthStore();
   const {
     pedidos,
@@ -144,8 +150,23 @@ export default function AdminPage() {
   const [unreadStages, setUnreadStages] = useState({ cozinha: false, expedicao: false });
   const previousStageCounts = useRef<{ cozinha: number; expedicao: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const urlOrderAppliedRef = useRef<string>("");
 
+  useEffect(() => {
+    const requestedStage = searchParams.get("stage");
+    const requestedOrder = searchParams.get("order");
+    const allowedStages: Tab[] = ["cozinha", "agendados", "expedicao", "concluidos", "cancelados"];
 
+    if (requestedStage && allowedStages.includes(requestedStage as Tab)) {
+      setTab(requestedStage as Tab);
+      setAttentionOnly(false);
+    }
+
+    if (requestedOrder && urlOrderAppliedRef.current !== requestedOrder) {
+      urlOrderAppliedRef.current = requestedOrder;
+      setSelectedOrderId(requestedOrder);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60000);
@@ -380,7 +401,7 @@ export default function AdminPage() {
       (p) => normalizarStatus(p.status) === "Saiu para Entrega",
     ).length,
     cozinha: operationalPedidos.filter((p) =>
-      ["Pendente", "Em Produção", "Agendado"].includes(
+      ["Pendente", "Em Produção"].includes(
         normalizarStatus(p.status),
       ),
     ).length,
@@ -425,7 +446,8 @@ export default function AdminPage() {
         const status = normalizarStatus(pedido.status);
         const inTab = attentionOnly
           ? ["Pendente", "Em Produção", "Pronto", "Saiu para Entrega"].includes(status)
-          : tab === "cozinha" ? ["Pendente", "Em Produção", "Agendado"].includes(status) :
+          : tab === "cozinha" ? ["Pendente", "Em Produção"].includes(status) :
+          tab === "agendados" ? status === "Agendado" :
           tab === "expedicao" ? ["Pronto", "Saiu para Entrega"].includes(status) :
           tab === "concluidos" ? status === "Finalizado" :
           tab === "cancelados" ? status === "Cancelado" :
@@ -443,7 +465,7 @@ export default function AdminPage() {
   const selectedOrder = useMemo(
     () =>
       operationalPedidos.find(
-        (pedido) => pedido.id === selectedOrderId,
+        (pedido) => String(pedido.id) === String(selectedOrderId || ""),
       ) ?? null,
     [operationalPedidos, selectedOrderId],
   );
@@ -477,6 +499,7 @@ export default function AdminPage() {
 
   const tabItems: Array<[Tab, string, number | null]> = [
     ["cozinha", "Cozinha", counts.cozinha],
+    ["agendados", "Agendados", counts.agendados],
     ["expedicao", "Expedição", counts.expedicao],
     ["concluidos", "Concluídos", counts.concluidos],
     ["cancelados", "Cancelados", counts.cancelados],
@@ -489,14 +512,81 @@ export default function AdminPage() {
     ["gestao", "Relatórios", null],
   ];
 
-  const isOrderTab = ["cozinha", "expedicao", "concluidos", "cancelados"].includes(tab);
+  const isOrderTab = ["cozinha", "agendados", "expedicao", "concluidos", "cancelados"].includes(tab);
   const storeState = storeStatus.mode === "test_open"
     ? { label: "Manutenção", tone: "maintenance", detail: storeStatus.message }
     : storeStatus.isOpen
       ? { label: "Aberta", tone: "open", detail: storeStatus.source === "manual" ? "Abertura manual" : storeStatus.message }
       : { label: "Fechada", tone: "closed", detail: storeStatus.message };
   const managementActive = ["cancelados","catalogo","operacao","agendamentos","frete","cupons","fidelidade","gestao"].includes(tab);
-  const activeOrders = counts.cozinha + counts.expedicao;
+  const activeOrders = counts.cozinha + counts.agendados + counts.expedicao;
+
+  const queueContext = useMemo(() => {
+    if (attentionOnly) {
+      return {
+        eyebrow: "ATENÇÃO",
+        title: "Pedidos que pedem ação",
+        detail: counts.attention > 0
+          ? `${counts.attention} ${counts.attention === 1 ? "pedido precisa" : "pedidos precisam"} de atenção agora.`
+          : "Nenhum pedido precisa de atenção agora.",
+      };
+    }
+
+    if (tab === "cozinha") {
+      return {
+        eyebrow: "OPERAÇÃO",
+        title: "Cozinha",
+        detail: counts.cozinha > 0
+          ? `${counts.pendentes} novo(s) · ${counts.producao} em preparo`
+          : "Fila limpa. Novos pedidos aparecem aqui em tempo real.",
+      };
+    }
+
+    if (tab === "agendados") {
+      return {
+        eyebrow: "AGENDA",
+        title: "Agendados",
+        detail: counts.agendados > 0
+          ? `${counts.agendados} ${counts.agendados === 1 ? "pedido programado" : "pedidos programados"}`
+          : "Nenhum pedido futuro aguardando produção.",
+      };
+    }
+
+    if (tab === "expedicao") {
+      return {
+        eyebrow: "SAÍDA",
+        title: "Expedição",
+        detail: counts.expedicao > 0
+          ? `${counts.prontos} pronto(s) · ${counts.rota} em rota`
+          : "Nenhum pedido aguardando saída ou em rota.",
+      };
+    }
+
+    if (tab === "concluidos") {
+      return {
+        eyebrow: "HISTÓRICO",
+        title: "Concluídos",
+        detail: "Pedidos finalizados carregados no histórico.",
+      };
+    }
+
+    return {
+      eyebrow: "HISTÓRICO",
+      title: "Cancelados",
+      detail: "Pedidos cancelados carregados no histórico.",
+    };
+  }, [
+    attentionOnly,
+    tab,
+    counts.attention,
+    counts.cozinha,
+    counts.pendentes,
+    counts.producao,
+    counts.agendados,
+    counts.expedicao,
+    counts.prontos,
+    counts.rota,
+  ]);
   const currentMoment = new Date(now);
   const desktopDate = new Intl.DateTimeFormat("pt-BR", {
     weekday: "short",
@@ -530,6 +620,11 @@ export default function AdminPage() {
             <span className={styles.railIcon}><AdminIcon name="kitchen" /></span>
             <span>Cozinha</span>
             {counts.cozinha > 0 && <b>{counts.cozinha}</b>}
+          </button>
+          <button type="button" data-stage-active={tab === "agendados"} onClick={() => { setTab("agendados"); setAttentionOnly(false); }}>
+            <span className={styles.railIcon}><AdminIcon name="calendar" /></span>
+            <span>Agendados</span>
+            {counts.agendados > 0 && <b>{counts.agendados}</b>}
           </button>
           <button type="button" data-stage-active={tab === "expedicao"} data-unread={unreadStages.expedicao} onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
             <span className={styles.railIcon}><AdminIcon name="dispatch" /></span>
@@ -628,6 +723,39 @@ export default function AdminPage() {
           </button>
         </header>
 
+        <section className={styles.operationHero} data-tone={storeState.tone}>
+          <div className={styles.operationHeroMain}>
+            <span className={styles.operationEyebrow}>OPERAÇÃO AGORA</span>
+            <div className={styles.operationHeroTitle}>
+              <strong>{storeState.label}</strong>
+              <i />
+              <span>{activeOrders} {activeOrders === 1 ? "pedido ativo" : "pedidos ativos"}</span>
+            </div>
+            <small>{storeState.detail}</small>
+            <div className={styles.operationHeroSignal} data-attention={counts.attention > 0}>
+              <span>{counts.attention > 0 ? "ATENÇÃO OPERACIONAL" : "OPERAÇÃO ESTÁVEL"}</span>
+              <strong>
+                {counts.attention > 0
+                  ? `${counts.attention} ${counts.attention === 1 ? "pedido exige" : "pedidos exigem"} ação`
+                  : activeOrders > 0
+                    ? "Fluxo sob controle"
+                    : "Sem pedidos ativos agora"}
+              </strong>
+            </div>
+          </div>
+          <div className={styles.operationHeroStats}>
+            <button type="button" onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+              <b>{counts.pendentes + counts.producao}</b><span>Cozinha</span>
+            </button>
+            <button type="button" onClick={() => { setTab("agendados"); setAttentionOnly(false); }}>
+              <b>{counts.agendados}</b><span>Agendados</span>
+            </button>
+            <button type="button" onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+              <b>{counts.expedicao}</b><span>Expedição</span>
+            </button>
+          </div>
+        </section>
+
         <section className={styles.overviewGrid} aria-label="Visão geral da operação">
           <button
             type="button"
@@ -656,6 +784,13 @@ export default function AdminPage() {
             <small>{counts.producao > 0 ? "Na cozinha" : "Sem pedidos"}</small>
           </button>
 
+          <button type="button" className={styles.metricCard} onClick={() => { setTab("agendados"); setAttentionOnly(false); }}>
+            <span className={styles.metricIcon}><AdminIcon name="calendar" /></span>
+            <b>{counts.agendados}</b>
+            <strong>Agendados</strong>
+            <small>{counts.agendados > 0 ? "Pedidos futuros" : "Agenda livre"}</small>
+          </button>
+
           <button type="button" className={styles.metricCard} onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
             <span className={styles.metricIcon}><AdminIcon name="orders" /></span>
             <b>{counts.prontos}</b>
@@ -682,6 +817,15 @@ export default function AdminPage() {
               <AdminIcon name="kitchen" />
               <span>Cozinha</span>
               <b>{counts.cozinha}</b>
+            </button>
+            <button
+              type="button"
+              data-active={tab === "agendados"}
+              onClick={() => { setTab("agendados"); setAttentionOnly(false); }}
+            >
+              <AdminIcon name="calendar" />
+              <span>Agendados</span>
+              <b>{counts.agendados}</b>
             </button>
             <button
               type="button"
@@ -782,8 +926,9 @@ export default function AdminPage() {
           <>
             <div className={styles.queueHead}>
               <div>
-                <span>{tab === "cozinha" ? "AGORA" : tab === "expedicao" ? "SAÍDA" : "HISTÓRICO"}</span>
-                <h2>{attentionOnly ? "Precisam de atenção" : tabItems.find(([key]) => key === tab)?.[1]}</h2>
+                <span>{queueContext.eyebrow}</span>
+                <h2>{queueContext.title}</h2>
+                <p>{queueContext.detail}</p>
               </div>
               <b className={(tab === "concluidos" || tab === "cancelados") ? styles.historyCount : undefined}>{filtered.length}{(tab === "concluidos" || tab === "cancelados") ? <span>pedidos</span> : null}</b>
             </div>
@@ -836,7 +981,11 @@ export default function AdminPage() {
                         onSelect={() => setSelectedOrderId(pedido.id)}
                       />
                     ))
-                  : <div className={styles.empty}><strong>Nenhum pedido aqui.</strong><span>{search || attentionOnly || serviceFilter !== "todos" ? "Tente limpar os filtros." : "A fila está limpa nesta etapa."}</span></div>}
+                  : <div className={styles.empty} data-tab={tab}>
+                      <span className={styles.emptyIcon}><AdminIcon name={tab === "agendados" ? "calendar" : tab === "expedicao" ? "dispatch" : tab === "concluidos" ? "history" : "orders"} /></span>
+                      <strong>{search || attentionOnly || serviceFilter !== "todos" ? "Nenhum resultado com estes filtros." : tab === "cozinha" ? "Cozinha zerada." : tab === "agendados" ? "Agenda sem pedidos." : tab === "expedicao" ? "Expedição limpa." : "Nenhum pedido carregado."}</strong>
+                      <span>{search || attentionOnly || serviceFilter !== "todos" ? "Limpe a busca ou ajuste os filtros para ampliar a fila." : tab === "cozinha" ? "Quando chegar um novo pedido ele aparece aqui imediatamente." : tab === "agendados" ? "Pedidos programados aparecem aqui ordenados por horário." : tab === "expedicao" ? "Pedidos prontos e em rota aparecem aqui." : "O histórico será exibido conforme os pedidos forem carregados."}</span>
+                    </div>}
               </div>
 
               {selectedOrder && (
