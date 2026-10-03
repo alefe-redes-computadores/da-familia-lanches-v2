@@ -210,6 +210,15 @@ public class EntryActivity extends Activity {
                         SafeLauncherActivity.class
                 );
 
+        /*
+         * Android Browser Helper LauncherActivity requires NEW_TASK.
+         * Without it, restartInNewTask() relaunches this Activity itself.
+         * Keep the Intent otherwise clean: no ACTION_MAIN/CATEGORY_LAUNCHER.
+         */
+        target.addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK
+        );
+
         Uri incomingUri =
                 getIntent() != null
                         ? getIntent().getData()
