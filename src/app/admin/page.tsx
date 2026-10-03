@@ -125,6 +125,8 @@ export default function AdminPage() {
     searchHistoryIdentifier,
     alarmeAtivo,
     pararAlarme,
+    reconhecerPedido,
+    desfazerReconhecimentoPedido,
   } = useAdminOrders(currentUser, ADMINS);
   const [tab, setTab] = useState<Tab>("cozinha");
   const authorized = Boolean(currentUser?.email && ADMINS.includes(currentUser.email));
@@ -236,11 +238,12 @@ export default function AdminPage() {
       }));
     }
 
-    // Pedido novo saiu da fila inicial: para o alarme na mesma hora.
-    if (
-      previousLabel === "Pendente" ||
-      previousLabel === "Agendado"
-    ) {
+    const alarmAcknowledged =
+      previousLabel === "Pendente";
+
+    if (alarmAcknowledged) {
+      reconhecerPedido(id);
+    } else if (previousLabel === "Agendado") {
       pararAlarme();
     }
 
@@ -300,6 +303,10 @@ export default function AdminPage() {
         });
       }, 5000);
     } catch (error) {
+      if (alarmAcknowledged) {
+        desfazerReconhecimentoPedido(id);
+      }
+
       setOptimisticStatuses((current) => {
         if (!(id in current)) return current;
 

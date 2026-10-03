@@ -47,6 +47,30 @@ function newestFirst(a: AdminOrder, b: AdminOrder) {
     String(b.id).localeCompare(String(a.id));
 }
 
+type AdminAlarmCandidate = {
+  id: string;
+  title: string;
+  body: string;
+  url?: string;
+  tag?: string;
+};
+
+function alarmCandidate(order: AdminOrder): AdminAlarmCandidate {
+  const id = String(order.id);
+  return {
+    id,
+    title: "Novo pedido na cozinha",
+    body: `${String(
+      order.userName ||
+      order.clienteNome ||
+      order.nomeCliente ||
+      "Cliente",
+    )} - pedido #${id.slice(-8).toUpperCase()}`,
+    url: "/admin?stage=cozinha",
+    tag: `new-order-${id}`,
+  };
+}
+
 export function useAdminOrders(currentUser: any, admins: string[]) {
   const [pedidos, setPedidos] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +82,8 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const initializedRef = useRef(false);
-  const knownPendingIdsRef = useRef<Set<string>>(new Set());
+  const alertedPendingIdsRef = useRef<Set<string>>(new Set());
+  const acknowledgedPendingIdsRef = useRef<Set<string>>(new Set());
   const knownActiveStatusRef = useRef<Map<string, string>>(new Map());
   const authoritativeOrdersRef =
     useRef<Map<string, AdminOrder>>(new Map());
@@ -69,6 +94,90 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const historyVisibleRef = useRef(20);
   const historyBusyRef = useRef(false);
   const cancelledRef = useRef(false);
+
+  const silenceAlarm = useCallback(() => {
+    setAlarmeAtivo(false);
+    const target = audioRef.current;
+    target?.pause();
+    if (target) target.currentTime = 0;
+  }, []);
+
+  const raiseAdminAlarm = useCallback((candidates: AdminAlarmCandidate[]) => {
+    const fresh = candidates.filter((candidate) => {
+      const id = candidate.id.trim();
+      return Boolean(id) &&
+        !acknowledgedPendingIdsRef.current.has(id) &&
+        !alertedPendingIdsRef.current.has(id);
+    });
+    if (!fresh.length) return;
+
+    for (const candidate of fresh) {
+      alertedPendingIdsRef.current.add(candidate.id);
+    }
+    setAlarmeAtivo(true);
+
+    void (async () => {
+      let audible = false;
+      const target = audioRef.current;
+      if (target) {
+        try {
+          target.currentTime = 0;
+          await target.play();
+          audible = true;
+        } catch (error) {
+          console.warn("[admin/orders] áudio local bloqueado; usando fallback do sistema", error);
+        }
+      }
+      if (!audible) navigator.vibrate?.([220,100,220,100,320]);
+
+      for (const candidate of fresh) {
+        window.dispatchEvent(new CustomEvent("dfl:admin-alert", {
+          detail: {
+            id: candidate.id,
+            title: candidate.title,
+            body: candidate.body,
+            url: candidate.url ?? "/admin?stage=cozinha",
+            tag: candidate.tag ?? `new-order-${candidate.id}`,
+            forceVisible: !audible,
+          },
+        }));
+      }
+    })();
+  }, []);
+
+  const reconhecerPedido = useCallback((id: string) => {
+    const cleanId = String(id).trim();
+    if (!cleanId) return;
+    acknowledgedPendingIdsRef.current.add(cleanId);
+    alertedPendingIdsRef.current.add(cleanId);
+
+    const remaining = [
+      ...realtimeOrdersRef.current.values(),
+      ...authoritativeOrdersRef.current.values(),
+    ].some((order) => {
+      const orderId = String(order.id);
+      return orderId !== cleanId &&
+        normalizarStatus(order.status) === "Pendente" &&
+        !acknowledgedPendingIdsRef.current.has(orderId);
+    });
+
+    if (!remaining) silenceAlarm();
+  }, [silenceAlarm]);
+
+  const desfazerReconhecimentoPedido = useCallback((id: string) => {
+    const cleanId = String(id).trim();
+    if (!cleanId) return;
+    acknowledgedPendingIdsRef.current.delete(cleanId);
+    alertedPendingIdsRef.current.delete(cleanId);
+
+    const order =
+      realtimeOrdersRef.current.get(cleanId) ??
+      authoritativeOrdersRef.current.get(cleanId);
+
+    if (order && normalizarStatus(order.status) === "Pendente") {
+      raiseAdminAlarm([alarmCandidate(order)]);
+    }
+  }, [raiseAdminAlarm]);
 
   const publish = useCallback(() => {
     const merged = new Map(authoritativeOrdersRef.current);
@@ -141,7 +250,8 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
     cancelledRef.current = false;
     initializedRef.current = false;
-    knownPendingIdsRef.current = new Set();
+    alertedPendingIdsRef.current = new Set();
+    acknowledgedPendingIdsRef.current = new Set();
     knownActiveStatusRef.current = new Map();
     authoritativeOrdersRef.current = new Map();
     realtimeOrdersRef.current = new Map();
@@ -194,18 +304,16 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
           setHistoryHasMore(historyVisibleRef.current<payload.historyCatalog.length);
         } else setHistoryHasMore(payload.historyHasMore===true);
 
-        knownPendingIdsRef.current = new Set(
-          payload.orders
-            .filter(
-              (order) =>
-                normalizarStatus(order.status) === "Pendente",
-            )
-            .map((order) => String(order.id)),
-        );
         knownActiveStatusRef.current = new Map(
           payload.orders
             .filter((order) => ACTIVE_CANONICAL.has(normalizarStatus(order.status)))
             .map((order) => [String(order.id), normalizarStatus(order.status)]),
+        );
+
+        raiseAdminAlarm(
+          payload.orders
+            .filter((order) => normalizarStatus(order.status) === "Pendente")
+            .map(alarmCandidate),
         );
 
         initializedRef.current = true;
@@ -263,75 +371,14 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
         realtimeOrdersRef.current = realtime;
 
-        const pendingIds = new Set(
-          [...realtime.values()]
-            .filter(
-              (order) =>
-                normalizarStatus(order.status) === "Pendente",
-            )
-            .map((order) => String(order.id)),
-        );
+        const pendingOrders =
+          [...realtime.values()].filter(
+            (order) => normalizarStatus(order.status) === "Pendente",
+          );
+
+        raiseAdminAlarm(pendingOrders.map(alarmCandidate));
 
         if (initializedRef.current) {
-          const newPendingOrders = [...realtime.values()].filter(
-            (order) =>
-              normalizarStatus(order.status) === "Pendente" &&
-              !knownPendingIdsRef.current.has(String(order.id)),
-          );
-          const hasNewPending = newPendingOrders.length > 0;
-
-          if (hasNewPending) {
-            setAlarmeAtivo(true);
-
-            void (async () => {
-              let audible = false;
-              const target = audioRef.current;
-
-              if (target) {
-                try {
-                  target.currentTime = 0;
-                  await target.play();
-                  audible = true;
-                } catch (error) {
-                  console.warn(
-                    "[admin/orders] navegador bloqueou áudio local; usando notificação do sistema",
-                    error,
-                  );
-                }
-              }
-
-              if (!audible) {
-                navigator.vibrate?.([
-                  220, 100, 220, 100, 320,
-                ]);
-              }
-
-              for (const order of newPendingOrders) {
-                const id = String(order.id);
-
-                window.dispatchEvent(
-                  new CustomEvent("dfl:admin-alert", {
-                    detail: {
-                      id,
-                      title: "Novo pedido na cozinha",
-                      body: `${String(
-                        order.userName ||
-                        order.clienteNome ||
-                        order.nomeCliente ||
-                        "Cliente",
-                      )} · pedido #${id
-                        .slice(-8)
-                        .toUpperCase()}`,
-                      url: "/admin?stage=cozinha",
-                      tag: `new-order-${id}`,
-                      forceVisible: !audible,
-                    },
-                  }),
-                );
-              }
-            })();
-          }
-
           for (const order of realtime.values()) {
             const id = String(order.id);
             const nextStatus = normalizarStatus(order.status);
@@ -358,7 +405,6 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
           },
         }));
 
-        knownPendingIdsRef.current = pendingIds;
         knownActiveStatusRef.current = new Map(
           [...realtime.values()].map((order) => [
             String(order.id),
@@ -375,11 +421,35 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       },
     );
 
+    const onForegroundPush = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        type?: string;
+        orderId?: string;
+        title?: string;
+        body?: string;
+        tag?: string;
+        url?: string;
+      }>).detail;
+
+      if (detail?.type !== "admin.new_order" || !detail.orderId) return;
+
+      raiseAdminAlarm([{
+        id: detail.orderId,
+        title: detail.title ?? "Novo pedido na cozinha",
+        body: detail.body ?? `Pedido #${detail.orderId.slice(-8).toUpperCase()}`,
+        tag: detail.tag ?? `new-order-${detail.orderId}`,
+        url: detail.url ?? "/admin?stage=cozinha",
+      }]);
+    };
+
+    window.addEventListener("dfl:admin-push-foreground", onForegroundPush);
+
     return () => {
       cancelledRef.current = true;
+      window.removeEventListener("dfl:admin-push-foreground", onForegroundPush);
       unsubscribe();
     };
-  }, [currentUser, admins, publish]);
+  }, [currentUser, admins, publish, raiseAdminAlarm]);
 
   const refreshHistory = useCallback(async () => {
     if (!currentUser || cancelledRef.current || historyBusyRef.current) return;
@@ -474,10 +544,8 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     loadMoreHistory,
     searchHistoryIdentifier,
     alarmeAtivo,
-    pararAlarme: () => {
-      setAlarmeAtivo(false);
-      audioRef.current?.pause();
-      if (audioRef.current) audioRef.current.currentTime = 0;
-    },
+    pararAlarme: silenceAlarm,
+    reconhecerPedido,
+    desfazerReconhecimentoPedido,
   };
 }

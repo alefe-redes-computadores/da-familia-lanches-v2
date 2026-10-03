@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getMessaging, getToken, isSupported as isMessagingSupported } from "firebase/messaging";
+import { getMessaging, getToken, isSupported as isMessagingSupported, onMessage } from "firebase/messaging";
 import { app, auth } from "@/lib/firebase";
 import styles from "./AdminPwa.module.css";
 
@@ -61,7 +61,7 @@ export function AdminPwa(){
     const adminHost=window.location.hostname==="admin.dafamilialanches.com.br";
     const scope=adminHost?"/":"/admin/";
     if("serviceWorker" in navigator){
-      navigator.serviceWorker.register("/admin-sw.js?v=20",{scope}).then(async(registration)=>{
+      navigator.serviceWorker.register("/admin-sw.js?v=21.3",{scope}).then(async(registration)=>{
         registrationRef.current=registration; await registration.update();
         if("Notification" in window&&Notification.permission==="granted"){
           const lastSync=Number(localStorage.getItem(PUSH_SYNC_KEY)||0);
@@ -89,6 +89,27 @@ export function AdminPwa(){
     window.addEventListener("online",onOnline);window.addEventListener("offline",onOffline);window.addEventListener("beforeinstallprompt",onInstall);window.addEventListener("dfl:admin-alert",onAlert);window.addEventListener("dfl:admin-badge",onBadge);
     return()=>{window.removeEventListener("online",onOnline);window.removeEventListener("offline",onOffline);window.removeEventListener("beforeinstallprompt",onInstall);window.removeEventListener("dfl:admin-alert",onAlert);window.removeEventListener("dfl:admin-badge",onBadge);};
   },[]);
+
+  useEffect(() => {
+    let active = true;
+    let stop: (() => void) | undefined;
+
+    void isMessagingSupported()
+      .then((supported) => {
+        if (!active || !supported) return;
+        stop = onMessage(getMessaging(app), (payload) => {
+          const data = payload.data ?? {};
+          if (data.type !== "admin.new_order" || !data.orderId) return;
+          window.dispatchEvent(new CustomEvent("dfl:admin-push-foreground", { detail: data }));
+        });
+      })
+      .catch((error) => console.warn("[admin-pwa] foreground push indisponível", error));
+
+    return () => {
+      active = false;
+      stop?.();
+    };
+  }, []);
 
   const enableNotifications=async()=>{
     if(!("Notification" in window))return;
