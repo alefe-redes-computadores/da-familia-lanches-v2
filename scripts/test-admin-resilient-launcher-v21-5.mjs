@@ -80,9 +80,18 @@ ok(
 
 ok(
   entry.includes(
+    "currentVersionCode"
+  ) &&
+  entry.includes(
+    "getLongVersionCode"
+  ) &&
+  entry.includes(
+    "PackageInfo"
+  ) &&
+  !entry.includes(
     "BuildConfig.VERSION_CODE"
   ),
-  "diagnóstico pode vazar entre versões",
+  "versionamento do diagnóstico depende de BuildConfig ou não usa PackageManager",
 );
 
 ok(

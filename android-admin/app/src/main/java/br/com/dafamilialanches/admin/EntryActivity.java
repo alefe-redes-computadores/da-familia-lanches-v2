@@ -89,6 +89,32 @@ public class EntryActivity extends Activity {
         );
     }
 
+    private static long currentVersionCode(
+            Context context
+    ) {
+        try {
+            android.content.pm.PackageInfo info =
+                    context.getPackageManager()
+                            .getPackageInfo(
+                                    context.getPackageName(),
+                                    0
+                            );
+
+            if (
+                    android.os.Build.VERSION.SDK_INT >=
+                    android.os.Build.VERSION_CODES.P
+            ) {
+                return info.getLongVersionCode();
+            }
+
+            return info.versionCode;
+        } catch (
+                android.content.pm.PackageManager.NameNotFoundException error
+        ) {
+            return -1L;
+        }
+    }
+
     static void recordCrash(
             Context context,
             String phase,
@@ -137,9 +163,9 @@ public class EntryActivity extends Activity {
                         KEY_CRASH,
                         diagnostic
                 )
-                .putInt(
+                .putLong(
                         KEY_VERSION,
-                        BuildConfig.VERSION_CODE
+                        currentVersionCode(context)
                 )
                 .putLong(
                         KEY_TIME,
@@ -163,10 +189,10 @@ public class EntryActivity extends Activity {
         SharedPreferences prefs =
                 prefs(this);
 
-        return prefs.getInt(
+        return prefs.getLong(
                 KEY_VERSION,
-                -1
-        ) == BuildConfig.VERSION_CODE &&
+                -1L
+        ) == currentVersionCode(this) &&
                 !prefs.getString(
                         KEY_CRASH,
                         ""

@@ -39,6 +39,7 @@ jobs:
           node scripts/test-admin-alarm-v21-3.mjs
           node scripts/test-admin-safe-launcher-v21-4.mjs
           node scripts/test-admin-resilient-launcher-v21-5.mjs
+          node scripts/test-admin-buildconfig-v21-5-1.mjs
           node node_modules/typescript/bin/tsc --noEmit
           git diff --check
 
