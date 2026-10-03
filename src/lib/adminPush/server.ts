@@ -51,7 +51,7 @@ export async function sendAdminNewOrderPush(input: AdminNewOrderPush) {
       tokens: subscriptions.map((item) => item.token),
       data: {
         type:"admin.new_order",
-        title:"Novo pedido na cozinha",
+        title:"Novo pedido recebido",
         body:`${input.customerName || "Cliente"} · ${money(input.total)} · ${input.deliveryMode === "pickup" ? "Retirada" : "Entrega"}`,
         orderId,
         tag:`new-order-${orderId}`,

@@ -43,6 +43,7 @@ jobs:
           node scripts/test-admin-manage-data-v21-5-2.mjs
           node scripts/test-admin-clean-launch-intent-v21-5-3.mjs
           node scripts/test-admin-new-task-v21-5-4.mjs
+          node scripts/test-admin-production-polish-v22.mjs
           node node_modules/typescript/bin/tsc --noEmit
           git diff --check
 

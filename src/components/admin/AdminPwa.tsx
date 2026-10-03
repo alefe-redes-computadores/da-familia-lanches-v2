@@ -61,7 +61,7 @@ export function AdminPwa(){
     const adminHost=window.location.hostname==="admin.dafamilialanches.com.br";
     const scope=adminHost?"/":"/admin/";
     if("serviceWorker" in navigator){
-      navigator.serviceWorker.register("/admin-sw.js?v=21.3",{scope}).then(async(registration)=>{
+      navigator.serviceWorker.register("/admin-sw.js?v=22",{scope}).then(async(registration)=>{
         registrationRef.current=registration; await registration.update();
         if("Notification" in window&&Notification.permission==="granted"){
           const lastSync=Number(localStorage.getItem(PUSH_SYNC_KEY)||0);
@@ -120,10 +120,19 @@ export function AdminPwa(){
   };
   const install=async()=>{if(!installPrompt)return;await installPrompt.prompt();await installPrompt.userChoice;setInstallPrompt(null);};
   const close=()=>{localStorage.setItem(DISMISSED_KEY,"1");setDismissed(true);};
-  const needsPermission=permission==="default"; const showSetup=!dismissed&&(needsPermission||Boolean(installPrompt));
+  const needsPermission=permission==="default";
+  const permissionBlocked=permission==="denied";
+  const showSetup=!dismissed&&(needsPermission||permissionBlocked||Boolean(installPrompt));
+  const setupMessage=installPrompt
+    ? needsPermission
+      ? "Ative os alertas e instale o aplicativo neste aparelho."
+      : "Instale o aplicativo neste aparelho para acesso mais rápido."
+    : permissionBlocked
+      ? "Os alertas estão bloqueados neste aparelho. Libere as notificações nas configurações do navegador/app."
+      : "Ative os alertas para receber novos pedidos mesmo com o Admin em segundo plano.";
 
   return <>
     {!online&&<div className={styles.offline} role="status">Sem internet · ações ficam bloqueadas até reconectar</div>}
-    {showSetup&&<aside className={styles.setup} aria-label="Configuração do DFL Admin"><div><b>Deixe o Admin pronto para a operação</b><span>Ative os alertas e instale o aplicativo neste aparelho.</span></div><div className={styles.actions}>{needsPermission&&<button type="button" onClick={()=>void enableNotifications()}>Ativar alertas</button>}{installPrompt&&<button type="button" onClick={()=>void install()}>Instalar app</button>}<button type="button" className={styles.close} aria-label="Agora não" onClick={close}>×</button></div></aside>}
+    {showSetup&&<aside className={styles.setup} aria-label="Configuração do DFL Admin"><div><b>Deixe o Admin pronto para a operação</b><span>{setupMessage}</span></div><div className={styles.actions}>{needsPermission&&<button type="button" onClick={()=>void enableNotifications()}>Ativar alertas</button>}{installPrompt&&<button type="button" onClick={()=>void install()}>Instalar app</button>}<button type="button" className={styles.close} aria-label="Agora não" onClick={close}>×</button></div></aside>}
   </>;
 }

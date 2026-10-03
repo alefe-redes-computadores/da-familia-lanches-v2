@@ -75,10 +75,15 @@ mask.paste(alpha, (mx, my))
 stat.putalpha(mask)
 stat.save(drawable / "ic_stat_dfl_admin.png", optimize=True)
 
+# Web Push/TWA e Android compartilham a mesma máscara monocromática.
+web_badge = ROOT / "public" / "admin-notification-badge.png"
+stat.save(web_badge, optimize=True)
+
 for path in [
     drawable / "ic_launcher_foreground.png",
     drawable / "splash.png",
     drawable / "ic_stat_dfl_admin.png",
+    web_badge,
 ]:
     if not path.exists() or path.stat().st_size == 0:
         raise SystemExit(f"Asset Android não gerado: {path}")

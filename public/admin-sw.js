@@ -11,7 +11,7 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
-const CACHE = "dfl-admin-v20";
+const CACHE = "dfl-admin-v22";
 const SHELL = ["/admin", "/admin-manifest.webmanifest", "/admin-icon-192x192.png", "/admin-icon-512x512.png", "/admin-notification-badge.png"];
 
 self.addEventListener("install", (event) => {
@@ -41,10 +41,11 @@ async function showAdminNotification(payload){
     body:data.body||"Há uma atualização na operação.",
     tag:data.tag||data.orderId||"dfl-admin-operation",
     renotify:true,
-    icon:"/admin-icon-192x192.png",
-    badge:"/admin-notification-badge.png",
+    requireInteraction:Boolean(data.requireInteraction),
+    icon:"/admin-icon-192x192.png?v=54",
+    badge:"/admin-notification-badge.png?v=22",
     vibrate:[180,90,180],
-    data:{url:data.url||"/admin",orderId:data.orderId||null},
+    data:{url:data.url||"/admin",orderId:data.orderId||null,type:data.type||"admin.operation"},
   });
 }
 messaging.onBackgroundMessage((payload)=>showAdminNotification(payload?.data||{}));

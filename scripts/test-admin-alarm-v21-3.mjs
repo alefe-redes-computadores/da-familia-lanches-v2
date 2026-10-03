@@ -9,7 +9,10 @@ ok(!hook.includes("knownPendingIdsRef"),"bootstrap ainda engole pendentes");
 ok(hook.includes("pendingOrders.map(alarmCandidate)")&&hook.includes("payload.orders"),"reload/snapshot não rearmam");
 ok(hook.includes('"dfl:admin-push-foreground"'),"hook sem FCM foreground");
 ok(pwa.includes("onMessage")&&pwa.includes('"dfl:admin-push-foreground"'),"PWA sem FCM foreground");
-ok(pwa.includes('/admin-sw.js?v=21.3'),"SW não versionado");
+ok(
+  /admin-sw\.js\?v=(?:21\.3|2[2-9]|[3-9]\d|\d{3,})/.test(pwa),
+  "SW precisa permanecer versionado em V21.3 ou superior"
+);
 ok(hook.includes("forceVisible: !audible")&&hook.includes("navigator.vibrate?."),"fallback perdido");
 ok(page.includes("reconhecerPedido(id)")&&page.includes("desfazerReconhecimentoPedido(id)"),"ação não reconhece/reativa");
 ok((hook.match(/onSnapshot\(/g)||[]).length===1,"listener Firestore adicional");
