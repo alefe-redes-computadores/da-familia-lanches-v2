@@ -200,23 +200,34 @@ public class EntryActivity extends Activity {
     }
 
     private void launchTwa() {
+        /*
+         * Never clone the public launcher Intent here.
+         * SafeLauncherActivity is an internal TWA bootstrap Activity.
+         */
         Intent target =
                 new Intent(
-                        getIntent()
+                        this,
+                        SafeLauncherActivity.class
                 );
 
-        target.setClass(
-                this,
-                SafeLauncherActivity.class
-        );
+        Uri incomingUri =
+                getIntent() != null
+                        ? getIntent().getData()
+                        : null;
 
-        target.setPackage(
-                getPackageName()
-        );
-
-        target.removeExtra(
-                EXTRA_FORCE_DIAGNOSTIC
-        );
+        if (
+                incomingUri != null &&
+                "https".equalsIgnoreCase(
+                        incomingUri.getScheme()
+                ) &&
+                "admin.dafamilialanches.com.br"
+                        .equalsIgnoreCase(
+                                incomingUri.getHost()
+                        )
+        ) {
+            target.setAction(Intent.ACTION_VIEW);
+            target.setData(incomingUri);
+        }
 
         startActivity(target);
         finish();
