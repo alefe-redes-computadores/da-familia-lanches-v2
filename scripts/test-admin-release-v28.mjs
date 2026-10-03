@@ -3,6 +3,7 @@ import fs from "node:fs";
 
 const suites=[
   "scripts/test-admin-runtime-v19.mjs",
+  "scripts/test-pre-apk-site-fixes-v21-2.mjs",
   "scripts/test-admin-production-polish-v22.mjs",
   "scripts/test-admin-scheduling-v23.mjs",
   "scripts/test-admin-operational-experience-v24.mjs",

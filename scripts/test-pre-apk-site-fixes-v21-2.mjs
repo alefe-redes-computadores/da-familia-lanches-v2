@@ -15,9 +15,19 @@ const sw = read("public/admin-sw.js");
 const repository = read("src/lib/orderRepository.ts");
 const reverse = read("src/lib/integration/server/reversePersistence.ts");
 
-ok(
+const schedulingUsesLegacyNormalizedEngine =
   scheduling.includes("normalizeStoreSettings") &&
-  scheduling.includes("store.schedule[day]"),
+  scheduling.includes("store.schedule[day]");
+
+const schedulingUsesAuthoritativeApi =
+  scheduling.includes('fetch("/api/orders/schedule-slots"') &&
+  scheduling.includes('cache: "no-store"') &&
+  fs.existsSync("src/lib/orderSchedulePolicy.ts") &&
+  fs.existsSync("src/app/api/orders/schedule-slots/route.ts");
+
+ok(
+  schedulingUsesLegacyNormalizedEngine ||
+  schedulingUsesAuthoritativeApi,
   "checkout ainda lê schedule cru/legado",
 );
 
