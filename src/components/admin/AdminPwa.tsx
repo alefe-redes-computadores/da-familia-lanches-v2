@@ -64,9 +64,9 @@ export function AdminPwa(){
       navigator.serviceWorker.register("/admin-sw.js?v=28",{scope}).then(async(registration)=>{
         registrationRef.current=registration; await registration.update();
         if("Notification" in window&&Notification.permission==="granted"){
-          const lastSync=Number(localStorage.getItem(PUSH_SYNC_KEY)||0);
-          if(!Number.isFinite(lastSync)||Date.now()-lastSync>PUSH_SYNC_MS)
-            void syncRemotePush(registration).catch((error)=>console.warn("[admin-pwa] push remoto ainda não sincronizado",error));
+          // V29: a abertura da TWA sempre revalida o token web remoto.
+          // Não adiciona listener/Firestore; é somente o endpoint de push.
+          void syncRemotePush(registration).catch((error)=>console.warn("[admin-pwa] push remoto ainda não sincronizado",error));
         }
       }).catch((error)=>console.warn("[admin-pwa] Service worker indisponível.",error));
     }

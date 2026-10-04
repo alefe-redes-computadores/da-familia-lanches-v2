@@ -35,6 +35,10 @@ public class EntryActivity extends Activity {
     static final String EXTRA_FORCE_DIAGNOSTIC =
             "dfl_force_diagnostic";
 
+    private static final int
+            REQUEST_NATIVE_NOTIFICATIONS =
+            2901;
+
     static final Uri ADMIN_URI =
             Uri.parse(
                     "https://admin.dafamilialanches.com.br/"
@@ -77,7 +81,47 @@ public class EntryActivity extends Activity {
             return;
         }
 
+        launchTwaWithNativeNotificationPermission();
+    }
+
+    private void launchTwaWithNativeNotificationPermission() {
+        if (
+                android.os.Build.VERSION.SDK_INT >=
+                        android.os.Build.VERSION_CODES.TIRAMISU &&
+                checkSelfPermission(
+                        android.Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                    new String[]{
+                            android.Manifest.permission.POST_NOTIFICATIONS
+                    },
+                    REQUEST_NATIVE_NOTIFICATIONS
+            );
+            return;
+        }
+
         launchTwa();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode,
+            String[] permissions,
+            int[] grantResults
+    ) {
+        super.onRequestPermissionsResult(
+                requestCode,
+                permissions,
+                grantResults
+        );
+
+        if (
+                requestCode ==
+                        REQUEST_NATIVE_NOTIFICATIONS
+        ) {
+            launchTwa();
+        }
     }
 
     static SharedPreferences prefs(
@@ -518,7 +562,7 @@ public class EntryActivity extends Activity {
         retry.setOnClickListener(
                 view -> {
                     clearDiagnostic(this);
-                    launchTwa();
+                    launchTwaWithNativeNotificationPermission();
                 }
         );
 

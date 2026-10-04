@@ -5,7 +5,7 @@ import { getOrderItems, paymentLabel } from "@/lib/orderCompat";
 import { normalizarStatus, getColorByStatus, formatarData } from "@/lib/orderUtils";
 import { canTransitionOrderStatus, statusTitle } from "@/lib/orderStatus";
 import { ageLabel, operationalAttention } from "@/lib/adminOrders";
-import { dflEntregasIntentUrl } from "@/lib/adminDeliveryBridge";
+import { openDflEntregas } from "@/lib/adminDeliveryBridge";
 import styles from "./OrderCard.module.css";
 
 export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false, updating = false }: any) {
@@ -62,9 +62,11 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     : ["Pendente", "Em Produção", "Pronto", "Saiu para Entrega", "Finalizado"];
   const currentStageIndex = Math.max(0, stages.indexOf(statusAtual));
 
-  const openDflEntregas = () => {
-    const url = dflEntregasIntentUrl(pedido.deliveryId, pedido.id);
-    if (url) window.location.href = url;
+  const handleOpenDflEntregas = () => {
+    openDflEntregas(
+      pedido.deliveryId,
+      pedido.id,
+    );
   };
 
   const openWhatsApp = () => {
@@ -130,7 +132,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
             <strong>{logisticsSummary}</strong>
             {pedido.deliveryMotoboyName && <small>{String(pedido.deliveryMotoboyName)}</small>}
           </div>
-          <button type="button" className={styles.bridgeAction} onClick={(event) => { event.stopPropagation(); openDflEntregas(); }}>Abrir no Entregas</button>
+          <button type="button" className={styles.bridgeAction} onClick={(event) => { event.stopPropagation(); handleOpenDflEntregas(); }}>Abrir no Entregas</button>
         </div>
       )}
 
