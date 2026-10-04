@@ -515,7 +515,7 @@ function AdminPageContent() {
   const managementActive = ["cancelados","catalogo","operacao","agendamentos","frete","cupons","fidelidade","gestao"].includes(tab);
   const activeOrders = counts.cozinha + counts.agendados + counts.expedicao;
 
-  const queueContext = useMemo(() => {
+  const queueContext = (() => {
     if (attentionOnly) {
       return {
         eyebrow: "ATENÇÃO",
@@ -569,18 +569,7 @@ function AdminPageContent() {
       title: "Cancelados",
       detail: "Pedidos cancelados carregados no histórico.",
     };
-  }, [
-    attentionOnly,
-    tab,
-    counts.attention,
-    counts.cozinha,
-    counts.pendentes,
-    counts.producao,
-    counts.agendados,
-    counts.expedicao,
-    counts.prontos,
-    counts.rota,
-  ]);
+  })();
   const currentMoment = new Date(now);
   const desktopDate = new Intl.DateTimeFormat("pt-BR", {
     weekday: "short",
