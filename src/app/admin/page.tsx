@@ -14,10 +14,6 @@ import {
   SlidersHorizontal,
   Store,
   Truck,
-  LoaderCircle,
-  CircleCheck,
-  TriangleAlert,
-  Info,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { useAdminOrders } from "@/hooks/useAdminOrders";
@@ -35,23 +31,11 @@ import { AdminAuthGate } from "@/components/admin/AdminAuthGate";
 import { OperationHealthAdmin } from "@/components/admin/OperationHealthAdmin";
 import { AdminNotificationCenter } from "@/components/admin/AdminNotificationCenter";
 import { AdminQuickStoreControl } from "@/components/admin/AdminQuickStoreControl";
+import { useAdminFeedback } from "@/components/admin/ui/AdminExperienceProvider";
+import { AdminLoadingState } from "@/components/admin/ui/AdminState";
 
 
-const AdminPanelLoading = () => (
-  <div
-    role="status"
-    aria-live="polite"
-    style={{
-      minHeight: 120,
-      display: "grid",
-      placeItems: "center",
-      opacity: 0.72,
-      fontSize: 14,
-    }}
-  >
-    Carregando painel…
-  </div>
-);
+const AdminPanelLoading = () => <AdminLoadingState label="Carregando painel" compact />;
 
 const RelatoriosAdmin = dynamic(() => import("@/components/layout/RelatoriosAdmin").then((mod) => mod.RelatoriosAdmin), { loading: AdminPanelLoading });
 const CatalogAdmin = dynamic(() => import("@/components/admin/CatalogAdmin").then((mod) => mod.CatalogAdmin), { loading: AdminPanelLoading });
@@ -75,7 +59,6 @@ const ADMINS = [
 
 type Tab = "cozinha" | "agendados" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons" | "fidelidade" | "gestao";
 type ServiceFilter = "todos" | "delivery" | "pickup";
-type FeedbackState = { tone: "progress" | "success" | "error" | "info"; title: string; message: string } | null;
 
 const normalizeSearch = (value: unknown) =>
   String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -136,7 +119,7 @@ function AdminPageContent() {
   const [storeQuickOpen, setStoreQuickOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("todos");
   const [attentionOnly, setAttentionOnly] = useState(false);
-  const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const { show: showFeedback } = useAdminFeedback();
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [optimisticStatuses, setOptimisticStatuses] = useState<Record<string, string>>({});
   const actionLocksRef = useRef<Set<string>>(new Set());
@@ -167,11 +150,6 @@ function AdminPageContent() {
     return () => window.clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    if (!feedback || feedback.tone === "progress") return;
-    const timer = window.setTimeout(() => setFeedback(null), 4200);
-    return () => window.clearTimeout(timer);
-  }, [feedback]);
 
   useEffect(() => {
     if (tab !== "concluidos" && tab !== "cancelados") return;
@@ -263,7 +241,7 @@ function AdminPageContent() {
     }
 
     setUpdatingOrderId(id);
-    setFeedback({
+    showFeedback({
       tone: "progress",
       title: "Atualizando pedido",
       message: `Movendo o pedido para ${nextLabel}…`,
@@ -290,7 +268,7 @@ function AdminPageContent() {
         rewardPlan,
       });
 
-      setFeedback({
+      showFeedback({
         tone: result.changed ? "success" : "info",
         title: result.rewardAwarded
           ? "Pedido concluído + fidelidade"
@@ -349,7 +327,7 @@ function AdminPageContent() {
         const current =
           transition.split("->")[0] || "";
 
-        setFeedback({
+        showFeedback({
           tone: "info",
           title: "Fila sincronizada",
           message: current
@@ -357,7 +335,7 @@ function AdminPageContent() {
             : "O pedido mudou de etapa em outro fluxo. A fila foi atualizada.",
         });
       } else {
-        setFeedback({
+        showFeedback({
           tone: "error",
           title: "Não foi possível atualizar",
           message:
@@ -912,21 +890,6 @@ function AdminPageContent() {
           </section>
         )}
 
-        {feedback && (
-          <div className={styles.toast} data-tone={feedback.tone} role="status" aria-live="polite">
-            <span className={styles.toastIcon}>
-              {feedback.tone === "progress" ? <LoaderCircle size={17} /> :
-               feedback.tone === "success" ? <CircleCheck size={17} /> :
-               feedback.tone === "error" ? <TriangleAlert size={17} /> :
-               <Info size={17} />}
-            </span>
-            <div>
-              <strong>{feedback.title}</strong>
-              <span>{feedback.message}</span>
-            </div>
-            {feedback.tone !== "progress" && <button type="button" onClick={() => setFeedback(null)} aria-label="Fechar aviso">×</button>}
-          </div>
-        )}
 
         {tab === "catalogo" ? (
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogAdmin /></section>

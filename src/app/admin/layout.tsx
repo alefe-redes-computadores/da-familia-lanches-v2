@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/manrope";
 import "./admin-ui.css";
 import { AdminPwa } from "@/components/admin/AdminPwa";
+import { AdminExperienceProvider } from "@/components/admin/ui/AdminExperienceProvider";
+import "@/components/admin/ui/admin-foundation.css";
 
 export const metadata: Metadata = {
   title: "DFL Admin",
@@ -49,5 +51,12 @@ export default function AdminLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <div data-admin-ui><AdminPwa />{children}</div>;
+  return (
+    <div data-admin-ui>
+      <AdminExperienceProvider>
+        <AdminPwa />
+        {children}
+      </AdminExperienceProvider>
+    </div>
+  );
 }

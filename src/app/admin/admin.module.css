@@ -2273,3 +2273,15 @@
     font-size:30px!important;
   }
 }
+
+
+/* DFL ADMIN V35 — FOUNDATION LOCAL CONTRACT */
+.page{min-height:100dvh}
+.workspace{padding-bottom:max(64px,calc(env(safe-area-inset-bottom,0px) + 28px))}
+.page button{min-height:44px}
+.page input,.page select,.page textarea{min-height:48px}
+.sectionHeading p,.queueHead p,.managementHubHead small,.operationHero small,.metricCard small,.empty span,.historyMessage,.historyEnd{font-size:12px;line-height:1.45}
+@media(max-width:479px){.workspace{padding-left:12px;padding-right:12px}}
+@media(min-width:480px) and (max-width:899px){.workspace{padding-left:16px;padding-right:16px}}
+@media(min-width:900px) and (max-width:1279px){.workspace{padding-left:20px;padding-right:20px}}
+@media(min-width:1280px){.workspace{padding-left:24px;padding-right:24px}}

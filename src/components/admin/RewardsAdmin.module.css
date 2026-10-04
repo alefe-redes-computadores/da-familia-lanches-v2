@@ -44,3 +44,170 @@
 .notice{margin-top:12px!important;padding:12px!important}.notice strong{font-size:10px!important}.notice p{font-size:9px!important;line-height:1.5!important}.save{min-height:48px!important;margin-top:12px!important}
 @media(max-width:620px){.statusCard{gap:12px!important}.statusCard button{width:100%!important}.grid{grid-template-columns:1fr 1fr!important}.grid label:first-child,.grid label:nth-child(2){grid-column:auto!important}.card textarea{min-height:86px!important}}
 @media(max-width:390px){.grid{grid-template-columns:1fr!important}}
+
+
+/* ============================================================
+   DFL ADMIN V36 — MODULE EXPERIENCE AUTHORITY
+   Lapidação final sobre a fundação V35.
+   ============================================================ */
+
+.wrap,
+.root,
+.card,
+.editor,
+.listCard,
+.statusCard,
+.panel,
+.section {
+  color: var(--admin-text) !important;
+}
+
+.card,
+.editor,
+.listCard,
+.statusCard,
+.panel,
+.section {
+  border-color: var(--admin-line) !important;
+  background: linear-gradient(145deg, var(--admin-surface-raised), var(--admin-surface)) !important;
+  box-shadow: 0 14px 36px rgba(0,0,0,.20) !important;
+}
+
+.card input,
+.card select,
+.card textarea,
+.editor input,
+.editor select,
+.editor textarea,
+.listCard input,
+.listCard select,
+.wrap input,
+.wrap select,
+.wrap textarea,
+.root input,
+.root select,
+.root textarea {
+  min-height: 48px !important;
+  font-size: 15px !important;
+  border-color: var(--admin-line) !important;
+  background: #0c1218 !important;
+  color: var(--admin-text) !important;
+}
+
+.card textarea,
+.editor textarea,
+.wrap textarea,
+.root textarea {
+  min-height: 96px !important;
+}
+
+.card label > span,
+.editor label > span,
+.wrap label > span,
+.root label > span {
+  color: var(--admin-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+
+.card small,
+.editor small,
+.listCard small,
+.wrap small,
+.root small {
+  color: var(--admin-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+}
+
+.card button,
+.editor button,
+.listCard button,
+.wrap button,
+.root button {
+  min-height: 44px;
+}
+
+.feedback,
+.msg {
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+  width: auto !important;
+  margin: 10px 0 0 !important;
+  border: 1px solid var(--admin-line) !important;
+  border-radius: 13px !important;
+  background: var(--admin-surface-strong) !important;
+  color: var(--admin-text-secondary) !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+}
+
+.primary,
+.save {
+  min-height: 48px !important;
+  border-radius: 13px !important;
+}
+
+.searchBox {
+  min-width: 0 !important;
+}
+
+.toolbar,
+.listHeader,
+.head,
+.heading {
+  gap: 10px !important;
+}
+
+@media (max-width: 479px) {
+  .card,
+  .editor,
+  .listCard,
+  .statusCard,
+  .panel,
+  .section {
+    border-radius: 17px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .grid,
+  .topGrid,
+  .settings,
+  .addFields {
+    grid-template-columns: 1fr !important;
+  }
+
+  .toolbar,
+  .listHeader,
+  .head,
+  .heading {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .toolbar button,
+  .listHeader button,
+  .head button,
+  .heading button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 899px) {
+  .grid,
+  .topGrid,
+  .settings {
+    gap: 10px !important;
+  }
+}
+
+@media (min-width: 900px) {
+  .card,
+  .editor,
+  .listCard,
+  .statusCard {
+    border-radius: 20px !important;
+  }
+}

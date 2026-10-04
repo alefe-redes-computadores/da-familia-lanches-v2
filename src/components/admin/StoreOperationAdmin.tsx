@@ -4,15 +4,21 @@ import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,type StoreException,type 
 import styles from"./StoreOperationAdmin.module.css";
 import { haptic } from "@/lib/haptics";
 import{useAdminStoreSettings}from"@/hooks/useAdminStoreSettings";
-export function StoreOperationAdmin(){const{settings:liveSettings,ready}=useAdminStoreSettings();const[s,setS]=useState<StoreSettings>(liveSettings),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
+import{useAdminConfirm}from"@/components/admin/ui/AdminExperienceProvider";
+export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{settings:liveSettings,ready}=useAdminStoreSettings();const[s,setS]=useState<StoreSettings>(liveSettings),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
  const[ex,setEx]=useState<StoreException>({date:"",closed:true,label:""});useEffect(()=>{if(ready)setS(liveSettings)},[ready,liveSettings]);
  const current=useMemo(()=>evaluateStoreStatus(s),[s]);const save=async(next:StoreSettings,text:string)=>{setBusy(true);try{await setDoc(doc(db,"settings","loja"),{...next,updatedAt:serverTimestamp()},{merge:true});setS(next);setMsg(text);haptic("success")}catch(e){console.error(e);setMsg("Falha ao salvar funcionamento.");haptic("error")}finally{setBusy(false)}};
- const mode=(m:StoreMode)=>{
+ const mode=async(m:StoreMode)=>{
   if(m===s.mode)return;
   const risky=m==="force_open"||m==="force_closed";
   if(risky){
-   const action=m==="force_open"?"abrir a loja ignorando a agenda":"fechar a loja temporariamente";
-   if(!window.confirm(`Confirmar: ${action}?\n\nO controle manual ficará ativo até você voltar para Automático.`))return;
+   const approved=await confirm({
+    title:m==="force_open"?"Abrir a loja manualmente?":"Fechar a loja manualmente?",
+    message:"O controle manual ficará ativo até você voltar para Automático.",
+    confirmLabel:m==="force_open"?"Abrir loja":"Fechar loja",
+    tone:m==="force_closed"?"danger":"warning",
+   });
+   if(!approved)return;
   }
   void save({...s,mode:m},m==="auto"?"Modo automático ativado.":m==="force_open"?"Loja forçada como aberta.":m==="test_open"?"Modo de teste ativado. Só os e-mails liberados fazem pedido imediato.":"Loja forçada como fechada.");
  };
@@ -25,7 +31,7 @@ export function StoreOperationAdmin(){const{settings:liveSettings,ready}=useAdmi
  return<section className={styles.root}>
   <div className={styles.current} data-open={current.isOpen}><div><span>ESTADO EFETIVO</span><strong>{current.isOpen?"Loja aberta":"Loja fechada"}</strong><small>{current.message}</small></div><b>{current.source==="manual"?"MANUAL":current.source==="exception"?"EXCEÇÃO":"AUTOMÁTICO"}</b></div>
   <div className={styles.block}><header><div><span>CONTROLE</span><strong>Modo de funcionamento</strong></div><p>O modo manual tem prioridade sobre a agenda.</p></header><div className={styles.modes}>
-   {([["auto","Automático","Segue os horários",Bot],["force_open","Forçar aberto","Ignora a agenda",DoorOpen],["force_closed","Forçar fechado","Fecha temporariamente",DoorClosed],["test_open","Aberto para teste","Só e-mails liberados",FlaskConical]]as const).map(([m,t,c,Icon])=><button key={m} data-active={s.mode===m} disabled={busy} onClick={()=>{haptic("step");mode(m)}}><i><Icon size={17}/></i><span><strong>{t}</strong><small>{c}</small></span></button>)}
+   {([["auto","Automático","Segue os horários",Bot],["force_open","Forçar aberto","Ignora a agenda",DoorOpen],["force_closed","Forçar fechado","Fecha temporariamente",DoorClosed],["test_open","Aberto para teste","Só e-mails liberados",FlaskConical]]as const).map(([m,t,c,Icon])=><button key={m} data-active={s.mode===m} disabled={busy} onClick={()=>{haptic("step");void mode(m)}}><i><Icon size={17}/></i><span><strong>{t}</strong><small>{c}</small></span></button>)}
   </div>{s.mode==="test_open"&&<div className={styles.testAccess}>
    <div className={styles.testTitle}>E-mails liberados para pedido imediato</div>
    <div className={styles.testForm}><input type="email" value={testEmail} onChange={e=>setTestEmail(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addTestEmail()}}} placeholder="email@exemplo.com" className={styles.testInput}/><button disabled={busy} onClick={addTestEmail} className={styles.testAdd}>Liberar</button></div>

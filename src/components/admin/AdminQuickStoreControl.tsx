@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { haptic } from "@/lib/haptics";
 import type { StoreMode, StoreSettings } from "@/lib/storeSchedule";
 import styles from "./AdminQuickStoreControl.module.css";
+import { useAdminConfirm } from "@/components/admin/ui/AdminExperienceProvider";
 
 const MODES: Array<{ mode: StoreMode; title: string; description: string; icon: typeof Bot }> = [
   { mode: "auto", title: "Automático", description: "Segue agenda e exceções", icon: Bot },
@@ -18,6 +19,7 @@ const MODES: Array<{ mode: StoreMode; title: string; description: string; icon: 
 export function AdminQuickStoreControl({ open, settings, stateLabel, stateDetail, onClose, onOpenFull }:{
   open:boolean; settings:StoreSettings; stateLabel:string; stateDetail:string; onClose:()=>void; onOpenFull:()=>void;
 }) {
+  const confirm = useAdminConfirm();
   const [busy,setBusy]=useState<StoreMode|null>(null);
   const [message,setMessage]=useState("");
 
@@ -34,11 +36,17 @@ export function AdminQuickStoreControl({ open, settings, stateLabel, stateDetail
 
   const choose=async(mode:StoreMode)=>{
     if(busy||settings.mode===mode)return;
-    if((mode==="force_open"||mode==="force_closed")&&!window.confirm(
-      mode==="force_open"
-        ?"Abrir a loja ignorando a agenda até voltar ao modo Automático?"
-        :"Fechar a loja temporariamente até voltar ao modo Automático?"
-    ))return;
+    if(mode==="force_open"||mode==="force_closed"){
+      const approved=await confirm({
+        title:mode==="force_open"?"Abrir a loja agora?":"Fechar a loja agora?",
+        message:mode==="force_open"
+          ?"A agenda será ignorada até você voltar ao modo Automático."
+          :"A loja ficará fechada manualmente até você voltar ao modo Automático.",
+        confirmLabel:mode==="force_open"?"Abrir loja":"Fechar loja",
+        tone:mode==="force_closed"?"danger":"warning",
+      });
+      if(!approved)return;
+    }
 
     setBusy(mode);setMessage("");haptic("step");
     try{
