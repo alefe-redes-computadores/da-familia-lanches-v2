@@ -475,3 +475,175 @@
 .productGroup summary>svg{transition:transform .18s ease;color:#6f7b86}.productGroup[open] summary>svg{transform:rotate(180deg)}
 .actions button{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important}
 @media(max-width:760px){.metrics{display:flex!important;overflow-x:auto!important;scroll-snap-type:x proximity!important}.metrics>*{min-width:135px!important;scroll-snap-align:start!important}.viewTabs{margin-inline:-1px!important}.catalogTools{padding:10px!important}.summaryActions button{min-height:46px!important}}
+
+
+/* ============================================================
+   V34.3 R1 — CATALOG RESPONSIVE AUTHORITY
+   ============================================================ */
+
+@media(max-width:620px){
+
+  .summary{
+    gap:14px!important;
+    padding:15px!important;
+  }
+
+  .summaryCopy strong{
+    font-size:22px!important;
+    line-height:1.12!important;
+  }
+
+  .summaryCopy p{
+    font-size:9px!important;
+    line-height:1.4!important;
+  }
+
+  .metrics{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+    overflow:visible!important;
+  }
+
+  .metrics>div{
+    min-width:0!important;
+    min-height:72px!important;
+    padding:11px 12px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+  }
+
+  .metrics span{
+    display:block!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    white-space:normal!important;
+    font-size:8px!important;
+    line-height:1.25!important;
+    letter-spacing:.055em!important;
+  }
+
+  .metrics strong{
+    margin-top:5px!important;
+    font-size:20px!important;
+    line-height:1!important;
+  }
+
+  .viewTabs{
+    display:flex!important;
+    gap:4px!important;
+    overflow-x:auto!important;
+    scroll-snap-type:x proximity!important;
+    scrollbar-width:none!important;
+  }
+
+  .viewTabs::-webkit-scrollbar{
+    display:none!important;
+  }
+
+  .viewTabs button{
+    flex:0 0 auto!important;
+    min-width:max-content!important;
+    min-height:42px!important;
+    padding-inline:14px!important;
+    scroll-snap-align:start!important;
+  }
+
+  .catalogTools{
+    gap:7px!important;
+    padding:9px!important;
+  }
+
+  .searchWrap{
+    min-height:56px!important;
+    padding:8px 11px!important;
+  }
+
+  .searchWrap input{
+    font-size:16px!important;
+  }
+
+  .choiceButton{
+    min-height:52px!important;
+  }
+
+  .productGroups{
+    gap:8px!important;
+  }
+
+  .productGroup{
+    border-radius:16px!important;
+  }
+
+  .productGroup summary{
+    min-height:66px!important;
+    padding:12px 13px!important;
+    align-items:center!important;
+    gap:10px!important;
+  }
+
+  .productGroup summary>div{
+    min-width:0!important;
+  }
+
+  .productGroup summary>div span{
+    font-size:8px!important;
+    letter-spacing:.1em!important;
+  }
+
+  .productGroup summary>div strong{
+    margin-top:3px!important;
+    font-size:16px!important;
+    line-height:1.1!important;
+  }
+
+  .productGroup summary>b{
+    flex:0 0 auto!important;
+    font-size:9px!important;
+    font-weight:750!important;
+    color:#8f99a3!important;
+  }
+
+  .productGroup summary>svg{
+    flex:0 0 16px!important;
+  }
+}
+
+@media(max-width:390px){
+
+  .summaryActions{
+    gap:6px!important;
+  }
+
+  .summaryActions button{
+    padding-inline:9px!important;
+    font-size:9px!important;
+  }
+
+  .metrics>div{
+    min-height:66px!important;
+    padding:10px!important;
+  }
+
+  .metrics span{
+    font-size:7.5px!important;
+  }
+
+  .metrics strong{
+    font-size:18px!important;
+  }
+
+  .viewTabs button{
+    padding-inline:12px!important;
+    font-size:9px!important;
+  }
+
+  .productGroup summary{
+    padding:11px!important;
+  }
+
+  .productGroup summary>div strong{
+    font-size:15px!important;
+  }
+}

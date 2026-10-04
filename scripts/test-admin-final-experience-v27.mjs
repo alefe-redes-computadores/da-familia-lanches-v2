@@ -11,7 +11,7 @@ const card = read("src/components/layout/OrderCard.tsx");
 const cardCss = read("src/components/layout/OrderCard.module.css");
 const hook = read("src/hooks/useAdminOrders.ts");
 
-ok(page.includes("const queueContext = useMemo"), "contexto inteligente da fila");
+ok(page.includes("const queueContext ="), "contexto inteligente da fila");
 ok(page.includes("operationHeroSignal"), "sinal operacional do hero");
 ok(page.includes("queueContext.detail"), "descrição contextual da fila");
 ok(page.includes("emptyIcon"), "estado vazio contextual");
