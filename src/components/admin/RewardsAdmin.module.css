@@ -35,3 +35,12 @@
 
 /* V33 — REWARDS REBUILD */
 .wrap{gap:14px!important}.statusCard,.card{border:1px solid rgba(148,163,184,.14)!important;border-radius:20px!important;background:linear-gradient(145deg,#10171f,#0b1016)!important;box-shadow:0 16px 38px rgba(0,0,0,.24)!important;padding:17px!important}.statusCard[data-active=true]{border-color:rgba(54,216,135,.26)!important}.statusCard strong{display:flex!important;align-items:center!important;gap:8px!important;font-size:21px!important}.statusCard button,.save{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;min-height:46px!important}.grid{gap:10px!important}.notice{border-radius:15px!important;border-left:3px solid #ffc928!important;background:rgba(255,201,40,.055)!important}.save{width:100%!important}@media(max-width:620px){.statusCard{align-items:flex-start!important;flex-direction:column!important}.statusCard button{width:100%!important}.grid{grid-template-columns:1fr!important}}
+
+
+/* V34.1 — REWARDS VISUAL QA */
+.statusCard{padding:15px!important}.statusCard strong{font-size:19px!important}.statusCard p{font-size:10px!important;line-height:1.45!important}.statusCard button{min-height:42px!important;padding-inline:18px!important}
+.card{padding:15px!important}.card>label{display:grid!important;gap:6px!important;margin-bottom:10px!important}.card label>span{font-size:9px!important}.card textarea{min-height:92px!important}
+.grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important}.grid label{display:grid!important;gap:6px!important}.grid input,.grid select{min-height:48px!important}
+.notice{margin-top:12px!important;padding:12px!important}.notice strong{font-size:10px!important}.notice p{font-size:9px!important;line-height:1.5!important}.save{min-height:48px!important;margin-top:12px!important}
+@media(max-width:620px){.statusCard{gap:12px!important}.statusCard button{width:100%!important}.grid{grid-template-columns:1fr 1fr!important}.grid label:first-child,.grid label:nth-child(2){grid-column:auto!important}.card textarea{min-height:86px!important}}
+@media(max-width:390px){.grid{grid-template-columns:1fr!important}}

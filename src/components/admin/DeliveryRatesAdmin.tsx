@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Pencil, Check, Trash2, Plus, Save, MapPin } from "lucide-react";
-import { haptic } from "@/lib/haptics";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { Check, MapPin, Pencil, Plus, Save, Search, Trash2 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { getDefaultDeliveryFee, SAFE_DEFAULT_DELIVERY_FEE, type DeliveryRate } from "@/lib/deliveryRates";
+import { haptic } from "@/lib/haptics";
 import styles from "./DeliveryRatesAdmin.module.css";
 
 type EditableRate = DeliveryRate & { _key: string };
+
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
 const parseMoney = (value: string | number | undefined) => {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   const raw = String(value ?? "").trim();
@@ -22,6 +24,7 @@ const parseMoney = (value: string | number | undefined) => {
 
 const moneyDraft = (value: string | number | undefined) =>
   parseMoney(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const moneyTyping = (value: string) => {
   const digits = value.replace(/\D/g, "").slice(0, 10);
   return digits ? (Number(digits) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
@@ -29,10 +32,10 @@ const moneyTyping = (value: string) => {
 
 export function DeliveryRatesAdmin() {
   const [rates, setRates] = useState<EditableRate[]>([]);
-  const [defaultFee, setDefaultFee] = useState(String(SAFE_DEFAULT_DELIVERY_FEE).replace(".", ","));
+  const [defaultFee, setDefaultFee] = useState(moneyDraft(SAFE_DEFAULT_DELIVERY_FEE));
   const [search, setSearch] = useState("");
   const [newName, setNewName] = useState("");
-  const [newFee, setNewFee] = useState("");
+  const [newFee, setNewFee] = useState("0,00");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -75,11 +78,13 @@ export function DeliveryRatesAdmin() {
     if (removeConfirmKey !== key) {
       setRemoveConfirmKey(key);
       setMessage(`Toque novamente em excluir para remover ${name}.`);
+      haptic("step");
       return;
     }
     setRates((current) => current.filter((item) => item._key !== key));
     setRemoveConfirmKey("");
     setMessage(`${name} removido da edição. Salve para publicar.`);
+    haptic("success");
   };
 
   const addRate = () => {
@@ -88,19 +93,28 @@ export function DeliveryRatesAdmin() {
     if (!name) return setMessage("Informe o nome do bairro.");
     if (rates.some((item) => normalize(String(item.nome ?? "")) === normalize(name))) return setMessage("Esse bairro já está cadastrado.");
     setRates((current) => [...current, { nome: name, taxa: fee, _key: `new-${Date.now()}` }]);
-    setNewName(""); setNewFee(""); setMessage("Bairro adicionado à edição. Salve para publicar.");
+    setNewName("");
+    setNewFee("0,00");
+    setMessage("Bairro adicionado à edição. Salve para publicar.");
+    haptic("success");
   };
 
   const save = async () => {
-    const clean = rates.map(({ _key, ...item }) => ({ ...item, nome: String(item.nome ?? "").trim(), taxa: parseMoney(item.taxa) })).filter((item) => item.nome);
+    const clean = rates
+      .map(({ _key, ...item }) => ({ ...item, nome: String(item.nome ?? "").trim(), taxa: parseMoney(item.taxa) }))
+      .filter((item) => item.nome);
+
     const seen = new Set<string>();
     for (const item of clean) {
       const key = normalize(item.nome || "");
       if (seen.has(key)) return setMessage(`Bairro duplicado: ${item.nome}.`);
       seen.add(key);
     }
+
     const fallback = parseMoney(defaultFee);
-    setSaving(true); setMessage("");
+    setSaving(true);
+    setMessage("");
+
     try {
       await Promise.all([
         setDoc(doc(db, "TaxasDeEntrega", "bairros", "lista", "tabela"), { data: clean, updatedAt: serverTimestamp() }, { merge: true }),
@@ -114,19 +128,71 @@ export function DeliveryRatesAdmin() {
       console.error("Erro ao salvar taxas", error);
       setMessage("Não foi possível salvar as taxas.");
       haptic("error");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   return <section className={styles.card}>
-    <div className={styles.head}><div><span>TAXAS DE ENTREGA</span><strong>Bairros e valores</strong><p>Edite apenas o que precisar. Valores são formatados em real.</p></div><b>{rates.length}</b></div>
-    <div className={styles.topGrid}>
-      <label className={styles.fallback}><span>Taxa padrão</span><div className={styles.moneyInput}><i>R$</i><input inputMode="decimal" value={defaultFee} onChange={(e)=>setDefaultFee(moneyTyping(e.target.value))} onBlur={()=>setDefaultFee(moneyDraft(defaultFee))}/></div><small>Fallback quando o bairro não for localizado.</small></label>
-      <div className={styles.health} data-warning={invalidCount>0}><span>Qualidade</span><strong>{invalidCount?`${invalidCount} para revisar`:"Tabela saudável"}</strong><small>{invalidCount?"Corrija antes de publicar.":"Nenhum problema encontrado."}</small></div>
+    <div className={styles.head}>
+      <div><span>TAXAS DE ENTREGA</span><strong>Bairros e valores</strong><p>Edite apenas o que precisar. Valores são formatados em real.</p></div>
+      <b>{rates.length}</b>
     </div>
-    <div className={styles.toolbar}>{(searchOpen || search) ? <input autoFocus value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar bairro" onBlur={()=>!search&&setSearchOpen(false)}/> : <button type="button" className={styles.searchTrigger} onClick={()=>setSearchOpen(true)}><Search size={15}/>Buscar bairro</button>}<span>{sorted.length} de {rates.length}</span></div>
-    {loading?<div className={styles.empty}>Carregando tabela…</div>:<div className={styles.list}>{sorted.map(item=>{const editing=editingKey===item._key;return <div className={styles.row} data-editing={editing} key={item._key}>{editing?<><input className={styles.name} value={String(item.nome??"")} onChange={(e)=>updateRate(item._key,{nome:e.target.value})}/><div className={styles.rate}><span>R$</span><input inputMode="decimal" value={typeof item.taxa==="string"?item.taxa:moneyDraft(item.taxa)} onChange={(e)=>updateRate(item._key,{taxa:moneyTyping(e.target.value)})} onBlur={()=>updateRate(item._key,{taxa:moneyDraft(item.taxa)})}/></div><div className={styles.rowActions}><button type="button" className={styles.done} onClick={()=>{setEditingKey("");setRemoveConfirmKey("")}}><Check size={14}/>Pronto</button><button type="button" className={styles.remove} data-confirm={removeConfirmKey===item._key} onClick={()=>removeRate(item._key,String(item.nome??"Bairro"))}>{removeConfirmKey===item._key?"Confirmar":<><Trash2 size={14}/>Excluir</>}</button></div></>:<button type="button" className={styles.rateView} onClick={()=>{setEditingKey(item._key);setRemoveConfirmKey("")}}><strong>{String(item.nome??"Bairro")}</strong><b>{money(parseMoney(item.taxa))}</b><span><Pencil size={13}/>Editar</span></button>}</div>})}{!sorted.length&&<div className={styles.empty}>Nenhum bairro encontrado.</div>}</div>}
-    <div className={styles.add}><div><span>NOVO BAIRRO</span><strong><MapPin size={16}/>Adicionar taxa</strong></div><div className={styles.addFields}><input value={newName} onChange={(e)=>setNewName(e.target.value)} placeholder="Nome do bairro"/><div className={styles.rate}><span>R$</span><input inputMode="decimal" value={newFee} onChange={(e)=>setNewFee(moneyTyping(e.target.value))} onBlur={()=>newFee&&setNewFee(moneyDraft(newFee))} placeholder="0,00"/></div><button type="button" onClick={() => { haptic("step"); addRate(); }}><Plus size={15}/>Adicionar</button></div></div>
-    {message&&<div className={styles.feedback}>{message}</div>}
-    <button type="button" className={styles.save} disabled={saving||loading} onClick={()=>void save()}>{saving?"Publicando…":<><Save size={15}/>{`Publicar alterações · ${money(parseMoney(defaultFee))} padrão`}</>}</button>
+
+    <div className={styles.topGrid}>
+      <label className={styles.fallback}>
+        <span>Taxa padrão</span>
+        <div className={styles.moneyInput}><b>R$</b><input inputMode="decimal" value={defaultFee} onChange={(e) => setDefaultFee(moneyTyping(e.target.value))} onBlur={() => setDefaultFee(moneyDraft(defaultFee))}/></div>
+        <small>Fallback quando o bairro não for localizado.</small>
+      </label>
+      <div className={styles.health} data-warning={invalidCount > 0}>
+        <span>Qualidade</span><strong>{invalidCount ? `${invalidCount} para revisar` : "Tabela saudável"}</strong><small>{invalidCount ? "Corrija antes de publicar." : "Nenhum problema encontrado."}</small>
+      </div>
+    </div>
+
+    <div className={styles.toolbar}>
+      {(searchOpen || search)
+        ? <label className={styles.searchBox}><Search size={15}/><input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar bairro" onBlur={() => !search && setSearchOpen(false)}/></label>
+        : <button type="button" className={styles.searchTrigger} onClick={() => { haptic("step"); setSearchOpen(true); }}><Search size={15}/>Buscar bairro</button>}
+      <span>{sorted.length} de {rates.length}</span>
+    </div>
+
+    {loading
+      ? <div className={styles.empty}>Carregando tabela…</div>
+      : <div className={styles.list}>
+          {sorted.map((item) => {
+            const editing = editingKey === item._key;
+            return <div className={styles.row} data-editing={editing} key={item._key}>
+              {editing
+                ? <>
+                    <input className={styles.name} value={String(item.nome ?? "")} onChange={(e) => updateRate(item._key, { nome: e.target.value })}/>
+                    <div className={styles.rate}><b>R$</b><input inputMode="decimal" value={typeof item.taxa === "string" ? item.taxa : moneyDraft(item.taxa)} onChange={(e) => updateRate(item._key, { taxa: moneyTyping(e.target.value) })} onBlur={() => updateRate(item._key, { taxa: moneyDraft(item.taxa) })}/></div>
+                    <div className={styles.rowActions}>
+                      <button type="button" className={styles.done} onClick={() => { haptic("step"); setEditingKey(""); setRemoveConfirmKey(""); }}><Check size={14}/>Pronto</button>
+                      <button type="button" className={styles.remove} data-confirm={removeConfirmKey === item._key} onClick={() => removeRate(item._key, String(item.nome ?? "Bairro"))}>{removeConfirmKey === item._key ? "Confirmar" : <><Trash2 size={14}/>Excluir</>}</button>
+                    </div>
+                  </>
+                : <button type="button" className={styles.rateView} onClick={() => { haptic("step"); setEditingKey(item._key); setRemoveConfirmKey(""); }}>
+                    <strong>{String(item.nome ?? "Bairro")}</strong><b>{money(parseMoney(item.taxa))}</b><span><Pencil size={13}/>Editar</span>
+                  </button>}
+            </div>;
+          })}
+          {!sorted.length && <div className={styles.empty}>Nenhum bairro encontrado.</div>}
+        </div>}
+
+    <div className={styles.add}>
+      <div><span>NOVO BAIRRO</span><strong><MapPin size={16}/>Adicionar taxa</strong></div>
+      <div className={styles.addFields}>
+        <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome do bairro"/>
+        <div className={styles.rate}><b>R$</b><input inputMode="decimal" value={newFee} onChange={(e) => setNewFee(moneyTyping(e.target.value))} onBlur={() => setNewFee(moneyDraft(newFee))} placeholder="0,00"/></div>
+        <button type="button" onClick={addRate}><Plus size={15}/>Adicionar</button>
+      </div>
+    </div>
+
+    {message && <div className={styles.feedback}>{message}</div>}
+
+    <button type="button" className={styles.save} disabled={saving || loading} onClick={() => void save()}>
+      {saving ? "Publicando…" : <><Save size={15}/>{`Publicar alterações · ${money(parseMoney(defaultFee))} padrão`}</>}
+    </button>
   </section>;
 }

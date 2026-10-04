@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Plus, Search, ChevronDown, X, Pencil, Pause, Play } from "lucide-react";
 import { deleteDoc, deleteField, doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { type Product, type ProductCategory } from "@/data/products";
@@ -64,13 +65,13 @@ function ChoicePicker<T extends string>({ label, value, options, onChange }: {
 
   return <>
     <button type="button" className={styles.choiceButton} onClick={() => setOpen(true)}>
-      <span>{label}</span><strong>{selected}</strong><i>v</i>
+      <span>{label}</span><strong>{selected}</strong><ChevronDown size={15}/>
     </button>
     {open && <div className={styles.choiceOverlay} onMouseDown={(event) => {
       if (event.target === event.currentTarget) setOpen(false);
     }}>
       <section className={styles.choiceSheet}>
-        <div className={styles.choiceHead}><div><span>SELECIONE</span><strong>{label}</strong></div><button type="button" onClick={() => setOpen(false)}>×</button></div>
+        <div className={styles.choiceHead}><div><span>SELECIONE</span><strong>{label}</strong></div><button type="button" onClick={() => setOpen(false)} aria-label="Fechar"><X size={16}/></button></div>
         <div className={styles.choiceList}>
           {options.map((option) => <button type="button" key={option.value} data-active={option.value === value} onClick={() => {
             onChange(option.value);
@@ -395,9 +396,9 @@ export function CatalogAdmin() {
         <small>{source === "hybrid" ? "Nuvem operacional" : "Fallback local"} · {remoteAddons} adicionais · {remoteCategories} categorias remotas</small>
       </div>
       <div className={styles.summaryActions}>
-        <button className={styles.mainAction} onClick={openCreateProduct}>+ Produto</button>
-        <button className={styles.secondaryAction} onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}>+ Categoria</button>
-        <button className={styles.secondaryAction} onClick={openCreateAddon}>+ Adicional</button>
+        <button className={styles.mainAction} onClick={openCreateProduct}><Plus size={16}/>Produto</button>
+        <button className={styles.secondaryAction} onClick={() => setCategoryDraft({ id: "", label: "", mode: "create" })}><Plus size={16}/>Categoria</button>
+        <button className={styles.secondaryAction} onClick={openCreateAddon}><Plus size={16}/>Adicional</button>
       </div>
     </section>
 
@@ -417,7 +418,7 @@ export function CatalogAdmin() {
     </nav>
     {view === "produtos" && <>
     <section className={styles.catalogTools}>
-      <div className={styles.searchWrap}><span>BUSCAR</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, descrição ou ID" /></div>
+      <div className={styles.searchWrap}><Search size={17}/><div><span>BUSCAR</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, descrição ou ID" /></div></div>
       <ChoicePicker label="Categoria" value={categoryFilter} onChange={setCategoryFilter} options={[
         { value: "all", label: "Todas as categorias" },
         ...categoryOptions,
@@ -436,7 +437,7 @@ export function CatalogAdmin() {
 
     <div className={styles.productGroups}>
       {groupedProducts.map((group) => <details className={styles.productGroup} key={group.categoryId} open={Boolean(search || categoryFilter !== "all" || availabilityFilter !== "all")}>
-        <summary><div><span>CATEGORIA</span><strong>{group.label}</strong></div><b>{group.items.length} produto{group.items.length===1?"":"s"}</b><i>⌄</i></summary>
+        <summary><div><span>CATEGORIA</span><strong>{group.label}</strong></div><b>{group.items.length} produto{group.items.length===1?"":"s"}</b><ChevronDown size={16}/></summary>
         <div className={styles.products}>
           {group.items.map((product) => <article className={styles.product} key={product.id} data-off={!product.disponivel}>
             <img src={product.image} alt="" />
@@ -446,8 +447,8 @@ export function CatalogAdmin() {
               <div className={styles.productBottom}><div className={styles.adminPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <small>{money(product.oldPrice)}</small>}<strong>{money(product.price)}</strong>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <b>-{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%</b>}</div><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
             </div>
             <div className={styles.actions}>
-              <button onClick={() => toggleProduct(product)} disabled={busy === `toggle-${product.id}`}>{product.disponivel ? "Pausar" : "Reativar"}</button>
-              <button className={styles.primary} onClick={() => openEditProduct(product)}>Editar</button>
+              <button onClick={() => toggleProduct(product)} disabled={busy === `toggle-${product.id}`}>{product.disponivel ? <><Pause size={14}/>Pausar</> : <><Play size={14}/>Reativar</>}</button>
+              <button className={styles.primary} onClick={() => openEditProduct(product)}><Pencil size={14}/>Editar</button>
             </div>
           </article>)}
         </div>

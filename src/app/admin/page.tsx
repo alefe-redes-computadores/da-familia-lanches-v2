@@ -883,12 +883,23 @@ export default function AdminPage() {
             </div>
             <div className={styles.managementNav}>
               {tabItems.filter(([key]) => ["operacao","catalogo","agendamentos","frete","cupons","fidelidade","gestao","cancelados"].includes(key)).map(([key,label]) => (
-                <button key={key} data-active={tab === key} onClick={() => { setTab(key); setAttentionOnly(false); }}>
+                <button key={key} data-active={tab === key} onClick={() => { haptic("step"); setTab(key); setAttentionOnly(false); }}>
+                  <AdminIcon name={key === "operacao" ? "store" : key === "agendamentos" ? "calendar" : key === "frete" ? "dispatch" : key === "gestao" ? "management" : key === "cancelados" ? "history" : "orders"} />
                   <span>{key === "operacao" ? "Loja" : key === "frete" ? "Entrega" : key === "gestao" ? "Saúde" : label}</span>
                   {key === "operacao" && <small>{storeState.label}</small>}
                   {key === "cancelados" && counts.cancelados > 0 && <small>{counts.cancelados}</small>}
                 </button>
               ))}
+              <button
+                type="button"
+                className={styles.managementNotifications}
+                data-attention={counts.attention > 0}
+                onClick={() => { haptic("step"); setNotificationCenterOpen(true); }}
+              >
+                <AdminIcon name="bell" />
+                <span>Notificações</span>
+                <small>{counts.attention > 0 ? `${counts.attention} atenção` : "Preferências"}</small>
+              </button>
             </div>
           </section>
         )}

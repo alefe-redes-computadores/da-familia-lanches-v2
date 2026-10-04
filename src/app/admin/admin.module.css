@@ -1665,3 +1665,18 @@
 .toastIcon{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:#182129;color:#8d9aa5}.toast[data-tone=success] .toastIcon{background:rgba(54,216,135,.12);color:#62e1a2}.toast[data-tone=error] .toastIcon{background:rgba(255,102,116,.12);color:#ff7e89}.toast[data-tone=info] .toastIcon{background:rgba(109,168,255,.12);color:#82b6ff}.toast[data-tone=progress] .toastIcon{background:rgba(255,201,40,.10);color:#ffd44a}.toast[data-tone=progress] .toastIcon svg{animation:v33ToastSpin .9s linear infinite}.toast>i{display:none!important}.toast strong{font-size:11px!important}.toast span:not(.toastIcon){font-size:9px!important;color:#89949f!important}.toast button{width:34px;height:34px;border:0!important;background:transparent!important;color:#77828d!important;font-size:18px!important}
 .metricCard{border-color:rgba(148,163,184,.12)!important;background:linear-gradient(145deg,#0f161d,#0b1015)!important;box-shadow:0 12px 30px rgba(0,0,0,.20)!important}.sectionHeading{border-radius:18px!important;background:linear-gradient(145deg,#0f161d,#0b1015)!important;border-color:rgba(148,163,184,.12)!important}
 @keyframes v33ToastSpin{to{transform:rotate(360deg)}}@media(max-width:820px){.toast{left:12px!important;right:12px!important;width:auto!important}.operationHero{border-radius:18px!important}.metricCard{border-radius:16px!important}}@media(prefers-reduced-motion:reduce){.toast[data-tone=progress] .toastIcon svg{animation:none}}
+
+
+/* ============================================================
+   V34.1 — VISUAL QA FINAL
+   ============================================================ */
+.mobileBell{display:grid!important;visibility:visible!important;opacity:1!important;background:#121920!important;border-color:rgba(255,255,255,.11)!important;color:#d8dee4!important}
+.mobileBell::after{content:"";position:absolute;inset:-4px;border:1px solid transparent;border-radius:16px}
+.managementNav{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important}
+.managementNav button{min-height:64px!important;display:grid!important;grid-template-columns:20px minmax(0,1fr)!important;grid-template-rows:auto auto!important;align-items:center!important;gap:2px 7px!important;padding:9px 10px!important;text-align:left!important;border-radius:14px!important}
+.managementNav button svg{grid-row:1/3;width:17px!important;height:17px!important;color:#77838e!important}
+.managementNav button span{font-size:9px!important}.managementNav button small{font-size:7px!important;color:#65717c!important}
+.managementNav button[data-active=true] svg,.managementNav button[data-attention=true] svg{color:#ffd44a!important}
+.managementNotifications{border-color:rgba(255,201,40,.13)!important}
+.managementNotifications[data-attention=true]{border-color:rgba(255,102,116,.24)!important;background:rgba(255,102,116,.06)!important}
+@media(max-width:560px){.managementNav{grid-template-columns:1fr 1fr!important}.managementNav button{min-height:58px!important}}

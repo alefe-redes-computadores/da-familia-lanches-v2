@@ -1,5 +1,5 @@
 "use client";
-import{useEffect,useMemo,useState}from"react";import{Save,Plus,Trash2}from"lucide-react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
+import{useEffect,useMemo,useState}from"react";import{Save,Plus,Trash2,Bot,DoorOpen,DoorClosed,FlaskConical}from"lucide-react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
 import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
 import styles from"./StoreOperationAdmin.module.css";
 import { haptic } from "@/lib/haptics";
@@ -25,7 +25,7 @@ export function StoreOperationAdmin(){const{settings:liveSettings,ready}=useAdmi
  return<section className={styles.root}>
   <div className={styles.current} data-open={current.isOpen}><div><span>ESTADO EFETIVO</span><strong>{current.isOpen?"Loja aberta":"Loja fechada"}</strong><small>{current.message}</small></div><b>{current.source==="manual"?"MANUAL":current.source==="exception"?"EXCEÇÃO":"AUTOMÁTICO"}</b></div>
   <div className={styles.block}><header><div><span>CONTROLE</span><strong>Modo de funcionamento</strong></div><p>O modo manual tem prioridade sobre a agenda.</p></header><div className={styles.modes}>
-   {([["auto","Automático","Segue os horários"],["force_open","Forçar aberto","Ignora a agenda"],["force_closed","Forçar fechado","Fecha temporariamente"],["test_open","Aberto para teste","Só e-mails liberados"]]as const).map(([m,t,c])=><button key={m} data-active={s.mode===m} disabled={busy} onClick={()=>mode(m)}><i/><span><strong>{t}</strong><small>{c}</small></span></button>)}
+   {([["auto","Automático","Segue os horários",Bot],["force_open","Forçar aberto","Ignora a agenda",DoorOpen],["force_closed","Forçar fechado","Fecha temporariamente",DoorClosed],["test_open","Aberto para teste","Só e-mails liberados",FlaskConical]]as const).map(([m,t,c,Icon])=><button key={m} data-active={s.mode===m} disabled={busy} onClick={()=>{haptic("step");mode(m)}}><i><Icon size={17}/></i><span><strong>{t}</strong><small>{c}</small></span></button>)}
   </div>{s.mode==="test_open"&&<div className={styles.testAccess}>
    <div className={styles.testTitle}>E-mails liberados para pedido imediato</div>
    <div className={styles.testForm}><input type="email" value={testEmail} onChange={e=>setTestEmail(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addTestEmail()}}} placeholder="email@exemplo.com" className={styles.testInput}/><button disabled={busy} onClick={addTestEmail} className={styles.testAdd}>Liberar</button></div>
