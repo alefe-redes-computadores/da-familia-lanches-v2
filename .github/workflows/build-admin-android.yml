@@ -63,6 +63,7 @@ jobs:
           node scripts/test-admin-hook-order-v34-1-r5.mjs
           node scripts/test-admin-mobile-polish-v34-2.mjs
           node scripts/test-admin-final-responsive-v34-3-r1.mjs
+          node scripts/test-admin-delivery-density-v34-4.mjs
           node node_modules/typescript/bin/tsc --noEmit
           git diff --check
 

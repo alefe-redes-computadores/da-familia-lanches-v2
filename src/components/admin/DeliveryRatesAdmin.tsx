@@ -173,7 +173,12 @@ export function DeliveryRatesAdmin() {
                     </div>
                   </>
                 : <button type="button" className={styles.rateView} onClick={() => { haptic("step"); setEditingKey(item._key); setRemoveConfirmKey(""); }}>
-                    <strong>{String(item.nome ?? "Bairro")}</strong><b>{money(parseMoney(item.taxa))}</b><span><Pencil size={13}/>Editar</span>
+                    <span className={styles.rateIdentity}>
+                      <strong>{String(item.nome ?? "Bairro")}</strong>
+                      <small>Taxa de entrega</small>
+                    </span>
+                    <b>{money(parseMoney(item.taxa))}</b>
+                    <span className={styles.editCue} aria-hidden="true"><Pencil size={13}/></span>
                   </button>}
             </div>;
           })}
