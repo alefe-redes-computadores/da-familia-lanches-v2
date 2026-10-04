@@ -32,3 +32,7 @@
     -webkit-tap-highlight-color:transparent;
   }
 }
+
+
+/* V33 — COUPONS REBUILD */
+.wrap{gap:14px!important}.editor,.listCard{border:1px solid rgba(148,163,184,.14)!important;border-radius:20px!important;background:linear-gradient(145deg,#0f161d,#0b1015)!important;box-shadow:0 16px 38px rgba(0,0,0,.24)!important}.editorHeader,.listHeader{padding:15px 16px!important}.editorHeader button,.searchTrigger,.actions button,.primary{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:7px!important}.editorBody{padding:0 16px 16px!important}.grid{gap:10px!important}.switchRow{border-radius:15px!important;background:#101820!important;border-color:rgba(148,163,184,.13)!important}.coupon{border-radius:16px!important;background:#10171e!important;border-color:rgba(148,163,184,.12)!important;padding:14px!important}.couponTop>div>span{border-radius:999px!important;padding:5px 9px!important;background:rgba(54,216,135,.10)!important;color:#62dda0!important}.couponTop>b{color:#d9c7ff!important}.actions{gap:7px!important}.actions button{min-height:42px!important;border-radius:11px!important}@media(max-width:620px){.grid{grid-template-columns:1fr!important}.listHeader{align-items:flex-start!important;gap:10px!important}.coupon{padding:13px!important}.actions{grid-template-columns:1fr 1fr!important}.actions button:last-child{grid-column:1/-1!important}}

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/manrope";
 import "./admin-ui.css";
 import { AdminPwa } from "@/components/admin/AdminPwa";
 

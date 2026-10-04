@@ -35,3 +35,7 @@
     -webkit-tap-highlight-color:transparent;
   }
 }
+
+
+/* V33 — DELIVERY RATES REBUILD */
+.card{border:1px solid rgba(148,163,184,.14)!important;border-radius:20px!important;background:linear-gradient(145deg,#0f161d,#0b1015)!important;padding:16px!important;box-shadow:0 16px 38px rgba(0,0,0,.24)!important}.head>div>strong,.add>div>strong{display:flex!important;align-items:center!important;gap:7px!important}.fallback,.health,.add{border-radius:16px!important;background:#10171e!important;border-color:rgba(148,163,184,.12)!important}.searchTrigger,.done,.remove,.addFields button,.save,.rateView span{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important}.list{border-radius:16px!important;border-color:rgba(148,163,184,.13)!important;background:#0b1015!important}.rateView{min-height:58px!important;padding:0 12px!important}.rateView span{color:#d9b642!important}.save{min-height:48px!important}@media(max-width:620px){.topGrid{grid-template-columns:1fr!important}.addFields{grid-template-columns:1fr minmax(105px,.5fr)!important}.addFields button{grid-column:1/-1!important;min-height:46px!important}.rateView{grid-template-columns:1fr auto!important}.rateView span{grid-column:1/-1!important;justify-content:flex-start!important}}

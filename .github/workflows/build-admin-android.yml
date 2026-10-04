@@ -53,6 +53,12 @@ jobs:
           node scripts/test-admin-release-v28.mjs
           node scripts/test-admin-native-push-bridge-v29.mjs
           node scripts/test-delivery-completion-catchup-v30.mjs
+          node scripts/test-admin-control-center-v31.mjs
+          node scripts/test-admin-inspector-v32.mjs
+          node scripts/test-lucide-standard-v32-2.mjs
+          node scripts/test-admin-visual-rebuild-v33.mjs
+          node scripts/test-admin-finishing-pass-v33-1.mjs
+          node scripts/test-admin-operational-inspector-v34.mjs
           node node_modules/typescript/bin/tsc --noEmit
           git diff --check
 

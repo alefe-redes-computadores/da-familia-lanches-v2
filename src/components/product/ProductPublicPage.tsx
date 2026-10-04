@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ArrowLeft, ChevronRight, Share2, ShoppingCart } from "lucide-react";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
 import { resolveBundleItems } from "@/lib/catalogComposition";
@@ -11,7 +12,6 @@ import { useCartStore } from "@/store/cart.store";
 import styles from "./ProductPublicPage.module.css";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const CartIcon = () => <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 10.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"/></svg>;
 import { getCommercialRecommendations } from "@/lib/commercialRecommendations";
 import { haptic } from "@/lib/haptics";
 
@@ -40,7 +40,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   };
 
   return <main className={styles.page}>
-    <nav className={styles.breadcrumb} aria-label="Navegação"><Link href="/"><span aria-hidden="true">←</span> Cardápio</Link><span>•</span><strong>{sectionLabel}</strong></nav>
+    <nav className={styles.breadcrumb} aria-label="Navegação"><Link href="/"><ArrowLeft size={16} /> Cardápio</Link><span>•</span><strong>{sectionLabel}</strong></nav>
     <section className={styles.hero}>
       <div className={styles.media}><img src={product.image} alt={product.name} />{hasDiscount && <b>-{Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100)}%</b>}{!available && <span>INDISPONÍVEL</span>}</div>
       <div className={styles.summary}>
@@ -50,12 +50,12 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
           {bundle.length ? <div className={styles.bundle}>{bundle.map((item) => <article key={item.key}><div><b>{item.quantity}×</b><strong>{item.product?.name || item.label}</strong>{item.note && <small>{item.note}</small>}</div>{item.product?.detailsItems?.length ? <ul>{item.product.detailsItems.map((detail) => <li key={detail}>{detail}</li>)}</ul> : null}</article>)}</div> : <ul className={styles.ingredients}>{product.detailsItems?.map((item) => <li key={item}>{item}</li>)}</ul>}
           {product.includedExtras && <p className={styles.included}><b>Acompanha:</b> {product.includedExtras}</p>}
         </section>}
-        <div className={styles.buyRow}><div className={styles.price}>{hasDiscount && <s>{money(product.oldPrice!)}</s>}<strong>{money(product.price)}</strong>{hasDiscount && <small>Economize {money(product.oldPrice! - product.price)}</small>}</div><button className={styles.share} onClick={share} aria-label="Compartilhar produto"><span aria-hidden="true">↗</span><span>{copied ? "Copiado" : "Compartilhar"}</span></button></div>
-        <button className={styles.primaryAction} disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><CartIcon /><span>{available ? "Personalizar e adicionar" : "Indisponível no momento"}</span><b>{available ? money(product.price) : ""}</b></button>
-        {inCart > 0 && <button className={styles.inCart} onClick={() => openModal("cart")}><span>{inCart} no carrinho</span><b>Ver pedido <span aria-hidden="true">›</span></b></button>}
+        <div className={styles.buyRow}><div className={styles.price}>{hasDiscount && <s>{money(product.oldPrice!)}</s>}<strong>{money(product.price)}</strong>{hasDiscount && <small>Economize {money(product.oldPrice! - product.price)}</small>}</div><button className={styles.share} onClick={share} aria-label="Compartilhar produto"><Share2 size={17} /><span>{copied ? "Copiado" : "Compartilhar"}</span></button></div>
+        <button className={styles.primaryAction} disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><ShoppingCart size={20} strokeWidth={2} /><span>{available ? "Personalizar e adicionar" : "Indisponível no momento"}</span><b>{available ? money(product.price) : ""}</b></button>
+        {inCart > 0 && <button className={styles.inCart} onClick={() => openModal("cart")}><span>{inCart} no carrinho</span><b>Ver pedido <ChevronRight size={15} /></b></button>}
       </div>
     </section>
     {related.length > 0 && <section className={styles.related}><div className={styles.relatedHead}><div><span>ESCOLHAS PARA O SEU PEDIDO</span><h2>Complete do seu jeito</h2><p>Sem repetir o que já vem neste item ou no seu carrinho.</p></div></div><div className={styles.relatedGrid}>{related.map((entry) => <Link href={productHref(entry.product)} key={entry.product.id}><img src={entry.product.image} alt="" /><span><small>{entry.eyebrow}</small><strong>{entry.product.name}</strong><em>{entry.reason}</em><b>{money(entry.product.price)} <span aria-hidden="true">›</span></b></span></Link>)}</div></section>}
-    <div className={styles.mobileAction}><button disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><CartIcon /><span>{available ? "Adicionar ao carrinho" : "Indisponível"}</span>{available && <b>{money(product.price)}</b>}</button></div>
+    <div className={styles.mobileAction}><button disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><ShoppingCart size={20} strokeWidth={2} /><span>{available ? "Adicionar ao carrinho" : "Indisponível"}</span>{available && <b>{money(product.price)}</b>}</button></div>
   </main>;
 }

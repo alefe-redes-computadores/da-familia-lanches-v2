@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Home,
+  ClipboardList,
+  Star,
+  ShoppingCart,
+  UserRound,
+  Share2,
+  MessageCircle,
+  X,
+} from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
@@ -12,17 +22,15 @@ import styles from "./MobileDrawerMenu.module.css";
 type IconName = "home" | "orders" | "star" | "cart" | "user" | "share" | "chat" | "close";
 
 function Icon({ name }: { name: IconName }) {
-  const paths: Record<IconName, React.ReactNode> = {
-    home: <><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></>,
-    orders: <><path d="M6 3h12v18H6z"/><path d="M9 7h6M9 11h6M9 15h4"/></>,
-    star: <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>,
-    cart: <><path d="M3 4h2l2 11h10l2-8H6"/><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></>,
-    user: <><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>,
-    share: <><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></>,
-    chat: <><path d="M20 11a8 8 0 0 1-12 7l-4 2 1-4a8 8 0 1 1 15-5Z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/></>,
-    close: <path d="m6 6 12 12M18 6 6 18"/>,
-  };
-  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
+  const props = { size: 21, strokeWidth: 1.9, "aria-hidden": true as const };
+  if (name === "home") return <Home {...props} />;
+  if (name === "orders") return <ClipboardList {...props} />;
+  if (name === "star") return <Star {...props} />;
+  if (name === "cart") return <ShoppingCart {...props} />;
+  if (name === "user") return <UserRound {...props} />;
+  if (name === "share") return <Share2 {...props} />;
+  if (name === "chat") return <MessageCircle {...props} />;
+  return <X {...props} />;
 }
 
 export function MobileDrawerMenu() {

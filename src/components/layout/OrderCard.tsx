@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { UserRound, MapPin, CreditCard, ShoppingBag, ReceiptText, MessageCircle, Printer, Info, PackageCheck, Copy, Check, Clock3, Route, MessageSquareText, ExternalLink, X, TriangleAlert } from "lucide-react";
+import { haptic } from "@/lib/haptics";
 import { getOrderItems, paymentLabel } from "@/lib/orderCompat";
 import { normalizarStatus, getColorByStatus, formatarData } from "@/lib/orderUtils";
 import { canTransitionOrderStatus, statusTitle } from "@/lib/orderStatus";
@@ -10,6 +12,9 @@ import styles from "./OrderCard.module.css";
 
 export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false, updating = false }: any) {
   const [expanded, setExpanded] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<"resumo" | "itens" | "cliente" | "entrega" | "pagamento">("resumo");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
   const isExpanded = forceExpanded || expanded;
   const statusAtual = normalizarStatus(pedido.status);
   const terminal = statusAtual === "Finalizado" || statusAtual === "Cancelado";
@@ -61,6 +66,63 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     ? ["Pendente", "Em Produção", "Pronto", "Finalizado"]
     : ["Pendente", "Em Produção", "Pronto", "Saiu para Entrega", "Finalizado"];
   const currentStageIndex = Math.max(0, stages.indexOf(statusAtual));
+  const rawOrigin = String(
+    pedido.origem ||
+    pedido.origin ||
+    pedido.source ||
+    pedido.canal ||
+    pedido.channel ||
+    ""
+  ).trim();
+  const originLabel = rawOrigin || "Origem não informada";
+
+  const rawMessageStatus = String(
+    pedido.messagingStatus ||
+    pedido.orderMessagingStatus ||
+    pedido.whatsappStatus ||
+    pedido.messageStatus ||
+    ""
+  ).trim();
+  const messageStatusLabel = rawMessageStatus || "Sem status de mensagem no pedido";
+
+  const shortOrderId = String(pedido.id || "").slice(-8).toUpperCase();
+  const addressLabel = String(
+    pedido.endereco ||
+    pedido.address ||
+    (pickup ? "Retirada no local" : "")
+  ).trim();
+
+  const copyValue = async (key: string, value: string) => {
+    const text = String(value || "").trim();
+    if (!text) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.focus();
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+      }
+      setCopiedKey(key);
+      haptic("success");
+      window.setTimeout(() => setCopiedKey((current) => current === key ? null : current), 1400);
+    } catch (error) {
+      console.error("[admin/order-copy]", error);
+      haptic("error");
+    }
+  };
+
+  const timeline = stages.map((stage, index) => ({
+    stage,
+    state: index < currentStageIndex ? "done" : index === currentStageIndex ? "current" : "pending",
+  }));
+
 
   const handleOpenDflEntregas = () => {
     openDflEntregas(
@@ -109,7 +171,18 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
       <div className={styles.top}>
         <div>
           <div className={styles.status}><span className={styles.statusDot} aria-hidden="true" />{statusAtual === "Finalizado" ? "Pedido entregue" : statusAtual === "Cancelado" ? "Pedido cancelado" : statusTitle(pedido.status, pickup)}</div>
-          <div className={styles.orderId}>#{String(pedido.id).slice(-8).toUpperCase()}</div>
+          <div className={styles.orderIdRow}>
+            <div className={styles.orderId}>#{shortOrderId}</div>
+            {inspector && <button
+              type="button"
+              className={styles.copyMini}
+              onClick={(event) => { event.stopPropagation(); void copyValue("order", String(pedido.id)); }}
+              aria-label="Copiar ID do pedido"
+              title="Copiar ID do pedido"
+            >
+              {copiedKey === "order" ? <Check size={13}/> : <Copy size={13}/>}
+            </button>}
+          </div>
         </div>
         <div className={styles.time}>
           <span>{formatarData(pedido.data)}</span>
@@ -175,37 +248,145 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
               ))}
             </div>
           )}
-          <div className={styles.person}>
-            <div className={styles.phone}>{telefone || "Telefone não informado"}</div>
-            <div className={styles.metaActions}>
-              {telefone && <button className={styles.iconBtn} onClick={openWhatsApp} title="Abrir WhatsApp">WhatsApp</button>}
-              <button className={styles.iconBtn} onClick={() => imprimirPedido(pedido)} title="Imprimir pedido">Imprimir</button>
-            </div>
-          </div>
 
-          <div className={styles.delivery}>
-            <b>{pickup ? "RETIRADA NO BALCÃO" : "ENTREGA"}</b>
-            <span>{pedido.endereco || (pickup ? "Retirada no local" : "Endereço não informado")}</span>
-          </div>
+          {inspector && (
+            <nav className={styles.inspectorTabs} aria-label="Detalhes do pedido">
+              {[
+                ["resumo", "Resumo", <Info size={15} key="i" />],
+                ["itens", "Itens", <ReceiptText size={15} key="it" />],
+                ["cliente", "Cliente", <UserRound size={15} key="c" />],
+                ["entrega", pickup ? "Retirada" : "Entrega", <MapPin size={15} key="e" />],
+                ["pagamento", "Pagamento", <CreditCard size={15} key="p" />],
+              ].map(([key, label, icon]) => (
+                <button
+                  key={String(key)}
+                  type="button"
+                  data-active={inspectorTab === key}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    haptic("step");
+                    setInspectorTab(key as typeof inspectorTab);
+                  }}
+                >
+                  {icon}
+                  <span>{label}</span>
+                </button>
+              ))}
+            </nav>
+          )}
 
-          <div className={styles.items}>
-            {itens.length ? itens.map((item, i) => (
-              <div className={styles.item} key={`${item.name}-${i}`}>
-                <b>{item.quantity}x {item.name}</b>
-                {item.selectedAddons.map((a) => <div className={styles.addon} key={`${a.id}-${a.name}`}>+ {a.name}</div>)}
-                {item.observation && <div className={styles.obs}>Obs.: {item.observation}</div>}
+          {inspector && inspectorTab === "resumo" && (
+            <section className={styles.operationalCockpit}>
+              <div className={styles.cockpitHead}>
+                <div>
+                  <span>VISÃO OPERACIONAL</span>
+                  <strong>Pedido #{shortOrderId}</strong>
+                </div>
+                <span className={styles.originBadge}>{originLabel}</span>
               </div>
-            )) : <span>Pedido antigo sem itens reconhecíveis.</span>}
-          </div>
 
-          <div className={styles.money}>
-            <div>
-              <small>Pagamento</small>
-              <b>{paymentLabel(pedido.metodoPagamento)}</b>
-              {paymentLabel(pedido.metodoPagamento) === "DINHEIRO" && Number.isFinite(troco) && troco > 0 &&
-                <span className={styles.cash}>Troco para R$ {troco.toFixed(2)}</span>}
+              <div className={styles.timeline}>
+                {timeline.map(({ stage, state }) => (
+                  <div key={stage} data-state={state}>
+                    <span className={styles.timelineDot}>{state === "done" ? <Check size={11}/> : state === "current" ? <Clock3 size={11}/> : null}</span>
+                    <div>
+                      <strong>{stage}</strong>
+                      <small>{state === "done" ? "Concluído" : state === "current" ? "Etapa atual" : "Pendente"}</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className={styles.cockpitGrid}>
+                <div>
+                  <span className={styles.cockpitIcon}><MessageSquareText size={15}/></span>
+                  <div><small>Mensagens</small><strong>{messageStatusLabel}</strong></div>
+                </div>
+                <div>
+                  <span className={styles.cockpitIcon}><Route size={15}/></span>
+                  <div><small>Logística</small><strong>{pickup ? "Retirada no balcão" : logisticsSummary}</strong></div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {(!inspector || inspectorTab === "resumo") && (
+            <div className={styles.inspectorSummaryGrid}>
+              <div className={styles.inspectorMini}>
+                <span className={styles.inspectorMiniIcon}><UserRound size={16} /></span>
+                <div><small>Cliente</small><strong>{customerName}</strong><span>{telefone || "Telefone não informado"}</span></div>
+              </div>
+              <div className={styles.inspectorMini}>
+                <span className={styles.inspectorMiniIcon}><PackageCheck size={16} /></span>
+                <div><small>Etapa atual</small><strong>{statusTitle(pedido.status, pickup)}</strong><span>{ageLabel(pedido)}</span></div>
+              </div>
+              <div className={styles.inspectorMini}>
+                <span className={styles.inspectorMiniIcon}><ShoppingBag size={16} /></span>
+                <div><small>Pedido</small><strong>{itemCount} {itemCount === 1 ? "item" : "itens"}</strong><span>{fulfillmentLabel}</span></div>
+              </div>
+              <div className={styles.inspectorMini}>
+                <span className={styles.inspectorMiniIcon}><CreditCard size={16} /></span>
+                <div><small>Total</small><strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong><span>{paymentLabel(pedido.metodoPagamento)}</span></div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {(!inspector || inspectorTab === "cliente" || inspectorTab === "resumo") && (
+            <div className={styles.person}>
+              <div className={styles.personIdentity}>
+                <span className={styles.detailIcon}><UserRound size={16} /></span>
+                <div><small>Cliente</small><strong>{customerName}</strong><div className={styles.phone}>{telefone || "Telefone não informado"}</div></div>
+              </div>
+              <div className={styles.metaActions}>
+                {telefone && <button className={styles.iconBtn} onClick={(event) => { event.stopPropagation(); void copyValue("phone", telefone); }} title="Copiar telefone">{copiedKey === "phone" ? <Check size={14}/> : <Copy size={14}/>}Copiar</button>}
+                {telefone && <button className={styles.iconBtn} onClick={(event) => { event.stopPropagation(); haptic("step"); openWhatsApp(); }} title="Abrir WhatsApp"><MessageCircle size={14} />WhatsApp</button>}
+                <button className={styles.iconBtn} onClick={(event) => { event.stopPropagation(); haptic("step"); imprimirPedido(pedido); }} title="Imprimir pedido"><Printer size={14} />Imprimir</button>
+              </div>
+            </div>
+          )}
+
+          {(!inspector || inspectorTab === "entrega" || inspectorTab === "resumo") && (
+            <div className={styles.delivery}>
+              <span className={styles.detailIcon}><MapPin size={16} /></span>
+              <div className={styles.deliveryCopy}>
+                <b>{pickup ? "RETIRADA NO BALCÃO" : "ENTREGA"}</b>
+                <span>{addressLabel || "Endereço não informado"}</span>
+                {inspector && (
+                  <div className={styles.deliveryActions}>
+                    {!pickup && addressLabel && <button type="button" onClick={(event) => { event.stopPropagation(); void copyValue("address", addressLabel); }}>{copiedKey === "address" ? <Check size={13}/> : <Copy size={13}/>}Copiar endereço</button>}
+                    {pedido.deliveryId && <button type="button" onClick={(event) => { event.stopPropagation(); void copyValue("delivery", String(pedido.deliveryId)); }}>{copiedKey === "delivery" ? <Check size={13}/> : <Copy size={13}/>}ID entrega</button>}
+                    {hasLogisticsLink && <button type="button" onClick={(event) => { event.stopPropagation(); haptic("step"); handleOpenDflEntregas(); }}><ExternalLink size={13}/>Abrir DFL Entregas</button>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {(!inspector || inspectorTab === "itens") && (
+            <div className={styles.items}>
+              <div className={styles.detailSectionTitle}><ReceiptText size={15} /><span>Itens do pedido</span><b>{itemCount}</b></div>
+              {itens.length ? itens.map((item, i) => (
+                <div className={styles.item} key={`${item.name}-${i}`}>
+                  <b>{item.quantity}x {item.name}</b>
+                  {item.selectedAddons.map((a) => <div className={styles.addon} key={`${a.id}-${a.name}`}>+ {a.name}</div>)}
+                  {item.observation && <div className={styles.obs}>Obs.: {item.observation}</div>}
+                </div>
+              )) : <span>Pedido antigo sem itens reconhecíveis.</span>}
+            </div>
+          )}
+
+          {(!inspector || inspectorTab === "pagamento" || inspectorTab === "resumo") && (
+            <div className={styles.money}>
+              <span className={styles.detailIcon}><CreditCard size={16} /></span>
+              <div>
+                <small>Pagamento</small>
+                <b>{paymentLabel(pedido.metodoPagamento)}</b>
+                <strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong>
+                {paymentLabel(pedido.metodoPagamento) === "DINHEIRO" && Number.isFinite(troco) && troco > 0 &&
+                  <span className={styles.cash}>Troco para R$ {troco.toFixed(2)}</span>}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -213,12 +394,30 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         <div className={styles.actions}>
           {next && <button type="button" disabled={updating} className={styles.primary} data-tone={next[2]} onClick={(event) => { event.stopPropagation(); updateStatus(pedido.id, next[0], pedido); }}>{updating ? "Atualizando…" : next[1]}</button>}
           {!inspector && !terminal && <button className={styles.detailsAction} type="button" disabled={updating} onClick={(event) => { event.stopPropagation(); toggleDetails(); }}>Detalhes</button>}
-          {canCancel && <button type="button" disabled={updating} className={styles.cancel} data-danger="true" onClick={(event) => {
+          {canCancel && !cancelConfirm && <button type="button" disabled={updating} className={styles.cancel} data-danger="true" onClick={(event) => {
             event.stopPropagation();
-            if (window.confirm(`Cancelar o pedido #${String(pedido.id).slice(-8).toUpperCase()}?`)) {
-              updateStatus(pedido.id, "Cancelado", pedido);
-            }
+            haptic("step");
+            setCancelConfirm(true);
           }}>Cancelar</button>}
+        </div>
+      )}
+
+      {cancelConfirm && canCancel && (
+        <div className={styles.cancelConfirmPanel} role="alertdialog" aria-label="Confirmar cancelamento do pedido">
+          <span className={styles.cancelConfirmIcon}><TriangleAlert size={17}/></span>
+          <div>
+            <strong>Cancelar pedido #{shortOrderId}?</strong>
+            <small>Essa ação muda o estado comercial para Cancelado.</small>
+          </div>
+          <div className={styles.cancelConfirmActions}>
+            <button type="button" disabled={updating} onClick={(event) => { event.stopPropagation(); haptic("step"); setCancelConfirm(false); }}><X size={13}/>Voltar</button>
+            <button type="button" disabled={updating} data-danger="true" onClick={(event) => {
+              event.stopPropagation();
+              haptic("step");
+              setCancelConfirm(false);
+              updateStatus(pedido.id, "Cancelado", pedido);
+            }}><TriangleAlert size={13}/>{updating ? "Cancelando…" : "Confirmar"}</button>
+          </div>
         </div>
       )}
     </article>

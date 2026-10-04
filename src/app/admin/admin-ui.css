@@ -178,3 +178,36 @@
 [data-admin-ui] [class*="panel"],[data-admin-ui] [class*="section"],[data-admin-ui] [class*="card"]{border-radius:14px!important;background-color:#0d1217!important}
 [data-admin-ui] [class*="panel"] h2,[data-admin-ui] [class*="panel"] h3,[data-admin-ui] [class*="section"] h2,[data-admin-ui] [class*="section"] h3{color:#f4f7f9!important}
 [data-admin-ui] [class*="panel"] small,[data-admin-ui] [class*="panel"] p,[data-admin-ui] [class*="section"] small,[data-admin-ui] [class*="section"] p{color:#828d98}
+
+
+/* ============================================================
+   DFL ADMIN V33 — VISUAL SYSTEM AUTHORITY
+   ============================================================ */
+[data-admin-ui]{
+  --v33-bg:#070a0e;--v33-panel:#0c1117;--v33-panel-2:#101720;--v33-panel-3:#151d26;
+  --v33-line:rgba(148,163,184,.14);--v33-line-strong:rgba(148,163,184,.24);
+  --v33-text:#f6f8fa;--v33-muted:#8a96a3;--v33-faint:#5f6a75;
+  --v33-yellow:#ffc928;--v33-green:#36d887;--v33-red:#ff6674;--v33-blue:#6da8ff;
+  --v33-radius:18px;--v33-control:50px;
+  font-family:"Manrope Variable","Segoe UI",Roboto,Arial,sans-serif!important;
+  font-variation-settings:"wght" 520;
+  background:radial-gradient(900px 360px at 50% -140px,rgba(255,201,40,.055),transparent 60%),var(--v33-bg)!important;
+  color:var(--v33-text)!important;
+}
+[data-admin-ui] h1,[data-admin-ui] h2,[data-admin-ui] h3,[data-admin-ui] strong{font-variation-settings:"wght" 720;letter-spacing:-.035em!important}
+[data-admin-ui] p,[data-admin-ui] small,[data-admin-ui] label,[data-admin-ui] span{letter-spacing:-.012em}
+[data-admin-ui] input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),[data-admin-ui] select,[data-admin-ui] textarea{
+  min-height:var(--v33-control)!important;border:1px solid var(--v33-line)!important;border-radius:15px!important;
+  background:linear-gradient(180deg,#0c1218,#0a0f14)!important;color:var(--v33-text)!important;
+  padding-inline:15px!important;font-size:15px!important;font-weight:560!important;box-shadow:inset 0 1px rgba(255,255,255,.025)!important
+}
+[data-admin-ui] textarea{padding-block:13px!important}
+[data-admin-ui] input::placeholder,[data-admin-ui] textarea::placeholder{color:#58636f!important;font-weight:480!important}
+[data-admin-ui] input:focus,[data-admin-ui] select:focus,[data-admin-ui] textarea:focus{border-color:rgba(255,201,40,.62)!important;background:#0f151c!important;box-shadow:0 0 0 4px rgba(255,201,40,.09)!important}
+[data-admin-ui] button{border-radius:13px;font-family:inherit;font-weight:680}
+[data-admin-ui] button svg,[data-admin-ui] a svg{flex:0 0 auto}
+[data-admin-ui] button[class*=primary],[data-admin-ui] button[class*=save],[data-admin-ui] button[class*=mainAction]{background:linear-gradient(135deg,#ffdc55,#f6ba00)!important;border-color:#ffd74c!important;color:#181200!important;box-shadow:0 10px 26px rgba(246,186,0,.16),inset 0 1px rgba(255,255,255,.46)!important}
+[data-admin-ui] [class*=feedback],[data-admin-ui] [class*=msg]{border-radius:14px!important;border:1px solid var(--v33-line)!important;background:#101820!important;color:#cdd5dc!important;box-shadow:0 18px 42px rgba(0,0,0,.30)!important}
+[data-admin-ui] [class*=card],[data-admin-ui] [class*=panel],[data-admin-ui] [class*=block]{border-color:var(--v33-line)!important}
+[data-admin-ui] ::-webkit-scrollbar-thumb{background:#2c3540!important}
+@media(max-width:600px){[data-admin-ui]{--v33-control:48px}[data-admin-ui] input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),[data-admin-ui] select,[data-admin-ui] textarea{font-size:16px!important}}

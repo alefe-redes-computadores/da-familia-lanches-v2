@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { BellRing, Download, WifiOff, X } from "lucide-react";
+import { haptic } from "@/lib/haptics";
 import { getMessaging, getToken, isSupported as isMessagingSupported, onMessage } from "firebase/messaging";
 import { app, auth } from "@/lib/firebase";
 import styles from "./AdminPwa.module.css";
@@ -28,6 +30,11 @@ async function persistPushToken(pushToken:string){
   const token=await adminBearer();
   const response=await fetch("/api/admin/push",{method:"POST",headers:{Authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify({token:pushToken,userAgent:navigator.userAgent}),cache:"no-store"});
   if(!response.ok) throw new Error(`PUSH_SUBSCRIBE_HTTP_${response.status}`);
+}
+async function disablePushToken(pushToken:string){
+  const token=await adminBearer();
+  const response=await fetch("/api/admin/push",{method:"DELETE",headers:{Authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify({token:pushToken}),cache:"no-store"});
+  if(!response.ok) throw new Error(`PUSH_UNSUBSCRIBE_HTTP_${response.status}`);
 }
 async function syncRemotePush(registration:ServiceWorkerRegistration){
   if(!("Notification" in window)||Notification.permission!=="granted") return false;
@@ -106,6 +113,20 @@ export function AdminPwa(){
   },[syncPush]);
 
   useEffect(() => {
+    const resync=()=>{void syncPush().catch((error)=>console.warn("[admin-pwa] resync manual pendente",error));};
+    const disable=()=>{void (async()=>{try{
+      const registration=registrationRef.current||await navigator.serviceWorker?.ready;
+      if(!registration||!(await isMessagingSupported()))return;
+      const vapidKey=await loadVapidPublicKey();
+      const pushToken=await getToken(getMessaging(app),{vapidKey,serviceWorkerRegistration:registration});
+      if(pushToken)await disablePushToken(pushToken);
+    }catch(error){console.warn("[admin-pwa] não foi possível desativar push remoto",error);}})();};
+    window.addEventListener("dfl:admin-push-resync",resync);
+    window.addEventListener("dfl:admin-push-disable",disable);
+    return()=>{window.removeEventListener("dfl:admin-push-resync",resync);window.removeEventListener("dfl:admin-push-disable",disable);};
+  },[syncPush]);
+
+  useEffect(() => {
     let active = true;
     let stop: (() => void) | undefined;
 
@@ -128,13 +149,13 @@ export function AdminPwa(){
 
   const enableNotifications=async()=>{
     if(!("Notification" in window))return;
-    const result=await Notification.requestPermission(); setPermission(result); if(result!=="granted")return;
+    haptic("step"); const result=await Notification.requestPermission(); setPermission(result); if(result!=="granted"){haptic("error");return;}
     setDismissed(true);localStorage.removeItem(DISMISSED_KEY);
     try{await syncPush();}catch(error){console.warn("[admin-pwa] alerta local ativo; push remoto pendente",error);}
-    registrationRef.current?.active?.postMessage({type:"DFL_ADMIN_NOTIFY",payload:{title:"Alertas ativados",body:"O DFL Admin avisará quando um pedido novo entrar.",tag:"admin-alerts-ready",url:"/admin"}});
+    haptic("success"); registrationRef.current?.active?.postMessage({type:"DFL_ADMIN_NOTIFY",payload:{title:"Alertas ativados",body:"O DFL Admin avisará quando um pedido novo entrar.",tag:"admin-alerts-ready",url:"/admin"}});
   };
-  const install=async()=>{if(!installPrompt)return;await installPrompt.prompt();await installPrompt.userChoice;setInstallPrompt(null);};
-  const close=()=>{localStorage.setItem(DISMISSED_KEY,"1");setDismissed(true);};
+  const install=async()=>{if(!installPrompt)return;haptic("step");await installPrompt.prompt();await installPrompt.userChoice;setInstallPrompt(null);};
+  const close=()=>{haptic("step");localStorage.setItem(DISMISSED_KEY,"1");setDismissed(true);};
   const needsPermission=permission==="default";
   const permissionBlocked=permission==="denied";
   const showSetup=!dismissed&&(needsPermission||permissionBlocked||Boolean(installPrompt));
@@ -147,7 +168,7 @@ export function AdminPwa(){
       : "Ative os alertas para receber novos pedidos mesmo com o Admin em segundo plano.";
 
   return <>
-    {!online&&<div className={styles.offline} role="status">Sem internet · ações ficam bloqueadas até reconectar</div>}
-    {showSetup&&<aside className={styles.setup} aria-label="Configuração do DFL Admin"><div><b>Deixe o Admin pronto para a operação</b><span>{setupMessage}</span></div><div className={styles.actions}>{needsPermission&&<button type="button" onClick={()=>void enableNotifications()}>Ativar alertas</button>}{installPrompt&&<button type="button" onClick={()=>void install()}>Instalar app</button>}<button type="button" className={styles.close} aria-label="Agora não" onClick={close}>×</button></div></aside>}
+    {!online&&<div className={styles.offline} role="status"><WifiOff size={15}/>Sem internet · ações ficam bloqueadas até reconectar</div>}
+    {showSetup&&<aside className={styles.setup} aria-label="Configuração do DFL Admin"><div className={styles.setupCopy}><span className={styles.setupIcon}><BellRing size={17}/></span><div><b>Deixe o Admin pronto para a operação</b><span>{setupMessage}</span></div></div><div className={styles.actions}>{needsPermission&&<button type="button" onClick={()=>void enableNotifications()}><BellRing size={14}/>Ativar alertas</button>}{installPrompt&&<button type="button" onClick={()=>void install()}><Download size={14}/>Instalar app</button>}<button type="button" className={styles.close} aria-label="Agora não" onClick={close}><X size={17}/></button></div></aside>}
   </>;
 }

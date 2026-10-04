@@ -1,5 +1,5 @@
 "use client";
-import{useEffect,useMemo,useState}from"react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
+import{useEffect,useMemo,useState}from"react";import{Save,Plus,Trash2}from"lucide-react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
 import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
 import styles from"./StoreOperationAdmin.module.css";
 import { haptic } from "@/lib/haptics";
@@ -34,11 +34,11 @@ export function StoreOperationAdmin(){const{settings:liveSettings,ready}=useAdmi
   <div className={styles.block}><header><div><span>AGENDA SEMANAL</span><strong>Dias e horários</strong></div><p>Horário de Brasília.</p></header><div className={styles.week}>{DAYS.map(({key,label})=>{const d=s.schedule[key];return<div className={styles.day} key={key}>
    <label className={styles.toggle}><input type="checkbox" checked={d.enabled} onChange={e=>setS({...s,schedule:{...s.schedule,[key]:{...d,enabled:e.target.checked}}})}/><strong>{label}</strong><b>{d.enabled?"Aberto":"Fechado"}</b></label>
    {d.enabled&&<div className={styles.times}><label>Abre<input type="time" value={d.open} onChange={e=>setS({...s,schedule:{...s.schedule,[key]:{...d,open:e.target.value}}})}/></label><label>Fecha<input type="time" value={d.close} onChange={e=>setS({...s,schedule:{...s.schedule,[key]:{...d,close:e.target.value}}})}/></label></div>}
-  </div>})}</div><button className={styles.save} disabled={busy} onClick={()=>void save(s,"Horários atualizados.")}>{busy?"Salvando...":"Salvar horários"}</button></div>
+  </div>})}</div><button className={styles.save} disabled={busy} onClick={()=>void save(s,"Horários atualizados.")}>{busy?"Salvando...":<><Save size={15}/>Salvar horários</>}</button></div>
   <div className={styles.block}><header><div><span>EXCEÇÕES</span><strong>Feriados e dias especiais</strong></div><p>A exceção vence a agenda daquele dia.</p></header><div className={styles.exform}>
    <label>Data<input type="date" value={ex.date} onChange={e=>setEx({...ex,date:e.target.value})}/></label><label className={styles.closed}><input type="checkbox" checked={ex.closed} onChange={e=>setEx({...ex,closed:e.target.checked})}/>Fechado o dia todo</label>
    {!ex.closed&&<><label>Abre<input type="time" value={ex.open??"18:00"} onChange={e=>setEx({...ex,open:e.target.value})}/></label><label>Fecha<input type="time" value={ex.close??"23:00"} onChange={e=>setEx({...ex,close:e.target.value})}/></label></>}
-   <label className={styles.note}>Observação<input value={ex.label??""} onChange={e=>setEx({...ex,label:e.target.value})} placeholder="Ex.: feriado"/></label><button disabled={busy} onClick={addEx}>Adicionar</button>
-  </div>{s.exceptions.length>0&&<div className={styles.exceptions}>{s.exceptions.map(x=><div key={x.date}><span><strong>{x.date.split("-").reverse().join("/")}</strong><small>{x.label||"Exceção"}</small></span><b>{x.closed?"FECHADO":`${x.open}–${x.close}`}</b><button onClick={()=>void save({...s,exceptions:s.exceptions.filter(y=>y.date!==x.date)},"Exceção removida.")}>×</button></div>)}</div>}</div>
+   <label className={styles.note}>Observação<input value={ex.label??""} onChange={e=>setEx({...ex,label:e.target.value})} placeholder="Ex.: feriado"/></label><button disabled={busy} onClick={addEx}><Plus size={15}/>Adicionar</button>
+  </div>{s.exceptions.length>0&&<div className={styles.exceptions}>{s.exceptions.map(x=><div key={x.date}><span><strong>{x.date.split("-").reverse().join("/")}</strong><small>{x.label||"Exceção"}</small></span><b>{x.closed?"FECHADO":`${x.open}–${x.close}`}</b><button onClick={()=>void save({...s,exceptions:s.exceptions.filter(y=>y.date!==x.date)},"Exceção removida.")}><Trash2 size={14}/></button></div>)}</div>}</div>
   {msg&&<div className={styles.msg}>{msg}<button onClick={()=>setMsg("")}>×</button></div>}
  </section>}

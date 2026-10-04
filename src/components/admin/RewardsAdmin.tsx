@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Gift, Pause, Play, Save } from "lucide-react";
 import { getDoc, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -17,6 +18,13 @@ const numberValue = (value: string, fallback: number) => {
   const parsed = Number(value.replace(",", "."));
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+const moneyTyping = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+  return digits ? (Number(digits) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+};
+const moneyDraft = (value: string) =>
+  numberValue(value, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
 export function RewardsAdmin() {
   const [active, setActive] = useState(false);
@@ -103,8 +111,8 @@ export function RewardsAdmin() {
   return (
     <div className={styles.wrap}>
       <section className={styles.statusCard} data-active={active}>
-        <div><span>CAMPANHA</span><strong>{active ? "Fidelidade ativa" : "Fidelidade pausada"}</strong><p>Somente pedidos marcados como Finalizado contam para o próximo marco.</p></div>
-        <button type="button" onClick={() => setActive((value) => !value)}>{active ? "Pausar" : "Ativar"}</button>
+        <div><span>CAMPANHA</span><strong><Gift size={18}/>{active ? "Fidelidade ativa" : "Fidelidade pausada"}</strong><p>Somente pedidos marcados como Finalizado contam para o próximo marco.</p></div>
+        <button type="button" onClick={() => { haptic("step"); setActive((value) => !value); }}>{active ? <><Pause size={15}/>Pausar</> : <><Play size={15}/>Ativar</>}</button>
       </section>
 
       <section className={styles.card}>
@@ -114,14 +122,14 @@ export function RewardsAdmin() {
         <div className={styles.grid}>
           <label><span>A cada quantos pedidos finalizados?</span><input value={everyOrders} onChange={(event) => setEveryOrders(event.target.value)} inputMode="numeric" /></label>
           <label><span>Tipo de benefício</span><select value={discountType} onChange={(event) => setDiscountType(event.target.value as RewardDiscountType)}><option value="fixed">Valor em R$</option><option value="percent">Porcentagem</option></select></label>
-          <label><span>{discountType === "percent" ? "Desconto (%)" : "Desconto (R$)"}</span><input value={discountValue} onChange={(event) => setDiscountValue(event.target.value)} inputMode="decimal" /></label>
-          <label><span>Pedido mínimo (R$)</span><input value={minOrder} onChange={(event) => setMinOrder(event.target.value)} inputMode="decimal" /></label>
+          <label><span>{discountType === "percent" ? "Desconto (%)" : "Desconto (R$)"}</span><input value={discountValue} onChange={(event) => setDiscountValue(discountType === "fixed" ? moneyTyping(event.target.value) : event.target.value.replace(/[^\d,.]/g, ""))} onBlur={() => discountType === "fixed" && setDiscountValue(moneyDraft(discountValue))} inputMode="decimal" /></label>
+          <label><span>Pedido mínimo (R$)</span><input value={minOrder} onChange={(event) => setMinOrder(moneyTyping(event.target.value))} onBlur={() => setMinOrder(moneyDraft(minOrder))} inputMode="decimal" /></label>
           <label><span>Validade após ganhar (dias)</span><input value={expiresDays} onChange={(event) => setExpiresDays(event.target.value)} inputMode="numeric" /></label>
         </div>
 
         <div className={styles.notice}><strong>Regra operacional</strong><p>A recompensa é criada quando o Admin conclui o pedido que fecha um marco. O documento é único por marco e não duplica o benefício.</p></div>
         {feedback && <div className={styles.feedback}>{feedback}</div>}
-        <button className={styles.save} type="button" onClick={() => void save()} disabled={saving}>{saving ? "Salvando…" : "Salvar campanha"}</button>
+        <button className={styles.save} type="button" onClick={() => void save()} disabled={saving}>{saving ? "Salvando…" : <><Save size={15}/>Salvar campanha</>}</button>
       </section>
     </div>
   );

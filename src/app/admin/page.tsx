@@ -3,6 +3,22 @@ import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Activity,
+  Bell,
+  CalendarDays,
+  ChefHat,
+  ClipboardList,
+  History,
+  Search,
+  SlidersHorizontal,
+  Store,
+  Truck,
+  LoaderCircle,
+  CircleCheck,
+  TriangleAlert,
+  Info,
+} from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { useAdminOrders } from "@/hooks/useAdminOrders";
 import { OrderCard } from "@/components/layout/OrderCard";
@@ -17,6 +33,8 @@ import styles from "./admin.module.css";
 import { haptic } from "@/lib/haptics";
 import { AdminAuthGate } from "@/components/admin/AdminAuthGate";
 import { OperationHealthAdmin } from "@/components/admin/OperationHealthAdmin";
+import { AdminNotificationCenter } from "@/components/admin/AdminNotificationCenter";
+import { AdminQuickStoreControl } from "@/components/admin/AdminQuickStoreControl";
 
 
 const AdminPanelLoading = () => (
@@ -76,44 +94,18 @@ type AdminIconName =
   | "search";
 
 function AdminIcon({ name }: { name: AdminIconName }) {
-  const common = {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
+  const props = { size: 19, strokeWidth: 1.8, "aria-hidden": true as const };
 
-  if (name === "orders") {
-    return <svg {...common}><rect x="6" y="4" width="12" height="16" rx="2" /><path d="M9 4.5h6M9 9h6M9 13h6M9 17h4" /></svg>;
-  }
-  if (name === "kitchen") {
-    return <svg {...common}><path d="M5 11h14l-1 7H6l-1-7Z" /><path d="M8 11V8a4 4 0 0 1 8 0v3M4 20h16" /></svg>;
-  }
-  if (name === "dispatch") {
-    return <svg {...common}><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>;
-  }
-  if (name === "calendar") {
-    return <svg {...common}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h3M13 14h3" /></svg>;
-  }
-  if (name === "history") {
-    return <svg {...common}><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2M4 7V3m0 0h4" /></svg>;
-  }
-  if (name === "management") {
-    return <svg {...common}><path d="M4 7h10M18 7h2M4 17h2M10 17h10M8 5v4M8 15v4M16 5v4M16 15v4" /></svg>;
-  }
-  if (name === "health") {
-    return <svg {...common}><path d="M3 12h4l2.2-5 4.2 10 2.1-5H21" /></svg>;
-  }
-  if (name === "store") {
-    return <svg {...common}><path d="M4 9h16l-1-5H5L4 9Z" /><path d="M6 9v10h12V9M9 19v-5h6v5" /></svg>;
-  }
-  if (name === "bell") {
-    return <svg {...common}><path d="M6 9a6 6 0 0 1 12 0v4l2 3H4l2-3V9Z" /><path d="M10 19h4" /></svg>;
-  }
-  return <svg {...common}><circle cx="11" cy="11" r="7" /><path d="m16 16 4 4" /></svg>;
+  if (name === "orders") return <ClipboardList {...props} />;
+  if (name === "kitchen") return <ChefHat {...props} />;
+  if (name === "dispatch") return <Truck {...props} />;
+  if (name === "calendar") return <CalendarDays {...props} />;
+  if (name === "history") return <History {...props} />;
+  if (name === "management") return <SlidersHorizontal {...props} />;
+  if (name === "health") return <Activity {...props} />;
+  if (name === "store") return <Store {...props} />;
+  if (name === "bell") return <Bell {...props} />;
+  return <Search {...props} />;
 }
 
 export default function AdminPage() {
@@ -140,6 +132,8 @@ export default function AdminPage() {
   const storeStatus = useMemo(() => evaluateStoreStatus(adminStoreSettings), [adminStoreSettings]);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+  const [storeQuickOpen, setStoreQuickOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("todos");
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
@@ -667,7 +661,7 @@ export default function AdminPage() {
               type="button"
               className={styles.storeControl}
               data-tone={storeState.tone}
-              onClick={() => setTab("operacao")}
+              onClick={() => { haptic("step"); setStoreQuickOpen(true); }}
               aria-label={`Loja ${storeState.label}. ${storeState.detail}`}
               title={storeState.detail}
             >
@@ -687,11 +681,8 @@ export default function AdminPage() {
               type="button"
               className={styles.notificationButton}
               data-active={counts.attention > 0}
-              onClick={() => {
-                setTab("cozinha");
-                setAttentionOnly(true);
-              }}
-              aria-label={counts.attention > 0 ? `${counts.attention} pedidos precisam de atenção` : "Nenhum pedido precisa de atenção"}
+              onClick={() => setNotificationCenterOpen(true)}
+              aria-label={counts.attention > 0 ? `Abrir notificações. ${counts.attention} pedidos precisam de atenção` : "Abrir central de notificações"}
             >
               <AdminIcon name="bell" />
               {counts.attention > 0 && <b>{counts.attention}</b>}
@@ -709,18 +700,23 @@ export default function AdminPage() {
         <header className={styles.mobileTopbar}>
           <div className={styles.mobileBrand}>
             <div className={styles.mobileBrandMark} aria-hidden="true" />
-            <strong>Da Família</strong>
+            <span><strong>Da Família</strong><small>{desktopDate} · {desktopTime}</small></span>
           </div>
+          <div className={styles.mobileTopActions}>
+            <button type="button" className={styles.mobileBell} data-active={counts.attention > 0} onClick={() => setNotificationCenterOpen(true)} aria-label="Abrir central de notificações">
+              <AdminIcon name="bell" />{counts.attention > 0 && <b>{counts.attention}</b>}
+            </button>
           <button
             type="button"
             className={styles.mobileStore}
             data-tone={storeState.tone}
-            onClick={() => setTab("operacao")}
+            onClick={() => { haptic("step"); setStoreQuickOpen(true); }}
             aria-label={`Loja ${storeState.label}. ${storeState.detail}`}
           >
             <i />
             <span><b>{storeState.label}</b><small>{storeStatus.mode === "test_open" ? "teste" : storeStatus.source === "manual" ? "manual" : "agenda"}</small></span>
           </button>
+          </div>
         </header>
 
         <section className={styles.operationHero} data-tone={storeState.tone}>
@@ -899,7 +895,12 @@ export default function AdminPage() {
 
         {feedback && (
           <div className={styles.toast} data-tone={feedback.tone} role="status" aria-live="polite">
-            <i />
+            <span className={styles.toastIcon}>
+              {feedback.tone === "progress" ? <LoaderCircle size={17} /> :
+               feedback.tone === "success" ? <CircleCheck size={17} /> :
+               feedback.tone === "error" ? <TriangleAlert size={17} /> :
+               <Info size={17} />}
+            </span>
             <div>
               <strong>{feedback.title}</strong>
               <span>{feedback.message}</span>
@@ -1028,6 +1029,19 @@ export default function AdminPage() {
           </>
         ) : null}
       </div>
+      <AdminNotificationCenter
+        open={notificationCenterOpen}
+        onClose={() => setNotificationCenterOpen(false)}
+        attentionCount={counts.attention}
+      />
+      <AdminQuickStoreControl
+        open={storeQuickOpen}
+        settings={adminStoreSettings}
+        stateLabel={storeState.label}
+        stateDetail={storeState.detail}
+        onClose={() => setStoreQuickOpen(false)}
+        onOpenFull={() => setTab("operacao")}
+      />
     </main>
   );
 }

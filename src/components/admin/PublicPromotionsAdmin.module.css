@@ -28,3 +28,11 @@
     -webkit-tap-highlight-color:transparent;
   }
 }
+
+
+/* V33 — PUBLIC PROMOTIONS REBUILD */
+.card{border:1px solid rgba(148,163,184,.14)!important;border-radius:20px!important;background:linear-gradient(145deg,#0f161d,#0b1015)!important;padding:16px!important;box-shadow:0 16px 38px rgba(0,0,0,.24)!important}.chips{gap:6px!important}.chips span{border-radius:999px!important;background:rgba(255,201,40,.09)!important;border:1px solid rgba(255,201,40,.16)!important;color:#f5d462!important}.card>button{min-height:46px!important;border-radius:12px!important}
+
+
+/* V33.1 — PROMOTIONS FINISH */
+.heading strong{display:flex!important;align-items:center!important;gap:7px!important}.chips span{display:inline-flex!important;align-items:center!important;gap:5px!important}.card>button{display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;width:100%!important}.feedback{border-radius:12px!important;background:#121a21!important;color:#9aa5ae!important;border:1px solid rgba(148,163,184,.11)!important}

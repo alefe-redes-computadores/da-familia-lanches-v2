@@ -13,6 +13,7 @@ import { normalizarStatus } from "@/lib/orderUtils";
 import { orderDateToMillis } from "@/lib/orderCompat";
 import { orderHistoryTimestamp, type AdminOrder } from "@/lib/adminOrders";
 import { recordFirestoreReadEstimate } from "@/lib/firestoreReadBudget";
+import { adminNotificationPrefEnabled } from "@/lib/adminNotificationPrefs";
 
 const ACTIVE_QUERY_STATUSES = [
   "Pendente",
@@ -114,12 +115,15 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     for (const candidate of fresh) {
       alertedPendingIdsRef.current.add(candidate.id);
     }
-    setAlarmeAtivo(true);
+    const newOrderAlerts=adminNotificationPrefEnabled("newOrders");
+    const soundAndVibration=adminNotificationPrefEnabled("soundAndVibration");
+    if(newOrderAlerts)setAlarmeAtivo(true);
 
     void (async () => {
+      if(!newOrderAlerts)return;
       let audible = false;
       const target = audioRef.current;
-      if (target) {
+      if (target && soundAndVibration) {
         try {
           target.currentTime = 0;
           await target.play();
@@ -128,7 +132,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
           console.warn("[admin/orders] áudio local bloqueado; usando fallback do sistema", error);
         }
       }
-      if (!audible) navigator.vibrate?.([220,100,220,100,320]);
+      if (!audible && soundAndVibration) navigator.vibrate?.([220,100,220,100,320]);
 
       for (const candidate of fresh) {
         window.dispatchEvent(new CustomEvent("dfl:admin-alert", {
@@ -383,7 +387,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
             const id = String(order.id);
             const nextStatus = normalizarStatus(order.status);
             const previousStatus = knownActiveStatusRef.current.get(id);
-            if (nextStatus === "Pronto" && previousStatus && previousStatus !== "Pronto") {
+            if (nextStatus === "Pronto" && previousStatus && previousStatus !== "Pronto" && adminNotificationPrefEnabled("readyOrders")) {
               window.dispatchEvent(new CustomEvent("dfl:admin-alert", {
                 detail: {
                   id,
