@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import {
   Activity,
   Bell,
@@ -108,7 +108,7 @@ function AdminIcon({ name }: { name: AdminIconName }) {
   return <Search {...props} />;
 }
 
-export default function AdminPage() {
+function AdminPageContent() {
   const searchParams = useSearchParams();
   const { currentUser } = useAuthStore();
   const {
@@ -1054,5 +1054,14 @@ export default function AdminPage() {
         onOpenFull={() => setTab("operacao")}
       />
     </main>
+  );
+}
+
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={<AdminPanelLoading />}>
+      <AdminPageContent />
+    </Suspense>
   );
 }
