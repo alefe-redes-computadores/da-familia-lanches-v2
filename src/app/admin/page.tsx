@@ -507,11 +507,30 @@ function AdminPageContent() {
   ];
 
   const isOrderTab = ["cozinha", "agendados", "expedicao", "concluidos", "cancelados"].includes(tab);
+
+  const nextOpenLabel =
+    "nextOpenLabel" in storeStatus &&
+    typeof storeStatus.nextOpenLabel === "string"
+      ? storeStatus.nextOpenLabel
+      : "";
+
+  const storeDetail =
+    !storeStatus.isOpen && nextOpenLabel
+      ? `Abre ${nextOpenLabel}`
+      : storeStatus.message;
+
   const storeState = storeStatus.mode === "test_open"
     ? { label: "Manutenção", tone: "maintenance", detail: storeStatus.message }
     : storeStatus.isOpen
-      ? { label: "Aberta", tone: "open", detail: storeStatus.source === "manual" ? "Abertura manual" : storeStatus.message }
-      : { label: "Fechada", tone: "closed", detail: storeStatus.message };
+      ? {
+          label: "Aberta",
+          tone: "open",
+          detail:
+            storeStatus.source === "manual"
+              ? "Abertura manual"
+              : "Atendimento em andamento",
+        }
+      : { label: "Fechada", tone: "closed", detail: storeDetail };
   const managementActive = ["cancelados","catalogo","operacao","agendamentos","frete","cupons","fidelidade","gestao"].includes(tab);
   const activeOrders = counts.cozinha + counts.agendados + counts.expedicao;
 
@@ -689,7 +708,7 @@ function AdminPageContent() {
         <header className={styles.mobileTopbar}>
           <div className={styles.mobileBrand}>
             <div className={styles.mobileBrandMark} aria-hidden="true" />
-            <span><strong>Da Família</strong><small>{desktopDate} · {desktopTime}</small></span>
+            <span><strong>DA FAMÍLIA</strong><small>{desktopDate} · {desktopTime}</small></span>
           </div>
           <div className={styles.mobileTopActions}>
             <button type="button" className={styles.mobileBell} data-active={counts.attention > 0} onClick={() => setNotificationCenterOpen(true)} aria-label="Abrir central de notificações">
