@@ -123,6 +123,82 @@ export async function ensureCommercialMessagingIntent(event: IntegrationEventEnv
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
 
+  /*
+   * V30 — monotonicidade da experiência do cliente.
+   * Nunca enviamos "Em produção" ou "Pronto" depois de "Entregue".
+   * Esta leitura é dirigida pelo evento atual; não existe listener/polling.
+   */
+  if (
+    eventType === "order.production" ||
+    eventType === "order.ready"
+  ) {
+    const currentOrder =
+      await adminDb
+        .collection("Pedidos")
+        .doc(orderId)
+        .get();
+
+    const current =
+      currentOrder.exists
+        ? currentOrder.data() as Record<string, unknown>
+        : {};
+
+    const deliveryCompleted =
+      current.deliveryOperationalCompleted === true ||
+      Boolean(text(current.deliveryOperationalCompletedAt)) ||
+      text(current.deliveryTrackingEvent) === "delivery.completed";
+
+    if (deliveryCompleted) {
+      try {
+        await ref.create({
+          intent_id:`intent-msg-v1__${event.event_id}`,
+          intent_type:"commercial_message",
+          source_event_id:event.event_id,
+          source_event_type:event.event_type,
+          messaging_event_type:eventType,
+          messaging_source:"site",
+          messaging_eligible:false,
+          order_id:orderId,
+          customer_phone:phone || null,
+          customer_name:text(customer.name)||null,
+          total:Number(payload.total)||0,
+          status:"suppressed",
+          schema_version:3,
+          monotonic_protocol:"customer-stage-v1",
+          suppressed_reason:"commercial_stage_after_delivery_completed",
+          processed_at:now,
+          created_at:now,
+          updated_at:now,
+        });
+
+        return {
+          created:false,
+          reason:"obsolete_after_delivery_completed" as const,
+          intentId:ref.id,
+        };
+      } catch (error) {
+        const code =
+          text(
+            (error as {code?:unknown}|null)?.code,
+          ).toLowerCase();
+
+        if (
+          code === "6" ||
+          code.includes("already") ||
+          code.includes("exists")
+        ) {
+          return {
+            created:false,
+            reason:"exists" as const,
+            intentId:ref.id,
+          };
+        }
+
+        throw error;
+      }
+    }
+  }
+
   // Recebido, cancelamento e logística mantêm comportamento por pedido.
   if (!burstRef) {
     try {

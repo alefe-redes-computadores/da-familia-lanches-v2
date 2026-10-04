@@ -85,10 +85,20 @@ function projectionDecision(
     return { apply: true, deferred: false, reason: "delivery_completed" as const };
   }
 
-  // Se o evento de saída se perdeu, a conclusão logística comprova que
-  // a entrega necessariamente saiu da loja. Recuperamos a fronteira
-  // comercial sem deixar o pedido preso eternamente em "Pronto".
-  if (before === "Pronto" && target === "Finalizado") {
+  // V30:
+  // delivery.completed é prova logística terminal. Se o Admin comercial
+  // ficou para trás (Pendente/Em Produção/Pronto/Saiu), fazemos catch-up
+  // atômico até Finalizado. As etapas intermediárias entram apenas no
+  // histórico; NÃO criam eventos/mensagens comerciais retroativas.
+  if (
+    target === "Finalizado" &&
+    (
+      before === "Agendado" ||
+      before === "Pendente" ||
+      before === "Em Produção" ||
+      before === "Pronto"
+    )
+  ) {
     return {
       apply: true,
       deferred: false,
@@ -267,25 +277,62 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         deliveryCommercialProjectionEventId: projectionDeferred ? event.event_id : null,
         deliveryCommercialProjectionEventType: projectionDeferred ? event.event_type : null,
         deliveryCommercialProjectionAt: projectionDeferred ? Timestamp.fromMillis(incoming.time) : null,
+        deliveryCommercialCatchUp:
+          statusChanged &&
+          targetStatus === "Finalizado" &&
+          projection.reason === "delivery_completed_catch_up",
         ...(statusChanged && targetStatus ? {
           status: targetStatus,
           statusUpdatedAt: Timestamp.fromMillis(incoming.time),
           statusHistory: [
             ...(Array.isArray(order.statusHistory) ? order.statusHistory : []),
-            ...(beforeStatus === "Pronto" && targetStatus === "Finalizado"
-              ? [{
-                  status: "Saiu para Entrega",
-                  at: Timestamp.fromMillis(Math.max(0, incoming.time - 1)),
-                  source: "dfl_entregas",
-                  sourceEventId: event.event_id,
-                  recoveredFromCompleted: true,
-                }]
+            ...(targetStatus === "Finalizado"
+              ? (() => {
+                  const recovered: CommercialStatus[] = [];
+
+                  if (
+                    beforeStatus === "Agendado" ||
+                    beforeStatus === "Pendente"
+                  ) {
+                    recovered.push("Em Produção");
+                  }
+
+                  if (
+                    beforeStatus === "Agendado" ||
+                    beforeStatus === "Pendente" ||
+                    beforeStatus === "Em Produção"
+                  ) {
+                    recovered.push("Pronto");
+                  }
+
+                  if (
+                    beforeStatus !== "Saiu para Entrega" &&
+                    beforeStatus !== "Finalizado" &&
+                    beforeStatus !== "Cancelado"
+                  ) {
+                    recovered.push("Saiu para Entrega");
+                  }
+
+                  const base = incoming.time - recovered.length;
+
+                  return recovered.map((status, index) => ({
+                    status,
+                    at: Timestamp.fromMillis(Math.max(0, base + index)),
+                    source: "dfl_entregas",
+                    sourceEventId: event.event_id,
+                    recoveredFromCompleted: true,
+                    silentCatchUp: true,
+                  }));
+                })()
               : []),
             {
               status: targetStatus,
               at: Timestamp.fromMillis(incoming.time),
               source: "dfl_entregas",
               sourceEventId: event.event_id,
+              ...(targetStatus === "Finalizado"
+                ? { logisticsTerminal: true }
+                : {}),
             },
           ],
           statusProjectionSource: "dfl_entregas", statusProjectionEventId:event.event_id, statusProjectionEventType:event.event_type, statusProjectionAt:Timestamp.fromMillis(incoming.time),
