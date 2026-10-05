@@ -363,7 +363,12 @@ export function CatalogAdmin() {
         id: product.id, name: product.name, description: product.description, price: product.price,
         oldPrice: product.oldPrice ?? null, image: product.image, category: product.category,
         disponivel: !product.disponivel, isSuggestion: Boolean(product.isSuggestion), promoPlacement: product.promoPlacement ?? null,
-        sortOrder: product.sortOrder ?? null, addonIds: product.addonIds ?? null, updatedAt: new Date().toISOString(),
+        sortOrder: product.sortOrder ?? null, addonIds: product.addonIds ?? null,
+        detailsTitle: product.detailsTitle ?? null, detailsItems: product.detailsItems ?? [],
+        includedExtras: product.includedExtras ?? null, bundleItems: product.bundleItems ?? null,
+        publicSlug: product.publicSlug ?? null, publicSection: product.publicSection ?? null,
+        upsellProductId: product.upsellProductId ?? null, upsellUnitPrice: product.upsellUnitPrice ?? null,
+        updatedAt: new Date().toISOString(),
       } });
       setMessage(product.disponivel ? "Produto pausado." : "Produto reativado.");
     } catch (error) {

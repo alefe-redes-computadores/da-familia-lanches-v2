@@ -32,8 +32,8 @@ const checks = [
     "produto interno de combo excluído globalmente",
   ],
   [
-    s.includes("getDailySeed"),
-    "rotação diária presente",
+    s.includes("getRotationSeed") && s.includes("Math.floor(now.getHours() / 3)"),
+    "rotação estável em janela de 3 horas presente",
   ],
   [
     s.includes("rotationKey"),

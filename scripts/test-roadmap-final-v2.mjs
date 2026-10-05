@@ -51,9 +51,10 @@ for(const name of heavy){
 }
 
 tests.push([
-  smart.includes("getDailySeed") &&
+  smart.includes("getRotationSeed") &&
+  smart.includes("Math.floor(now.getHours() / 3)") &&
   smart.includes("rotationKey"),
-  "Smart Cart mantém diversidade diária",
+  "Smart Cart mantém diversidade por janela de 3 horas",
 ]);
 
 tests.push([

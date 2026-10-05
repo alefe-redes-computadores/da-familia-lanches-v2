@@ -44,9 +44,21 @@ export function ProductDetailsModal() {
   const allowAddons = productAddons.length > 0;
   const bundleItems = resolveBundleItems(product, products);
   const hasBundle = bundleItems.length > 0;
+  const upsellProduct = product.upsellProductId
+    ? products.find((candidate) => candidate.id === product.upsellProductId && candidate.disponivel !== false)
+    : undefined;
+  const hasExplicitUpsell = Boolean(upsellProduct && product.upsellUnitPrice != null && product.upsellUnitPrice >= 0 && product.upsellUnitPrice < upsellProduct.price);
+  const upsellSaving = hasExplicitUpsell ? upsellProduct!.price - product.upsellUnitPrice! : 0;
 
   const toggleAddon = (addon: Addon) => {
     setSelectedAddons((current) => current.some((item) => item.id === addon.id) ? current.filter((item) => item.id !== addon.id) : [...current, addon]);
+  };
+
+  const handleUpsell = () => {
+    if (!hasExplicitUpsell || !upsellProduct || product.upsellUnitPrice == null) return;
+    addItem(upsellProduct, quantity, [], "", { upsellSourceId: product.id, unitPrice: product.upsellUnitPrice });
+    haptic("add");
+    showCartToast({ title: `${upsellProduct.name} adicionado`, message: `Preço especial de ${money(product.upsellUnitPrice)} aplicado com ${product.name}.`, kind: "add" });
   };
 
   const handleAdd = () => {
@@ -80,6 +92,17 @@ export function ProductDetailsModal() {
           : product.detailsItems?.length ? <div className={styles.detailChips}>{product.detailsItems.map((item) => <span key={item}>{item}</span>)}</div> : null}
           {product.includedExtras && !hasBundle && <p><b>Acompanha:</b> {product.includedExtras}</p>}
         </section>}
+
+        {hasExplicitUpsell && upsellProduct && product.upsellUnitPrice != null && (
+          <section className={styles.comboUpsell}>
+            <div className={styles.comboUpsellCopy}>
+              <span>TURBINE SEU PEDIDO</span><strong>+ {upsellProduct.name} com preço especial</strong>
+              <p>Oferta exclusiva vinculada a {product.name}. Cada unidade deste item libera uma unidade promocional.</p>
+              <div><s>{money(upsellProduct.price)}</s><b>{money(product.upsellUnitPrice)}</b><em>Economize {money(upsellSaving)}</em></div>
+            </div>
+            <button type="button" onClick={handleUpsell}>Adicionar +</button>
+          </section>
+        )}
 
         {allowAddons && (
           <section className={styles.section}>

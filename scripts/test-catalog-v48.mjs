@@ -1,0 +1,13 @@
+import fs from 'node:fs'; const read=p=>fs.readFileSync(p,'utf8'); const ok=(v,m)=>{if(!v)throw new Error(`V48: ${m}`);console.log('OK:',m)};
+const modal=read('src/components/ui/ProductDetailsModal.tsx'),css=read('src/components/ui/ProductDetailsModal.module.css'),admin=read('src/components/admin/CatalogAdmin.tsx'),composition=read('src/lib/catalogComposition.ts'),cart=read('src/store/cart.store.ts');
+ok(modal.includes('resolveBundleItems(product, products)'),'combo resolve produtos-base vinculados');
+ok(modal.includes('item.product?.detailsItems?.length'),'detalhes do sanduíche-base permanecem expansíveis');
+ok(modal.includes('hasExplicitUpsell')&&modal.includes('handleUpsell'),'Turbine explícito aparece no modal');
+ok(modal.includes('upsellSourceId: product.id')&&modal.includes('unitPrice: product.upsellUnitPrice'),'preço especial mantém vínculo comercial');
+ok(cart.includes('commercial.upsellSourceId')&&cart.includes('commercial.unitPrice'),'carrinho preserva preço comercial explícito');
+ok(admin.includes('bundleItems: product.bundleItems ?? null'),'pausar produto não apaga composição');
+ok(admin.includes('detailsItems: product.detailsItems ?? []'),'pausar produto não apaga ingredientes');
+ok(admin.includes('upsellProductId: product.upsellProductId ?? null')&&admin.includes('upsellUnitPrice: product.upsellUnitPrice ?? null'),'pausar produto não apaga Turbine');
+ok(composition.includes('product.bundleItems?.length'),'bundle estruturado continua autoridade');
+const importantNow=(css.match(/!important/g)||[]).length;
+ok(importantNow===34,`V48 preserva dívida histórica do modal sem aumentar (${importantNow})`); console.log('\nV48 CONTRACT — ZERO ERROS');
