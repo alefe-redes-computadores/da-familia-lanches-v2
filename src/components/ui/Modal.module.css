@@ -75,3 +75,9 @@
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+/* DFL V50 — legacy modal viewport hardening */
+@media(max-width:560px){
+  .backdrop{align-items:flex-end;padding-top:max(10px,env(safe-area-inset-top,0px))}
+  .modal{width:100%;max-width:none;max-height:calc(100dvh - max(10px,env(safe-area-inset-top,0px)));border-radius:22px 22px 0 0}
+  .content{min-width:0;overflow-wrap:anywhere;padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
+}

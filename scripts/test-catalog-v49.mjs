@@ -1,0 +1,23 @@
+import fs from "node:fs";
+const read=p=>fs.readFileSync(p,"utf8");
+const ok=(v,m)=>{if(!v)throw new Error(`V49: ${m}`);console.log("OK:",m)};
+const route=read("src/app/api/admin/catalog/route.ts");
+const client=read("src/lib/adminCatalogClient.ts");
+const admin=read("src/components/admin/CatalogAdmin.tsx");
+
+ok(route.includes('BACKUP_COLLECTION="catalog_backups"'),"coleção dedicada de backups");
+ok(route.includes("const admin=await authenticate(request)"),"autenticação é resolvida uma única vez");
+ok(route.includes("adminDb.getAll(...refs)")&&route.includes("PRODUCT_NOT_FOUND"),"produtos atuais são lidos antes da mutação");
+ok(route.includes('backupRef.collection("products")'),"documentos brutos entram no backup");
+ok(route.includes('batch.set(backupRef,{action:"standardizeProducts"'),"metadados de auditoria entram no mesmo batch");
+ok(route.includes("backupId:backupRef.id"),"API devolve backupId sem scan histórico");
+ok(route.includes('action==="restoreCatalogBackup"'),"API possui restore explícito");
+ok(route.includes("{merge:false}"),"restore substitui exatamente o documento salvo");
+ok(route.includes("restoredAt:FieldValue.serverTimestamp()")&&route.includes("restoredBy:"),"restore fica auditado");
+ok(route.includes("saved.size>200"),"restore respeita limite protegido");
+ok(client.includes('action:"restoreCatalogBackup"'),"cliente conhece ação de restore");
+ok(client.includes("backupId?:string;restoredCount?:number"),"cliente preserva metadados da resposta");
+ok(admin.includes("catalogBackupId")&&admin.includes("Backup desta sessão"),"Admin mantém o backup retornado sem consulta");
+ok(admin.includes("Confirmar restauração"),"restore exige confirmação explícita");
+ok(!route.includes(".onSnapshot(")&&!route.includes("setInterval("),"nenhum listener ou polling foi criado");
+console.log("\nV49 CONTRACT — ZERO ERROS");

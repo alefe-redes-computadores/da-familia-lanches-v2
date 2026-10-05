@@ -167,6 +167,8 @@ export function CatalogAdmin() {
   const [categoryDeleteConfirm, setCategoryDeleteConfirm] = useState<string | null>(null);
   const [view, setView] = useState<CatalogView>("produtos");
   const [standardizePreview, setStandardizePreview] = useState<Array<{ id: string; name: string; data: Record<string, unknown>; changes: string[] }> | null>(null);
+  const [catalogBackupId, setCatalogBackupId] = useState("");
+  const [restoreConfirm, setRestoreConfirm] = useState(false);
 
   const filteredProducts = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
@@ -238,7 +240,8 @@ export function CatalogAdmin() {
     return {id:product.id,name:product.name,data,changes};
   }).filter(item=>item.changes.length);
   const previewStandardization=()=>{const preview=buildStandardizationPreview();setStandardizePreview(preview);setMessage(preview.length?`${preview.length} produto(s) podem ser padronizados. Revise a prévia antes de aplicar.`:"O catálogo já está no padrão.");};
-  const applyStandardization=async()=>{if(!standardizePreview?.length)return;setBusy("standardize");try{await mutateCatalog({action:"standardizeProducts",items:standardizePreview.map(({id,data})=>({id,data}))});setStandardizePreview(null);setMessage("Catálogo padronizado. Ingredientes, detalhes e vínculos foram atualizados.");}catch(error){console.error(error);setMessage(error instanceof Error?error.message:"Não foi possível padronizar o catálogo.");}finally{setBusy("");}};
+  const applyStandardization=async()=>{if(!standardizePreview?.length)return;setBusy("standardize");try{const result=await mutateCatalog({action:"standardizeProducts",items:standardizePreview.map(({id,data})=>({id,data}))});const backupId=typeof result?.backupId==="string"?result.backupId:"";setCatalogBackupId(backupId);setStandardizePreview(null);setMessage(backupId?`Catálogo padronizado. Backup de segurança: ${backupId}.`:"Catálogo padronizado com backup de segurança.");}catch(error){console.error(error);setMessage(error instanceof Error?error.message:"Não foi possível padronizar o catálogo.");}finally{setBusy("");}};
+  const restoreCatalogBackup=async()=>{if(!catalogBackupId||!restoreConfirm)return;setBusy("restore-backup");try{const result=await mutateCatalog({action:"restoreCatalogBackup",backupId:catalogBackupId});setRestoreConfirm(false);setMessage(`Backup ${catalogBackupId} restaurado${typeof result?.restoredCount==="number"?` (${result.restoredCount} produtos)`:``}.`);}catch(error){console.error(error);setMessage(error instanceof Error?error.message:"Não foi possível restaurar o backup.");}finally{setBusy("");}};
 
   const openCreateProduct = () => {
     setProductMode("create");
@@ -573,7 +576,16 @@ export function CatalogAdmin() {
       <section className={styles.smallEditor}><div className={styles.editorHead}><div><span>{categoryDraft.mode === "create" ? "NOVA CATEGORIA" : "EDITAR CATEGORIA"}</span><h3>{categoryDraft.mode === "create" ? "Criar seção do cardápio" : categoryDraft.label}</h3></div><button onClick={() => setCategoryDraft(null)}>×</button></div>{categoryDraft.mode === "edit" && <div className={styles.idBox}><span>ID permanente</span><strong>{categoryDraft.id}</strong></div>}<label>Nome<input autoFocus value={categoryDraft.label} onChange={(e) => setCategoryDraft({ ...categoryDraft, label: e.target.value })} placeholder="Ex.: Porções" /></label><p className={styles.categoryHint}>O ID é permanente: renomear não quebra os produtos vinculados.</p><div className={styles.editorActions}><button onClick={() => setCategoryDraft(null)}>Cancelar</button><button className={styles.save} onClick={saveCategory} disabled={busy.startsWith("category-")}>{busy.startsWith("category-") ? "Salvando..." : "Salvar categoria"}</button></div></section>
     </div>}
 
-    {view === "produtos" && <div className={styles.standardizeBar}><button type="button" className={styles.standardizeButton} onClick={previewStandardization} disabled={busy==="standardize"}>Padronizar catálogo</button><small>Revisa ingredientes, detalhes, combos e Turbine sem inventar preço.</small></div>}
+    {view === "produtos" && <div className={styles.standardizeBar}><button type="button" className={styles.standardizeButton} onClick={previewStandardization} disabled={busy==="standardize"||busy==="restore-backup"}>Padronizar catálogo</button><small>Antes de alterar os produtos, o servidor cria um backup bruto e restaurável.</small>{catalogBackupId && <><small>Backup desta sessão: <strong>{catalogBackupId}</strong></small><button type="button" onClick={()=>setRestoreConfirm(true)} disabled={Boolean(busy)}>Restaurar último backup</button></>}</div>}
+
+    {restoreConfirm && catalogBackupId && <div className={styles.overlay} onMouseDown={(event)=>{if(event.target===event.currentTarget&&busy!=="restore-backup")setRestoreConfirm(false);}}>
+      <section className={styles.smallEditor}>
+        <div className={styles.editorHead}><div><span>RESTAURAÇÃO DE SEGURANÇA</span><h3>Voltar o catálogo ao backup?</h3></div><button onClick={()=>setRestoreConfirm(false)} disabled={busy==="restore-backup"}>×</button></div>
+        <div className={styles.idBox}><span>Backup</span><strong>{catalogBackupId}</strong></div>
+        <p className={styles.categoryHint}>Os produtos salvos nesse backup substituirão exatamente os documentos atuais. Campos criados depois também serão removidos.</p>
+        <div className={styles.editorActions}><button onClick={()=>setRestoreConfirm(false)} disabled={busy==="restore-backup"}>Cancelar</button><button className={styles.save} onClick={restoreCatalogBackup} disabled={busy==="restore-backup"}>{busy==="restore-backup"?"Restaurando...":"Confirmar restauração"}</button></div>
+      </section>
+    </div>}
 
     {standardizePreview && <div className={styles.overlay} onMouseDown={(event)=>{if(event.target===event.currentTarget&&busy!=="standardize")setStandardizePreview(null);}}>
       <section className={`${styles.editor} ${styles.standardizeEditor}`}>

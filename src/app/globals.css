@@ -11,3 +11,8 @@ button{font:inherit}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* DFL V50 — viewport containment */
+html,body{width:100%;max-width:100%;overflow-x:clip}
+#__next{max-width:100%}
+@supports not (overflow:clip){html,body{overflow-x:hidden}}

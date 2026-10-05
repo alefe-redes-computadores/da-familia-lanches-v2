@@ -12,7 +12,8 @@ export type CatalogMutation =
  | { action:"saveAddon"; id:string; data:Record<string,unknown> }
  | { action:"toggleAddon"; id:string; data:Record<string,unknown> }
  | { action:"reorderProducts"; items:Array<{id:string;sortOrder:number}> }
- | { action:"standardizeProducts"; items:Array<{id:string;data:Record<string,unknown>}> };
+ | { action:"standardizeProducts"; items:Array<{id:string;data:Record<string,unknown>}> }
+ | { action:"restoreCatalogBackup"; backupId:string };
 
 const messages:Record<string,string>={
  ADMIN_AUTH_REQUIRED:"Sua sessão expirou. Entre novamente no Admin.",
@@ -23,6 +24,10 @@ const messages:Record<string,string>={
  CATEGORY_INVALID:"Informe um nome válido para a categoria.",
  CATEGORY_IN_USE:"Essa categoria ainda possui produtos. Mova-os antes de excluir.",
  ORDER_INVALID:"Não foi possível validar a nova ordem.",
+ PRODUCT_NOT_FOUND:"Um produto mudou ou deixou de existir. Atualize o catálogo antes de padronizar.",
+ BACKUP_ID_REQUIRED:"O identificador do backup é inválido.",
+ BACKUP_NOT_FOUND:"Esse backup do catálogo não foi encontrado.",
+ BACKUP_INVALID:"O backup do catálogo está incompleto ou inválido.",
  PAYLOAD_TOO_LARGE:"A alteração ficou grande demais. Reduza os dados e tente novamente.",
  CATALOG_MUTATION_FAILED:"Não foi possível salvar a alteração do catálogo."
 };
@@ -47,7 +52,7 @@ export async function mutateCatalog(input:CatalogMutation){
   body:JSON.stringify(input),
   cache:"no-store"
  });
- const payload=await response.json().catch(()=>null) as {ok?:boolean;error?:string}|null;
+ const payload=await response.json().catch(()=>null) as {ok?:boolean;error?:string;backupId?:string;restoredCount?:number}|null;
  if(!response.ok||!payload?.ok)throw new CatalogMutationError(payload?.error||"CATALOG_MUTATION_FAILED");
  if((input.action==="saveProduct"||input.action==="toggleProduct")&&patchPublicCatalogProduct(input.id,input.data))return payload;
  await reloadPublicCatalog();
