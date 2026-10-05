@@ -11,7 +11,8 @@ export type CatalogMutation =
  | { action:"reorderCategories"; items:Array<{id:string;sortOrder:number}> }
  | { action:"saveAddon"; id:string; data:Record<string,unknown> }
  | { action:"toggleAddon"; id:string; data:Record<string,unknown> }
- | { action:"reorderProducts"; items:Array<{id:string;sortOrder:number}> };
+ | { action:"reorderProducts"; items:Array<{id:string;sortOrder:number}> }
+ | { action:"standardizeProducts"; items:Array<{id:string;data:Record<string,unknown>}> };
 
 const messages:Record<string,string>={
  ADMIN_AUTH_REQUIRED:"Sua sessão expirou. Entre novamente no Admin.",

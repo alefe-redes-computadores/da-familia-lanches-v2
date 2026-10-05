@@ -166,6 +166,7 @@ export function CatalogAdmin() {
   const [categoryDraft, setCategoryDraft] = useState<{ id: string; label: string; mode: "create" | "edit" } | null>(null);
   const [categoryDeleteConfirm, setCategoryDeleteConfirm] = useState<string | null>(null);
   const [view, setView] = useState<CatalogView>("produtos");
+  const [standardizePreview, setStandardizePreview] = useState<Array<{ id: string; name: string; data: Record<string, unknown>; changes: string[] }> | null>(null);
 
   const filteredProducts = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
@@ -201,6 +202,43 @@ export function CatalogAdmin() {
   const categoryOptions = categories.map((category) => ({ value: category.id, label: `${category.label}${category.active ? "" : " (oculta)"}` }));
   const categoryLabel = (id: string) => categories.find((category) => category.id === id)?.label ?? id;
   const productsInCategory = (id: string) => products.filter((product) => product.category === id);
+
+  const ingredientItems = (product: Product) => {
+    if (product.detailsItems?.length) return product.detailsItems.map((item) => item.trim()).filter(Boolean);
+    if (["bebidas", "promocoes", "combos"].includes(product.category)) return [];
+    return product.description.replace(/\.\s*Acompanha.*$/i, "").replace(/^Com Purê!\s*/i, "")
+      .split(/,\s*|\s+e\s+(?=[^,]+$)/i).map((item) => item.trim().replace(/\.$/, "")).filter(Boolean);
+  };
+  const defaultExtras = (product: Product) => {
+    if (product.includedExtras?.trim()) return product.includedExtras.trim();
+    if (product.category === "bebidas" || product.category === "hotdogs") return "";
+    return "Nossa maionese temperada — o famoso molho verde da casa — e ketchup em sachê.";
+  };
+  const comboBundleFromDetails = (product: Product) => {
+    if (product.bundleItems?.length) return product.bundleItems;
+    const haystack=`${product.name} ${product.description} ${(product.detailsItems??[]).join(" ")}`.toLocaleLowerCase("pt-BR");
+    const candidates=products.filter(c=>c.id!==product.id&&!["bebidas","promocoes","combos"].includes(c.category)).sort((x,y)=>y.name.length-x.name.length);
+    const base=candidates.find(c=>haystack.includes(c.name.toLocaleLowerCase("pt-BR"))); if(!base)return [];
+    const escaped=base.name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    const match=haystack.match(new RegExp(`(\\d+)\\s+(?:lanches?\\s+|burgers?\\s+|hot\\s*dogs?\\s+)?${escaped}`,"i"));
+    return [{productId:base.id,quantity:match?Math.max(1,Number(match[1])||1):1}];
+  };
+  const buildStandardizationPreview = () => products.map((product) => {
+    const isCombo=product.category==="combos"||product.category==="promocoes"||product.id.startsWith("combo-");
+    const detailsItems=isCombo?(product.detailsItems?.map(x=>x.trim()).filter(Boolean)??[]):ingredientItems(product);
+    const bundleItems=isCombo?comboBundleFromDetails(product):(product.bundleItems??[]);
+    const base=bundleItems.length===1?products.find(c=>c.id===bundleItems[0].productId):undefined;
+    const data:Record<string,unknown>={id:product.id,name:product.name.trim(),description:product.description.trim(),price:product.price,oldPrice:product.oldPrice??null,image:product.image,category:product.category,disponivel:product.disponivel,isSuggestion:Boolean(product.isSuggestion),promoPlacement:product.promoPlacement??"none",sortOrder:product.sortOrder??null,addonIds:product.category==="bebidas"?[]:(product.addonIds??null),detailsTitle:isCombo?`O que vem no ${product.name}?`:(product.category==="bebidas"?null:`O que vem no ${product.name}?`),detailsItems,includedExtras:defaultExtras(product)||null,bundleItems:bundleItems.length?bundleItems:null,publicSlug:product.publicSlug??null,publicSection:product.publicSection??null,upsellProductId:product.upsellProductId??(isCombo&&base?.disponivel!==false?base?.id??null:null),upsellUnitPrice:product.upsellUnitPrice??null};
+    const changes:string[]=[];
+    if(!product.detailsTitle&&data.detailsTitle)changes.push("título dos detalhes");
+    if(!(product.detailsItems?.length)&&detailsItems.length)changes.push("ingredientes");
+    if(!product.includedExtras&&data.includedExtras)changes.push("acompanhamentos");
+    if(!(product.bundleItems?.length)&&bundleItems.length)changes.push("composição vinculada");
+    if(!product.upsellProductId&&data.upsellProductId)changes.push("lanche do Turbine");
+    return {id:product.id,name:product.name,data,changes};
+  }).filter(item=>item.changes.length);
+  const previewStandardization=()=>{const preview=buildStandardizationPreview();setStandardizePreview(preview);setMessage(preview.length?`${preview.length} produto(s) podem ser padronizados. Revise a prévia antes de aplicar.`:"O catálogo já está no padrão.");};
+  const applyStandardization=async()=>{if(!standardizePreview?.length)return;setBusy("standardize");try{await mutateCatalog({action:"standardizeProducts",items:standardizePreview.map(({id,data})=>({id,data}))});setStandardizePreview(null);setMessage("Catálogo padronizado. Ingredientes, detalhes e vínculos foram atualizados.");}catch(error){console.error(error);setMessage(error instanceof Error?error.message:"Não foi possível padronizar o catálogo.");}finally{setBusy("");}};
 
   const openCreateProduct = () => {
     setProductMode("create");
@@ -530,6 +568,17 @@ export function CatalogAdmin() {
       <section className={styles.smallEditor}><div className={styles.editorHead}><div><span>{categoryDraft.mode === "create" ? "NOVA CATEGORIA" : "EDITAR CATEGORIA"}</span><h3>{categoryDraft.mode === "create" ? "Criar seção do cardápio" : categoryDraft.label}</h3></div><button onClick={() => setCategoryDraft(null)}>×</button></div>{categoryDraft.mode === "edit" && <div className={styles.idBox}><span>ID permanente</span><strong>{categoryDraft.id}</strong></div>}<label>Nome<input autoFocus value={categoryDraft.label} onChange={(e) => setCategoryDraft({ ...categoryDraft, label: e.target.value })} placeholder="Ex.: Porções" /></label><p className={styles.categoryHint}>O ID é permanente: renomear não quebra os produtos vinculados.</p><div className={styles.editorActions}><button onClick={() => setCategoryDraft(null)}>Cancelar</button><button className={styles.save} onClick={saveCategory} disabled={busy.startsWith("category-")}>{busy.startsWith("category-") ? "Salvando..." : "Salvar categoria"}</button></div></section>
     </div>}
 
+    {view === "produtos" && <div className={styles.standardizeBar}><button type="button" className={styles.standardizeButton} onClick={previewStandardization} disabled={busy==="standardize"}>Padronizar catálogo</button><small>Revisa ingredientes, detalhes, combos e Turbine sem inventar preço.</small></div>}
+
+    {standardizePreview && <div className={styles.overlay} onMouseDown={(event)=>{if(event.target===event.currentTarget&&busy!=="standardize")setStandardizePreview(null);}}>
+      <section className={`${styles.editor} ${styles.standardizeEditor}`}>
+        <div className={styles.editorHead}><div><span>PADRONIZAÇÃO DO CATÁLOGO</span><h3>Revisar antes de aplicar</h3></div><button onClick={()=>setStandardizePreview(null)} disabled={busy==="standardize"}>×</button></div>
+        <div className={styles.standardizeSummary}><strong>{standardizePreview.length} produto(s)</strong><span>Nenhum preço de Turbine será inventado. O combo pode vincular o lanche-base; o preço especial continua pendente até ser configurado.</span></div>
+        <div className={styles.standardizeList}>{standardizePreview.map(item=><article key={item.id}><div><strong>{item.name}</strong><small>{item.id}</small></div><p>{item.changes.join(" · ")}</p></article>)}</div>
+        <div className={styles.editorActions}><button onClick={()=>setStandardizePreview(null)} disabled={busy==="standardize"}>Cancelar</button><button className={styles.save} onClick={applyStandardization} disabled={busy==="standardize"}>{busy==="standardize"?"Aplicando...":"Aplicar padronização"}</button></div>
+      </section>
+    </div>}
+
     {productDraft && productMode && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) { setProductDraft(null); setProductMode(null); } }}>
       <section className={styles.editor}>
         <div className={styles.editorHead}><div><span>{productMode === "create" ? "NOVO PRODUTO" : "EDITAR PRODUTO"}</span><h3>{productMode === "create" ? "Cadastrar item" : productDraft.name}</h3></div><button onClick={() => { setProductDraft(null); setProductMode(null); }}>×</button></div>
@@ -583,9 +632,9 @@ export function CatalogAdmin() {
                 }} />
                 {imageUploading ? "Enviando foto..." : productDraft.image ? "Trocar foto" : "Selecionar foto"}
               </label>
-              <div><strong>Foto do produto</strong><small>JPG, PNG ou WebP · até 5 MB. Antes do envio, a foto é redimensionada e convertida para WebP no aparelho. Nenhuma credencial do GitHub fica no navegador.</small></div>
+              <div><strong>Foto do produto</strong><small>JPG, PNG ou WebP · até 5 MB. A foto é otimizada automaticamente.</small></div>
             </div>
-            <label className={styles.full}>Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /><small>Imagens do catálogo são entregues em tamanho responsivo e WebP/AVIF automaticamente. O upload pelo GitHub será feito por rota segura no servidor, sem token no navegador.</small></label>
+            <label className={styles.full}>Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /><small>Você também pode informar um caminho ou URL de imagem.</small></label>
         </div>
         {productDraft.image.trim() && <div className={styles.preview}><CatalogImage src={productDraft.image} alt="" sizes="120px" quality={68} /><div><span>PRÉVIA</span><strong>{productDraft.name || "Novo produto"}</strong><small>{productDraft.image}</small></div></div>}
         <div className={styles.switches}>

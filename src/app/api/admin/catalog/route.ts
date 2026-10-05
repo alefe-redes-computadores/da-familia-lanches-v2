@@ -95,6 +95,12 @@ export async function POST(request:NextRequest){
    const col=action==="reorderCategories"?categories:products,batch=adminDb.batch();
    items.forEach(item=>{const itemId=cleanString(item.id,100),sortOrder=finite(item.sortOrder);if(!itemId||!validId(itemId)||sortOrder==null)throw new Error("ORDER_INVALID");batch.set(col.doc(itemId),{sortOrder,updatedAt:FieldValue.serverTimestamp()},{merge:true});});
    await batch.commit();
+  }
+  else if(action==="standardizeProducts"){
+   const items=Array.isArray(body.items)?body.items as Array<Raw>:[]; if(!items.length||items.length>200)throw new Error("ORDER_INVALID");
+   const batch=adminDb.batch();
+   items.forEach(item=>{const itemId=cleanString(item.id,100),itemData=(item.data&&typeof item.data==="object"?item.data:{}) as Raw;if(!itemId||!validId(itemId))throw new Error("ID_REQUIRED");batch.set(products.doc(itemId),product(itemData),{merge:true});});
+   await batch.commit();
   } else return NextResponse.json({ok:false,error:"ACTION_INVALID"},{status:400});
   await invalidate();
   return NextResponse.json({ok:true},{headers:{"Cache-Control":"no-store"}});
