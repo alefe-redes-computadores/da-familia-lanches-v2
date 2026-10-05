@@ -1,0 +1,14 @@
+import fs from "node:fs";
+const read=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw new Error(`V47: ${m}`);console.log("OK:",m)};
+const css=read("src/components/admin/CatalogAdmin.module.css");
+const admin=read("src/components/admin/CatalogAdmin.tsx");
+const debt=(css.match(/!important/g)||[]).length;
+ok(debt===0,"catálogo zerou dívida !important");
+ok(css.includes("V37 — CATALOG FIRST-FOLD PERFORMANCE"),"autoridade V37 preservada");
+ok(css.includes("V40.1 — CATALOG FINAL AUTHORITY"),"autoridade V40 preservada");
+ok(css.includes("V44 — Catalog editor final authority"),"editor V44 preservado");
+ok(css.includes("V45 — Catalog standardization"),"superfície V45 preservada");
+ok(css.includes(".editor .photoUpload"),"especificidade moderna preservada");
+ok(admin.includes("CatalogOrganizerAdmin"),"organizador preservado");
+ok(admin.includes("standardizePreview"),"padronização preservada");
+console.log("\nV47 CONTRACT — ZERO ERROS");
