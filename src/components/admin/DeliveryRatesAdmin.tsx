@@ -42,6 +42,7 @@ export function DeliveryRatesAdmin() {
   const [removeConfirmKey, setRemoveConfirmKey] = useState("");
   const [editingKey, setEditingKey] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [showAllRates, setShowAllRates] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -68,6 +69,8 @@ export function DeliveryRatesAdmin() {
   const sorted = useMemo(() => rates
     .filter((item) => !search.trim() || normalize(String(item.nome ?? "")).includes(normalize(search)))
     .sort((a, b) => String(a.nome ?? "").localeCompare(String(b.nome ?? ""), "pt-BR")), [rates, search]);
+
+  const visibleRates = search.trim() || showAllRates ? sorted : sorted.slice(0, 8);
 
   const invalidCount = rates.filter((item) => !String(item.nome ?? "").trim() || !Number.isFinite(Number(item.taxa)) || Number(item.taxa) < 0).length;
 
@@ -160,7 +163,7 @@ export function DeliveryRatesAdmin() {
     {loading
       ? <div className={styles.empty}>Carregando tabela…</div>
       : <div className={styles.list}>
-          {sorted.map((item) => {
+          {visibleRates.map((item) => {
             const editing = editingKey === item._key;
             return <div className={styles.row} data-editing={editing} key={item._key}>
               {editing
@@ -184,6 +187,16 @@ export function DeliveryRatesAdmin() {
           })}
           {!sorted.length && <div className={styles.empty}>Nenhum bairro encontrado.</div>}
         </div>}
+
+    {!loading && !search.trim() && sorted.length > 8 && (
+      <button
+        type="button"
+        className={styles.rateListToggle}
+        onClick={() => { haptic("step"); setShowAllRates((value) => !value); }}
+      >
+        {showAllRates ? "Mostrar menos bairros" : `Ver todos os ${sorted.length} bairros`}
+      </button>
+    )}
 
     <div className={styles.add}>
       <div><span>NOVO BAIRRO</span><strong><MapPin size={16}/>Adicionar taxa</strong></div>

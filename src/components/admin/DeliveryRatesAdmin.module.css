@@ -796,3 +796,34 @@
   scroll-margin-top: 110px;
   border-color: rgba(255,201,40,.24) !important;
 }
+
+/* ============================================================
+   DFL ADMIN V37.1 R2 — DELIVERY FINAL USABILITY POLISH
+   ============================================================ */
+.head{flex-direction:row!important;align-items:flex-start!important}
+.head>div{min-width:0!important;flex:1 1 auto!important}
+.head>b{flex:0 0 auto!important;align-self:flex-start!important;width:auto!important;min-width:34px!important;max-width:max-content!important}
+
+.rateView{grid-template-columns:minmax(0,1fr) auto 34px!important;min-height:54px!important}
+.rateIdentity{min-width:0!important}
+.rateIdentity strong{display:-webkit-box!important;width:100%!important;overflow:hidden!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;white-space:normal!important;text-overflow:clip!important;font-size:14px!important;line-height:1.15!important;font-weight:800!important}
+.rateIdentity small{margin-top:2px!important;font-size:11px!important;color:#66717c!important}
+.rateView>b{min-width:72px!important;font-size:14px!important}
+.editCue{width:32px!important;min-width:32px!important;height:32px!important}
+
+.rateListToggle{width:100%;min-height:44px;margin-top:8px;border:1px solid rgba(148,163,184,.12);border-radius:12px;background:#11171d;color:#b9c2ca;font-size:12px;font-weight:850}
+.rateListToggle:active{background:#171e25}
+
+@media(max-width:620px){
+  .list{max-height:none!important;overflow:visible!important;overscroll-behavior:auto!important}
+  .rateIdentity small{display:none!important}
+  .rateView{min-height:50px!important;grid-template-columns:minmax(0,1fr) auto 32px!important;gap:8px!important}
+  .rateIdentity strong{font-size:13.5px!important}
+  .rateView>b{min-width:68px!important;font-size:13.5px!important}
+  .editCue{width:30px!important;min-width:30px!important;height:30px!important}
+}
+@media(max-width:390px){
+  .rateIdentity strong{font-size:13px!important}
+  .rateView{grid-template-columns:minmax(0,1fr) auto 30px!important}
+  .rateView>b{min-width:64px!important;font-size:13px!important}
+}
