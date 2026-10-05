@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { adminAuth } from "@/lib/integration/server/adminAuth";
 import { isAdminEmail } from "@/lib/adminAuthorization";
 
@@ -57,22 +58,23 @@ export async function POST(request: NextRequest) {
     if (!ALLOWED.has(candidate.type)) return NextResponse.json({ ok: false, error: "IMAGE_TYPE_INVALID" }, { status: 415 });
     if (!candidate.size || candidate.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "IMAGE_SIZE_INVALID" }, { status: 413 });
 
-    const path = `public/img/catalog/${productId}.${extension()}`;
+    const bytes = Buffer.from(await candidate.arrayBuffer());
+    const digest = createHash("sha256").update(bytes).digest("hex").slice(0, 12);
+    const path = `public/img/catalog/${productId}-${digest}.${extension()}`;
     const existing = await github(path);
-    let sha: string | undefined;
     if (existing.ok) {
-      const current = await existing.json() as { sha?: string };
-      sha = current.sha;
-    } else if (existing.status !== 404) {
+      return NextResponse.json(
+        { ok: true, path: `/img/catalog/${productId}-${digest}.${extension()}`, reused: true },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if (existing.status !== 404) {
       return NextResponse.json({ ok: false, error: "GITHUB_LOOKUP_FAILED" }, { status: 502 });
     }
-
-    const bytes = Buffer.from(await candidate.arrayBuffer());
     const body = {
-      message: `catalog: update image ${productId}`,
+      message: `catalog: add image ${productId}-${digest}`,
       content: bytes.toString("base64"),
       branch: BRANCH,
-      ...(sha ? { sha } : {}),
     };
 
     const saved = await github(path, {
@@ -88,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: true, path: `/img/catalog/${productId}.${extension()}` },
+      { ok: true, path: `/img/catalog/${productId}-${digest}.${extension()}` },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

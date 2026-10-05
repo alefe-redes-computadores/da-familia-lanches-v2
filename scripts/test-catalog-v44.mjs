@@ -1,0 +1,12 @@
+import fs from"node:fs";
+const r=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw Error("V44: "+m);console.log("OK:",m)};
+const pub=r("src/app/api/public/catalog/route.ts"),img=r("src/app/api/admin/catalog-image/route.ts"),client=r("src/lib/adminCatalogClient.ts"),css=r("src/components/admin/CatalogAdmin.module.css"),admin=r("src/components/admin/CatalogAdmin.tsx");
+ok(pub.includes('"Cache-Control": "private, no-store, max-age=0"'),"CDN não segura catálogo comercial velho");
+ok(pub.includes("unstable_cache")&&pub.includes("revalidate: 3600"),"cache interno econômico preservado");
+ok(client.includes("reloadPublicCatalog")&&client.includes("await reloadPublicCatalog()"),"Admin relê catálogo após salvar");
+ok(img.includes('createHash("sha256")')&&img.includes("${productId}-${digest}"),"imagem usa nome por conteúdo");
+ok(!img.includes('const path = `public/img/catalog/${productId}.${extension()}`'),"imagem não sobrescreve URL cacheada");
+ok(css.includes("V44 — Catalog editor final authority")&&css.includes("background:#ffc72c"),"editor dark premium com ação principal");
+const forced=(css.replace(/\/\*[\s\S]*?\*\//g,"").match(/!important/g)||[]).length;ok(forced<=397,"V44 não aumenta dívida !important");
+ok(admin.includes("Escolha uma foto do produto. Ela será otimizada automaticamente"),"texto técnico removido");
+console.log("DFL SITE V44 — ZERO ERROS");

@@ -532,3 +532,43 @@
 .photoButton{position:relative;display:grid;place-items:center;min-height:42px;padding:0 14px;border:1px solid #34393f;border-radius:11px;background:#e8eaec;color:#0b0c0d;font-size:12px;font-weight:900;text-transform:none;cursor:pointer}
 .photoButton[data-busy="true"]{opacity:.62;cursor:wait}.photoButton input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 @media(max-width:520px){.photoUpload{grid-template-columns:1fr}.photoButton{width:100%}}
+
+/* V44 — Catalog editor final authority */
+.editor{background:#101215;color:#e8eaec;}
+.editorHead{background:rgba(16,18,21,.96);border-bottom:1px solid #262a2e;color:#e8eaec;}
+.editorHead>button{background:#181b1f;color:#e8eaec;border-color:#2a2e33;}
+.idBox{background:#171a1e;color:#e8eaec;border:1px solid #292d32;}
+.idBox span,.idBox strong{color:inherit;}
+.commercialBlock{background:#15181c;border:1px solid #292d32;box-shadow:none;}
+.commercialHead strong,.commercialHead small{color:#aeb4bb;}
+.commercialHead>b{background:#e8eaec;color:#101215;}
+.moneyInput{background:#0e1114;border-color:#30353b;}
+.moneyInput>span{color:#9299a1;}
+.moneyInput input{color:#f1f3f5;}
+.editor .photoUpload{background:#15181c;color:#e8eaec;border:1px solid #292d32;}
+.editor .photoUpload small{color:#aeb4bb;}
+.photoButton{background:#e8eaec;color:#101215;}
+.preview{background:#15181c;border-color:#292d32;}
+.checks label{background:#15181c;color:#e8eaec;border-color:#292d32;}
+.choiceList button{color:#e8eaec;}
+.choiceList button[data-active="true"]{background:#20242a;color:#fff;}
+.switches button,.addonPicker,.bundleEditor{background:#15181c;border-color:#292d32;color:#e8eaec;}
+.editorActions{background:linear-gradient(to top,#101215 78%,rgba(16,18,21,0));}
+.editorActions .save{background:#ffc72c;color:#151515;border-color:#ffc72c;box-shadow:0 8px 24px rgba(255,199,44,.12);}
+.editorActions button:not(.save){background:#181b1f;color:#e8eaec;border-color:#292d32;}
+.form input,.form textarea,.bundleRow select,.bundleRow input{background:#0e1114;border-color:#292d32;color:#e8eaec;}
+.promoPreview{background:#0e1114;border:1px solid #292d32;}
+@media(max-width:620px){
+ .overlay{padding:0;place-items:end center;}
+ .editor{max-height:96dvh;border-radius:22px 22px 0 0;}
+ .editorHead{padding:12px 14px;margin-bottom:8px;}
+ .editorHead h3{font-size:18px;}
+ .form{padding-top:8px;gap:9px;}
+ .form textarea{min-height:68px;}
+ .commercialBlock{padding:12px;border-radius:16px;}
+ .commercialHead{margin-bottom:10px;}
+ .photoUpload{padding:10px;}
+ .preview img{width:64px;height:64px;}
+ .editorActions{margin-top:10px;padding:9px 0 calc(10px + env(safe-area-inset-bottom));}
+ .editorActions button{min-height:46px;}
+}

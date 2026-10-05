@@ -141,9 +141,9 @@ export async function GET() {
 
     return NextResponse.json(payload, {
       headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+        "Cache-Control": "private, no-store, max-age=0",
         "x-dfl-trace-id": trace.id,
-        "x-dfl-catalog-version": "budget-v1",
+        "x-dfl-catalog-version": "budget-v2-invalidation",
       },
     });
   } catch (error) {

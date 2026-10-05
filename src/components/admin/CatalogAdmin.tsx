@@ -572,7 +572,7 @@ export function CatalogAdmin() {
             </div>
             {(() => { const promo=promoMetrics(productDraft.price,productDraft.oldPrice); return promo ? <div className={styles.promoPreview}><div><span>CLIENTE ECONOMIZA</span><strong>{money(promo.saving)}</strong></div><b>-{promo.percent}%</b><small>De {money(promo.oldPrice)} por {money(promo.price)}</small></div> : <p className={styles.promoHint}>Informe um preço anterior maior que o atual para ativar a apresentação promocional no cardápio.</p>; })()}
           </div>
-          <div className={styles.photoUpload}><small>Imagem hospedada pelo próprio site. Use um caminho como <strong>/img/combo-familia-uai.jpg</strong> ou uma URL HTTPS.</small></div>
+          <div className={styles.photoUpload}><small>Escolha uma foto do produto. Ela será otimizada automaticamente antes do envio.</small></div>
           <div className={styles.formChoice}><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={categoryOptions} /></div>
           <div className={styles.photoUpload}>
               <label className={styles.photoButton} data-busy={imageUploading}>
