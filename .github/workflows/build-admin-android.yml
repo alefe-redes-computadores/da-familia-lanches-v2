@@ -63,6 +63,14 @@ jobs:
           node scripts/test-admin-operational-cockpit-v37-r3.mjs
           node scripts/test-admin-final-responsive-polish-v37-1-r2.mjs
           node scripts/test-admin-density-delivery-v38.mjs
+          node scripts/test-catalog-v47.mjs
+          node scripts/test-catalog-v48.mjs
+          node scripts/test-catalog-v49.mjs
+          node scripts/test-mobile-viewport-v50.mjs
+          node scripts/test-smartcart-v2.mjs
+          node scripts/test-roadmap-final-v2.mjs
+          node scripts/release-gate-catalog-v43.mjs
+          node scripts/test-android-release-gate-v50-1.mjs
           node node_modules/typescript/bin/tsc --noEmit
           git diff --check
 

@@ -31,14 +31,13 @@ ok(coupons.includes("AdminLoadingState"), "Cupons não usa loading padronizado")
 ok(coupons.includes("adminMoneyTyping"), "Cupons não usa máscara monetária central");
 ok(!coupons.includes("confirmDelete"), "confirmação dupla antiga permaneceu");
 
+ok(catalogCss.includes("DFL ADMIN V36 — MODULE EXPERIENCE AUTHORITY"), "Catálogo: autoridade V36 ausente");
+ok(catalogCss.includes("font-size: 12px"), "Catálogo: microtipografia não foi elevada");
+ok(catalogCss.includes("min-height: 48px"), "Catálogo: controles não foram consolidados");
+ok(!catalogCss.includes("!important"), "Catálogo: dívida !important reapareceu após V47");
 for (const [name, css] of [
-  ["Catálogo", catalogCss],
-  ["Fretes", ratesCss],
-  ["Frete grátis", freeCss],
-  ["Cupons", couponsCss],
-  ["Fidelidade", rewardsCss],
-  ["Agendamentos", schedulingCss],
-  ["Promoções", promosCss],
+  ["Fretes", ratesCss], ["Frete grátis", freeCss], ["Cupons", couponsCss],
+  ["Fidelidade", rewardsCss], ["Agendamentos", schedulingCss], ["Promoções", promosCss],
 ]) {
   ok(css.includes("DFL ADMIN V36 — MODULE EXPERIENCE AUTHORITY"), `${name}: autoridade V36 ausente`);
   ok(css.includes("font-size: 12px !important"), `${name}: microtipografia não foi elevada`);
