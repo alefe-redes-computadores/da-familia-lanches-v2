@@ -10,7 +10,7 @@ import { ageLabel, operationalAttention } from "@/lib/adminOrders";
 import { openDflEntregas } from "@/lib/adminDeliveryBridge";
 import styles from "./OrderCard.module.css";
 
-export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false, updating = false }: any) {
+export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false, updating = false, density = "comfortable" }: any) {
   const [expanded, setExpanded] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<"resumo" | "itens" | "cliente" | "entrega" | "pagamento">("resumo");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -49,6 +49,11 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const hasLogisticsLink = Boolean(pedido.deliveryId);
   const fulfillmentLabel = pickup ? "RETIRADA" : "ENTREGA";
   const itemCount = itens.reduce((sum, item) => sum + item.quantity, 0);
+  const queuePreviewItems = itens.slice(0, density === "rush" ? 1 : 2);
+  const queueObservation =
+    itens
+      .map((item) => String(item.observation || "").trim())
+      .find(Boolean) || "";
   const logisticsSummary = pedido.deliveryOperationalCompleted
     ? "Entrega concluída"
     : pedido.deliveryIsNextStop
@@ -165,6 +170,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
       data-terminal={terminal ? terminalTone : "active"}
       data-stage={stageTone}
       data-updating={updating}
+      data-density={inspector ? "inspector" : density}
       onClick={terminal && onSelect ? onSelect : undefined}
       style={{ "--status-color": getColorByStatus(pedido.status) } as React.CSSProperties}
     >
@@ -231,7 +237,27 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
             <b>{itemCount} {itemCount === 1 ? "item" : "itens"}</b>
           </div>
           <h3>{customerName}</h3>
-          <span>{pedido.endereco || (pickup ? "Retirada no local" : "Endereço não informado")}</span>
+          {!inspector && !terminal && queuePreviewItems.length > 0 && (
+            <div className={styles.queuePreview}>
+              {queuePreviewItems.map((item, index) => (
+                <b key={`${item.name}-${index}`}>
+                  {item.quantity}× {item.name}
+                </b>
+              ))}
+              {itens.length > queuePreviewItems.length && (
+                <small>+{itens.length - queuePreviewItems.length} item(ns)</small>
+              )}
+            </div>
+          )}
+          {!inspector && !terminal && queueObservation && (
+            <div className={styles.queueObservation}>
+              <TriangleAlert size={13} />
+              <span>{queueObservation}</span>
+            </div>
+          )}
+          <span className={styles.queueAddress}>
+            {pedido.endereco || (pickup ? "Retirada no local" : "Endereço não informado")}
+          </span>
         </div>
         <div className={styles.summaryTotal}>
           <strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong>

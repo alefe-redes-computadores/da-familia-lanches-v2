@@ -2285,3 +2285,36 @@
 @media(min-width:480px) and (max-width:899px){.workspace{padding-left:16px;padding-right:16px}}
 @media(min-width:900px) and (max-width:1279px){.workspace{padding-left:20px;padding-right:20px}}
 @media(min-width:1280px){.workspace{padding-left:24px;padding-right:24px}}
+
+/* ============================================================
+   DFL ADMIN V37 R3 — OPERATIONAL PERFORMANCE UI
+   Cockpit > dashboard. Gestão > configuração.
+   ============================================================ */
+.workspace[data-mode="operation"] .operationHero{position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(270px,.75fr);gap:16px;padding:18px 19px;border:1px solid rgba(148,163,184,.13);border-radius:22px;background:radial-gradient(520px 180px at 0 0,rgba(255,201,40,.075),transparent 62%),linear-gradient(145deg,#10171d,#0a0f13);box-shadow:0 16px 42px rgba(0,0,0,.16)}
+.workspace[data-mode="operation"] .operationHero[data-attention=true]{border-color:rgba(255,102,116,.25);background:radial-gradient(520px 180px at 0 0,rgba(255,102,116,.075),transparent 62%),linear-gradient(145deg,#11171d,#0a0f13)}
+.workspace[data-mode="operation"] .operationEyebrow{color:#8d98a3;font-size:12px;font-weight:900;letter-spacing:.11em}
+.workspace[data-mode="operation"] .operationHero[data-attention=true] .operationEyebrow{color:#ff8993}
+.workspace[data-mode="operation"] .operationHeroTitle{margin-top:6px}
+.workspace[data-mode="operation"] .operationHeroTitle strong{font-size:clamp(25px,3.5vw,38px);line-height:1.02;letter-spacing:-.055em}
+.workspace[data-mode="operation"] .operationHeroMain>small{display:block;margin-top:7px;color:#9ba6af;font-size:13px}
+.workspace[data-mode="operation"] .operationHeroSignal{width:100%;min-height:58px;margin-top:15px;padding:10px 12px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;border:1px solid rgba(148,163,184,.11);border-radius:15px;background:rgba(255,255,255,.025);color:#dce2e7;text-align:left}
+.workspace[data-mode="operation"] .operationHeroSignal:not(:disabled){cursor:pointer}
+.workspace[data-mode="operation"] .operationHeroSignal[data-attention=true]{border-color:rgba(255,102,116,.23);background:rgba(255,102,116,.055)}
+.workspace[data-mode="operation"] .operationHeroSignal span{color:#76828d;font-size:11px;font-weight:900;letter-spacing:.09em}
+.workspace[data-mode="operation"] .operationHeroSignal[data-attention=true] span{color:#ff8993}
+.workspace[data-mode="operation"] .operationHeroSignal strong{margin-top:3px;font-size:14px;line-height:1.25}
+.workspace[data-mode="operation"] .operationHeroStats{display:grid;grid-template-columns:1fr 1fr;gap:7px;align-content:stretch}
+.workspace[data-mode="operation"] .operationHeroStats button{min-height:74px;padding:9px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;border:1px solid rgba(148,163,184,.10);border-radius:15px;background:rgba(255,255,255,.025);color:#e8edf1;text-align:left}
+.workspace[data-mode="operation"] .operationHeroStats b{font-size:24px;line-height:1;letter-spacing:-.04em}
+.workspace[data-mode="operation"] .operationHeroStats span{margin-top:5px;color:#85919c;font-size:12px;font-weight:750}
+.workspace[data-mode="operation"] .overviewGrid{gap:7px;margin-top:8px}
+.workspace[data-mode="operation"] .metricCard{min-height:88px!important;padding:10px!important;box-shadow:none!important}
+.workspace[data-mode="operation"] .metricCard b{font-size:19px!important}
+.workspace[data-mode="operation"] .metricCard strong,.workspace[data-mode="operation"] .metricCard small{font-size:12px!important}
+.workspace[data-mode="management"] .operationHero,.workspace[data-mode="management"] .overviewGrid{display:none!important}
+.workspace[data-mode="management"] .operationBar{margin-top:10px}
+.workspace[data-mode="management"] .managementHub{margin-top:8px}
+.queueHead{margin-top:14px}.queueHead>div>span{font-size:12px!important;letter-spacing:.11em!important}.queueHead h2{margin-top:3px!important;font-size:22px!important;letter-spacing:-.04em!important}.queueHead p{margin-top:3px!important;color:#85919c!important;font-size:13px!important}
+.grid[data-density="comfortable"]{gap:10px}.grid[data-density="compact"]{gap:7px}.grid[data-density="rush"]{gap:5px}
+@media(max-width:820px){.workspace[data-mode="operation"] .operationHero{grid-template-columns:1fr;gap:11px;padding:15px;border-radius:19px}.workspace[data-mode="operation"] .operationHeroTitle strong{font-size:27px}.workspace[data-mode="operation"] .operationHeroStats{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.workspace[data-mode="operation"] .operationHeroStats button{min-height:61px;padding:7px 6px;align-items:center;text-align:center}.workspace[data-mode="operation"] .operationHeroStats b{font-size:19px}.workspace[data-mode="operation"] .operationHeroStats span{font-size:11px}.workspace[data-mode="operation"] .overviewGrid{display:none!important}.queueHead{margin-top:11px}.queueHead h2{font-size:20px!important}}
+@media(max-width:430px){.workspace[data-mode="operation"] .operationHero{margin-inline:-2px;padding:14px 13px}.workspace[data-mode="operation"] .operationHeroTitle strong{font-size:25px}.workspace[data-mode="operation"] .operationHeroMain>small{font-size:12px}.workspace[data-mode="operation"] .operationHeroSignal{min-height:54px;margin-top:12px}.workspace[data-mode="operation"] .operationHeroStats span{font-size:10px}}

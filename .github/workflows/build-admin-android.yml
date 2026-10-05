@@ -60,6 +60,7 @@ jobs:
           node scripts/test-admin-foundation-v35.mjs
           node scripts/test-admin-modules-v36.mjs
           node scripts/test-admin-post-macro-release-v36-1.mjs
+          node scripts/test-admin-operational-cockpit-v37-r3.mjs
           node node_modules/typescript/bin/tsc --noEmit
           git diff --check
 

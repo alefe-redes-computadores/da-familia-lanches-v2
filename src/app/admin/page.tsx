@@ -24,7 +24,7 @@ import { evaluateStoreStatus } from "@/lib/storeSchedule";
 import { useAdminStoreSettings } from "@/hooks/useAdminStoreSettings";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
-import { adminOrderSearchText, compareOperationalOrders, operationalAttention } from "@/lib/adminOrders";
+import { adminOrderSearchText, compareOperationalOrders, ageLabel, operationalAttention } from "@/lib/adminOrders";
 import styles from "./admin.module.css";
 import { haptic } from "@/lib/haptics";
 import { AdminAuthGate } from "@/components/admin/AdminAuthGate";
@@ -434,6 +434,21 @@ function AdminPageContent() {
       .sort(compareOperationalOrders);
   }, [operationalPedidos, search, tab, serviceFilter, attentionOnly, now]);
 
+  const queueDensity =
+    filtered.length >= 9
+      ? "rush"
+      : filtered.length >= 5
+        ? "compact"
+        : "comfortable";
+
+  const priorityOrder =
+    operationalPedidos.find(
+      (pedido) =>
+        ["Pendente", "Em Produção", "Pronto", "Saiu para Entrega"].includes(
+          normalizarStatus(pedido.status),
+        ) && Boolean(operationalAttention(pedido, now)),
+    ) ?? null;
+
   const selectedOrder = useMemo(
     () =>
       operationalPedidos.find(
@@ -634,7 +649,7 @@ function AdminPageContent() {
         </button>
       </aside>
 
-      <div className={styles.workspace}>
+      <div className={styles.workspace} data-mode={isOrderTab ? "operation" : "management"}>
         {alarmeAtivo && (
           <button className={styles.alarm} onClick={pararAlarme}>
             NOVO PEDIDO <span>toque para silenciar</span>
@@ -705,35 +720,70 @@ function AdminPageContent() {
           </div>
         </header>
 
-        <section className={styles.operationHero} data-tone={storeState.tone}>
+        <section
+          className={styles.operationHero}
+          data-tone={storeState.tone}
+          data-attention={counts.attention > 0}
+        >
           <div className={styles.operationHeroMain}>
-            <span className={styles.operationEyebrow}>OPERAÇÃO AGORA</span>
+            <span className={styles.operationEyebrow}>
+              {counts.attention > 0 ? "ATENÇÃO AGORA" : activeOrders > 0 ? "OPERAÇÃO AGORA" : "OPERAÇÃO TRANQUILA"}
+            </span>
+
             <div className={styles.operationHeroTitle}>
-              <strong>{storeState.label}</strong>
-              <i />
-              <span>{activeOrders} {activeOrders === 1 ? "pedido ativo" : "pedidos ativos"}</span>
-            </div>
-            <small>{storeState.detail}</small>
-            <div className={styles.operationHeroSignal} data-attention={counts.attention > 0}>
-              <span>{counts.attention > 0 ? "ATENÇÃO OPERACIONAL" : "OPERAÇÃO ESTÁVEL"}</span>
               <strong>
                 {counts.attention > 0
-                  ? `${counts.attention} ${counts.attention === 1 ? "pedido exige" : "pedidos exigem"} ação`
+                  ? `${counts.attention} ${counts.attention === 1 ? "pedido precisa" : "pedidos precisam"} de ação`
                   : activeOrders > 0
-                    ? "Fluxo sob controle"
-                    : "Sem pedidos ativos agora"}
+                    ? `${activeOrders} ${activeOrders === 1 ? "pedido ativo" : "pedidos ativos"}`
+                    : "Fila zerada"}
               </strong>
             </div>
-          </div>
-          <div className={styles.operationHeroStats}>
-            <button type="button" onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
-              <b>{counts.pendentes + counts.producao}</b><span>Cozinha</span>
+
+            <small>
+              {counts.attention > 0 && priorityOrder
+                ? `${String(priorityOrder.userName || priorityOrder.nomeCliente || priorityOrder.customerName || "Pedido")} · ${ageLabel(priorityOrder)}`
+                : storeStatus.isOpen
+                  ? storeState.detail
+                  : `Loja ${storeState.label.toLowerCase()} · ${storeState.detail}`}
+            </small>
+
+            <button
+              type="button"
+              className={styles.operationHeroSignal}
+              data-attention={counts.attention > 0}
+              disabled={!priorityOrder}
+              onClick={() => {
+                if (!priorityOrder) return;
+                setAttentionOnly(true);
+                setSelectedOrderId(String(priorityOrder.id));
+              }}
+            >
+              <span>
+                {counts.attention > 0 ? "PRIORIDADE" : storeStatus.isOpen ? "FLUXO SOB CONTROLE" : "STATUS DA LOJA"}
+              </span>
+              <strong>
+                {counts.attention > 0
+                  ? "Abrir pedido que precisa de atenção"
+                  : activeOrders > 0
+                    ? `${counts.producao} preparando · ${counts.prontos} pronto(s) · ${counts.rota} em rota`
+                    : "Aguardando novos pedidos"}
+              </strong>
             </button>
-            <button type="button" onClick={() => { setTab("agendados"); setAttentionOnly(false); }}>
-              <b>{counts.agendados}</b><span>Agendados</span>
+          </div>
+
+          <div className={styles.operationHeroStats} aria-label="Distribuição da operação">
+            <button type="button" onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+              <b>{counts.pendentes}</b><span>Novos</span>
+            </button>
+            <button type="button" onClick={() => { setTab("cozinha"); setAttentionOnly(false); }}>
+              <b>{counts.producao}</b><span>Preparo</span>
             </button>
             <button type="button" onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
-              <b>{counts.expedicao}</b><span>Expedição</span>
+              <b>{counts.prontos}</b><span>Prontos</span>
+            </button>
+            <button type="button" onClick={() => { setTab("expedicao"); setAttentionOnly(false); }}>
+              <b>{counts.rota}</b><span>Em rota</span>
             </button>
           </div>
         </section>
@@ -951,7 +1001,7 @@ function AdminPageContent() {
             )}
 
             <div className={styles.orderWorkspace} data-inspector-open={Boolean(selectedOrder)}>
-              <div className={styles.grid}>
+              <div className={styles.grid} data-density={queueDensity}>
                 {filtered.length
                   ? filtered.map((pedido) => (
                       <OrderCard
@@ -961,6 +1011,7 @@ function AdminPageContent() {
                         imprimirPedido={imprimirPedido}
                         selected={selectedOrderId === pedido.id}
                         updating={updatingOrderId === pedido.id}
+                        density={queueDensity}
                         onSelect={() => setSelectedOrderId(pedido.id)}
                       />
                     ))

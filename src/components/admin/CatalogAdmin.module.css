@@ -841,3 +841,9 @@
     border-radius: 15px !important;
   }
 }
+
+/* ============================================================
+   DFL ADMIN V37 — CATALOG FIRST-FOLD PERFORMANCE
+   ============================================================ */
+.summary{padding:14px 15px}.summaryCopy>strong{font-size:18px}.metrics{margin-top:-2px}.catalogTools{margin-top:2px}.productGroup>summary span,.productGroup>summary b,.sectionHint,.productBadges b{font-size:12px!important}
+@media(max-width:620px){.summary{padding:13px;border-radius:18px}.summaryCopy>strong{font-size:17px}.summaryCopy>small{margin-top:5px}.metrics{display:none!important}.summaryActions{margin-top:10px}.catalogTools{margin-top:0}.viewTabs{margin-top:0}}
