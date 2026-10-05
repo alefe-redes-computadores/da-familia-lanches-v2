@@ -1,5 +1,6 @@
 "use client";
 
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Addon } from "@/data/addons";
@@ -65,7 +66,7 @@ export function ProductDetailsModal() {
     <ModalBase title="Personalizar pedido" onClose={closeModal}>
       <div className={styles.wrap}>
         <div className={styles.product}>
-          <img src={product.image} alt={product.name} />
+          <CatalogImage src={product.image} alt={product.name} sizes="(max-width: 700px) 100vw, 620px" priority quality={76} />
           <div><div className={styles.productTopline}><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><Link className={styles.fullPageLink} href={productHref(product)} onClick={closeModal}>Página completa ↗</Link></div><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div></div>
         </div>
 

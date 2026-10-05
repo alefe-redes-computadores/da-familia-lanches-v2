@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import { ArrowLeft, ChevronRight, Share2, ShoppingCart } from "lucide-react";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
@@ -42,7 +43,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   return <main className={styles.page}>
     <nav className={styles.breadcrumb} aria-label="Navegação"><Link href="/"><ArrowLeft size={16} /> Cardápio</Link><span>•</span><strong>{sectionLabel}</strong></nav>
     <section className={styles.hero}>
-      <div className={styles.media}><img src={product.image} alt={product.name} />{hasDiscount && <b>-{Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100)}%</b>}{!available && <span>INDISPONÍVEL</span>}</div>
+      <div className={styles.media}><CatalogImage src={product.image} alt={product.name} sizes="(max-width: 760px) 100vw, 720px" priority quality={76} />{hasDiscount && <b>-{Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100)}%</b>}{!available && <span>INDISPONÍVEL</span>}</div>
       <div className={styles.summary}>
         <span className={styles.kicker}>{sectionLabel}</span><h1>{product.name}</h1><p>{product.description}</p>
         {hasComposition && <section className={styles.composition}>
@@ -55,7 +56,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
         {inCart > 0 && <button className={styles.inCart} onClick={() => openModal("cart")}><span>{inCart} no carrinho</span><b>Ver pedido <ChevronRight size={15} /></b></button>}
       </div>
     </section>
-    {related.length > 0 && <section className={styles.related}><div className={styles.relatedHead}><div><span>ESCOLHAS PARA O SEU PEDIDO</span><h2>Complete do seu jeito</h2><p>Sem repetir o que já vem neste item ou no seu carrinho.</p></div></div><div className={styles.relatedGrid}>{related.map((entry) => <Link href={productHref(entry.product)} key={entry.product.id}><img src={entry.product.image} alt="" /><span><small>{entry.eyebrow}</small><strong>{entry.product.name}</strong><em>{entry.reason}</em><b>{money(entry.product.price)} <span aria-hidden="true">›</span></b></span></Link>)}</div></section>}
+    {related.length > 0 && <section className={styles.related}><div className={styles.relatedHead}><div><span>ESCOLHAS PARA O SEU PEDIDO</span><h2>Complete do seu jeito</h2><p>Sem repetir o que já vem neste item ou no seu carrinho.</p></div></div><div className={styles.relatedGrid}>{related.map((entry) => <Link href={productHref(entry.product)} key={entry.product.id}><CatalogImage src={entry.product.image} alt="" sizes="(max-width: 700px) 38vw, 180px" quality={68} /><span><small>{entry.eyebrow}</small><strong>{entry.product.name}</strong><em>{entry.reason}</em><b>{money(entry.product.price)} <span aria-hidden="true">›</span></b></span></Link>)}</div></section>}
     <div className={styles.mobileAction}><button disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><ShoppingCart size={20} strokeWidth={2} /><span>{available ? "Adicionar ao carrinho" : "Indisponível"}</span>{available && <b>{money(product.price)}</b>}</button></div>
   </main>;
 }

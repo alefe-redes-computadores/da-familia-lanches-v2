@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
 import { useCatalogCategories } from "@/hooks/useCatalogCategories";
@@ -103,10 +104,10 @@ export default function Home() {
               <b>{promoProducts.length} oferta{promoProducts.length === 1 ? "" : "s"}</b>
             </div>
             <div className={styles.promoRail}>
-              {promoProducts.map((product) => {
+              {promoProducts.map((product, promoIndex) => {
                 const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
                 return <article className={styles.promoHeroCard} key={`promo-${product.id}`} role="button" tabIndex={0} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openProduct(product); }}>
-                  <div className={styles.promoHeroMedia}><img src={product.image} alt="" loading="lazy" /><span>-{discount}%</span></div>
+                  <div className={styles.promoHeroMedia}><CatalogImage src={product.image} alt="" sizes="(max-width: 699px) 74px, 82px" priority={promoIndex === 0} quality={70} /><span>-{discount}%</span></div>
                   <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em><span className={styles.promoHint}>Toque para ver e personalizar</span></div>
                 </article>;
               })}
@@ -140,7 +141,7 @@ export default function Home() {
                   return (
                     <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id} onClick={() => available && openProduct(product)}>
                       <div className={styles.media}>
-                        <img src={product.image} alt={product.name} loading="lazy" />
+                        <CatalogImage src={product.image} alt={product.name} sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 280px" quality={72} />
                         <div className={styles.badges}>
                           {product.isSuggestion && available && <span className={styles.featured}>Sugestão da casa</span>}
                           {hasDiscount && available && <span className={styles.discount}>-{discount}%</span>}

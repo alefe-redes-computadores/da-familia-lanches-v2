@@ -1,0 +1,26 @@
+import fs from "node:fs";
+const read=p=>fs.readFileSync(p,"utf8");
+const ok=(v,m)=>{if(!v)throw new Error(`V40.1: ${m}`);console.log("OK:",m)};
+const admin=read("src/components/admin/CatalogAdmin.tsx");
+const css=read("src/components/admin/CatalogAdmin.module.css");
+const api=read("src/app/api/admin/catalog-image/route.ts");
+const catalog=read("src/hooks/useCatalog.ts");
+const categories=read("src/hooks/useCatalogCategories.ts");
+
+ok(admin.includes('fetch("/api/admin/catalog-image"'),"Admin usa endpoint server-side de imagem");
+ok(admin.includes("user.getIdToken()"),"upload exige sessão Firebase Admin");
+ok(admin.includes('type="file"'),"cadastro possui seletor real de foto");
+ok(admin.includes("Trocar foto"),"produto existente permite trocar foto");
+ok(admin.includes("campo de caminho continua disponível")||admin.includes("caminho manualmente"),"fallback manual preservado");
+ok(api.includes("DFL_GITHUB_TOKEN"),"token existe somente no servidor");
+ok(api.includes("isAdminEmail"),"endpoint valida autorização administrativa");
+ok(api.includes("MAX_BYTES = 5 * 1024 * 1024"),"limite de upload explícito");
+ok(api.includes("public/img/catalog/"),"imagem possui namespace próprio");
+ok(!admin.includes("DFL_GITHUB_TOKEN"),"token não vazou para componente cliente");
+ok(css.includes("DFL ADMIN V40.1 — CATALOG FINAL AUTHORITY"),"autoridade final V40.1 instalada");
+const cssWithoutComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
+ok((cssWithoutComments.match(/!important/g)||[]).length<=397,"dívida de prioridade CSS não cresceu");
+ok(catalog.includes("subscribePublicCatalog")&&categories.includes("subscribePublicCatalog"),"catálogo compartilhado preservado");
+console.log("============================================================");
+console.log("DFL SITE V40.1 R2 — CATALOG AUTHORITY + GITHUB UPLOAD — ZERO ERROS");
+console.log("============================================================");

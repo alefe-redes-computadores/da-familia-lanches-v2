@@ -1,0 +1,15 @@
+import fs from"node:fs";
+const r=p=>fs.readFileSync(p,"utf8");
+const ok=(v,m)=>{if(!v)throw new Error(`V43: ${m}`);console.log("OK:",m)};
+const api=r("src/app/api/admin/catalog/route.ts");
+const client=r("src/lib/adminCatalogClient.ts");
+const admin=r("src/components/admin/CatalogAdmin.tsx");
+const css=r("src/components/admin/CatalogAdmin.module.css").replace(/\/\*[\s\S]*?\*\//g,"");
+ok(api.includes("validId")&&api.includes("PAYLOAD_TOO_LARGE"),"API valida IDs e payload");
+ok(api.includes("FieldValue.delete()"),"remoção de campos é server-side");
+ok(!api.includes("return {...data,name,description"),"produto não espalha payload arbitrário");
+ok(api.includes('revalidateTag("public-catalog","max")'),"cache público continua invalidado");
+ok(client.includes("CatalogMutationError")&&client.includes("CATEGORY_IN_USE"),"erros comerciais traduzidos");
+ok(admin.includes("error instanceof Error ? error.message"),"Admin mostra erros da API");
+ok((css.match(/!important/g)||[]).length<=397,"CSS não ganhou dívida nova");
+console.log("DFL SITE V43 — CATALOG FINALIZATION — ZERO ERROS");

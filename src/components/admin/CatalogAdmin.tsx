@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Search, ChevronDown, X, Pencil, Pause, Play } from "lucide-react";
-import { deleteDoc, deleteField, doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { CatalogImage } from "@/components/ui/CatalogImage";
+import { auth } from "@/lib/firebase";
+import { prepareCatalogImage } from "@/lib/catalogImageClient";
+import { mutateCatalog } from "@/lib/adminCatalogClient";
 import { type Product, type ProductCategory } from "@/data/products";
 import { type Addon } from "@/data/addons";
 import { useCatalog } from "@/hooks/useCatalog";
@@ -156,6 +158,7 @@ export function CatalogAdmin() {
   const [addonDraft, setAddonDraft] = useState<AddonDraft | null>(null);
   const [addonMode, setAddonMode] = useState<"create" | "edit" | null>(null);
   const [busy, setBusy] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | ProductCategory>("all");
@@ -211,6 +214,51 @@ export function CatalogAdmin() {
     setMessage("");
   };
 
+  const uploadProductImage = async (file: File) => {
+    if (!productDraft || imageUploading) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setMessage("Use uma imagem JPG, PNG ou WebP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("A imagem precisa ter no máximo 5 MB.");
+      return;
+    }
+
+    setImageUploading(true);
+    setMessage("");
+    try {
+      await auth.authStateReady();
+      const user = auth.currentUser;
+      if (!user) throw new Error("ADMIN_AUTH_REQUIRED");
+      const token = await user.getIdToken();
+      const prepared = await prepareCatalogImage(file);
+      const form = new FormData();
+      form.set("file", prepared);
+      form.set("productId", productDraft.id || slugify(productDraft.name) || "produto");
+      const response = await fetch("/api/admin/catalog-image", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const payload = await response.json().catch(() => null) as { ok?: boolean; path?: string; error?: string } | null;
+      if (!response.ok || !payload?.ok || !payload.path) {
+        if (payload?.error === "GITHUB_UPLOAD_NOT_CONFIGURED") {
+          setMessage("Upload automático ainda não configurado no servidor. O campo de caminho continua disponível.");
+          return;
+        }
+        throw new Error(payload?.error || "IMAGE_UPLOAD_FAILED");
+      }
+      setProductDraft((current) => current ? { ...current, image: payload.path! } : current);
+      setMessage("Imagem enviada e vinculada ao produto.");
+    } catch (error) {
+      console.error(error);
+      setMessage("Não foi possível enviar a imagem. Você ainda pode informar o caminho manualmente.");
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
   const saveProduct = async () => {
     if (!productDraft || !productMode) return;
     const price = parseMoneyInput(productDraft.price);
@@ -237,34 +285,34 @@ export function CatalogAdmin() {
         name: productDraft.name.trim(),
         description: productDraft.description.trim(),
         price,
-        oldPrice: oldPrice ?? deleteField(),
+        oldPrice: oldPrice ?? null,
         image: productDraft.image.trim(),
         category: productDraft.category,
         disponivel: productDraft.disponivel,
         isSuggestion: productDraft.isSuggestion,
         promoPlacement: productDraft.showInOffers ? "home_showcase" : "none",
-        sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : deleteField(),
-        detailsTitle: productDraft.detailsTitle.trim() || deleteField(),
+        sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : null,
+        detailsTitle: productDraft.detailsTitle.trim() || null,
         detailsItems: productDraft.detailsItems.split("\n").map((item) => item.trim()).filter(Boolean),
-        includedExtras: productDraft.includedExtras.trim() || deleteField(),
-        bundleItems: productDraft.bundleItems.length ? productDraft.bundleItems.map((item) => ({ productId: item.productId, quantity: Math.max(1, Math.trunc(item.quantity || 1)), ...(item.note.trim() ? { note: item.note.trim() } : {}) })) : deleteField(),
-        publicSlug: slugify(productDraft.publicSlug) || deleteField(),
-        publicSection: slugify(productDraft.publicSection) || deleteField(),
-        upsellProductId: productDraft.upsellProductId || deleteField(),
-        upsellUnitPrice: productDraft.upsellProductId && upsellUnitPrice !== null ? upsellUnitPrice : deleteField(),
-        updatedAt: serverTimestamp(),
+        includedExtras: productDraft.includedExtras.trim() || null,
+        bundleItems: productDraft.bundleItems.length ? productDraft.bundleItems.map((item) => ({ productId: item.productId, quantity: Math.max(1, Math.trunc(item.quantity || 1)), ...(item.note.trim() ? { note: item.note.trim() } : {}) })) : null,
+        publicSlug: slugify(productDraft.publicSlug) || null,
+        publicSection: slugify(productDraft.publicSection) || null,
+        upsellProductId: productDraft.upsellProductId || null,
+        upsellUnitPrice: productDraft.upsellProductId && upsellUnitPrice !== null ? upsellUnitPrice : null,
+        updatedAt: new Date().toISOString(),
       };
 
       if (productDraft.category === "bebidas") payload.addonIds = [];
-      else payload.addonIds = productDraft.addonIds ?? deleteField();
+      else payload.addonIds = productDraft.addonIds ?? null;
 
-      await setDoc(doc(db, CATALOG_PRODUCTS_COLLECTION, id), payload, { merge: true });
+      await mutateCatalog({ action: "saveProduct", id, data: payload });
       setProductDraft(null);
       setProductMode(null);
       setMessage(productMode === "create" ? `Produto criado com ID ${id}.` : "Produto atualizado.");
     } catch (error) {
       console.error(error);
-      setMessage("Não foi possível salvar o produto.");
+      setMessage(error instanceof Error ? error.message : "Não foi possível salvar o produto.");
     } finally {
       setBusy("");
     }
@@ -273,16 +321,16 @@ export function CatalogAdmin() {
   const toggleProduct = async (product: Product) => {
     setBusy(`toggle-${product.id}`);
     try {
-      await setDoc(doc(db, CATALOG_PRODUCTS_COLLECTION, product.id), {
+      await mutateCatalog({ action: "toggleProduct", id: product.id, data: {
         id: product.id, name: product.name, description: product.description, price: product.price,
-        oldPrice: product.oldPrice ?? deleteField(), image: product.image, category: product.category,
-        disponivel: !product.disponivel, isSuggestion: Boolean(product.isSuggestion), promoPlacement: product.promoPlacement ?? deleteField(),
-        sortOrder: product.sortOrder ?? deleteField(), addonIds: product.addonIds ?? deleteField(), updatedAt: serverTimestamp(),
-      }, { merge: true });
+        oldPrice: product.oldPrice ?? null, image: product.image, category: product.category,
+        disponivel: !product.disponivel, isSuggestion: Boolean(product.isSuggestion), promoPlacement: product.promoPlacement ?? null,
+        sortOrder: product.sortOrder ?? null, addonIds: product.addonIds ?? null, updatedAt: new Date().toISOString(),
+      } });
       setMessage(product.disponivel ? "Produto pausado." : "Produto reativado.");
     } catch (error) {
       console.error(error);
-      setMessage("Falha ao alterar a disponibilidade.");
+      setMessage(error instanceof Error ? error.message : "Falha ao alterar a disponibilidade.");
     } finally {
       setBusy("");
     }
@@ -298,29 +346,29 @@ export function CatalogAdmin() {
     setBusy(`category-${id}`);
     try {
       const existing = categories.find((category) => category.id === id);
-      await setDoc(doc(db, CATALOG_CATEGORIES_COLLECTION, id), { id, label, active: existing?.active ?? true, sortOrder: existing?.sortOrder ?? (categories.length ? Math.max(...categories.map((category) => category.sortOrder)) + 10 : 0), updatedAt: serverTimestamp() }, { merge: true });
+      await mutateCatalog({ action: "saveCategory", id, data: { id, label, active: existing?.active ?? true, sortOrder: existing?.sortOrder ?? (categories.length ? Math.max(...categories.map((category) => category.sortOrder)) + 10 : 0), updatedAt: new Date().toISOString() } });
       setCategoryDraft(null); setMessage(categoryDraft.mode === "create" ? "Categoria criada." : "Categoria atualizada.");
-    } catch (error) { console.error(error); setMessage("Não foi possível salvar a categoria."); }
+    } catch (error) { console.error(error); setMessage(error instanceof Error ? error.message : "Não foi possível salvar a categoria."); }
     finally { setBusy(""); }
   };
 
   const toggleCategory = async (category: CatalogCategory) => {
     setBusy(`category-toggle-${category.id}`);
-    try { await setDoc(doc(db, CATALOG_CATEGORIES_COLLECTION, category.id), { ...category, active: !category.active, updatedAt: serverTimestamp() }, { merge: true }); if (categoryFilter === category.id && category.active) setCategoryFilter("all"); setMessage(category.active ? "Categoria ocultada da vitrine." : "Categoria reativada."); }
-    catch (error) { console.error(error); setMessage("Não foi possível alterar a categoria."); }
+    try { await mutateCatalog({ action: "toggleCategory", id: category.id, data: { ...category, active: !category.active } }); if (categoryFilter === category.id && category.active) setCategoryFilter("all"); setMessage(category.active ? "Categoria ocultada da vitrine." : "Categoria reativada."); }
+    catch (error) { console.error(error); setMessage(error instanceof Error ? error.message : "Não foi possível alterar a categoria."); }
     finally { setBusy(""); }
   };
 
   const moveCategory = async (category: CatalogCategory, direction: -1 | 1) => {
     const ordered=[...categories].sort((a,b)=>a.sortOrder-b.sortOrder||a.label.localeCompare(b.label,"pt-BR")); const index=ordered.findIndex((item)=>item.id===category.id); const target=index+direction; if(index<0||target<0||target>=ordered.length)return;
     [ordered[index],ordered[target]]=[ordered[target],ordered[index]]; setBusy(`category-order-${category.id}`);
-    try { const batch=writeBatch(db); ordered.forEach((item,pos)=>batch.set(doc(db,CATALOG_CATEGORIES_COLLECTION,item.id),{id:item.id,label:item.label,active:item.active,sortOrder:pos*10,updatedAt:serverTimestamp()},{merge:true})); await batch.commit(); setMessage("Ordem das categorias atualizada."); }
-    catch(error){console.error(error);setMessage("Não foi possível reordenar as categorias.");} finally{setBusy("");}
+    try { await mutateCatalog({ action: "reorderCategories", items: ordered.map((item,pos)=>({id:item.id,sortOrder:pos*10})) }); setMessage("Ordem das categorias atualizada."); }
+    catch(error){console.error(error);setMessage(error instanceof Error ? error.message : "Não foi possível reordenar as categorias.");} finally{setBusy("");}
   };
 
   const removeCategory = async (category: CatalogCategory) => {
     const count=productsInCategory(category.id).length; if(count>0){setCategoryDeleteConfirm(null);return setMessage(`Não dá para excluir "${category.label}": existem ${count} produto(s) nela. Mova os produtos primeiro.`);} if(categoryDeleteConfirm!==category.id){setCategoryDeleteConfirm(category.id);return setMessage(`Toque novamente em excluir para confirmar "${category.label}".`);}
-    setBusy(`category-delete-${category.id}`); try{await deleteDoc(doc(db,CATALOG_CATEGORIES_COLLECTION,category.id));setCategoryDeleteConfirm(null);setMessage("Categoria vazia excluída.");}catch(error){console.error(error);setMessage("Não foi possível excluir a categoria.");}finally{setBusy("");}
+    setBusy(`category-delete-${category.id}`); try{await mutateCatalog({ action: "deleteCategory", id: category.id });setCategoryDeleteConfirm(null);setMessage("Categoria vazia excluída.");}catch(error){console.error(error);setMessage(error instanceof Error ? error.message : "Não foi possível excluir a categoria.");}finally{setBusy("");}
   };
 
   const openCreateAddon = () => {
@@ -347,20 +395,20 @@ export function CatalogAdmin() {
 
     setBusy(`addon-${id}`);
     try {
-      await setDoc(doc(db, CATALOG_ADDONS_COLLECTION, id), {
+      await mutateCatalog({ action: "toggleAddon", id: id, data: {
         id,
         name: addonDraft.name.trim(),
         price,
         disponivel: addonDraft.disponivel,
-        sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : deleteField(),
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+        sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : null,
+        updatedAt: new Date().toISOString(),
+      } });
       setAddonDraft(null);
       setAddonMode(null);
       setMessage(addonMode === "create" ? `Adicional criado com ID ${id}.` : "Adicional atualizado.");
     } catch (error) {
       console.error(error);
-      setMessage("Não foi possível salvar o adicional.");
+      setMessage(error instanceof Error ? error.message : "Não foi possível salvar o adicional.");
     } finally {
       setBusy("");
     }
@@ -369,14 +417,14 @@ export function CatalogAdmin() {
   const toggleAddon = async (addon: Addon) => {
     setBusy(`addon-toggle-${addon.id}`);
     try {
-      await setDoc(doc(db, CATALOG_ADDONS_COLLECTION, addon.id), {
+      await mutateCatalog({ action: "toggleAddon", id: addon.id, data: {
         id: addon.id,
         name: addon.name,
         price: addon.price,
         disponivel: addon.disponivel === false,
         sortOrder: addon.sortOrder ?? null,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+        updatedAt: new Date().toISOString(),
+      } });
       setMessage(addon.disponivel === false ? "Adicional reativado." : "Adicional pausado.");
     } catch (error) {
       console.error(error);
@@ -440,7 +488,7 @@ export function CatalogAdmin() {
         <summary><div><span>CATEGORIA</span><strong>{group.label}</strong></div><b>{group.items.length} produto{group.items.length===1?"":"s"}</b><ChevronDown size={16}/></summary>
         <div className={styles.products}>
           {group.items.map((product) => <article className={styles.product} key={product.id} data-off={!product.disponivel}>
-            <img src={product.image} alt="" />
+            <CatalogImage src={product.image} alt="" sizes="76px" quality={65} />
             <div className={styles.productInfo}>
               <div className={styles.productTitle}><div><strong>{product.name}</strong><span>{product.id}</span></div><div className={styles.productBadges}>{product.isSuggestion && <b>Sugestão da casa</b>}{(product.promoPlacement === "home_showcase" || (product.promoPlacement == null && product.isSuggestion && typeof product.oldPrice === "number" && product.oldPrice > product.price)) && <b>Ofertas da Família</b>}</div></div>
               <p>{product.description}</p>
@@ -526,9 +574,20 @@ export function CatalogAdmin() {
           </div>
           <div className={styles.photoUpload}><small>Imagem hospedada pelo próprio site. Use um caminho como <strong>/img/combo-familia-uai.jpg</strong> ou uma URL HTTPS.</small></div>
           <div className={styles.formChoice}><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={categoryOptions} /></div>
-          <label className={styles.full}>Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /></label>
+          <div className={styles.photoUpload}>
+              <label className={styles.photoButton} data-busy={imageUploading}>
+                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={imageUploading} onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.currentTarget.value = "";
+                  if (file) void uploadProductImage(file);
+                }} />
+                {imageUploading ? "Enviando foto..." : productDraft.image ? "Trocar foto" : "Selecionar foto"}
+              </label>
+              <div><strong>Foto do produto</strong><small>JPG, PNG ou WebP · até 5 MB. Antes do envio, a foto é redimensionada e convertida para WebP no aparelho. Nenhuma credencial do GitHub fica no navegador.</small></div>
+            </div>
+            <label className={styles.full}>Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /><small>Imagens do catálogo são entregues em tamanho responsivo e WebP/AVIF automaticamente. O upload pelo GitHub será feito por rota segura no servidor, sem token no navegador.</small></label>
         </div>
-        {productDraft.image.trim() && <div className={styles.preview}><img src={productDraft.image} alt="" /><div><span>PRÉVIA</span><strong>{productDraft.name || "Novo produto"}</strong><small>{productDraft.image}</small></div></div>}
+        {productDraft.image.trim() && <div className={styles.preview}><CatalogImage src={productDraft.image} alt="" sizes="120px" quality={68} /><div><span>PRÉVIA</span><strong>{productDraft.name || "Novo produto"}</strong><small>{productDraft.image}</small></div></div>}
         <div className={styles.switches}>
           <button type="button" data-on={productDraft.disponivel} onClick={() => setProductDraft({ ...productDraft, disponivel: !productDraft.disponivel })}><i />Disponível</button>
           <button type="button" data-on={productDraft.isSuggestion} onClick={() => setProductDraft({ ...productDraft, isSuggestion: !productDraft.isSuggestion })}><i />Sugestão da casa</button>

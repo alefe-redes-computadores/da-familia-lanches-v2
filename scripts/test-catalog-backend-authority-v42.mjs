@@ -1,0 +1,16 @@
+import fs from"node:fs";
+const r=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw new Error(`V42: ${m}`);console.log("OK:",m)};
+const admin=r("src/components/admin/CatalogAdmin.tsx"),org=r("src/components/admin/CatalogOrganizerAdmin.tsx"),api=r("src/app/api/admin/catalog/route.ts"),client=r("src/lib/adminCatalogClient.ts"),pub=r("src/app/api/public/catalog/route.ts");
+ok(admin.includes("mutateCatalog"),"CatalogAdmin usa autoridade backend");
+ok(org.includes("mutateCatalog"),"organizador usa autoridade backend");
+const direct=[...admin.matchAll(/\b(setDoc|writeBatch|deleteDoc)\s*\(/g)].map(m=>m[1]);
+ok(direct.length===0,`CatalogAdmin sem escrita Firestore direta${direct.length?`: ${direct.join(",")}`:""}`);
+ok(!org.includes("writeBatch("),"organizador não grava Firestore diretamente");
+ok(client.includes("user.getIdToken()"),"cliente envia token autenticado");
+ok(api.includes("isAdminEmail"),"API exige Admin");
+ok(api.includes("PRODUCT_INVALID")&&api.includes("PROMOTION_INVALID"),"preço/produto revalidados no servidor");
+ok(api.includes('where("category","==",id).limit(1)'),"categoria em uso protegida");
+ok(api.includes('revalidateTag("public-catalog","max")'),"mudança comercial invalida cache público");
+ok(api.includes('doc(SNAPSHOT_DOCUMENT).delete()'),"snapshot materializado é invalidado");
+ok(pub.includes('tags: ["public-catalog"]'),"tag pública permanece compatível");
+console.log("DFL SITE V42 — BACKEND CATALOG AUTHORITY — ZERO ERROS");
