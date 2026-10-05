@@ -1,0 +1,10 @@
+import fs from "node:fs";
+const read=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw new Error(`V46: ${m}`);console.log("OK:",m)};
+const c=read("src/lib/adminCatalogClient.ts"),p=read("src/lib/publicCatalogClient.ts"),i=read("src/app/api/admin/catalog-image/route.ts"),u=read("src/components/ui/CatalogImage.tsx"),a=read("src/components/admin/CatalogAdmin.tsx"),css=read("src/components/admin/CatalogAdmin.module.css");
+ok(p.includes("patchPublicCatalogProduct"),"estado público aceita patch local");
+ok(c.includes("patchPublicCatalogProduct(input.id,input.data)"),"save aparece no Admin sem refetch");
+ok(i.includes("raw.githubusercontent.com"),"upload não aguarda próximo deploy");
+ok(u.includes("unoptimized={directRemote}"),"imagem GitHub direta suportada");
+ok(!a.includes('return "Nossa maionese temperada'),"não inventa acompanhamentos");
+ok((css.match(/!important/g)||[]).length<=397,"dívida !important não aumentou");
+console.log("\nV46 CONTRACT — ZERO ERROS");

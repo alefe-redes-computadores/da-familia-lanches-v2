@@ -1,6 +1,6 @@
 "use client";
 import { auth } from "@/lib/firebase";
-import { reloadPublicCatalog } from "@/lib/publicCatalogClient";
+import { patchPublicCatalogProduct, reloadPublicCatalog } from "@/lib/publicCatalogClient";
 
 export type CatalogMutation =
  | { action:"saveProduct"; id:string; data:Record<string,unknown> }
@@ -49,6 +49,7 @@ export async function mutateCatalog(input:CatalogMutation){
  });
  const payload=await response.json().catch(()=>null) as {ok?:boolean;error?:string}|null;
  if(!response.ok||!payload?.ok)throw new CatalogMutationError(payload?.error||"CATALOG_MUTATION_FAILED");
+ if((input.action==="saveProduct"||input.action==="toggleProduct")&&patchPublicCatalogProduct(input.id,input.data))return payload;
  await reloadPublicCatalog();
  return payload;
 }

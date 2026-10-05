@@ -23,6 +23,7 @@ export function CatalogImage({
   style,
 }: Props) {
   const source = String(src || "").trim();
+  const directRemote = /^https:\/\/raw\.githubusercontent\.com\//i.test(source);
 
   if (!source) return null;
 
@@ -38,6 +39,7 @@ export function CatalogImage({
       priority={priority}
       loading={priority ? "eager" : "lazy"}
       fetchPriority={priority ? "high" : "auto"}
+      unoptimized={directRemote}
       style={{ width: "100%", height: "100%", objectFit: "cover", ...style }}
     />
   );

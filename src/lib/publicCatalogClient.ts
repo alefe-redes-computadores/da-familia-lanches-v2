@@ -77,6 +77,21 @@ export function readPublicCatalog() {
   return state;
 }
 
+export function patchPublicCatalogProduct(id: string, data: Record<string, unknown>) {
+  const payload = state.payload;
+  if (!payload) return false;
+  const current = Array.isArray(payload.products) ? payload.products : [];
+  const index = current.findIndex((item) => String(item?.id ?? "") === id);
+  const previous = index >= 0 && current[index]?.data && typeof current[index].data === "object"
+    ? current[index].data as Record<string, unknown> : {};
+  const record = { id, data: { ...previous, ...data, id } };
+  const products = [...current];
+  if (index >= 0) products[index] = record; else products.push(record);
+  state = { ...state, payload: { ...payload, products }, ready: true, error: "" };
+  emit();
+  return true;
+}
+
 export function reloadPublicCatalog() {
   state = { ...state, ready: false, error: "" };
   emit();

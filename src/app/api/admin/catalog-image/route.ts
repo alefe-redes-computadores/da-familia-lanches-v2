@@ -24,6 +24,7 @@ function safeStem(value: string) {
 }
 
 function extension() { return "webp"; }
+function publicUrlFor(path: string) { return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${path}`; }
 
 async function authenticate(request: NextRequest) {
   const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() || "";
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     const existing = await github(path);
     if (existing.ok) {
       return NextResponse.json(
-        { ok: true, path: `/img/catalog/${productId}-${digest}.${extension()}`, reused: true },
+        { ok: true, path: publicUrlFor(path), reused: true },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: true, path: `/img/catalog/${productId}-${digest}.${extension()}` },
+      { ok: true, path: publicUrlFor(path) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

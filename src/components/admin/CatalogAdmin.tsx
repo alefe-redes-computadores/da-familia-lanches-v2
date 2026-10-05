@@ -211,8 +211,8 @@ export function CatalogAdmin() {
   };
   const defaultExtras = (product: Product) => {
     if (product.includedExtras?.trim()) return product.includedExtras.trim();
-    if (product.category === "bebidas" || product.category === "hotdogs") return "";
-    return "Nossa maionese temperada — o famoso molho verde da casa — e ketchup em sachê.";
+    const explicit = product.description.match(/\bAcompanha\s+(.+?)[.]?$/i)?.[1]?.trim();
+    return explicit ? explicit.replace(/[.]$/, "") : "";
   };
   const comboBundleFromDetails = (product: Product) => {
     if (product.bundleItems?.length) return product.bundleItems;
