@@ -211,3 +211,13 @@
     border-radius: 20px !important;
   }
 }
+
+/* DFL ADMIN V38 — REWARDS DENSITY POLISH */
+@media(max-width:620px){
+  .statusCard,.card{padding:12px!important;border-radius:17px!important}
+  .statusCard{gap:9px!important}
+  .card>label{margin-bottom:8px!important}
+  .grid{gap:7px!important}
+  .notice{margin-top:9px!important;padding:10px!important}
+  .save{margin-top:9px!important}
+}

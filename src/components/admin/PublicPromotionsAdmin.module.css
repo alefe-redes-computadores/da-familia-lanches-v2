@@ -203,3 +203,11 @@
     border-radius: 20px !important;
   }
 }
+
+/* DFL ADMIN V38 — PROMOTIONS DENSITY POLISH */
+@media(max-width:620px){
+  .card{margin-top:6px!important;padding:11px!important;gap:8px!important;border-radius:17px!important}
+  .heading{gap:8px!important}
+  .card textarea{min-height:84px!important}
+  .chips{gap:5px!important}
+}

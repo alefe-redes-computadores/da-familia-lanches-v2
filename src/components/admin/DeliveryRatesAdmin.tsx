@@ -139,7 +139,7 @@ export function DeliveryRatesAdmin() {
   return <section className={styles.card}>
     <div className={styles.head}>
       <div><span>TAXAS DE ENTREGA</span><strong>Bairros e valores</strong><p>Edite apenas o que precisar. Valores são formatados em real.</p></div>
-      <b>{rates.length}</b>
+      <b>{rates.length} bairros</b>
     </div>
 
     <div className={styles.topGrid}>
@@ -157,7 +157,7 @@ export function DeliveryRatesAdmin() {
       {(searchOpen || search)
         ? <label className={styles.searchBox}><Search size={15}/><input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar bairro" onBlur={() => !search && setSearchOpen(false)}/></label>
         : <button type="button" className={styles.searchTrigger} onClick={() => { haptic("step"); setSearchOpen(true); }}><Search size={15}/>Buscar bairro</button>}
-      <span>{sorted.length} de {rates.length}</span>
+      {search.trim() && <span>{sorted.length} de {rates.length}</span>}
     </div>
 
     {loading
@@ -178,7 +178,6 @@ export function DeliveryRatesAdmin() {
                 : <button type="button" className={styles.rateView} onClick={() => { haptic("step"); setEditingKey(item._key); setRemoveConfirmKey(""); }}>
                     <span className={styles.rateIdentity}>
                       <strong>{String(item.nome ?? "Bairro")}</strong>
-                      <small>Taxa de entrega</small>
                     </span>
                     <b>{money(parseMoney(item.taxa))}</b>
                     <span className={styles.editCue} aria-hidden="true"><Pencil size={13}/></span>

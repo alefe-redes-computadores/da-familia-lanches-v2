@@ -62,6 +62,7 @@ jobs:
           node scripts/test-admin-post-macro-release-v36-1.mjs
           node scripts/test-admin-operational-cockpit-v37-r3.mjs
           node scripts/test-admin-final-responsive-polish-v37-1-r2.mjs
+          node scripts/test-admin-density-delivery-v38.mjs
           node node_modules/typescript/bin/tsc --noEmit
           git diff --check
 

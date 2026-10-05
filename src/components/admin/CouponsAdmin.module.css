@@ -256,3 +256,15 @@
     grid-column: 1 / -1;
   }
 }
+
+/* DFL ADMIN V38 — COUPONS DENSITY POLISH */
+@media(max-width:620px){
+  .wrap{gap:8px!important}
+  .editor,.listCard{padding:11px!important;border-radius:17px!important}
+  .editor{gap:9px!important}
+  .grid{gap:7px!important}
+  .switchRow{padding:9px!important}
+  .list{gap:7px!important}
+  .coupon{padding:10px 11px!important}
+  .actions{margin-top:7px!important}
+}

@@ -247,3 +247,15 @@
 .segmented button {
   font-size: 12px !important;
 }
+
+/* DFL ADMIN V38 — SCHEDULING DENSITY POLISH */
+@media(max-width:620px){
+  .card{padding:11px!important;border-radius:17px!important}
+  .settings{gap:7px!important;margin-top:10px!important}
+  .settings>label{padding:8px!important}
+  .quick{margin-top:9px!important}
+  .slotHead{margin-top:10px!important;padding-top:9px!important}
+  .slots article{min-height:52px!important;padding:6px 8px!important}
+  .slots article>button{min-height:48px!important}
+  .save{margin-top:8px!important}
+}
