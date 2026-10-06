@@ -80,6 +80,15 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     ""
   ).trim();
   const originLabel = rawOrigin || "Origem não informada";
+  const customerMode = String(pedido.customerMode || "").toLowerCase();
+  const checkoutChannel = String(pedido.checkoutChannel || "").toLowerCase();
+  const handoffChannel = String(pedido.handoffChannel || "").toLowerCase();
+  const orderBadges = [
+    { key: "origin", label: checkoutChannel === "site" || pedido.sourceSystem === "dfl_site" ? "SITE" : originLabel.toUpperCase(), tone: "site" },
+    { key: "customer", label: customerMode === "google" ? "GOOGLE" : customerMode === "guest" ? "CONVIDADO" : "", tone: customerMode === "google" ? "google" : "guest" },
+    { key: "handoff", label: handoffChannel === "whatsapp" ? "WHATSAPP" : "", tone: "whatsapp" },
+    { key: "recovered", label: pedido.recoveredCheckout === true ? "RECUPERADO" : "", tone: "recovered" },
+  ].filter((badge) => badge.label);
 
   const rawMessageStatus = String(
     pedido.messagingStatus ||
@@ -196,6 +205,12 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         </div>
       </div>
 
+      {orderBadges.length > 0 && (
+        <div className={styles.orderBadges} aria-label="Origem e contexto do pedido">
+          {orderBadges.map((badge) => <span key={badge.key} data-tone={badge.tone}>{badge.label}</span>)}
+        </div>
+      )}
+
       {statusAtual === "Agendado" && scheduledLabel && (
         <div className={styles.scheduledNotice}>
           <span>AGENDADO</span>
@@ -308,7 +323,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
                   <span>VISÃO OPERACIONAL</span>
                   <strong>Pedido #{shortOrderId}</strong>
                 </div>
-                <span className={styles.originBadge}>{originLabel}</span>
+                <span className={styles.originBadge}>{checkoutChannel === "site" || pedido.sourceSystem === "dfl_site" ? "PEDIDO DO SITE" : originLabel}</span>
               </div>
 
               <div className={styles.timeline}>

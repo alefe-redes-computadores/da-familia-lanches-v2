@@ -37,3 +37,21 @@ export function resolveBundleItems(product:Product, products:Product[]):Resolved
   const resolved=parsed.map((item,index)=>({key:`legacy-${index}`,...item,product:find(item.label,products,product.id)}));
   return resolved.some(item=>item.product) ? resolved : [];
 }
+
+/** V55: validates operational bundle composition. Text is never operational authority. */
+export function validateBundleItems(
+  bundleItems: Array<{ productId?: string; id?: string; quantity?: number }> | undefined,
+  availableProductIds?: Set<string>,
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  for (const [index, item] of (bundleItems ?? []).entries()) {
+    const productId = String(item?.productId ?? item?.id ?? "").trim();
+    const quantity = Number(item?.quantity ?? 0);
+    if (!productId) errors.push(`Componente ${index + 1}: produto obrigatório.`);
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity))
+      errors.push(`Componente ${index + 1}: quantidade deve ser um inteiro maior que zero.`);
+    if (productId && availableProductIds && !availableProductIds.has(productId))
+      errors.push(`Componente ${index + 1}: produto "${productId}" não existe no catálogo.`);
+  }
+  return { valid: errors.length === 0, errors };
+}

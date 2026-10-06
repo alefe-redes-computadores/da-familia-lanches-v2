@@ -15,6 +15,7 @@ import { CATALOG_CATEGORIES_COLLECTION, type CatalogCategory } from "@/lib/catal
 import styles from "./CatalogAdmin.module.css";
 import { CatalogOrganizerAdmin } from "./CatalogOrganizerAdmin";
 import { productPublicSection, productPublicSlug } from "@/lib/productRoutes";
+import { validateBundleItems } from "@/lib/catalogComposition";
 
 
 type ProductDraft = {
@@ -315,6 +316,9 @@ export function CatalogAdmin() {
     if (oldPrice !== null && oldPrice <= price) return setMessage("Para criar promoção, o preço anterior precisa ser maior que o preço atual.");
     if(productDraft.upsellProductId && (!products.some(p=>p.id===productDraft.upsellProductId)||productDraft.upsellProductId===productDraft.id)) return setMessage("Selecione um produto válido para o upsell.");
     if(productDraft.upsellProductId && (upsellUnitPrice===null||upsellUnitPrice<0)) return setMessage("Informe o preço explícito do upsell.");
+    const bundleValidation = validateBundleItems(productDraft.bundleItems, new Set(products.map((item) => item.id)));
+    if (!bundleValidation.valid) return setMessage(bundleValidation.errors[0] || "Revise a composição inclusa.");
+    if (productDraft.bundleItems.some((item) => item.productId === productDraft.id)) return setMessage("O produto não pode incluir ele mesmo na composição.");
 
     const usedIds = new Set(products.map((product) => product.id));
     const id = productMode === "edit" ? productDraft.id : nextId(productDraft.name, usedIds);
@@ -615,13 +619,13 @@ export function CatalogAdmin() {
             <p className={styles.promoHint}>dafamilialanches.com.br/{productDraft.publicSection || (productDraft.showInOffers ? "ofertas-da-familia" : productDraft.category)}/{productDraft.publicSlug || slugify(productDraft.name) || "produto"}</p>
           </div>
           <div className={`${styles.full} ${styles.bundleEditor}`}>
-            <div className={styles.bundleEditorHead}><div><strong>Composição por produtos</strong><small>Ideal para combos e promoções. Ingredientes vêm do cadastro do lanche vinculado.</small></div><button type="button" onClick={() => { const candidate=products.find((item)=>item.id!==productDraft.id); if(candidate)setProductDraft({...productDraft,bundleItems:[...productDraft.bundleItems,{productId:candidate.id,quantity:1,note:""}]}); }}>+ Adicionar item</button></div>
+            <div className={styles.bundleEditorHead}><div><strong>O que vem incluso?</strong><small>Fonte operacional do pedido. Escolha produtos reais do catálogo; texto é apenas apresentação.</small></div><button type="button" onClick={() => { const candidate=products.find((item)=>item.id!==productDraft.id); if(candidate)setProductDraft({...productDraft,bundleItems:[...productDraft.bundleItems,{productId:candidate.id,quantity:1,note:""}]}); }}>+ Adicionar componente</button></div>
             {productDraft.bundleItems.length ? <div className={styles.bundleRows}>{productDraft.bundleItems.map((item,index)=><div className={styles.bundleRow} key={`${item.productId}-${index}`}>
-              <select value={item.productId} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],productId:e.target.value};setProductDraft({...productDraft,bundleItems:next});}}>{products.filter((candidate)=>candidate.id!==productDraft.id).map((candidate)=><option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select>
-              <input aria-label="Quantidade" type="number" min="1" value={item.quantity} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],quantity:Math.max(1,Number(e.target.value)||1)};setProductDraft({...productDraft,bundleItems:next});}} />
+              <select value={item.productId} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],productId:e.target.value};setProductDraft({...productDraft,bundleItems:next});}}>{categories.map((category)=>{const options=products.filter((candidate)=>candidate.id!==productDraft.id&&candidate.category===category.id);return options.length?<optgroup key={category.id} label={category.label}>{options.map((candidate)=><option key={candidate.id} value={candidate.id}>{candidate.name}{candidate.disponivel===false?" · pausado":""}</option>)}</optgroup>:null;})}</select>
+              <input aria-label="Qtd. inclusa" type="number" min="1" value={item.quantity} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],quantity:Math.max(1,Number(e.target.value)||1)};setProductDraft({...productDraft,bundleItems:next});}} />
               <input aria-label="Observação do item" value={item.note} placeholder="Ex.: Brinde" onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],note:e.target.value};setProductDraft({...productDraft,bundleItems:next});}} />
               <button type="button" aria-label="Remover item" onClick={()=>setProductDraft({...productDraft,bundleItems:productDraft.bundleItems.filter((_,i)=>i!==index)})}>×</button>
-            </div>)}</div> : <p className={styles.bundleEmpty}>Sem vínculos. O formato antigo em texto continua compatível.</p>}
+            </div>)}</div> : <p className={styles.bundleEmpty}>Nenhum componente estruturado. Para combos, cadastre aqui lanches, bebidas, acompanhamentos ou outros itens inclusos.</p>}
           </div>
           <div className={`${styles.full} ${styles.commercialBlock}`}>
             <div className={styles.commercialHead}><div><span>UPSELL EXPLÍCITO</span><strong>Oferta vinculada</strong></div><small>Preço definido pela loja</small></div>

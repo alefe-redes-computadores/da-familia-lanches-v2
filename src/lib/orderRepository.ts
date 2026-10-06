@@ -27,7 +27,7 @@ export type CheckoutDiscount = {
 };
 
 export type CreateCustomerOrderInput = {
-  userId: string;
+  userId: string | null;
   order: Record<string, unknown>;
   subtotal: number;
   discount?: CheckoutDiscount | null;
@@ -37,8 +37,8 @@ const cents = (value: number) => Math.round(value * 100);
 
 export async function createCustomerOrder(input: CreateCustomerOrderInput) {
   const user = auth.currentUser;
-  if (!user || user.uid !== input.userId) throw new Error("AUTH_REQUIRED");
-  const token = await user.getIdToken();
+  if (input.userId && (!user || user.uid !== input.userId)) throw new Error("AUTH_REQUIRED");
+  const token = user ? await user.getIdToken() : "";
 
   const controller = new AbortController();
   const timeout = window.setTimeout(
@@ -51,7 +51,7 @@ export async function createCustomerOrder(input: CreateCustomerOrderInput) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${token}`,
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(input),
       signal: controller.signal,

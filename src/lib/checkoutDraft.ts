@@ -1,5 +1,5 @@
 export type CheckoutDraft = {
-  version: 1;
+  version: 2;
   updatedAt: number;
   step: 1 | 2;
   deliveryMode: "delivery" | "pickup";
@@ -19,7 +19,7 @@ export type CheckoutDraft = {
 };
 
 const PREFIX = "dfl:checkout-draft:";
-const MAX_AGE = 24 * 60 * 60 * 1000;
+const MAX_AGE = 72 * 60 * 60 * 1000;
 
 function storageKey(uid?: string | null) {
   return `${PREFIX}${uid || "guest"}`;
@@ -34,7 +34,7 @@ export function saveCheckoutDraft(
   try {
     const payload: CheckoutDraft = {
       ...draft,
-      version: 1,
+      version: 2,
       updatedAt: Date.now(),
     };
 
@@ -59,7 +59,7 @@ export function readCheckoutDraft(
     const parsed = JSON.parse(raw) as Partial<CheckoutDraft>;
 
     if (
-      parsed.version !== 1 ||
+      parsed.version !== 2 ||
       typeof parsed.updatedAt !== "number" ||
       Date.now() - parsed.updatedAt > MAX_AGE
     ) {
@@ -110,4 +110,10 @@ export function migrateGuestCheckoutDraft(uid: string) {
       window.localStorage.removeItem(guestKey);
     }
   } catch {}
+}
+
+export function checkoutDraftAgeMinutes(draft: { updatedAt?: number } | null | undefined): number | null {
+  const updatedAt = Number(draft?.updatedAt);
+  if (!Number.isFinite(updatedAt) || updatedAt <= 0) return null;
+  return Math.max(0, Math.floor((Date.now() - updatedAt) / 60000));
 }

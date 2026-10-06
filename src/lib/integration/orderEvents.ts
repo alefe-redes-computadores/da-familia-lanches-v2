@@ -7,10 +7,14 @@ import {
 import {
   integrationEventId,
 } from "./idempotency";
+import { products as fallbackProducts } from "@/data/products";
+import { resolveBundleItems } from "@/lib/catalogComposition";
 
 export type DflSiteOrderItemSnapshotV1 = {
   id: string; name: string; quantity: number; unitPrice: number; lineTotal: number;
+  category: string | null;
   detailsTitle: string | null; detailsItems: string[]; includedExtras: string | null;
+  components: { id: string; name: string; category: string | null; quantity: number; origin: "included_in_bundle"; note: string | null }[];
   selectedAddons: { id: string; name: string; price: number }[]; observation: string | null;
 };
 
@@ -19,6 +23,8 @@ export type DflSiteOrderEventPayloadV1 = {
   sourceSystem: "dfl_site";
   orderSchemaVersion: number;
   userId: string;
+  customerMode: "google" | "guest";
+  checkoutChannel: "site" | "whatsapp";
   customerSnapshot: {
     id: string;
     name: string;
@@ -94,7 +100,10 @@ const orderItemsSnapshot = (value: unknown): DflSiteOrderItemSnapshotV1[] => {
       const addon = objectValue(rawAddon); const addonId = text(addon.id); const addonName = text(addon.name);
       return addonId && addonName ? [{ id: addonId, name: addonName, price: Math.max(0, money(addon.price)) }] : [];
     }) : [];
-    return [{ id, name, quantity, unitPrice, lineTotal: unitPrice * quantity, detailsTitle: nullableText(item.detailsTitle), detailsItems, includedExtras: nullableText(item.includedExtras), selectedAddons, observation: nullableText(item.observation) }];
+    const fallback=fallbackProducts.find((product)=>product.id===id);
+    const productForComposition={...(fallback??{}),...item,id,name,quantity,price:unitPrice,category:text(item.category)||fallback?.category||""} as typeof fallbackProducts[number];
+    const components=resolveBundleItems(productForComposition,fallbackProducts).flatMap((component)=>component.product?[{id:component.product.id,name:component.product.name,category:component.product.category||null,quantity:component.quantity*quantity,origin:"included_in_bundle" as const,note:component.note??null}]:[]);
+    return [{ id, name, quantity, unitPrice, lineTotal: unitPrice * quantity, category:text(item.category)||fallback?.category||null, detailsTitle: nullableText(item.detailsTitle), detailsItems, includedExtras: nullableText(item.includedExtras), components, selectedAddons, observation: nullableText(item.observation) }];
   });
 };
 
@@ -169,6 +178,8 @@ export function buildDflSiteOrderPayloadV1(
       Number(rawOrder.orderSchemaVersion) ||
       2,
     userId: text(rawOrder.userId),
+    customerMode: rawOrder.customerMode === "guest" ? "guest" : "google",
+    checkoutChannel: rawOrder.checkoutChannel === "whatsapp" ? "whatsapp" : "site",
     customerSnapshot:
       customerSnapshotFromOrder(rawOrder),
     tipoEntrega,

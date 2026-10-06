@@ -108,7 +108,7 @@ export function ProductDetailsModal() {
 
         {allowAddons && (
           <section className={styles.section}>
-            <div className={styles.sectionTitle}><div><strong>Quer incrementar?</strong><span>Adicionais opcionais · escolha quantos quiser</span></div>{selectedAddons.length > 0 && <b>{selectedAddons.length}</b>}</div>
+            <div className={styles.sectionTitle}><div><strong>Turbine seu lanche</strong><span>Escolha extras para deixar do seu jeito</span></div>{selectedAddons.length > 0 && <b>{selectedAddons.length}</b>}</div>
             <div className={styles.addons}>
               {productAddons.map((addon) => {
                 const selected = selectedAddons.some((item) => item.id === addon.id);

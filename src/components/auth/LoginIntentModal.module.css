@@ -3,3 +3,11 @@
 .copy{display:flex;flex-direction:column;gap:7px}.eyebrow{font-size:10px;font-weight:900;letter-spacing:.14em;color:#9a7410}.copy h3{margin:0;font-size:19px;line-height:1.08;letter-spacing:-.035em;color:#171717}.copy p{margin:0;color:#666;font-size:13px;line-height:1.55}
 .benefits{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid #eee9de;border-radius:16px;background:#fff}.benefits span{display:flex;align-items:center;gap:10px;font-size:12px;color:#444}.benefits b{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:#fff4c5;color:#705400;font-size:10px}
 .primary,.secondary{width:100%;border-radius:13px;padding:14px 16px;font-weight:800;cursor:pointer}.primary{border:0;background:#111;color:#fff}.secondary{border:1px solid #dedbd5;background:#fff;color:#333}.wrap small{text-align:center;color:#999;font-size:10px}
+
+/* V55 FINAL */
+.brand{width:58px;height:42px;display:grid;place-items:center;border-radius:14px;background:#111;color:#ffca28;font:950 18px Arial,sans-serif;letter-spacing:.12em}.primary{display:flex;align-items:center;justify-content:center;gap:9px}.googleMark{width:23px;height:23px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#4285f4;font:900 15px Arial,sans-serif}
+
+/* V55 FINAL POLISH */
+.googleMark{background:#fff;border:1px solid #e6e2da;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.googleMark svg{width:17px;height:17px;display:block}
+.brand{background:linear-gradient(145deg,#151515,#050505);box-shadow:0 10px 24px rgba(0,0,0,.18),inset 0 0 0 1px rgba(255,202,40,.16)}

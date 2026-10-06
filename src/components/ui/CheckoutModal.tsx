@@ -24,6 +24,7 @@ import {
   migrateGuestCheckoutDraft,
   readCheckoutDraft,
   saveCheckoutDraft,
+  checkoutDraftAgeMinutes,
 } from "@/lib/checkoutDraft";
 
 type PaymentMethod = "pix" | "cartao" | "dinheiro";
@@ -138,6 +139,7 @@ export function CheckoutModal() {
   const [scheduleError, setScheduleError] = useState("");
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [draftRecovered, setDraftRecovered] = useState(false);
+  const [draftRecoveredAge, setDraftRecoveredAge] = useState<number | null>(null);
   const draftHydratedRef = useRef(false);
 
   const subtotal = getCartTotal();
@@ -226,6 +228,7 @@ export function CheckoutModal() {
       void calculateDeliveryFee(draft.bairro);
     }
 
+    setDraftRecoveredAge(checkoutDraftAgeMinutes(draft));
     setDraftRecovered(true);
   // O draft deve ser hidratado uma única vez por abertura.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -620,23 +623,23 @@ export function CheckoutModal() {
         : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}${referencia.trim() ? ` · Ref.: ${referencia.trim()}` : ""}`;
 
       if (!currentUser) {
-        const guestMessage = buildOrderWhatsAppMessage({
-          registered: false,
-          customerName: customerName.trim() || "Cliente",
-          phone: userPhone.trim(),
-          items: items.map((item) => ({ quantity: item.quantity, name: item.name, price: item.price, addons: item.selectedAddons?.map((addon) => addon.name) ?? [], observation: item.observation })),
-          deliveryMode,
-          address: isPickup ? "Retirada no balcão" : finalAddress,
-          district: bairro.trim(), complement: complemento.trim(), reference: referencia.trim(),
-          subtotal, deliveryFee: finalFee, discount: safeDiscount, couponCode: appliedCouponCode, total,
-          paymentMethod: method, changeFor: troco, orderObservation,
-          scheduledLabel: isClosed ? scheduleHumanLabel(selectedSchedule) : undefined,
-        });
-        saveCheckoutDraft(null, { step, deliveryMode, customerName, userPhone, cep, rua, bairro, numero, complemento, referencia, method, troco, orderObservation, couponCode, scheduledFor });
-        submittingRef.current = false;
-        setLoading(false);
-        window.location.href = businessWhatsAppUrl(guestMessage);
-        return;
+        if (!orderAttemptRef.current) rememberOrderAttempt(typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `guest-${Date.now()}-${Math.random().toString(36).slice(2,12)}`);
+        const guestOrder = {
+          clientRequestId: orderAttemptRef.current, userId: null, userName: customerName.trim() || "Cliente", userEmail: "", userPhone: userPhone.trim(),
+          itens: items, subtotal, taxaEntrega: finalFee, desconto: safeDiscount, cupom: safeDiscount > 0 && appliedCouponCode ? appliedCouponCode : null, rewardId: null, total,
+          metodoPagamento: method, trocoPara: method === "dinheiro" ? (troco.trim() || null) : null, observacao: orderObservation.trim() || null,
+          endereco: finalAddress, tipoEntrega: deliveryMode, status: isClosed ? "Agendado" : "Pendente", isAgendamento: isClosed,
+          scheduledFor: isClosed ? selectedSchedule : null, scheduledLabel: isClosed ? scheduleHumanLabel(selectedSchedule) : null, scheduleWindowMinutes: isClosed ? 30 : null,
+          sourceSystem: "dfl_site", orderSchemaVersion: 3, customerMode: "guest", checkoutChannel: "site", handoffChannel: "whatsapp", recoveredCheckout: draftRecovered,
+          customerSnapshot: { id: "", name: customerName.trim() || "Cliente", email: "", phone: userPhone.trim(), phoneE164: `+55${phoneDigits}` },
+          deliverySnapshot: isPickup ? null : { cep: cep.trim(), street: rua.trim(), number: numero.trim(), district: bairro.trim(), complement: complemento.trim(), reference: referencia.trim() },
+        };
+        const created=await createCustomerOrder({ userId: null, order: guestOrder, subtotal, discount: safeDiscount > 0 && appliedCouponCode ? { code: appliedCouponCode, rewardId: null, expectedDiscount: safeDiscount } : null });
+        const guestMessage=buildOrderWhatsAppMessage({registered:true,orderId:created.id,customerName:customerName.trim()||"Cliente",phone:userPhone.trim(),items:items.map((item)=>({quantity:item.quantity,name:item.name,price:item.price,addons:item.selectedAddons?.map((addon)=>addon.name)??[],observation:item.observation})),deliveryMode,address:isPickup?"Retirada no balcão":finalAddress,district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim(),subtotal,deliveryFee:finalFee,discount:safeDiscount,couponCode:appliedCouponCode,total,paymentMethod:method,changeFor:troco,orderObservation,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):undefined});
+        const whatsappUrl=businessWhatsAppUrl(guestMessage);
+        clearCart(); clearOrderAttempt(); clearCheckoutDraft(null);
+        openModal("order-success",{orderId:created.id,isScheduled:isClosed,deliveryMode,total,whatsappUrl,paymentMethod:method,pixKey:method==="pix"?BUSINESS_CONTACT.pixKey:undefined,cartPreserved:false,rescueMessage:guestMessage});
+        submittingRef.current=false; setLoading(false); return;
       }
 
       if (!orderAttemptRef.current) {
@@ -675,7 +678,11 @@ export function CheckoutModal() {
         scheduledLabel: isClosed ? scheduleHumanLabel(selectedSchedule) : null,
         scheduleWindowMinutes: isClosed ? 30 : null,
         sourceSystem: "dfl_site",
-        orderSchemaVersion: 2,
+        orderSchemaVersion: 3,
+        customerMode: "google",
+        checkoutChannel: "site",
+        handoffChannel: null,
+        recoveredCheckout: draftRecovered,
         customerSnapshot: {
           id: currentUser.uid,
           name: customerName.trim() || currentUser?.displayName || "Cliente",
@@ -824,7 +831,7 @@ export function CheckoutModal() {
     <ModalBase title={step === 1 ? "Como você quer receber?" : "Confirme seu pedido"} onClose={closeModal}>
       <div className={styles.body}>
         {!isOnline && <div className={styles.offlineBanner} role="status"><strong>Sem conexão</strong><span>Seu carrinho e os dados deste checkout ficam preservados neste aparelho. Reconecte antes de confirmar.</span></div>}
-        {draftRecovered && <div className={styles.recoveryBanner} role="status"><div><strong>Continuamos de onde você parou</strong><span>Recuperamos os dados deste pedido salvos neste aparelho.</span></div><button type="button" aria-label="Fechar aviso" onClick={() => setDraftRecovered(false)}>×</button></div>}
+        {draftRecovered && <div className={styles.recoveryBanner} role="status"><div><strong>Seu pedido estava te esperando</strong><span>{draftRecoveredAge === null ? "Recuperamos os dados recentes deste aparelho." : draftRecoveredAge < 1 ? "Recuperamos o que você preenchia agora há pouco." : draftRecoveredAge < 60 ? `Recuperamos seu checkout de há ${draftRecoveredAge} min.` : `Recuperamos seu checkout de há ${Math.floor(draftRecoveredAge / 60)}h.`} Continue sem preencher tudo de novo.</span></div><button type="button" aria-label="Fechar aviso" onClick={() => setDraftRecovered(false)}>×</button></div>}
         <div className={styles.steps} aria-label={`Etapa ${step} de 2`}>
           <i data-active="true" /><i data-active={step === 2} />
         </div>

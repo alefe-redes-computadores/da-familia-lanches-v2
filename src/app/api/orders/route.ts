@@ -52,8 +52,12 @@ function remoteProduct(id: string, raw: Raw, fallback?: Product): Product | null
   const addonIds = Array.isArray(ids) ? ids.map((v) => text(v, 100)).filter(Boolean) : fallback?.addonIds;
   const upsellProductId=text(raw.upsellProductId ?? raw.upsellProdutoId ?? fallback?.upsellProductId,120)||undefined;
   const upsellUnitPrice=finiteMoney(raw.upsellUnitPrice ?? raw.precoUpsell ?? fallback?.upsellUnitPrice);
+  const detailsTitle=text(raw.detailsTitle ?? fallback?.detailsTitle,180)||undefined;
+  const detailRaw=raw.detailsItems; const detailsItems=Array.isArray(detailRaw)?detailRaw.map(v=>text(v,180)).filter(Boolean):fallback?.detailsItems;
+  const bundleRaw=raw.bundleItems ?? raw.itensCombo; const bundleItems=Array.isArray(bundleRaw)?bundleRaw.flatMap(v=>{const x=object(v),productId=text(x.productId??x.id,120);return productId?[{productId,quantity:Math.max(1,Math.trunc(Number(x.quantity??x.qtd)||1)),...(text(x.note,180)?{note:text(x.note,180)}:{})}]:[]}):fallback?.bundleItems;
+  const includedExtras=text(raw.includedExtras ?? fallback?.includedExtras,600)||undefined;
   return { ...(fallback ?? { id, name, description, image, category, price, disponivel: true }), id, name, description, image, category, price,
-    disponivel: bool(raw.disponivel ?? raw.available, fallback?.disponivel ?? true), ...(addonIds ? { addonIds } : {}), ...(upsellProductId?{upsellProductId}:{}), ...(upsellUnitPrice!==null?{upsellUnitPrice}:{}) };
+    disponivel: bool(raw.disponivel ?? raw.available, fallback?.disponivel ?? true), ...(addonIds ? { addonIds } : {}), ...(detailsTitle?{detailsTitle}:{}), ...(detailsItems?{detailsItems}:{}), ...(bundleItems?{bundleItems}:{}), ...(includedExtras?{includedExtras}:{}), ...(upsellProductId?{upsellProductId}:{}), ...(upsellUnitPrice!==null?{upsellUnitPrice}:{}) };
 }
 function remoteAddon(id: string, raw: Raw, fallback?: Addon): Addon | null {
   const price = finiteMoney(raw.price ?? raw.preco ?? fallback?.price);
@@ -86,8 +90,7 @@ export async function POST(request: NextRequest) {
   const trace=startRouteTrace("orders.create");
   try {
     const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() || "";
-    if (!bearer) return fail("AUTH_REQUIRED", 401);
-    const decoded = await adminAuth.verifyIdToken(bearer, true);
+    const decoded = bearer ? await adminAuth.verifyIdToken(bearer, true) : null;
     const rawText = await request.text();
     if (!rawText || rawText.length > MAX_BODY) return fail("PAYLOAD_INVALID", 413);
     const body = object(JSON.parse(rawText));
@@ -99,10 +102,12 @@ export async function POST(request: NextRequest) {
       throw new Error("IDEMPOTENCY_REQUIRED");
     }
 
+    const actorId=decoded?.uid || `guest_${createHash("sha256").update(clientRequestId).digest("hex").slice(0,24)}`;
+    const customerMode=decoded ? "google" : "guest";
     const deterministicId =
       "site_" +
       createHash("sha256")
-        .update(decoded.uid + ":" + clientRequestId)
+        .update(actorId + ":" + clientRequestId)
         .digest("hex")
         .slice(0, 40);
 
@@ -110,7 +115,7 @@ export async function POST(request: NextRequest) {
       createHash("sha256")
         .update(
           JSON.stringify({
-            userId: decoded.uid,
+            userId: actorId,
             clientRequestId,
             lines,
             tipoEntrega:
@@ -158,7 +163,7 @@ export async function POST(request: NextRequest) {
         const existing = existingOrder.data() as Raw;
 
         if (
-          text(existing.userId, 160) !== decoded.uid ||
+          text(existing.userId, 160) !== actorId ||
           text(existing.clientRequestId, 80) !== clientRequestId ||
           text(
             existing.requestFingerprint,
@@ -279,6 +284,7 @@ export async function POST(request: NextRequest) {
       let discount = 0;
       let rewardRef: FirebaseFirestore.DocumentReference | null = null;
       if (rewardId) {
+        if (!decoded) throw new Error("REWARD_AUTH_REQUIRED");
         rewardRef = adminDb.doc(`Usuarios/${decoded.uid}/RecompensasRecebidas/${rewardId}`);
         const snap = await tx.get(rewardRef); if (!snap.exists) throw new Error("REWARD_NOT_FOUND");
         const reward = snap.data() as Raw;
@@ -323,9 +329,9 @@ export async function POST(request: NextRequest) {
       const phone = text(incoming.userPhone, 30); if (!/^\D*\d(?:\D*\d){9,10}\D*$/.test(phone)) throw new Error("PHONE_INVALID");
       const customer = object(incoming.customerSnapshot);
       const canonicalOrder: Raw = {
-        userId: decoded.uid,
+        userId: actorId,
         clientRequestId,
-        requestFingerprint, userName: text(incoming.userName, 120) || text(decoded.name, 120) || "Cliente", userEmail: decoded.email || "", userPhone: phone,
+        requestFingerprint, userName: text(incoming.userName, 120) || text(decoded?.name, 120) || "Cliente", userEmail: decoded?.email || "", userPhone: phone,
         itens: canonicalItems, subtotal, taxaEntrega: fee, desconto: discount, cupom: discount > 0 && code ? code : null, rewardId: rewardId || null, total,
         metodoPagamento: method, trocoPara: method === "dinheiro" ? text(incoming.trocoPara, 40) || null : null, observacao: text(incoming.observacao, 300) || null,
         endereco: deliveryMode === "pickup" ? "RETIRADA NO LOCAL" : text(incoming.endereco, 600), tipoEntrega: deliveryMode,
@@ -334,30 +340,22 @@ export async function POST(request: NextRequest) {
         isAgendamento: isScheduled,
         pricingIntegrityVersion: 1,
         scheduledFor: isScheduled ? scheduledFor : null, scheduledLabel: isScheduled ? text(incoming.scheduledLabel, 100) : null,
-        scheduleWindowMinutes: isScheduled ? 30 : null, sourceSystem: "dfl_site", orderSchemaVersion: 2,
-        customerSnapshot: { id: decoded.uid, name: text(customer.name, 120) || text(incoming.userName, 120), email: decoded.email || "", phone, phoneE164: `+55${phone.replace(/\D/g, "")}` },
+        scheduleWindowMinutes: isScheduled ? 30 : null, sourceSystem: "dfl_site", orderSchemaVersion: 3,
+        customerMode,
+        checkoutChannel: "site",
+        handoffChannel: decoded ? null : "whatsapp",
+        recoveredCheckout: incoming.recoveredCheckout === true,
+        customerSnapshot: { id: actorId, name: text(customer.name, 120) || text(incoming.userName, 120), email: decoded?.email || "", phone, phoneE164: `+55${phone.replace(/\D/g, "")}` },
         deliverySnapshot: deliveryMode === "pickup" ? null : { cep: text(delivery.cep, 20), street: text(delivery.street, 180), number: text(delivery.number, 30), district, complement: text(delivery.complement, 180), reference: text(delivery.reference, 240) },
       };
       if (deliveryMode === "delivery" && (!text(delivery.street) || !text(delivery.number) || !district)) throw new Error("ADDRESS_INVALID");
       const event = buildOrderCreatedEvent({ orderId: orderRef.id, order: canonicalOrder, occurredAt });
       tx.create(orderRef, canonicalOrder);
 
-      tx.set(
-        adminDb.collection("Usuarios").doc(decoded.uid),
-        {
-          pedidosFeitos: FieldValue.increment(1),
-        },
-        { merge: true },
-      );
-      tx.set(
-        adminDb.doc(`Usuarios/${decoded.uid}/Loyalty/state`),
-        {
-          version: 2,
-          totalOrders: FieldValue.increment(1),
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      );
+      if (decoded) {
+        tx.set(adminDb.collection("Usuarios").doc(decoded.uid), { pedidosFeitos: FieldValue.increment(1) }, { merge: true });
+        tx.set(adminDb.doc(`Usuarios/${decoded.uid}/Loyalty/state`), { version: 2, totalOrders: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      }
       tx.create(adminDb.collection(INTEGRATION_COLLECTIONS.outbox).doc(encodeURIComponent(event.event_id)), buildOutboxRecord(event, occurredAt));
       if (rewardRef) tx.update(rewardRef, { used: true, usedAt: FieldValue.serverTimestamp(), usedOrderId: orderRef.id });
       if (slotRef && slotData) tx.set(slotRef, slotData, { merge: true });

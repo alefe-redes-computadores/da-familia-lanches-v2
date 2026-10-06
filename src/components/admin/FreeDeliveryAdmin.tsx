@@ -40,8 +40,8 @@ export function FreeDeliveryAdmin() {
     finally { setSaving(false); }
   };
   return <section className={styles.card}>
-    <div className={styles.head}><div><span>ENTREGA GRÁTIS</span><strong><Truck size={17}/>Regra comercial</strong></div><label><input type="checkbox" checked={draft.freeDeliveryEnabled} onChange={(e)=>{haptic("step");setDraft(v=>({...v,freeDeliveryEnabled:e.target.checked}))}}/> Ativa</label></div>
-    <p>Configure o mínimo geral e bairros com regra especial. O carrinho usa esta mesma configuração para mostrar quanto falta para o benefício.</p>
+    <div className={styles.head}><div><span>ENTREGA GRÁTIS</span><strong><Truck size={17}/>Campanha de entrega</strong></div><label><input type="checkbox" checked={draft.freeDeliveryEnabled} onChange={(e)=>{haptic("step");setDraft(v=>({...v,freeDeliveryEnabled:e.target.checked}))}}/> Ativa</label></div>
+    <p>Configure a campanha sem alterar produtos. O carrinho usa a mesma regra para progresso e desbloqueio do benefício.</p>
     <div className={styles.preview} data-active={draft.freeDeliveryEnabled}><span>PRÉVIA DA CAMPANHA</span><strong>{draft.freeDeliveryEnabled ? `Frete grátis a partir de R$ ${Number(draft.globalMinimum || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Campanha pausada"}</strong><i /></div>
     <div className={styles.grid}>
       <label><span>Mínimo geral (R$)</span><input inputMode="decimal" value={globalMinimumText} onChange={(e)=>setGlobalMinimumText(moneyTyping(e.target.value))} onBlur={()=>setGlobalMinimumText(moneyText(moneyNumber(globalMinimumText)))}/></label>

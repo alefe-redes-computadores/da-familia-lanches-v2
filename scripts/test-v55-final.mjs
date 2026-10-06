@@ -1,0 +1,15 @@
+import fs from "node:fs";
+const r=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw Error("V55 FINAL: "+m);console.log("OK:",m)};
+const api=r("src/app/api/orders/route.ts"),repo=r("src/lib/orderRepository.ts"),ev=r("src/lib/integration/orderEvents.ts"),co=r("src/components/ui/CheckoutModal.tsx"),pd=r("src/components/ui/ProductDetailsModal.tsx"),li=r("src/components/auth/LoginIntentModal.tsx"),draft=r("src/lib/checkoutDraft.ts");
+ok(api.includes("const decoded = bearer ?"),"guest permitido com validação server-side");
+ok(api.includes('customerMode=decoded ? "google" : "guest"'),"origem do cliente gravada");
+ok(api.includes("bundleItems")&&api.includes("detailsItems"),"composição canônica preservada");
+ok(repo.includes("userId: string | null"),"repository suporta guest");
+ok(ev.includes("resolveBundleItems")&&ev.includes("components"),"evento usa composição estruturada compartilhada");
+ok(ev.includes("component.quantity*quantity"),"quantidade do combo multiplica componente");
+ok(co.includes("createCustomerOrder({ userId: null")&&co.includes("registered:true"),"guest registra antes do WhatsApp");
+ok(co.includes("Seu pedido estava te esperando"),"continuidade premium");
+ok(draft.includes("version: 2")&&draft.includes("72 * 60 * 60"),"storage V2 TTL 72h");
+ok(pd.includes("Turbine seu lanche"),"Turbine aplicado");
+ok(li.includes("DFL")&&li.includes("Continuar como convidado"),"login DFL/guest");
+console.log("\nDFL SITE V55 FINAL — CONTRATOS OK");

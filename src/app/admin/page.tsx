@@ -950,7 +950,7 @@ function AdminPageContent() {
         ) : tab === "frete" ? (
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>ENTREGA & FRETE</span><h2>Taxas e benefícios de entrega</h2></div><p>Taxa padrão, bairros e regras de frete grátis em um único lugar.</p></div><DeliveryRatesAdmin /><FreeDeliveryAdmin /></section>
         ) : tab === "cupons" ? (
-          <section className={styles.management}><div className={styles.sectionHeading}><div><span>PROMOÇÕES</span><h2>Cupons de desconto</h2></div><p>Crie, agende, pause e edite cupons sem mexer diretamente no banco.</p></div><CouponsAdmin /><PublicPromotionsAdmin /></section>
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>CENTRAL DE PROMOÇÕES</span><h2>Campanhas & cupons</h2></div><p>Crie descontos, defina pedido mínimo e período, pause campanhas e escolha quais ofertas podem aparecer ao cliente.</p></div><CouponsAdmin /><PublicPromotionsAdmin /></section>
         ) : tab === "fidelidade" ? (
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><RewardsAdmin /></section>
         ) : tab === "gestao" ? (

@@ -1,0 +1,11 @@
+import fs from "node:fs";
+const r=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw Error("V55 FINAL POLISH: "+m);console.log("OK:",m)};
+const login=r("src/components/auth/LoginIntentModal.tsx"),pc=r("src/components/ui/ProductDetailsModal.module.css"),cc=r("src/components/ui/CheckoutModal.module.css"),cart=r("src/components/ui/CartModal.module.css"),draft=r("src/lib/checkoutDraft.ts"),admin=r("src/components/admin/CatalogAdmin.tsx");
+ok(["#4285F4","#34A853","#FBBC05","#EA4335"].every(x=>login.includes(x)),"Google SVG multicolor");
+ok(login.includes("Continuar como convidado")&&login.includes("WhatsApp"),"guest/WhatsApp explícito");
+ok(pc.includes(".addonsList")&&pc.includes("#16803a"),"hierarquia comercial dos adicionais");
+ok(cc.includes("SALVO NESTE APARELHO"),"continuidade premium");
+ok(cart.includes("#ffca28")&&cart.includes(".freeDeliveryUnlocked"),"frete com estados comerciais");
+ok(draft.includes("checkoutDraftAgeMinutes"),"idade do draft disponível");
+ok(admin.includes("bundleItems"),"composição estruturada preservada no Admin");
+console.log("\nDFL SITE V55 FINAL POLISH — CONTRATOS OK");
