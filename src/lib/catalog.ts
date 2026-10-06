@@ -27,8 +27,8 @@ function text(value: unknown): string {
 
 export function optimizeLegacyCatalogImage(value: unknown): string {
   const source = text(value);
-  if (!/^\/img\/[a-zA-Z0-9._-]+\\.(?:png|jpe?g)$/i.test(source)) return source;
-  return source.replace(/\\.(?:png|jpe?g)$/i, ".webp");
+  if (!/^\/img\/[a-zA-Z0-9._-]+\.(?:png|jpe?g)$/i.test(source)) return source;
+  return source.replace(/\.(?:png|jpe?g)$/i, ".webp");
 }
 
 function booleanOrUndefined(value: unknown): boolean | undefined {

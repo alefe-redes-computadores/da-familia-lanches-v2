@@ -1,0 +1,10 @@
+import fs from "node:fs";
+const r=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw new Error(`V54.1: ${m}`);console.log("OK:",m)};
+const c=r("src/lib/catalog.ts"),css=r("src/components/layout/MobileDrawerMenu.module.css");
+ok(c.includes('[a-zA-Z0-9._-]+\\.(?:png|jpe?g)'),"resolver reconhece PNG/JPG legado");
+ok(c.includes('/\\.(?:png|jpe?g)$/i, ".webp"'),"resolver troca extensão por WebP");
+ok(!c.includes('[a-zA-Z0-9._-]+\\\\.(?:png|jpe?g)'),"escape duplicado removido");
+ok(css.includes("width:min(88vw,360px)"),"drawer mais estreito");
+ok(css.includes("height:auto;max-height:calc(100dvh"),"drawer usa altura do conteúdo");
+ok(css.includes("min-height:88px"),"atalhos mais compactos");
+console.log("\nDFL SITE V54.1 IMAGE + DRAWER HOTFIX — ZERO ERROS");
