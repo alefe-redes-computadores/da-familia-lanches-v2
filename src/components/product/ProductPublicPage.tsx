@@ -15,6 +15,7 @@ import styles from "./ProductPublicPage.module.css";
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 import { getCommercialRecommendations } from "@/lib/commercialRecommendations";
 import { haptic } from "@/lib/haptics";
+import { productLeadDescription } from "@/lib/productPresentation";
 
 export function ProductPublicPage({ section, slug }: { section: string; slug: string }) {
   const { products, loading } = useCatalog();
@@ -33,6 +34,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   const hasDiscount = typeof product.oldPrice === "number" && product.oldPrice > product.price;
   const sectionLabel = PUBLIC_SECTION_LABELS[productPublicSection(product)] || product.category;
   const hasComposition = bundle.length > 0 || Boolean(product.detailsItems?.length) || Boolean(product.includedExtras);
+  const leadDescription = productLeadDescription(product);
   const share = async () => {
     const data = { title: `${product.name} | Da Família Lanches`, text: product.description, url: window.location.href };
     haptic("step");
@@ -45,9 +47,9 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
     <section className={styles.hero}>
       <div className={styles.media}><CatalogImage src={product.image} alt={product.name} sizes="(max-width: 760px) 100vw, 720px" priority quality={76} />{hasDiscount && <b>-{Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100)}%</b>}{!available && <span>INDISPONÍVEL</span>}</div>
       <div className={styles.summary}>
-        <span className={styles.kicker}>{sectionLabel}</span><h1>{product.name}</h1><p>{product.description}</p>
+        <span className={styles.kicker}>{sectionLabel}</span><h1>{product.name}</h1>{leadDescription && <p>{leadDescription}</p>}
         {hasComposition && <section className={styles.composition}>
-          <div className={styles.compositionHead}><span>{bundle.length ? "POR DENTRO DO COMBO" : "INGREDIENTES"}</span><h2>{product.detailsTitle || (bundle.length ? "O que vem nesta promoção?" : "Feito com")}</h2></div>
+          <div className={styles.compositionHead}><span>{bundle.length ? "POR DENTRO DO COMBO" : "INGREDIENTES"}</span><h2>{product.detailsTitle || `O que vem no ${product.name}?`}</h2></div>
           {bundle.length ? <div className={styles.bundle}>{bundle.map((item) => <article key={item.key}><div><b>{item.quantity}×</b><strong>{item.product?.name || item.label}</strong>{item.note && <small>{item.note}</small>}</div>{item.product?.detailsItems?.length ? <ul>{item.product.detailsItems.map((detail) => <li key={detail}>{detail}</li>)}</ul> : null}</article>)}</div> : <ul className={styles.ingredients}>{product.detailsItems?.map((item) => <li key={item}>{item}</li>)}</ul>}
           {product.includedExtras && <p className={styles.included}><b>Acompanha:</b> {product.includedExtras}</p>}
         </section>}

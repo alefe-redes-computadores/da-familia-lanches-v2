@@ -15,6 +15,7 @@ import { ModalBase } from "./ModalBase";
 import styles from "./ProductDetailsModal.module.css";
 import { haptic } from "@/lib/haptics";
 import { productHref } from "@/lib/productRoutes";
+import { productLeadDescription } from "@/lib/productPresentation";
 
 function money(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -44,6 +45,7 @@ export function ProductDetailsModal() {
   const allowAddons = productAddons.length > 0;
   const bundleItems = resolveBundleItems(product, products);
   const hasBundle = bundleItems.length > 0;
+  const leadDescription = productLeadDescription(product);
   const upsellProduct = product.upsellProductId
     ? products.find((candidate) => candidate.id === product.upsellProductId && candidate.disponivel !== false)
     : undefined;
@@ -79,11 +81,11 @@ export function ProductDetailsModal() {
       <div className={styles.wrap}>
         <div className={styles.product}>
           <CatalogImage src={product.image} alt={product.name} sizes="(max-width: 700px) 100vw, 620px" priority quality={72} />
-          <div><div className={styles.productTopline}><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><Link className={styles.fullPageLink} href={productHref(product)} onClick={closeModal}>Página completa ↗</Link></div><h3>{product.name}</h3><p>{product.description}</p><div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div></div>
+          <div><div className={styles.productTopline}><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><Link className={styles.fullPageLink} href={productHref(product)} onClick={closeModal}>Página completa ↗</Link></div><h3>{product.name}</h3>{leadDescription && <p>{leadDescription}</p>}<div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div></div>
         </div>
 
         {(hasBundle || product.detailsItems?.length || product.includedExtras) && <section className={hasBundle ? styles.composition : styles.ingredients}>
-          <div className={styles.compositionHead}><span>{hasBundle ? "POR DENTRO DO COMBO" : "INGREDIENTES"}</span><strong>{product.detailsTitle || (hasBundle ? `O que vem no ${product.name}?` : product.name)}</strong></div>
+          <div className={styles.compositionHead}><span>{hasBundle ? "POR DENTRO DO COMBO" : "INGREDIENTES"}</span><strong>{product.detailsTitle || `O que vem no ${product.name}?`}</strong></div>
           {hasBundle ? <div className={styles.bundleList}>{bundleItems.map((item) =>
             <details className={styles.bundleItem} key={item.key}>
               <summary><span className={styles.bundleQty}>{item.quantity}×</span><span className={styles.bundleName}>{item.product?.name || item.label}</span>{item.note && <span className={styles.bundleNote}>{item.note}</span>}{item.product?.detailsItems?.length ? <b>›</b> : null}</summary>
