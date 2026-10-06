@@ -1,0 +1,15 @@
+import fs from "node:fs"; import path from "node:path";
+const r=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw new Error(`V52: ${m}`);console.log("OK:",m)};
+const files=fs.readdirSync("public/img"),webps=files.filter(f=>f.endsWith(".webp")),legacy=files.filter(f=>/\.(png|jpe?g)$/i.test(f));
+const bytes=a=>a.reduce((n,f)=>n+fs.statSync(path.join("public/img",f)).size,0),wb=bytes(webps),lb=bytes(legacy);
+const products=r("src/data/products.ts"),catalog=r("src/lib/catalog.ts"),modal=r("src/components/ui/ProductDetailsModal.tsx");
+ok(webps.length>=49,`derivados WebP criados (${webps.length})`);
+ok(lb===0 || lb===0 || wb<lb*.45,`WebP otimizado; legado redundante pode ter sido removido (${(wb/1048576).toFixed(2)} MB WebP)`);
+ok(!/image:\s*["'][^"']+\.(png|jpe?g)["']/i.test(products),"fallback aponta para WebP");
+ok(catalog.includes("optimizeLegacyCatalogImage"),"Firestore legado traduz caminhos locais para WebP");
+ok(modal.includes("priority quality={72}"),"detalhe usa orçamento menor");
+const checkout=r("src/components/ui/CheckoutModal.tsx");
+ok(checkout.includes("saveCheckoutDraft(null"),"checkout convidado V51 preservado");
+ok(checkout.includes("createCustomerOrder"),"pedido autenticado V51 preservado");
+ok(r("src/lib/catalogSearch.ts").includes("catalogSearchScore"),"busca V51 preservada");
+console.log("\nDFL SITE V52 — IMAGES + COMMERCE FINAL — ZERO ERROS");

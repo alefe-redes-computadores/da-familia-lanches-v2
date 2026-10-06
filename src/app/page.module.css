@@ -86,7 +86,7 @@
   .cardBody{padding:12px 11px}.cardBody p{font-size:10px}.detailsLink{margin-top:6px;font-size:9px}
 }
 
-/* DFL-V30-HOME */ .card{overflow:hidden}.media img{width:100%;height:100%;object-fit:cover}@media(max-width:640px){.content{padding-bottom:18px!important}.grid{align-items:stretch}.card{height:100%}.cardFooter{margin-top:auto}}
+/* DFL-V30-HOME */ .card{overflow:hidden}.media img{width:100%;height:100%;object-fit:cover}@media(max-width:640px){.content{padding-bottom:18px}.grid{align-items:stretch}.card{height:100%}.cardFooter{margin-top:auto}}
 
 
 /* DFL-V30.3-ORDER-SLOT */
@@ -103,7 +103,7 @@
   }
 
   .content{
-    padding-bottom:0!important;
+    padding-bottom:0;
   }
 
   .section:last-of-type{
@@ -112,8 +112,8 @@
 }
 
 /* V32 STOREFRONT */
-.card{border-radius:18px!important;border:1px solid rgba(24,20,14,.07)!important;box-shadow:0 7px 24px rgba(34,25,12,.07)!important;overflow:hidden!important;transition:transform .16s ease,box-shadow .16s ease!important}.card:active{transform:scale(.975)!important}.badges{left:7px!important;top:7px!important;gap:4px!important}.discount{background:#171717!important;color:#fff!important;box-shadow:0 4px 12px rgba(0,0,0,.18)!important}.featured{background:#f5c34b!important;color:#171717!important}.cardFooter{border-top:1px solid rgba(0,0,0,.055)!important;margin-top:10px!important;padding-top:9px!important}.priceBlock strong{font-weight:950!important;letter-spacing:-.025em!important}.oldPrice{color:#9b948a!important}.addButton{box-shadow:0 6px 16px rgba(0,0,0,.14)!important}
-@media(max-width:699px){.grid{gap:9px!important}.card{border-radius:15px!important}.cardBody{padding:9px!important}.cardBody h3{letter-spacing:-.02em!important}.cardBody p{line-height:1.32!important}}
+.card{border-radius:18px;border:1px solid rgba(24,20,14,.07);box-shadow:0 7px 24px rgba(34,25,12,.07);overflow:hidden;transition:transform .16s ease,box-shadow .16s ease}.card:active{transform:scale(.975)}.badges{left:7px;top:7px;gap:4px}.discount{background:#171717;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.18)}.featured{background:#f5c34b;color:#171717}.cardFooter{border-top:1px solid rgba(0,0,0,.055);margin-top:10px;padding-top:9px}.priceBlock strong{font-weight:950;letter-spacing:-.025em}.oldPrice{color:#9b948a}.addButton{box-shadow:0 6px 16px rgba(0,0,0,.14)}
+@media(max-width:699px){.grid{gap:9px}.card{border-radius:15px}.cardBody{padding:9px}.cardBody h3{letter-spacing:-.02em}.cardBody p{line-height:1.32}}
 
 /* V32.3 PROMO SHOWCASE */
 .promoShowcase{margin:4px 0 18px;padding:15px;border-radius:23px;background:radial-gradient(circle at 90% 0,rgba(245,195,75,.22),transparent 32%),#171717;color:#fff;box-shadow:0 16px 38px rgba(0,0,0,.16);overflow:hidden}
@@ -123,37 +123,37 @@
 
 /* V36 — primeira dobra compacta + CTA de descoberta */
 .heroLead{display:flex;flex-direction:column}.promoHint{margin-top:6px;color:#b7afa4;font-size:7px;font-weight:750}.promoHeroCard:focus-visible,.card:focus-visible{outline:3px solid rgba(255,196,61,.65);outline-offset:2px}
-@media(max-width:560px){.heroInner{padding:14px 16px 15px!important}.eyebrow{margin:0 0 4px!important;font-size:7px!important}.hero h1{font-size:23px!important;line-height:1.05!important}.heroText{display:none!important}.searchBox{height:46px!important;margin-top:12px!important;border-radius:15px!important}.categoryRail{padding-top:8px!important;padding-bottom:8px!important}.content{padding-top:12px!important}.orderSlot{margin-bottom:12px!important}.closedNotice{margin-bottom:15px!important;padding:11px 13px!important}.promoShowcase{margin-bottom:12px!important}.detailsLink{display:none!important}}
+@media(max-width:560px){.heroInner{padding:14px 16px 15px}.eyebrow{margin:0 0 4px;font-size:7px}.hero h1{font-size:23px;line-height:1.05}.heroText{display:none}.searchBox{height:46px;margin-top:12px;border-radius:15px}.categoryRail{padding-top:8px;padding-bottom:8px}.content{padding-top:12px}.orderSlot{margin-bottom:12px}.closedNotice{margin-bottom:15px;padding:11px 13px}.promoShowcase{margin-bottom:12px}.detailsLink{display:none}}
 
 /* V40 CONVERSION POLISH */
 @media (max-width: 760px){
-  .hero{min-height:auto!important;padding-top:6px!important;padding-bottom:10px!important}
-  .heroInner{gap:10px!important}
-  .heroLead h1,.hero h1{font-size:clamp(23px,7vw,31px)!important;line-height:1.02!important;letter-spacing:-.045em!important}
-  .searchBox{min-height:48px!important;border-radius:16px!important;box-shadow:0 8px 26px rgba(0,0,0,.07)!important}
-  .categoryRailWrap{position:sticky!important;top:0!important;z-index:18!important;background:rgba(255,255,255,.94)!important;backdrop-filter:blur(14px)!important}
-  .categoryRail{scroll-snap-type:x proximity!important;scrollbar-width:none!important;padding-block:9px!important}
-  .categoryRail::-webkit-scrollbar{display:none!important}
-  .category,.categoryActive{scroll-snap-align:start!important;min-height:40px!important;white-space:nowrap!important}
-  .content{padding-top:10px!important}
-  .orderSlot:empty{display:none!important}
-  .promoShowcase{margin-top:4px!important}
-  .promoShowcaseHead{align-items:flex-end!important;gap:10px!important}
-  .promoShowcaseHead p{display:none!important}
-  .promoRail{scroll-snap-type:x mandatory!important;overscroll-behavior-inline:contain!important;scrollbar-width:none!important;padding-bottom:6px!important}
-  .promoRail::-webkit-scrollbar{display:none!important}
-  .promoHeroCard{scroll-snap-align:start!important}
-  .promoHint{font-size:10px!important;opacity:.72!important}
-  .grid{gap:10px!important}
-  .card{border-radius:18px!important;overflow:hidden!important;box-shadow:0 5px 18px rgba(0,0,0,.055)!important}
-  .cardBody{padding:11px!important}
-  .cardDescription{-webkit-line-clamp:2!important}
-  .addButton{min-width:44px!important;min-height:44px!important}
-  .closedNotice{margin-block:8px 12px!important;border-radius:16px!important}
+  .hero{min-height:auto;padding-top:6px;padding-bottom:10px}
+  .heroInner{gap:10px}
+  .heroLead h1,.hero h1{font-size:clamp(23px,7vw,31px);line-height:1.02;letter-spacing:-.045em}
+  .searchBox{min-height:48px;border-radius:16px;box-shadow:0 8px 26px rgba(0,0,0,.07)}
+  .categoryRailWrap{position:sticky;top:0;z-index:18;background:rgba(255,255,255,.94);backdrop-filter:blur(14px)}
+  .categoryRail{scroll-snap-type:x proximity;scrollbar-width:none;padding-block:9px}
+  .categoryRail::-webkit-scrollbar{display:none}
+  .category,.categoryActive{scroll-snap-align:start;min-height:40px;white-space:nowrap}
+  .content{padding-top:10px}
+  .orderSlot:empty{display:none}
+  .promoShowcase{margin-top:4px}
+  .promoShowcaseHead{align-items:flex-end;gap:10px}
+  .promoShowcaseHead p{display:none}
+  .promoRail{scroll-snap-type:x mandatory;overscroll-behavior-inline:contain;scrollbar-width:none;padding-bottom:6px}
+  .promoRail::-webkit-scrollbar{display:none}
+  .promoHeroCard{scroll-snap-align:start}
+  .promoHint{font-size:10px;opacity:.72}
+  .grid{gap:10px}
+  .card{border-radius:18px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,.055)}
+  .cardBody{padding:11px}
+  .cardDescription{-webkit-line-clamp:2}
+  .addButton{min-width:44px;min-height:44px}
+  .closedNotice{margin-block:8px 12px;border-radius:16px}
 }
 @media (prefers-reduced-motion:reduce){
-  .promoRail,.categoryRail{scroll-behavior:auto!important}
-  .card,.promoHeroCard,.addButton{transition:none!important}
+  .promoRail,.categoryRail{scroll-behavior:auto}
+  .card,.promoHeroCard,.addButton{transition:none}
 }
 
 /* V43 RESILIENCE */

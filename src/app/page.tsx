@@ -11,6 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { ActiveOrderBanner } from "@/components/ui/ActiveOrderBanner";
 import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
+import { CATALOG_SEARCH_EVENT, rankCatalogProducts } from "@/lib/catalogSearch";
 
 
 
@@ -34,15 +35,23 @@ export default function Home() {
   const filtered = useMemo(() => {
     const term = normalize(search);
     const visibleCategories = new Set(categories.map((category) => category.id));
-    return products.filter((product) => {
+    const base = products.filter((product) => {
       if (product.disponivel === false) return false;
       if (!visibleCategories.has(product.category)) return false;
-      const categoryOk = activeCategory === "todos" || product.category === activeCategory;
-      const searchOk = !term || normalize(product.name).includes(term) || normalize(product.description || "").includes(term);
-      return categoryOk && searchOk;
+      return activeCategory === "todos" || product.category === activeCategory;
     });
+    return term ? rankCatalogProducts(base, term) : base;
   }, [activeCategory, categories, products, search]);
 
+  useEffect(() => {
+    const onSearch = (event: Event) => {
+      const value = String((event as CustomEvent).detail ?? "");
+      setSearch(value);
+      if (value.trim()) setActiveCategory("todos");
+    };
+    window.addEventListener(CATALOG_SEARCH_EVENT, onSearch);
+    return () => window.removeEventListener(CATALOG_SEARCH_EVENT, onSearch);
+  }, []);
   useEffect(() => {
     if (activeCategory !== "todos" && !categories.some((category) => category.id === activeCategory)) setActiveCategory("todos");
   }, [activeCategory, categories]);

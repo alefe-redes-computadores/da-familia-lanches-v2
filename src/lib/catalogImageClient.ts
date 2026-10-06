@@ -1,7 +1,8 @@
 "use client";
 
-const MAX_EDGE = 1600;
-const TARGET_BYTES = 900 * 1024;
+export const CATALOG_IMAGE_MAX_EDGE = 1280;
+export const CATALOG_IMAGE_TARGET_BYTES = 520 * 1024;
+export const CATALOG_IMAGE_ACCEPTED_TYPES = ["image/jpeg","image/png","image/webp"] as const;
 
 function loadImage(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -20,9 +21,9 @@ function canvasBlob(canvas: HTMLCanvasElement, quality: number) {
 }
 
 export async function prepareCatalogImage(file: File) {
-  if (!["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("IMAGE_TYPE_INVALID");
+  if (!(CATALOG_IMAGE_ACCEPTED_TYPES as readonly string[]).includes(file.type)) throw new Error("IMAGE_TYPE_INVALID");
   const image = await loadImage(file);
-  const scale = Math.min(1, MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
+  const scale = Math.min(1, CATALOG_IMAGE_MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
   const width = Math.max(1, Math.round(image.naturalWidth * scale));
   const height = Math.max(1, Math.round(image.naturalHeight * scale));
   const canvas = document.createElement("canvas");
@@ -33,9 +34,9 @@ export async function prepareCatalogImage(file: File) {
   context.fillRect(0,0,width,height);
   context.drawImage(image,0,0,width,height);
 
-  let quality=.84;
+  let quality=.82;
   let blob=await canvasBlob(canvas,quality);
-  while(blob.size>TARGET_BYTES && quality>.58){
+  while(blob.size>CATALOG_IMAGE_TARGET_BYTES && quality>.54){
     quality-=.08;
     blob=await canvasBlob(canvas,quality);
   }

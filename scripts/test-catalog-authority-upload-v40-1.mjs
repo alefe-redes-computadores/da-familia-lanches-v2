@@ -14,7 +14,7 @@ ok(admin.includes("Trocar foto"),"produto existente permite trocar foto");
 ok(admin.includes("campo de caminho continua disponível")||admin.includes("caminho manualmente"),"fallback manual preservado");
 ok(api.includes("DFL_GITHUB_TOKEN"),"token existe somente no servidor");
 ok(api.includes("isAdminEmail"),"endpoint valida autorização administrativa");
-ok(api.includes("MAX_BYTES = 5 * 1024 * 1024"),"limite de upload explícito");
+ok(api.includes("MAX_BYTES = 640 * 1024"),"limite de upload explícito");
 ok(api.includes("public/img/catalog/"),"imagem possui namespace próprio");
 ok(!admin.includes("DFL_GITHUB_TOKEN"),"token não vazou para componente cliente");
 ok(css.includes("DFL ADMIN V40.1 — CATALOG FINAL AUTHORITY"),"autoridade final V40.1 instalada");

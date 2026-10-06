@@ -25,6 +25,12 @@ function text(value: unknown): string {
   return String(value ?? "").trim();
 }
 
+export function optimizeLegacyCatalogImage(value: unknown): string {
+  const source = text(value);
+  if (!/^\/img\/[a-zA-Z0-9._-]+\\.(?:png|jpe?g)$/i.test(source)) return source;
+  return source.replace(/\\.(?:png|jpe?g)$/i, ".webp");
+}
+
 function booleanOrUndefined(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
@@ -52,7 +58,7 @@ export function normalizeRemoteProductRecord(snapshotId: string, raw: DocumentDa
   const id = text(raw.id) || snapshotId;
   const name = text(raw.name ?? raw.nome);
   const description = text(raw.description ?? raw.descricao);
-  const image = text(raw.image ?? raw.imagem);
+  const image = optimizeLegacyCatalogImage(raw.image ?? raw.imagem);
   const category = text(raw.category ?? raw.categoria) as ProductCategory;
   const price = finiteMoney(raw.price ?? raw.preco);
 

@@ -10,7 +10,7 @@ const OWNER = process.env.DFL_GITHUB_OWNER?.trim() || "alefe-redes-computadores"
 const REPO = process.env.DFL_GITHUB_REPO?.trim() || "da-familia-lanches-v2";
 const BRANCH = process.env.DFL_GITHUB_BRANCH?.trim() || "main";
 const TOKEN = process.env.DFL_GITHUB_TOKEN?.trim() || "";
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 640 * 1024;
 const ALLOWED = new Set(["image/webp"]);
 
 function safeStem(value: string) {

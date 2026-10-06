@@ -10,4 +10,4 @@ ok(admin.includes('detailsItems: product.detailsItems ?? []'),'pausar produto n�
 ok(admin.includes('upsellProductId: product.upsellProductId ?? null')&&admin.includes('upsellUnitPrice: product.upsellUnitPrice ?? null'),'pausar produto não apaga Turbine');
 ok(composition.includes('product.bundleItems?.length'),'bundle estruturado continua autoridade');
 const importantNow=(css.match(/!important/g)||[]).length;
-ok(importantNow===34,`V48 preserva dívida histórica do modal sem aumentar (${importantNow})`); console.log('\nV48 CONTRACT — ZERO ERROS');
+ok(importantNow<=34,`V48 preserva dívida histórica do modal sem aumentar (${importantNow})`); console.log('\nV48 CONTRACT — ZERO ERROS');

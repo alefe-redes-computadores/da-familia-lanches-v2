@@ -399,7 +399,7 @@ export function CheckoutModal() {
     hydratedProfileRef.current = hydrationKey;
     if (customerEditingRef.current) return;
 
-    setCustomerName(profile?.name || currentUser.displayName || "");
+    setCustomerName(profile?.name || currentUser?.displayName || "");
     setUserPhone(profile?.phone || "");
     const saved=profile?.addresses?.find(a=>a.isDefault)||profile?.addresses?.[0]||profile?.address;
     setCep(saved?.cep||""); setRua(saved?.street||""); setNumero(saved?.number||""); setBairro(saved?.district||""); setComplemento(saved?.complement||""); setReferencia(saved?.reference||"");
@@ -580,11 +580,6 @@ export function CheckoutModal() {
     submittingRef.current=true;
     setErrorMessage("");
     setFallbackWhatsAppUrl("");
-    if (!currentUser) {
-      submittingRef.current=false;
-      setErrorMessage("Sua sessão expirou. Entre novamente para finalizar.");
-      return;
-    }
     if (items.length === 0) {
       submittingRef.current=false;
       setErrorMessage("Seu carrinho está vazio.");
@@ -616,13 +611,33 @@ export function CheckoutModal() {
 
     setLoading(true);
     try {
-      const { status: shopStatus, testAccess } = await getCheckoutStoreAccess(currentUser.email, true);
+      const { status: shopStatus, testAccess } = await getCheckoutStoreAccess(currentUser?.email, true);
       const isClosed = !shopStatus.isOpen && !testAccess;
       const selectedSchedule = isClosed ? scheduledFor : "";
       if (isClosed && !selectedSchedule) { setStep(1); throw new Error("SCHEDULE_REQUIRED"); }
       const finalAddress = isPickup
         ? "RETIRADA NO LOCAL"
         : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}${referencia.trim() ? ` · Ref.: ${referencia.trim()}` : ""}`;
+
+      if (!currentUser) {
+        const guestMessage = buildOrderWhatsAppMessage({
+          registered: false,
+          customerName: customerName.trim() || "Cliente",
+          phone: userPhone.trim(),
+          items: items.map((item) => ({ quantity: item.quantity, name: item.name, price: item.price, addons: item.selectedAddons?.map((addon) => addon.name) ?? [], observation: item.observation })),
+          deliveryMode,
+          address: isPickup ? "Retirada no balcão" : finalAddress,
+          district: bairro.trim(), complement: complemento.trim(), reference: referencia.trim(),
+          subtotal, deliveryFee: finalFee, discount: safeDiscount, couponCode: appliedCouponCode, total,
+          paymentMethod: method, changeFor: troco, orderObservation,
+          scheduledLabel: isClosed ? scheduleHumanLabel(selectedSchedule) : undefined,
+        });
+        saveCheckoutDraft(null, { step, deliveryMode, customerName, userPhone, cep, rua, bairro, numero, complemento, referencia, method, troco, orderObservation, couponCode, scheduledFor });
+        submittingRef.current = false;
+        setLoading(false);
+        window.location.href = businessWhatsAppUrl(guestMessage);
+        return;
+      }
 
       if (!orderAttemptRef.current) {
         rememberOrderAttempt(
@@ -638,7 +653,7 @@ export function CheckoutModal() {
       const orderData = {
         clientRequestId: orderAttemptRef.current,
         userId: currentUser.uid,
-        userName: customerName.trim() || currentUser.displayName || "Cliente",
+        userName: customerName.trim() || currentUser?.displayName || "Cliente",
         userEmail: currentUser.email,
         userPhone: userPhone.trim(),
         itens: items,
@@ -663,7 +678,7 @@ export function CheckoutModal() {
         orderSchemaVersion: 2,
         customerSnapshot: {
           id: currentUser.uid,
-          name: customerName.trim() || currentUser.displayName || "Cliente",
+          name: customerName.trim() || currentUser?.displayName || "Cliente",
           email: currentUser.email || "",
           phone: userPhone.trim(),
           phoneE164: `+55${phoneDigits}`,
@@ -704,7 +719,7 @@ export function CheckoutModal() {
       const whatsappMessage = buildOrderWhatsAppMessage({
         registered: true,
         orderId: created.id,
-        customerName: customerName.trim() || currentUser.displayName || "Cliente",
+        customerName: customerName.trim() || currentUser?.displayName || "Cliente",
         phone: userPhone.trim(),
         items: items.map((item) => ({
           quantity: item.quantity,
@@ -752,7 +767,7 @@ export function CheckoutModal() {
       const code = error instanceof Error ? error.message : "";
       const fallbackMessage = buildOrderWhatsAppMessage({
         registered: false,
-        customerName: customerName.trim() || currentUser.displayName || "Cliente",
+        customerName: customerName.trim() || currentUser?.displayName || "Cliente",
         phone: userPhone.trim(),
         items: items.map((item) => ({
           quantity: item.quantity,

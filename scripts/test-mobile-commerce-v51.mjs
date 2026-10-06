@@ -1,0 +1,14 @@
+import fs from "node:fs";
+const r=p=>fs.readFileSync(p,"utf8"),ok=(v,m)=>{if(!v)throw new Error(`V51: ${m}`);console.log("OK:",m)};
+const h=r("src/components/layout/Header.tsx"),p=r("src/app/page.tsx"),c=r("src/components/ui/CartModal.tsx"),x=r("src/components/ui/CheckoutModal.tsx"),i=r("src/lib/catalogImageClient.ts"),s=r("src/lib/catalogSearch.ts"),v41=r("scripts/test-catalog-macrosurgery-v41.mjs");
+ok(h.includes("CATALOG_SEARCH_EVENT")&&h.includes("compactSearch"),"header adaptativo + busca");
+ok(h.includes("ShoppingCart")&&h.includes("Menu")&&h.includes("UserRound"),"Lucide no header");
+ok(p.includes("rankCatalogProducts"),"ranking local no catálogo");
+ok(s.includes("detailsItems")&&s.includes("bundleItems")&&s.includes("distance("),"busca nome/composição/detalhes/fuzzy");
+ok(!c.includes('openModal("login", { returnTo: "checkout" })'),"Google não bloqueia checkout");
+ok(x.includes("registered: false")&&x.includes("businessWhatsAppUrl(guestMessage)"),"convidado finaliza WhatsApp");
+ok(x.includes("saveCheckoutDraft(null"),"draft convidado preservado");
+ok(x.includes("createCustomerOrder"),"pedido autenticado preservado");
+ok(i.includes("MAX_EDGE = 1280")&&i.includes("TARGET_BYTES = 520 * 1024"),"pipeline WebP mais leve");
+ok(v41.includes("1600|1280")&&v41.includes("900|520"),"contrato V41 alinhado sem apagar compatibilidade histórica");
+console.log("\nDFL SITE V51 FINAL — MOBILE COMMERCE + IMAGE PERFORMANCE — ZERO ERROS");

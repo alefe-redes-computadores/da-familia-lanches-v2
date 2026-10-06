@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Menu, Search, ShoppingCart, UserRound, X } from "lucide-react";
+import { CATALOG_SEARCH_EVENT } from "@/lib/catalogSearch";
 import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { useCustomerOrderCount } from "@/hooks/useCustomerOrderCount";
@@ -21,7 +23,22 @@ export function Header() {
   const { count: ordersCount } = useCustomerOrderCount();
   const { profile } = useUserProfile(currentUser);
   const [showMenu, setShowMenu] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const [catalogSearch, setCatalogSearch] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onScroll = () => setCompact(window.scrollY > 120);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const updateCatalogSearch = (value: string) => {
+    setCatalogSearch(value);
+    window.dispatchEvent(new CustomEvent(CATALOG_SEARCH_EVENT, { detail: value }));
+    if (pathname !== "/") router.push("/");
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,7 +54,7 @@ export function Header() {
   const goHome = () => { if (pathname === "/") window.scrollTo({ top: 0, behavior: "smooth" }); else router.push("/"); };
 
   return (
-    <header className={styles.header}>
+    <header className={styles.header} data-compact={compact}>
       <button className={styles.brandBlock} type="button" onClick={goHome} aria-label="Ir para o início do cardápio">
         <strong className={styles.logo}>Da Família <span>Lanches</span></strong>
         <span className={styles.status}>
@@ -45,6 +62,14 @@ export function Header() {
           <span>{shopStatus.isOpen ? "Aberto agora" : shopStatus.mode === "test_open" ? "Em manutenção" : "Fechado agora"}</span>
         </span>
       </button>
+
+      {compact && pathname === "/" && (
+        <label className={styles.compactSearch}>
+          <Search size={17} aria-hidden="true" />
+          <input value={catalogSearch} onChange={(event) => updateCatalogSearch(event.target.value)} placeholder="Buscar no cardápio" aria-label="Buscar no cardápio" />
+          {catalogSearch && <button type="button" onClick={() => updateCatalogSearch("")} aria-label="Limpar busca"><X size={15}/></button>}
+        </label>
+      )}
 
       <div className={styles.actions}>
         {currentUser ? (
@@ -71,15 +96,15 @@ export function Header() {
             )}
           </div>
         ) : (
-          <button className={styles.login} type="button" onClick={() => openModal("login")}>Entrar</button>
+          <button className={styles.login} type="button" onClick={() => openModal("login")} aria-label="Entrar na conta"><UserRound size={17}/><span>Entrar</span></button>
         )}
 
         <button className={`${styles.iconButton} ${styles.desktopCart}`} type="button" onClick={() => openModal("cart")} aria-label="Abrir carrinho">
-          <span aria-hidden="true">🛒</span>
+          <ShoppingCart size={19} aria-hidden="true" />
           {totalItems > 0 && <b className={styles.badge}>{totalItems > 99 ? "99+" : totalItems}</b>}
         </button>
         <button className={styles.iconButton} type="button" onClick={() => openModal("menu")} aria-label="Abrir menu">
-          <span aria-hidden="true">☰</span>
+          <Menu size={20} aria-hidden="true" />
         </button>
       </div>
     </header>
