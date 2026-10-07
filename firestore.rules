@@ -30,6 +30,13 @@ service cloud.firestore {
       allow read, list, update, delete: if isAdmin();
     }
 
+    // V56.3 R2: transicao administrativa de pedido Agendado libera
+    // o slot na mesma transacao de Pedidos + integration_outbox.
+    match /schedule_slots/{slotId} {
+      allow read, create, update: if isAdmin();
+      allow delete: if false;
+    }
+
     match /analytics_order_state_v2/{documentId} {
       allow read, create, update, delete: if false;
     }
