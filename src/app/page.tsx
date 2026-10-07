@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { readGuestIdentity, readGuestOrders, type GuestIdentity, type GuestOrderMemory } from "@/lib/guestContinuity";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
@@ -11,6 +12,7 @@ import { useUIStore } from "@/store/ui";
 import { ActiveOrderBanner } from "@/components/ui/ActiveOrderBanner";
 import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
+import { CustomerExperiencePrompt } from "@/components/home/CustomerExperiencePrompt";
 import { CATALOG_SEARCH_EVENT, rankCatalogProducts } from "@/lib/catalogSearch";
 
 
@@ -31,6 +33,9 @@ export default function Home() {
   const { activeCategories: categories } = useCatalogCategories();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("todos");
+  const [showAllOffers, setShowAllOffers] = useState(false);
+  const [guestIdentity, setGuestIdentity] = useState<GuestIdentity | null>(null);
+  const [guestLastOrder, setGuestLastOrder] = useState<GuestOrderMemory | null>(null);
 
   const filtered = useMemo(() => {
     const term = normalize(search);
@@ -55,6 +60,11 @@ export default function Home() {
   useEffect(() => {
     if (activeCategory !== "todos" && !categories.some((category) => category.id === activeCategory)) setActiveCategory("todos");
   }, [activeCategory, categories]);
+  useEffect(() => {
+    const syncGuest=()=>{setGuestIdentity(readGuestIdentity());setGuestLastOrder(readGuestOrders()[0]||null)};
+    syncGuest(); window.addEventListener("dfl:guest-continuity",syncGuest);
+    return()=>window.removeEventListener("dfl:guest-continuity",syncGuest);
+  }, []);
   useEffect(() => {
     const online=()=>setIsOnline(true), offline=()=>setIsOnline(false);
     window.addEventListener("online",online); window.addEventListener("offline",offline);
@@ -104,13 +114,15 @@ export default function Home() {
         <div className={styles.orderSlot}>
           <ActiveOrderBanner />
           <LastOrderCard />
+          {guestLastOrder && <button type="button" className={styles.guestOrderCard} onClick={()=>openModal("orders")}><span>SEU PEDIDO NESTE APARELHO</span><strong>#{guestLastOrder.id.slice(0,8).toUpperCase()} · {guestLastOrder.status}</strong><small>{guestLastOrder.scheduledLabel ? `Agendado para ${guestLastOrder.scheduledLabel}` : "Toque para acompanhar seu pedido."}</small></button>}
         </div>
+        {guestLastOrder&&<CustomerExperiencePrompt />}
         {catalogLoading && <section className={styles.catalogSkeleton} aria-label="Carregando cardápio" aria-busy="true"><div className={styles.skeletonTitle}/><div className={styles.skeletonGrid}>{[0,1,2,3].map((item)=><div className={styles.skeletonCard} key={item}><i/><span/><b/></div>)}</div></section>}
         {activeCategory === "todos" && !search.trim() && promoProducts.length > 0 && (
           <section className={styles.promoShowcase}>
             <div className={styles.promoShowcaseHead}>
               <div><span>OFERTAS DA FAMÍLIA</span><h2>Preço bom pra pedir agora</h2><p>Promoções ativas no cardápio, sem precisar de cupom.</p></div>
-              <b>{promoProducts.length} oferta{promoProducts.length === 1 ? "" : "s"}</b>
+              <button type="button" className={styles.allOffersButton} onClick={()=>setShowAllOffers(v=>!v)}>{showAllOffers?"Fechar ofertas":`Ver ${promoProducts.length} ofertas`}</button>
             </div>
             <div className={styles.promoRail}>
               {promoProducts.map((product, promoIndex) => {
@@ -121,6 +133,7 @@ export default function Home() {
                 </article>;
               })}
             </div>
+            {showAllOffers && <div className={styles.offerGrid}>{promoProducts.map(product=><button type="button" key={`grid-${product.id}`} className={styles.offerGridCard} onClick={()=>openProduct(product)}><CatalogImage src={product.image} alt="" sizes="42vw" quality={68}/><span><b>{product.name}</b><s>{money(product.oldPrice!)}</s><strong>{money(product.price)}</strong><small>Ver e personalizar ›</small></span></button>)}</div>}
           </section>
         )}
 

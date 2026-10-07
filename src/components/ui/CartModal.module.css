@@ -68,3 +68,10 @@
 .freeDeliveryProgress{border:1px solid #e7dfcf;background:linear-gradient(145deg,#fffdf8,#f7f1e4);box-shadow:0 10px 28px rgba(42,33,15,.06)}
 .freeDeliveryProgress strong{color:#171717}.freeDeliveryProgress [role="progressbar"]{background:#ece6da}.freeDeliveryProgress [role="progressbar"]>span{background:#ffca28}
 .freeDeliveryUnlocked{border-color:#d8eadc;background:linear-gradient(145deg,#fbfffc,#edf8ef)}.freeDeliveryUnlocked strong{color:#176b36}
+
+/* V56.1 Checkout Integrity */
+
+.item{padding:18px!important}.itemInfo>b{font-size:22px!important;letter-spacing:-.02em}.remove{font-size:0!important;min-width:38px!important;min-height:38px!important;border-radius:12px!important}.remove:after{content:"🗑";font-size:16px}.summary>div strong{font-size:30px!important}.stepper button{min-width:46px!important}
+
+/* V56.2 FINAL cart hierarchy */
+.item{padding:13px!important}.itemInfo>b{font-size:16px!important}.summary>div strong{font-size:24px!important}.stepper button{min-width:36px!important}.remove{min-width:34px!important;min-height:34px!important}.remove:after{content:"🗑";font-size:15px}.itemInfo i:empty{display:none}

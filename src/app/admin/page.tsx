@@ -45,6 +45,7 @@ const RewardsAdmin = dynamic(() => import("@/components/admin/RewardsAdmin").the
 const CouponsAdmin = dynamic(() => import("@/components/admin/CouponsAdmin").then((mod) => mod.CouponsAdmin), { loading: AdminPanelLoading });
 const PublicPromotionsAdmin = dynamic(() => import("@/components/admin/PublicPromotionsAdmin").then((mod) => mod.PublicPromotionsAdmin), { loading: AdminPanelLoading });
 const FirestoreBudgetAdmin = dynamic(() => import("@/components/admin/FirestoreBudgetAdmin").then((mod) => mod.FirestoreBudgetAdmin), { loading: AdminPanelLoading });
+const CustomerExperienceAdmin = dynamic(() => import("@/components/admin/CustomerExperienceAdmin").then((mod) => mod.CustomerExperienceAdmin), { loading: AdminPanelLoading });
 const FreeDeliveryAdmin = dynamic(() => import("@/components/admin/FreeDeliveryAdmin").then((mod) => mod.FreeDeliveryAdmin), { loading: AdminPanelLoading });
 const DeliveryRatesAdmin = dynamic(() => import("@/components/admin/DeliveryRatesAdmin").then((mod) => mod.DeliveryRatesAdmin), { loading: AdminPanelLoading });
 
@@ -954,7 +955,7 @@ function AdminPageContent() {
         ) : tab === "fidelidade" ? (
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><RewardsAdmin /></section>
         ) : tab === "gestao" ? (
-          <section className={styles.management}><div className={styles.sectionHeading}><div><span>SAÚDE DA OPERAÇÃO</span><h2>Saúde da loja</h2></div><p>Exceções operacionais, pressão de leituras e indicadores comerciais sem novas assinaturas em tempo real.</p></div><OperationHealthAdmin pedidos={pedidos} historyHasMore={historyHasMore} /><FirestoreBudgetAdmin /><RelatoriosAdmin pedidos={pedidos} /></section>
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>SAÚDE DA OPERAÇÃO</span><h2>Saúde da loja</h2></div><p>Exceções operacionais, pressão de leituras e indicadores comerciais sem novas assinaturas em tempo real.</p></div><OperationHealthAdmin pedidos={pedidos} historyHasMore={historyHasMore} /><CustomerExperienceAdmin /><FirestoreBudgetAdmin /><RelatoriosAdmin pedidos={pedidos} /></section>
         ) : isOrderTab ? (
           <>
             <div className={styles.queueHead}>

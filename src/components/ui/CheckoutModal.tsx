@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { saveGuestIdentity, rememberGuestOrder } from "@/lib/guestContinuity";
 import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { ModalBase } from "./ModalBase";
 import { useUIStore } from "@/store/ui";
@@ -67,6 +68,9 @@ export function CheckoutModal() {
   const customerEditingRef = useRef(false);
   const submittingRef = useRef(false);
   const orderAttemptRef = useRef<string>("");
+  const numberInputRef = useRef<HTMLInputElement>(null);
+  const scheduleSectionRef = useRef<HTMLElement>(null);
+  const cepLookupRef = useRef("");
 
   const orderAttemptStorageKey = currentUser?.uid
     ? `dfl:pending-order:${currentUser.uid}`
@@ -340,25 +344,9 @@ export function CheckoutModal() {
 
           setScheduleSlots(slots);
 
-          const firstAvailable =
-            slots.find(
-              (slot) =>
-                !slot.disabled,
-            )?.value ?? "";
-
-          setScheduledFor(
-            (current) => {
-              const stillAvailable =
-                slots.some(
-                  (slot) =>
-                    slot.value === current &&
-                    !slot.disabled,
-                );
-
-              return stillAvailable
-                ? current
-                : firstAvailable;
-            },
+          // V56.1: disponibilidade não é consentimento. Nunca escolha um horário pelo cliente.
+          setScheduledFor((current) =>
+            slots.some((slot) => slot.value === current && !slot.disabled) ? current : "",
           );
         } else {
           setScheduleSlots([]);
@@ -477,6 +465,13 @@ export function CheckoutModal() {
         setDeliveryStatus("CEP não encontrado. Preencha o endereço manualmente.");
         return;
       }
+      const city = normalizeText(typeof data.localidade === "string" ? data.localidade : "");
+      const uf = String(data.uf || "").toUpperCase();
+      if (city !== "patos de minas" || uf !== "MG") {
+        setRua(""); setBairro(""); setNumero(""); setManualMode(false);
+        setDeliveryStatus("Este CEP fica fora da nossa área de entrega em Patos de Minas.");
+        return;
+      }
       const nextStreet = typeof data.logradouro === "string" ? data.logradouro : "";
       const nextDistrict = typeof data.bairro === "string" ? data.bairro : "";
       setRua(nextStreet);
@@ -484,6 +479,7 @@ export function CheckoutModal() {
       setManualMode(!nextStreet || !nextDistrict);
       setDeliveryStatus("Endereço encontrado.");
       if (nextDistrict) await calculateDeliveryFee(nextDistrict);
+      window.setTimeout(() => { numberInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); numberInputRef.current?.focus(); }, 80);
     } catch (error) {
       console.error("Erro ao consultar CEP", error);
       setManualMode(true);
@@ -492,6 +488,22 @@ export function CheckoutModal() {
       submittingRef.current=false;
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (manualMode || addressEditorOpen === false) return;
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8 || cepLookupRef.current === digits) return;
+    cepLookupRef.current = digits;
+    void handleSearchCep();
+  }, [cep, manualMode, addressEditorOpen]);
+
+  const focusCheckoutIssue = (kind: "address" | "schedule") => {
+    window.setTimeout(() => {
+      const target = kind === "schedule" ? scheduleSectionRef.current : numberInputRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (kind === "address") numberInputRef.current?.focus();
+    }, 60);
   };
 
   const applyCoupon = async () => {
@@ -603,7 +615,8 @@ export function CheckoutModal() {
     if (!addressReady) {
       submittingRef.current=false;
       setStep(1);
-      setErrorMessage("Preencha rua, número e bairro para entrega.");
+      setErrorMessage(!numero.trim() ? "Falta o número da entrega. Complete o endereço para continuar." : "Complete rua, número e bairro para entrega.");
+      setAddressEditorOpen(true); focusCheckoutIssue("address");
       return;
     }
     if (method === "dinheiro" && cashValue !== null && cashValue < total) {
@@ -617,7 +630,7 @@ export function CheckoutModal() {
       const { status: shopStatus, testAccess } = await getCheckoutStoreAccess(currentUser?.email, true);
       const isClosed = !shopStatus.isOpen && !testAccess;
       const selectedSchedule = isClosed ? scheduledFor : "";
-      if (isClosed && !selectedSchedule) { setStep(1); throw new Error("SCHEDULE_REQUIRED"); }
+      if (isClosed && !selectedSchedule) { setStep(1); setErrorMessage("Escolha o dia e o horário do seu pedido."); focusCheckoutIssue("schedule"); submittingRef.current=false; setLoading(false); return; }
       const finalAddress = isPickup
         ? "RETIRADA NO LOCAL"
         : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}${referencia.trim() ? ` · Ref.: ${referencia.trim()}` : ""}`;
@@ -637,6 +650,8 @@ export function CheckoutModal() {
         const created=await createCustomerOrder({ userId: null, order: guestOrder, subtotal, discount: safeDiscount > 0 && appliedCouponCode ? { code: appliedCouponCode, rewardId: null, expectedDiscount: safeDiscount } : null });
         const guestMessage=buildOrderWhatsAppMessage({registered:true,orderId:created.id,customerName:customerName.trim()||"Cliente",phone:userPhone.trim(),items:items.map((item)=>({quantity:item.quantity,name:item.name,price:item.price,addons:item.selectedAddons?.map((addon)=>addon.name)??[],observation:item.observation})),deliveryMode,address:isPickup?"Retirada no balcão":finalAddress,district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim(),subtotal,deliveryFee:finalFee,discount:safeDiscount,couponCode:appliedCouponCode,total,paymentMethod:method,changeFor:troco,orderObservation,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):undefined});
         const whatsappUrl=businessWhatsAppUrl(guestMessage);
+        saveGuestIdentity({name:customerName.trim()||"Cliente",phone:userPhone.trim(),lastDeliveryMode:deliveryMode,paymentPreference:method,...(isPickup?{}:{cep:cep.trim(),street:rua.trim(),number:numero.trim(),district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim()})});
+        rememberGuestOrder({id:created.id,status:isClosed?"Agendado":"Pendente",total,deliveryMode,scheduledFor:isClosed?selectedSchedule:null,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):null,createdAt:Date.now(),customerName:customerName.trim()||"Cliente",items:items.map(item=>({name:item.name,quantity:item.quantity}))});
         clearCart(); clearOrderAttempt(); clearCheckoutDraft(null);
         openModal("order-success",{orderId:created.id,isScheduled:isClosed,deliveryMode,total,whatsappUrl,paymentMethod:method,pixKey:method==="pix"?BUSINESS_CONTACT.pixKey:undefined,cartPreserved:false,rescueMessage:guestMessage});
         submittingRef.current=false; setLoading(false); return;
@@ -851,10 +866,10 @@ export function CheckoutModal() {
               <section className={styles.addressChoice}>
                 <div className={styles.addressHeading}>
                   <span>ONDE VOCÊ QUER RECEBER?</span>
-                  <strong>{rua && !addressEditorOpen ? "Vamos entregar aqui" : "Informe o endereço da entrega"}</strong>
-                  <small>{rua && !addressEditorOpen ? "Confira o endereço antes de continuar." : "Salve uma vez e os próximos pedidos ficam mais rápidos."}</small>
+                  <strong>{addressReady && !addressEditorOpen ? "Vamos entregar aqui" : "Informe o endereço da entrega"}</strong>
+                  <small>{addressReady && !addressEditorOpen ? "Confira o endereço antes de continuar." : "Salve uma vez e os próximos pedidos ficam mais rápidos."}</small>
                 </div>
-                {rua && !addressEditorOpen && <>
+                {addressReady && !addressEditorOpen && <>
                   <div className={styles.selectedAddress}>
                     <span className={styles.locationMark} aria-hidden="true">⌂</span>
                     <div><span className={styles.addressLabelRow}><b>{selectedSavedAddress?.label || "Endereço"}</b>{selectedSavedAddress?.isDefault && <em>Padrão</em>}</span><strong>{rua}, {numero}</strong><span>{bairro}{cep ? ` · CEP ${cep}` : ""}</span>{complemento && <small>{complemento}</small>}</div>
@@ -868,26 +883,24 @@ export function CheckoutModal() {
                     {!addressLimitReached ? <button className={styles.addNewAddress} type="button" onClick={startNewCheckoutAddress}><b>+</b><span><strong>Cadastrar novo endereço</strong><small>Você pode salvar até 3 endereços</small></span></button> : <div className={styles.addressLimit}><b>3/3</b><span><strong>Limite de endereços atingido</strong><small>Você já possui 3 endereços salvos. Exclua um em Minha Conta para cadastrar outro.</small></span><button type="button" onClick={()=>openModal("account")}>Gerenciar endereços</button></div>}
                   </div>
                 </div>}
-                {(!rua || addressEditorOpen) && <div className={styles.addressForm}>
+                {(!addressReady || addressEditorOpen) && <div className={styles.addressForm}>
                   <div className={styles.newAddressIntro}><strong>{savedAddresses.length ? "Novo endereço" : "Seu primeiro endereço"}</strong><span>Busque pelo CEP para preencher mais rápido.</span></div>
-                  {!manualMode&&<div className={styles.inline}><input className={styles.input} placeholder="CEP" value={cep} onChange={e=>{customerEditingRef.current=true;setCep(formatCEPBR(e.target.value))}} onBlur={()=>{if(cep.replace(/\D/g,"").length===8)void handleSearchCep();}} inputMode="numeric" autoComplete="postal-code"/><button className={styles.yellowButton} type="button" onClick={()=>void handleSearchCep()} disabled={loading}>{loading?"Buscando…":"Buscar"}</button></div>}
+                  {!manualMode&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepLookupRef.current="";setCep(formatCEPBR(e.target.value))}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"Digite os 8 números e encontramos o endereço automaticamente."}</small></div>}
                   <input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
-                  <div className={styles.addressGrid}><input className={styles.input} placeholder="Número" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={e=>{customerEditingRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim())void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
+                  <div className={styles.addressGrid}><input ref={numberInputRef} className={styles.input} placeholder="Número da casa" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={e=>{customerEditingRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim())void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
                   <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info}>{deliveryStatus}</div>}
-                  <div className={styles.addressFormActions}><button className={styles.linkButton} type="button" onClick={()=>setManualMode(v=>!v)}>{manualMode?"Usar busca por CEP":"Preencher manualmente"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
+                  <div className={styles.addressFormActions}><button className={styles.linkButton} type="button" onClick={()=>setManualMode(v=>!v)}>{manualMode?"← Usar meu CEP":"Não sei meu CEP · preencher endereço manualmente"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
               </section>
               {!isPickup && freeThreshold !== null && !hasFreeDelivery && <div className={styles.freightProgress}>Faltam <strong>{money(missingForFreeDelivery)}</strong> para ganhar entrega grátis.</div>}{hasFreeDelivery && <div className={styles.successHint}>Entrega grátis conquistada para este pedido.</div>}
             </> : <div className={styles.pickupCard}><strong>Retirada no balcão</strong><span>Sem taxa de entrega. O pedido ficará identificado pelo seu nome e referência.</span></div>}
             {shopClosed && (
-              <section className={styles.scheduleCard}>
+              <section ref={scheduleSectionRef} className={styles.scheduleCard}>
                 <div>
                   <span>LOJA FECHADA AGORA</span>
-                  <strong>Agende seu pedido</strong>
+                  <strong>Escolha quando quer receber</strong>
                   <small>
-                    Escolha o melhor dia e horário.
-                    Mostramos apenas vagas realmente
-                    disponíveis.
+                    O próximo horário é apenas uma sugestão. Seu pedido só será agendado depois que você escolher.
                   </small>
                 </div>
 

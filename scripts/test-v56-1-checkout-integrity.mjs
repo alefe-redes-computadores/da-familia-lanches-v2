@@ -1,0 +1,12 @@
+import fs from "node:fs";
+const read=p=>fs.readFileSync(p,"utf8"), ok=(v,m)=>{if(!v)throw new Error("V56.1: "+m);console.log("OK:",m)};
+const checkout=read("src/components/ui/CheckoutModal.tsx"), api=read("src/app/api/orders/route.ts"), home=read("src/app/page.tsx"), guest=read("src/lib/guestContinuity.ts");
+ok(!checkout.includes(": firstAvailable"),"checkout não escolhe primeiro horário automaticamente");
+ok(checkout.includes("Escolha o dia e o horário do seu pedido"),"agendamento exige escolha explícita");
+ok(checkout.includes('city !== "patos de minas"'),"CEP fora de Patos de Minas é bloqueado");
+ok(checkout.includes("numberInputRef.current?.focus"),"CEP encontrado conduz ao número");
+ok(checkout.includes("rememberGuestOrder"),"pedido guest fica conhecido neste aparelho");
+ok(guest.includes("dfl:guest-orders:v1"),"continuidade guest tem índice local de pedidos");
+ok(api.includes("relay immediate")&&!api.includes("relay after-response"),"relay crítico não depende do pós-resposta");
+ok(home.includes("guestLastOrder")&&home.includes("showAllOffers"),"Home mostra continuidade guest e vitrine de ofertas");
+console.log("V56.1 CHECKOUT INTEGRITY: CONTRATOS OK");

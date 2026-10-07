@@ -375,31 +375,22 @@ export async function POST(request: NextRequest) {
       ? { queued: false, sent: true }
       : { queued: true, sent: false };
 
+    // V56.1: pedido criado precisa tentar projeção logística e push enquanto a request ainda
+    // possui runtime. Falha NÃO desfaz o pedido: a outbox permanece como retry idempotente.
     if (result.eventId || result.adminPush) {
-      const eventId = result.eventId;
-      const adminPush = result.adminPush;
-
-      after(async () => {
-        const jobs: Promise<unknown>[] = [];
-
-        if (eventId) {
-          jobs.push((async () => {
-            try {
-              const relay = await drainIntegrationOutboxEvent(eventId);
-              console.log("[orders/create] relay after-response", { eventId, sent: relay.sent, failed: relay.failed });
-            } catch (relayError) {
-              console.error("[orders/create] pedido salvo; relay seguirá na outbox", relayError);
-            }
-          })());
+      const jobs: Promise<unknown>[] = [];
+      if (result.eventId) jobs.push((async () => {
+        try {
+          const relay = await drainIntegrationOutboxEvent(result.eventId!);
+          integration = { queued: relay.sent < 1, sent: relay.sent > 0 };
+          console.log("[orders/create] relay immediate", { eventId: result.eventId, sent: relay.sent, failed: relay.failed });
+        } catch (relayError) {
+          console.error("[orders/create] pedido salvo; relay preservado na outbox", relayError);
         }
-
-        if (adminPush) jobs.push(sendAdminNewOrderPush(adminPush));
-
-        const outcomes = await Promise.allSettled(jobs);
-        for (const outcome of outcomes) {
-          if (outcome.status === "rejected") console.error("[orders/create] pós-gravação não bloqueante falhou", outcome.reason);
-        }
-      });
+      })());
+      if (result.adminPush) jobs.push(sendAdminNewOrderPush(result.adminPush));
+      const outcomes = await Promise.allSettled(jobs);
+      for (const outcome of outcomes) if (outcome.status === "rejected") console.error("[orders/create] pós-gravação falhou sem invalidar pedido", outcome.reason);
     }
 
     finishRouteTrace(trace,"ok",{status:result.reused?200:201,reused:result.reused,integrationSent:integration.sent});

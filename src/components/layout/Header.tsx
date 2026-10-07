@@ -12,6 +12,7 @@ import { useUIStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import styles from "./header.module.css";
+import { clearGuestContinuity, readGuestIdentity, readGuestOrders, type GuestIdentity } from "@/lib/guestContinuity";
 
 export function Header() {
   const router = useRouter();
@@ -25,7 +26,14 @@ export function Header() {
   const [showMenu, setShowMenu] = useState(false);
   const [compact, setCompact] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [guestIdentity, setGuestIdentity] = useState<GuestIdentity | null>(null);
+  const [guestOrderCount,setGuestOrderCount]=useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sync=()=>{setGuestIdentity(readGuestIdentity());setGuestOrderCount(readGuestOrders().length)}; sync();
+    window.addEventListener("dfl:guest-continuity",sync); return()=>window.removeEventListener("dfl:guest-continuity",sync);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setCompact(window.scrollY > 120);
@@ -94,6 +102,11 @@ export function Header() {
                 <button className={styles.logout} type="button" onClick={() => auth.signOut()}>Sair da conta</button>
               </div>
             )}
+          </div>
+        ) : guestIdentity ? (
+          <div className={styles.accountWrap} ref={menuRef}>
+            <button className={styles.account} type="button" onClick={()=>setShowMenu(v=>!v)} aria-expanded={showMenu}><span className={styles.accountText}><b>{guestIdentity.name.split(" ")[0]}</b><small>{guestOrderCount} {guestOrderCount===1?"pedido":"pedidos"} · neste aparelho</small></span><span className={styles.avatar}>{guestIdentity.name.slice(0,1).toUpperCase()}</span></button>
+            {showMenu&&<div className={styles.accountMenu}><button type="button" onClick={()=>{openModal("orders");setShowMenu(false)}}>Meus pedidos neste aparelho</button><button type="button" onClick={()=>{openModal("login");setShowMenu(false)}}>Sincronizar com Google</button><small className={styles.localAccountNote}>Pedidos e endereço ficam salvos neste navegador.</small><button className={styles.logout} type="button" onClick={()=>{if(window.confirm("Limpar os dados salvos neste aparelho?")){clearGuestContinuity();setShowMenu(false)}}}>Limpar dados deste aparelho</button></div>}
           </div>
         ) : (
           <button className={styles.login} type="button" onClick={() => openModal("login")} aria-label="Entrar na conta"><UserRound size={17}/><span>Entrar</span></button>

@@ -722,3 +722,10 @@
 
 /* V56 ORDER CONTEXT */
 .orderBadges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.orderBadges span{padding:4px 7px;border:1px solid rgba(148,163,184,.14);border-radius:999px;background:#121920;color:#aeb8c2;font-size:7px;font-weight:950;letter-spacing:.055em}.orderBadges span[data-tone="site"]{border-color:rgba(96,165,250,.20);background:rgba(96,165,250,.07);color:#9cc4ff}.orderBadges span[data-tone="google"]{border-color:rgba(66,133,244,.22);background:rgba(66,133,244,.08);color:#9bc0ff}.orderBadges span[data-tone="whatsapp"]{border-color:rgba(54,216,135,.20);background:rgba(54,216,135,.07);color:#74dfa5}.orderBadges span[data-tone="recovered"]{border-color:rgba(245,189,82,.22);background:rgba(245,189,82,.08);color:#f4c96e}.card[data-inspector=true] .orderBadges span{font-size:10px}
+
+/* V56.1 Checkout Integrity */
+
+.actions button{min-height:48px!important}.actions button:last-child{color:#ffb4b4!important;border-color:rgba(239,68,68,.45)!important;background:rgba(127,29,29,.18)!important}.card{padding-top:16px!important;padding-bottom:16px!important}
+
+/* V56.2 FINAL operational density */
+.card:not([data-inspector=true]){padding-top:12px!important;padding-bottom:12px!important}.card:not([data-inspector=true]) .actions{gap:7px!important;margin-top:8px!important}.card:not([data-inspector=true]) .actions button{min-height:40px!important;padding:8px 10px!important}.card:not([data-inspector=true]) .detailsAction{background:rgba(255,255,255,.045)!important;border-color:rgba(148,163,184,.14)!important;color:#c7cdd2!important}.card:not([data-inspector=true]) .cancel{color:#ff9aa3!important;border-color:rgba(239,68,68,.38)!important;background:rgba(127,29,29,.15)!important}.card[data-inspector=true] .detail,.card[data-inspector=true] .delivery,.card[data-inspector=true] .payment,.card[data-inspector=true] .items{padding:10px!important}
