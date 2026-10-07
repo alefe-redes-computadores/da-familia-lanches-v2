@@ -81,12 +81,16 @@ async function processClaimed(
     const eventId = item.record.event_id;
     try {
       const event = eventFromOutbox(item.record as unknown as Record<string, unknown>);
-      const status = await sendEvent(config.targetUrl!, config.signingSecret!, event, config.requestTimeoutMs);
-      const messagingIntent=await ensureCommercialMessagingIntent(event);
+
+      // Mensagem comercial e projeção logística são ramos independentes.
+      // Um receiver do Entregas indisponível não pode impedir o aviso ao cliente.
+      const messagingIntent = await ensureCommercialMessagingIntent(event);
       if ("intentId" in messagingIntent && messagingIntent.intentId) {
-        const fastLane=await drainMessagingIntentFastLane(messagingIntent.intentId);
-        if(fastLane.attempted&&!fastLane.queued) console.warn("[integration/messaging] fast-lane falhou; fallback preservado",{eventId:event.event_id,reason:fastLane.reason});
+        const fastLane = await drainMessagingIntentFastLane(messagingIntent.intentId);
+        if (fastLane.attempted && !fastLane.queued) console.warn("[integration/messaging] fast-lane falhou; fallback preservado", { eventId: event.event_id, reason: fastLane.reason });
       }
+
+      const status = await sendEvent(config.targetUrl!, config.signingSecret!, event, config.requestTimeoutMs);
       if (event.entity_type === "order" && (event.event_type === "order.created" || event.event_type === "order.updated")) {
         await projectOrderEvent(event);
       }

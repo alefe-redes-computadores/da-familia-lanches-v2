@@ -151,3 +151,6 @@
 /* V56.1 Checkout Integrity */
 
 .cepAuto{display:grid;gap:8px}.cepAuto label{display:grid;gap:6px}.cepAuto label>span{font-size:11px;font-weight:900;letter-spacing:.12em;color:#8b6a08}.cepAuto small{color:#777;font-size:12px}.successHint{border:1px solid #b9e8c9;background:#edf9f1;color:#176b37;border-radius:18px;padding:16px 18px;font-weight:850}.scheduleCard{scroll-margin-top:96px}.scheduleDays{max-height:440px;overflow:auto;overscroll-behavior:contain}.scheduleDay{padding:14px!important}.scheduleSlots{gap:8px!important}.scheduleSlots button{min-height:68px!important}.addressForm{gap:12px!important}.addressFormActions{padding-top:4px}.linkButton{min-height:44px!important;font-weight:850!important;text-decoration:none!important}.error{font-weight:850;border-radius:16px!important}
+
+/* V56.3 compact schedule */
+.scheduleDay{padding:10px!important}.scheduleSlots{gap:6px!important}.scheduleSlots button{min-height:44px!important;padding:7px 9px!important}.addressGrid{grid-template-columns:minmax(72px,.38fr) minmax(0,1fr)!important}

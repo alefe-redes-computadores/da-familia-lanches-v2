@@ -339,8 +339,9 @@ function AdminPageContent() {
         showFeedback({
           tone: "error",
           title: "Não foi possível atualizar",
-          message:
-            "O pedido foi preservado. Tente novamente em instantes.",
+          message: message
+            ? `O pedido foi preservado. ${message.slice(0, 180)}`
+            : "O pedido foi preservado. Tente novamente em instantes.",
         });
       }
 

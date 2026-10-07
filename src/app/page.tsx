@@ -114,7 +114,7 @@ export default function Home() {
         <div className={styles.orderSlot}>
           <ActiveOrderBanner />
           <LastOrderCard />
-          {guestLastOrder && <button type="button" className={styles.guestOrderCard} onClick={()=>openModal("orders")}><span>SEU PEDIDO NESTE APARELHO</span><strong>#{guestLastOrder.id.slice(0,8).toUpperCase()} · {guestLastOrder.status}</strong><small>{guestLastOrder.scheduledLabel ? `Agendado para ${guestLastOrder.scheduledLabel}` : "Toque para acompanhar seu pedido."}</small></button>}
+          {guestLastOrder && <button type="button" className={styles.guestOrderCard} onClick={()=>openModal("orders")}><span>SEU PEDIDO NESTE APARELHO</span><strong>{guestLastOrder.status === "Agendado" ? "Seu pedido está agendado" : `Seu pedido está ${guestLastOrder.status.toLowerCase()}`}</strong><small>{guestLastOrder.scheduledLabel ? `${guestLastOrder.scheduledLabel} · Ver detalhes do pedido` : "Ver detalhes do pedido"}</small></button>}
         </div>
         {guestLastOrder&&<CustomerExperiencePrompt />}
         {catalogLoading && <section className={styles.catalogSkeleton} aria-label="Carregando cardápio" aria-busy="true"><div className={styles.skeletonTitle}/><div className={styles.skeletonGrid}>{[0,1,2,3].map((item)=><div className={styles.skeletonCard} key={item}><i/><span/><b/></div>)}</div></section>}
@@ -124,7 +124,7 @@ export default function Home() {
               <div><span>OFERTAS DA FAMÍLIA</span><h2>Preço bom pra pedir agora</h2><p>Promoções ativas no cardápio, sem precisar de cupom.</p></div>
               <button type="button" className={styles.allOffersButton} onClick={()=>setShowAllOffers(v=>!v)}>{showAllOffers?"Fechar ofertas":`Ver ${promoProducts.length} ofertas`}</button>
             </div>
-            <div className={styles.promoRail}>
+            {!showAllOffers && <div className={styles.promoRail}>
               {promoProducts.map((product, promoIndex) => {
                 const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
                 return <article className={styles.promoHeroCard} key={`promo-${product.id}`} role="button" tabIndex={0} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openProduct(product); }}>
@@ -132,7 +132,7 @@ export default function Home() {
                   <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em><span className={styles.promoHint}>Toque para ver e personalizar</span></div>
                 </article>;
               })}
-            </div>
+            </div>}
             {showAllOffers && <div className={styles.offerGrid}>{promoProducts.map(product=><button type="button" key={`grid-${product.id}`} className={styles.offerGridCard} onClick={()=>openProduct(product)}><CatalogImage src={product.image} alt="" sizes="42vw" quality={68}/><span><b>{product.name}</b><s>{money(product.oldPrice!)}</s><strong>{money(product.price)}</strong><small>Ver e personalizar ›</small></span></button>)}</div>}
           </section>
         )}

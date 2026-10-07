@@ -28,7 +28,7 @@ const intEnv = (name: string, fallback: number, min: number, max: number) => {
 
 export function getRelayConfig(): RelayConfig {
   return {
-    enabled: truthy.has((clean(process.env.DFL_INTEGRATION_RELAY_ENABLED) || "false").toLowerCase()),
+    enabled: clean(process.env.DFL_INTEGRATION_RELAY_ENABLED) ? truthy.has(clean(process.env.DFL_INTEGRATION_RELAY_ENABLED)!.toLowerCase()) : Boolean(clean(process.env.DFL_ENTREGAS_INTEGRATION_URL) && clean(process.env.DFL_INTEGRATION_SIGNING_SECRET)),
     targetUrl: clean(process.env.DFL_ENTREGAS_INTEGRATION_URL),
     signingSecret: clean(process.env.DFL_INTEGRATION_SIGNING_SECRET),
     triggerSecret: clean(process.env.DFL_RELAY_TRIGGER_SECRET),
@@ -44,6 +44,5 @@ export function assertRelayRuntimeReady(config = getRelayConfig()) {
   if (!config.enabled) throw new Error("DFL integration relay está desativado.");
   if (!config.targetUrl) throw new Error("DFL_ENTREGAS_INTEGRATION_URL não configurada.");
   if (!config.signingSecret) throw new Error("DFL_INTEGRATION_SIGNING_SECRET não configurado.");
-  if (!config.triggerSecret) throw new Error("DFL_RELAY_TRIGGER_SECRET não configurado.");
   return config;
 }

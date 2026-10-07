@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { saveGuestIdentity, rememberGuestOrder } from "@/lib/guestContinuity";
+import { readGuestIdentity, saveGuestIdentity, rememberGuestOrder } from "@/lib/guestContinuity";
 import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { ModalBase } from "./ModalBase";
 import { useUIStore } from "@/store/ui";
@@ -186,11 +186,23 @@ export function CheckoutModal() {
   }, [scheduleSlots]);
 
   const phoneDigits = userPhone.replace(/\D/g, "");
-  const addressReady = isPickup || Boolean(rua.trim() && numero.trim() && bairro.trim());
+  const addressReady = isPickup || Boolean(cep.replace(/\D/g, "").length === 8 && rua.trim() && numero.trim() && bairro.trim());
   const phoneReady = phoneDigits.length === 10 || phoneDigits.length === 11;
 
   const nameReady = customerName.trim().length >= 2;
   const canAdvance = nameReady && phoneReady && addressReady && items.length > 0;
+
+  useEffect(() => {
+    if (currentUser || !nameReady || !phoneReady) return;
+    const timer = window.setTimeout(() => {
+      const completeAddress = deliveryMode === "delivery" && addressReady;
+      saveGuestIdentity({
+        name: customerName.trim(), phone: userPhone.trim(), lastDeliveryMode: deliveryMode, paymentPreference: method,
+        ...(completeAddress ? { cep: cep.trim(), street: rua.trim(), number: numero.trim(), district: bairro.trim(), complement: complemento.trim(), reference: referencia.trim() } : {}),
+      });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [currentUser, nameReady, phoneReady, addressReady, customerName, userPhone, deliveryMode, method, cep, rua, numero, bairro, complemento, referencia]);
 
   useEffect(() => { void getCommercialSettings().then(setCommercialSettings).catch(() => setCommercialSettings(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
   useEffect(() => {
@@ -201,6 +213,17 @@ export function CheckoutModal() {
     }
 
     const draft = readCheckoutDraft(currentUser?.uid || null);
+    if (!currentUser) {
+      const local = readGuestIdentity();
+      if (local) {
+        setCustomerName(local.name || ""); setUserPhone(local.phone || "");
+        setDeliveryMode(local.lastDeliveryMode || "delivery"); if (local.paymentPreference) setMethod(local.paymentPreference);
+        if (local.street && local.number && local.district) {
+          setCep(local.cep || ""); setRua(local.street); setNumero(local.number); setBairro(local.district);
+          setComplemento(local.complement || ""); setReferencia(local.reference || ""); setManualMode(true); setAddressEditorOpen(false);
+        }
+      }
+    }
     draftHydratedRef.current = true;
 
     if (!draft || items.length === 0) return;
@@ -482,10 +505,10 @@ export function CheckoutModal() {
       window.setTimeout(() => { numberInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); numberInputRef.current?.focus(); }, 80);
     } catch (error) {
       console.error("Erro ao consultar CEP", error);
+      cepLookupRef.current = "";
       setManualMode(true);
-      setDeliveryStatus("Não foi possível consultar o CEP. Preencha manualmente.");
+      setDeliveryStatus("Não foi possível consultar o CEP. Tente novamente ou preencha manualmente.");
     } finally {
-      submittingRef.current=false;
       setLoading(false);
     }
   };
@@ -885,9 +908,9 @@ export function CheckoutModal() {
                 </div>}
                 {(!addressReady || addressEditorOpen) && <div className={styles.addressForm}>
                   <div className={styles.newAddressIntro}><strong>{savedAddresses.length ? "Novo endereço" : "Seu primeiro endereço"}</strong><span>Busque pelo CEP para preencher mais rápido.</span></div>
-                  {!manualMode&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepLookupRef.current="";setCep(formatCEPBR(e.target.value))}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"Digite os 8 números e encontramos o endereço automaticamente."}</small></div>}
+                  {!manualMode&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepLookupRef.current="";setCep(formatCEPBR(e.target.value))}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();cepLookupRef.current="";void handleSearchCep()}}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"Digite os 8 números e encontramos o endereço automaticamente."}</small></div>}
                   <input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
-                  <div className={styles.addressGrid}><input ref={numberInputRef} className={styles.input} placeholder="Número da casa" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={e=>{customerEditingRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim())void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
+                  <div className={styles.addressGrid}><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={e=>{customerEditingRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim())void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
                   <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info}>{deliveryStatus}</div>}
                   <div className={styles.addressFormActions}><button className={styles.linkButton} type="button" onClick={()=>setManualMode(v=>!v)}>{manualMode?"← Usar meu CEP":"Não sei meu CEP · preencher endereço manualmente"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
@@ -983,7 +1006,7 @@ export function CheckoutModal() {
           <div className={styles.stack}>
             <section className={styles.receiveCard}><div><strong>{customerName || (isPickup ? "Retirada no balcão" : "Entrega no endereço")}</strong><span>{isPickup ? "Retirada no balcão · sem taxa de entrega" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}${referencia ? ` · Ref.: ${referencia}` : ""}`}</span><small>{userPhone}</small></div><button type="button" onClick={() => setStep(1)}>Editar</button></section>
             <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters"/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || !couponCode.trim()}>Aplicar</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
-            <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>{isPickup ? "Retirada" : "Entrega"}</span><b data-free={finalFee === 0}>{isPickup ? "Sem taxa" : finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{hasFreeDelivery && !isPickup && <small>Entrega grátis aplicada conforme a promoção vigente.</small>}</section>
+            <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>{isPickup ? "Retirada" : "Entrega"}</span><b data-free={finalFee === 0}>{isPickup ? "Sem taxa" : finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{!isPickup && finalFee === 0 && <small>{hasFreeDelivery ? `Você ganhou entrega grátis por atingir o valor mínimo${freeThreshold ? ` de ${money(freeThreshold)}` : ""}.` : deliveryFee === 0 && bairro.trim() ? `Entrega grátis configurada para ${bairro.trim()}.` : "Entrega grátis aplicada a este pedido."}</small>}</section>
             <section><div className={styles.sectionLabel}>Como você quer pagar?</div><div className={styles.paymentTabs}>{(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => <button type="button" key={option} data-active={method === option} onClick={() => setMethod(option)}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>)}</div></section>
             {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Primeiro registraremos o pedido. Na tela seguinte você poderá copiar a chave, conferir o valor e enviar o comprovante.</span></div></div>}
             {method === "dinheiro" && <label className={styles.label}>Troco para quanto? <span>(opcional)</span><input className={styles.input} placeholder="Ex.: 100,00" value={troco} onChange={(event) => setTroco(event.target.value)} inputMode="decimal"/></label>}
