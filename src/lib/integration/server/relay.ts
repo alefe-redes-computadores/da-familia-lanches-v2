@@ -39,6 +39,34 @@ function eventFromOutbox(record: Record<string, unknown>): IntegrationEventEnvel
   return event;
 }
 
+function canonicalEntregasEventsUrl(rawTargetUrl: string) {
+  const url = new URL(rawTargetUrl);
+  const path = url.pathname.replace(/\/+$/, "");
+
+  // Aceita tanto a origem do DFL Entregas quanto o endpoint completo.
+  // Isso evita que uma variável Production apontando só para o domínio
+  // transforme todo order.created em POST / (404/405).
+  if (!path || path === "/") url.pathname = "/api/integration/events";
+  return url.toString();
+}
+
+async function responseFailure(response: Response) {
+  let detail = "";
+  try {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const data = (await response.json()) as { error?: unknown };
+      if (typeof data?.error === "string") detail = data.error.trim();
+    } else {
+      detail = (await response.text()).replace(/\s+/g, " ").trim();
+    }
+  } catch {
+    // O status HTTP continua sendo suficiente para retry/dead-letter.
+  }
+  const safe = detail.slice(0, 220);
+  return `Destino DFL Entregas respondeu HTTP ${response.status}${safe ? `: ${safe}` : "."}`;
+}
+
 async function sendEvent(targetUrl: string, signingSecret: string, event: IntegrationEventEnvelope, timeoutMs: number) {
   const body = JSON.stringify(event);
   const timestamp = new Date().toISOString();
@@ -46,7 +74,7 @@ async function sendEvent(targetUrl: string, signingSecret: string, event: Integr
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(targetUrl, {
+    const response = await fetch(canonicalEntregasEventsUrl(targetUrl), {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -58,7 +86,7 @@ async function sendEvent(targetUrl: string, signingSecret: string, event: Integr
       cache: "no-store",
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`Destino respondeu HTTP ${response.status}.`);
+    if (!response.ok) throw new Error(await responseFailure(response));
     return response.status;
   } finally {
     clearTimeout(timer);
