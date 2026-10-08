@@ -52,6 +52,9 @@ export type DflSiteOrderEventPayloadV1 = {
   trocoPara: string | null;
   observacao: string | null;
   status: string;
+  cancelReasonCode?: string | null;
+  cancelReasonLabel?: string | null;
+  cancelItemProductIds?: string[];
   isAgendamento: boolean;
   scheduledFor: string | null;
   scheduledLabel: string | null;
@@ -206,6 +209,11 @@ export function buildDflSiteOrderPayloadV1(
     status:
       overrides?.status ??
       text(rawOrder.status),
+    cancelReasonCode: nullableText(rawOrder.cancelReasonCode),
+    cancelReasonLabel: nullableText(rawOrder.cancelReasonLabel),
+    cancelItemProductIds: Array.isArray(rawOrder.cancelItemProductIds)
+      ? rawOrder.cancelItemProductIds.map((value) => text(value)).filter(Boolean)
+      : [],
     isAgendamento:
       rawOrder.isAgendamento === true,
     scheduledFor: nullableText(rawOrder.scheduledFor),

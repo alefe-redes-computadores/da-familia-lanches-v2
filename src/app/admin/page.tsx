@@ -208,6 +208,7 @@ function AdminPageContent() {
     id: string,
     status: string,
     pedido?: Record<string, unknown>,
+    cancellation?: Parameters<typeof updateOrderStatus>[0]["cancellation"],
   ) => {
     const locks = actionLocksRef.current;
 
@@ -267,6 +268,7 @@ function AdminPageContent() {
         nextStatus: status,
         pickup: pedido?.tipoEntrega === "pickup",
         rewardPlan,
+        ...(cancellation ? { cancellation } : {}),
       });
 
       showFeedback({

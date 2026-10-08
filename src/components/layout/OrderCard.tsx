@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { UserRound, MapPin, CreditCard, ShoppingBag, ReceiptText, MessageCircle, Printer, Info, PackageCheck, Copy, Check, Clock3, Route, MessageSquareText, ExternalLink, X, TriangleAlert } from "lucide-react";
+import { UserRound, MapPin, CreditCard, ShoppingBag, ReceiptText, MessageCircle, Printer, Info, PackageCheck, Copy, Check, Clock3, Route, MessageSquareText, ExternalLink, X, TriangleAlert, Store, PackageX, Bike, Gauge, Wrench, PhoneOff, UserRoundX, PauseCircle, AlertTriangle } from "lucide-react";
 import { haptic } from "@/lib/haptics";
 import { getOrderItems, paymentLabel } from "@/lib/orderCompat";
 import { normalizarStatus, getColorByStatus, formatarData } from "@/lib/orderUtils";
 import { canTransitionOrderStatus, statusTitle } from "@/lib/orderStatus";
 import { ageLabel, operationalAttention } from "@/lib/adminOrders";
 import { openDflEntregas } from "@/lib/adminDeliveryBridge";
+import { ORDER_CANCELLATION_REASONS, type OrderCancellationReasonCode } from "@/lib/orderCancellation";
 import styles from "./OrderCard.module.css";
 
 export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false, updating = false, density = "comfortable" }: any) {
@@ -15,6 +16,9 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const [inspectorTab, setInspectorTab] = useState<"resumo" | "itens" | "cliente" | "entrega" | "pagamento">("resumo");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [cancelReasonCode, setCancelReasonCode] = useState<OrderCancellationReasonCode | null>(null);
+  const [cancelNote, setCancelNote] = useState("");
+  const [cancelBusy, setCancelBusy] = useState(false);
   const isExpanded = forceExpanded || expanded;
   const statusAtual = normalizarStatus(pedido.status);
   const terminal = statusAtual === "Finalizado" || statusAtual === "Cancelado";
@@ -161,6 +165,29 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
 
   const canCancel = !["Finalizado", "Cancelado"].includes(statusAtual)
     && canTransitionOrderStatus(statusAtual, "Cancelado", pickup);
+
+  const confirmCancellation = async () => {
+    if (!cancelReasonCode || cancelBusy) return;
+    const reason = ORDER_CANCELLATION_REASONS.find((item) => item.code === cancelReasonCode);
+    if (!reason) return;
+    if (cancelReasonCode === "other" && !cancelNote.trim()) return;
+    setCancelBusy(true);
+    try {
+      await updateStatus(pedido.id, "Cancelado", pedido, {
+        reasonCode: reason.code,
+        reasonLabel: reason.label,
+        note: cancelNote.trim() || undefined,
+        itemProductIds: cancelReasonCode === "item_unavailable"
+          ? itens.map((item: any) => String(item.id || "")).filter(Boolean)
+          : [],
+      });
+      setCancelConfirm(false);
+      setCancelReasonCode(null);
+      setCancelNote("");
+    } finally {
+      setCancelBusy(false);
+    }
+  };
 
   const toggleDetails = () => {
     if (onSelect) {
@@ -461,6 +488,44 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
           </div>
         </div>
       )}
-    </article>
+
+      {cancelConfirm && (
+        <div className={styles.cancelIntelligence} onClick={(event) => { event.stopPropagation(); setCancelConfirm(false); }}>
+          <section className={styles.cancelSheet} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Cancelar pedido">
+            <header>
+              <div><TriangleAlert size={20}/><div><strong>Cancelar pedido</strong><small>Informe o motivo para manter o histórico da operação.</small></div></div>
+              <button type="button" onClick={() => setCancelConfirm(false)} aria-label="Fechar"><X size={18}/></button>
+            </header>
+            <div className={styles.cancelReasons}>
+              {ORDER_CANCELLATION_REASONS.map((reason) => {
+                const Icon = reason.code === "store_closed" ? Store
+                  : reason.code === "item_unavailable" ? PackageX
+                  : reason.code === "courier_unavailable" ? Bike
+                  : reason.code === "high_demand" ? Gauge
+                  : reason.code === "operational_issue" ? Wrench
+                  : reason.code === "customer_unreachable" ? PhoneOff
+                  : reason.code === "customer_request" ? UserRoundX
+                  : MessageSquareText;
+                return <button key={reason.code} type="button" data-selected={cancelReasonCode === reason.code} onClick={() => setCancelReasonCode(reason.code)}>
+                  <Icon size={18}/><span>{reason.label}</span>
+                </button>;
+              })}
+            </div>
+            {cancelReasonCode === "item_unavailable" && (
+              <div className={styles.cancelNotice}><AlertTriangle size={16}/><span>Os itens do pedido serão registrados no cancelamento. Pausar produto no cardápio continua sendo uma ação separada para evitar alterações acidentais em combos.</span></div>
+            )}
+            {cancelReasonCode === "other" && (
+              <textarea value={cancelNote} onChange={(event) => setCancelNote(event.target.value)} placeholder="Descreva o motivo interno…" maxLength={240}/>
+            )}
+            <footer>
+              <button type="button" onClick={() => setCancelConfirm(false)}>Voltar</button>
+              <button type="button" disabled={!cancelReasonCode || cancelBusy || (cancelReasonCode === "other" && !cancelNote.trim())} onClick={() => void confirmCancellation()}>
+                {cancelBusy ? "Cancelando…" : "Confirmar cancelamento"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+</article>
   );
 }

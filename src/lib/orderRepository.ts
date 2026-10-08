@@ -6,6 +6,7 @@ import {
   Timestamp,
   type DocumentReference,
 } from "firebase/firestore";
+import type { OrderCancellationReasonCode } from "@/lib/orderCancellation";
 import { auth, db } from "@/lib/firebase";
 import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupons";
 import { normalizeReward, rewardDiscount, rewardIsExpired, type RewardGrantPlan } from "@/lib/rewards";
@@ -140,6 +141,12 @@ export async function updateOrderStatus(input: {
   nextStatus: string;
   pickup?: boolean;
   rewardPlan?: RewardGrantPlan | null;
+  cancellation?: {
+    reasonCode: OrderCancellationReasonCode;
+    reasonLabel: string;
+    note?: string;
+    itemProductIds?: string[];
+  } | null;
 }) {
   const orderRef = doc(db, "Pedidos", input.orderId);
   const now = Timestamp.now();
@@ -156,6 +163,15 @@ export async function updateOrderStatus(input: {
         : undefined,
     );
     const next = normalizarStatus(input.nextStatus);
+    const cancellation = next === "Cancelado" ? input.cancellation : null;
+    const cancellationPatch = cancellation ? {
+      cancelReasonCode: cancellation.reasonCode,
+      cancelReasonLabel: cancellation.reasonLabel,
+      cancelNote: cancellation.note?.trim() || null,
+      cancelItemProductIds: cancellation.itemProductIds || [],
+      cancelledAt: occurredAt,
+      cancelledBy: "admin",
+    } : {};
 
     // Idempotência primeiro: se outro dispositivo/integração já colocou
     // exatamente no estado solicitado, a ação é sucesso sem nova escrita.
@@ -227,7 +243,7 @@ export async function updateOrderStatus(input: {
 
     const event = buildOrderUpdatedEvent({
       orderId: input.orderId,
-      order: orderData,
+      order: { ...orderData, ...cancellationPatch },
       status: next,
       occurredAt,
       occurrenceId:
@@ -248,6 +264,7 @@ export async function updateOrderStatus(input: {
       deferredTarget === next;
 
     transaction.update(orderRef, {
+      ...cancellationPatch,
       status: next,
       statusUpdatedAt: now,
       statusHistory: [
