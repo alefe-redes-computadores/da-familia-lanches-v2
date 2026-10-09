@@ -15,7 +15,7 @@ ok(
 );
 
 ok(
-  tsx.includes("Taxa de entrega"),
+  tsx.includes("rateIdentity") && !tsx.includes("<small>Taxa de entrega</small>"),
   "subtítulo da linha ausente",
 );
 

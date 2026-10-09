@@ -259,3 +259,12 @@
   .slots article>button{min-height:48px!important}
   .save{margin-top:8px!important}
 }
+
+
+/* DFL V59 R2 — agendamento: reduzir molduras vazias, manter campos e botoes acessiveis. */
+@media (max-width: 760px) {
+  .card { margin-top: 10px; padding: 12px; border-radius: 16px; }
+  .settings { margin-top: 10px; gap: 7px; }
+  .settings label { padding: 9px; }
+  .settings select, .settings input { min-height: 44px; }
+}
