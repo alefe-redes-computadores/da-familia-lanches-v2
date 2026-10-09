@@ -44,28 +44,48 @@ ok(
   "agenda visual não foi estilizada",
 );
 
-const created = checkout.indexOf(
-  "const created = await createCustomerOrder",
+// V63.1: checkout protege o carrinho contra alterações concorrentes.
+// A confirmação precisa existir antes de limpar; erros preservam os itens.
+const guardStart = checkout.indexOf("const clearConfirmedCart = () =>");
+const guardEnd = checkout.indexOf("submittingRef.current=true", guardStart);
+const guard = guardStart >= 0 && guardEnd > guardStart
+  ? checkout.slice(guardStart, guardEnd)
+  : "";
+
+ok(
+  guard.includes("useCartStore.getState().items") &&
+  guard.includes("submittedCart !== currentCart") &&
+  guard.includes("return false") &&
+  guard.indexOf("submittedCart !== currentCart") <
+    guard.indexOf("clearCart();") &&
+  guard.includes("clearCart();") &&
+  guard.includes("return true"),
+  "limpeza do carrinho perdeu a proteção contra alterações",
 );
-const clear = checkout.indexOf(
-  "clearCart();",
-  created,
-);
-const success = checkout.indexOf(
-  'openModal("order-success"',
-  created,
+
+const createCalls = [...checkout.matchAll(/(?:const created\s*=\s*await createCustomerOrder\s*\()/g)]
+  .map(match => match.index);
+
+const clearCalls = [...checkout.matchAll(/const cartCleared\s*=\s*clearConfirmedCart\s*\(\s*\)/g)]
+  .map(match => match.index);
+
+const successCalls = [...checkout.matchAll(/openModal\s*\(\s*["']order-success["']/g)]
+  .map(match => match.index);
+
+ok(
+  createCalls.length === 2 &&
+  clearCalls.length === 2 &&
+  successCalls.length === 2 &&
+  createCalls.every((position, index) =>
+    position < clearCalls[index] &&
+    clearCalls[index] < successCalls[index]
+  ),
+  "convidado e cliente Google devem limpar somente após pedido criado",
 );
 
 ok(
-  created >= 0 &&
-  clear > created &&
-  success > clear,
-  "carrinho não limpa exclusivamente após confirmação real",
-);
-
-ok(
-  checkout.includes("cartPreserved: false"),
-  "tela de sucesso ainda oferece manter carrinho já enviado",
+  (checkout.match(/cartPreserved:\s*!cartCleared/g) || []).length === 2,
+  "sucesso deve informar se o carrinho foi realmente preservado",
 );
 
 ok(
