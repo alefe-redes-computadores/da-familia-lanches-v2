@@ -578,3 +578,15 @@
 
 /* V56 COMMERCE BUILDER */
 .bundleEditor:before{content:"COMPOSIÇÃO OPERACIONAL";display:block;margin-bottom:8px;font-size:10px;font-weight:950;letter-spacing:.12em;color:#ffca28}.bundleRow select{font-weight:800}.bundleEmpty{border:1px dashed #343943;border-radius:13px;padding:12px;background:#111419;color:#9ba3ad}
+
+/* V78 — editor mobile enxuto, sem alterar contratos de venda */
+.editorIntro{margin:0 0 14px;padding:11px 13px;border:1px solid #35302a;border-radius:13px;background:#211d15;color:#e5c989;font-size:12px;line-height:1.5}
+.advancedDisclosure,.addonDisclosure{display:block;width:100%;margin:10px 0;padding:12px 14px;border:1px solid #343940;border-radius:13px;background:#1b2025;color:#e8eaec;font-size:12px;font-weight:800;text-align:left;cursor:pointer}
+.addonDisclosure{margin:10px 0 0}
+.editor .form label{font-size:12px;letter-spacing:.015em}
+.editor .form input,.editor .form textarea,.editor .form select{min-height:44px;font-size:14px;line-height:1.4}
+.editor .form textarea{min-height:76px}
+.editor .bundleEditorHead small{display:block;margin-top:5px;line-height:1.5;color:#c2a96e}
+.editor .bundleEditorHead button{min-height:42px}
+.editor .editorActions button{min-height:48px;font-size:13px}
+@media(max-width:620px){.editor{width:100%;max-height:96dvh;padding:13px 14px 0;border-radius:22px 22px 0 0}.editorHead{position:sticky;top:-13px;z-index:3;margin:-13px -14px 12px;padding:15px 14px;background:#101215;border-bottom:1px solid #2a2e33}.editorHead>button{flex:none;min-width:40px;min-height:40px}.editorIntro{margin-bottom:12px}.editor .form{grid-template-columns:minmax(0,1fr);gap:12px}.editor .form>*{min-width:0}.editor .form .full{grid-column:1}.editor .priceFields{grid-template-columns:repeat(2,minmax(0,1fr))}.editor .bundleEditorHead{align-items:stretch;flex-direction:column}.editor .bundleEditorHead button{width:100%}.editor .bundleRow{grid-template-columns:minmax(0,1fr) 64px 40px}.editor .bundleRow input[aria-label="Observação do item"]{grid-column:1/-1;grid-row:2}.editor .switches{flex-wrap:wrap}.editor .switches button{min-height:44px}.editor .editorActions{position:sticky;bottom:0;z-index:3;margin:12px -14px 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#101215;border-top:1px solid #2a2e33}.editor .editorActions button{min-width:0}}

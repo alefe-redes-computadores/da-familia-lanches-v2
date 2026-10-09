@@ -33,7 +33,9 @@ export function resolveBundleItems(product:Product, products:Product[]):Resolved
     const linked=products.find(p=>p.id===item.productId);
     return {key:`${item.productId}-${index}`,quantity:Math.max(1,Math.trunc(item.quantity||1)),label:linked?.name||item.productId,note:item.note,product:linked};
   });
-  const parsed=(product.detailsItems??[]).map(legacy);
+  const isCombo = product.category === "combos" || product.category === "promocoes" || product.id.startsWith("combo-");
+  const source = isCombo ? (product.detailsItems ?? []).filter(value => /^\s*\d+\s*[x×]?\s+\S/.test(value)) : (product.detailsItems ?? []);
+  const parsed=source.map(legacy);
   const resolved=parsed.map((item,index)=>({key:`legacy-${index}`,...item,product:find(item.label,products,product.id)}));
   return resolved.some(item=>item.product) ? resolved : [];
 }
