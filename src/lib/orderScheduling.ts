@@ -51,7 +51,17 @@ export async function getOrderScheduleSlots(): Promise<OrderScheduleSlot[]> {
 
   const today = todayKey();
 
-  return payload.slots.map((slot) => {
+  // Filtra horarios duplicados/incompletos sem mudar a autoridade da API.
+  const seen = new Set<string>();
+  const validSlots = payload.slots.filter((slot) => {
+    if (!slot || typeof slot.value !== "string" || typeof slot.date !== "string" ||
+        typeof slot.time !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(slot.date) ||
+        !/^\d{2}:\d{2}$/.test(slot.time) ||
+        !slot.value.startsWith(`${slot.date}T${slot.time}`) || seen.has(slot.value)) return false;
+    seen.add(slot.value);
+    return true;
+  });
+  return validSlots.map((slot) => {
     const left = Math.max(0, Number(slot.left) || 0);
     const dayLabel = slot.date === today
       ? "Hoje"

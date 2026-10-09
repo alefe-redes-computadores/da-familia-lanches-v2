@@ -68,6 +68,9 @@ export function CheckoutModal() {
   const customerEditingRef = useRef(false);
   const submittingRef = useRef(false);
   const orderAttemptRef = useRef<string>("");
+  const couponRequestRef = useRef(0);
+  const statusRefreshBusyRef = useRef(false);
+  const couponCodeRef = useRef("");
   const numberInputRef = useRef<HTMLInputElement>(null);
   const scheduleSectionRef = useRef<HTMLElement>(null);
   const cepLookupRef = useRef("");
@@ -133,6 +136,7 @@ export function CheckoutModal() {
   const [appliedRewardId, setAppliedRewardId] = useState("");
   const [discount, setDiscount] = useState(0);
   const [couponMessage, setCouponMessage] = useState("");
+  const [couponChecking, setCouponChecking] = useState(false);
   const [commercialSettings, setCommercialSettings] = useState<CommercialSettings>(DEFAULT_COMMERCIAL_SETTINGS);
   const [errorMessage, setErrorMessage] = useState("");
   const [fallbackWhatsAppUrl, setFallbackWhatsAppUrl] = useState("");
@@ -428,8 +432,53 @@ export function CheckoutModal() {
   const selectedSavedAddress = savedAddresses.find((address) => address.id === selectedAddressId);
   const addressLimitReached = savedAddresses.length >= 3;
 
+  // V60.3: checagem leve, apenas com o checkout visível; sem listener Firestore.
+  // O cache de 20 segundos do shopStatus limita leituras entre verificações.
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      if (!alive || document.visibilityState !== "visible" || statusRefreshBusyRef.current || submittingRef.current) return;
+      statusRefreshBusyRef.current = true;
+      try {
+        const { status, testAccess } = await getCheckoutStoreAccess(currentUser?.email);
+        if (!alive) return;
+        const closed = !status.isOpen && !testAccess;
+        setShopClosed(closed);
+        if (closed) {
+          const slots = await getOrderScheduleSlots();
+          if (!alive) return;
+          setScheduleSlots(slots);
+          setScheduledFor(previous => slots.some(slot => slot.value === previous && !slot.disabled) ? previous : "");
+          setScheduleError("");
+        } else {
+          setScheduleSlots([]);
+          setScheduledFor("");
+          setScheduleError("");
+        }
+      } catch {
+        // Falha de consulta não equivale a loja aberta.
+        if (alive) setScheduleError("Não foi possível atualizar a disponibilidade. Confirme novamente antes de pedir.");
+      } finally {
+        statusRefreshBusyRef.current = false;
+      }
+    };
+    const onFocus = () => { void refresh(); };
+    const timer = window.setInterval(() => { void refresh(); }, 60_000);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [currentUser?.email]);
+
   const changeCouponCode = (value: string) => {
     const next = value.toUpperCase();
+    couponCodeRef.current = next;
+    couponRequestRef.current += 1;
+    setCouponChecking(false);
     setCouponCode(next);
     if (appliedCouponCode && next.trim() !== appliedCouponCode) {
       setAppliedCouponCode("");
@@ -530,31 +579,34 @@ export function CheckoutModal() {
   };
 
   const applyCoupon = async () => {
-    const code = couponCode.trim().toUpperCase();
+    if (couponChecking || submittingRef.current) return;
+    const code = couponCodeRef.current.trim().toUpperCase() || couponCode.trim().toUpperCase();
+    const requestId = ++couponRequestRef.current;
+    const stillCurrent = () => requestId === couponRequestRef.current && couponCodeRef.current.trim().toUpperCase() === code;
     setCouponMessage("");
     setAppliedCouponCode("");
     setAppliedRewardId("");
     setDiscount(0);
-
     if (!code) {
       setCouponMessage("Digite um cupom antes de validar.");
       return;
     }
-
-    setLoading(true);
+    setCouponChecking(true);
     try {
       const publicCoupon = await getDoc(doc(db, "Cupons", code));
-
+      if (!stillCurrent()) return;
       if (publicCoupon.exists()) {
         const coupon = normalizeCoupon(publicCoupon.id, publicCoupon.data());
         const availability = couponAvailability(coupon, subtotal);
         if (availability.ok) {
           const bounded = couponDiscount(coupon, subtotal);
-          setCouponCode(code);
-          setAppliedCouponCode(code);
-          setDiscount(bounded);
-          setCouponMessage(`${money(bounded)} de desconto aplicado.`);
-          return;
+          if (bounded > 0) {
+            setCouponCode(code);
+            setAppliedCouponCode(code);
+            setDiscount(bounded);
+            setCouponMessage(`${money(bounded)} de desconto aplicado.`);
+            return;
+          }
         }
         if (availability.reason === "min-order") return setCouponMessage(`Este cupom exige pedido mínimo de ${money(coupon.minOrder)}.`);
         if (availability.reason === "not-started") return setCouponMessage("Este cupom ainda não começou.");
@@ -562,24 +614,13 @@ export function CheckoutModal() {
         if (availability.reason === "inactive") return setCouponMessage("Este cupom está pausado.");
         if (availability.reason === "invalid") return setCouponMessage("Este cupom está configurado de forma inválida.");
       }
-
       if (currentUser) {
         const reward = await findCustomerRewardByCode(currentUser.uid, code);
-
+        if (!stillCurrent()) return;
         if (reward) {
-          if (reward.used) {
-            setCouponMessage("Este benefício já foi utilizado.");
-            return;
-          }
-          if (rewardIsExpired(reward)) {
-            setCouponMessage("Este benefício expirou.");
-            return;
-          }
-          if (subtotal < reward.minOrder) {
-            setCouponMessage(`Este benefício exige pedido mínimo de ${money(reward.minOrder)}.`);
-            return;
-          }
-
+          if (reward.used) return setCouponMessage("Este benefício já foi utilizado.");
+          if (rewardIsExpired(reward)) return setCouponMessage("Este benefício expirou.");
+          if (subtotal < reward.minOrder) return setCouponMessage(`Este benefício exige pedido mínimo de ${money(reward.minOrder)}.`);
           const bounded = rewardDiscount(reward, subtotal);
           if (bounded > 0) {
             setCouponCode(code);
@@ -591,13 +632,16 @@ export function CheckoutModal() {
           }
         }
       }
-
-      setCouponMessage("Cupom ou benefício inválido, inativo ou expirado.");
+      setCouponMessage(publicCoupon.exists()
+        ? "Este cupom não oferece desconto para este pedido."
+        : currentUser
+          ? "Código não encontrado. Confira as letras e números e tente novamente."
+          : "Cupom não encontrado. Benefícios de fidelidade exigem entrar com sua conta.");
     } catch (error) {
       console.error("Erro ao validar cupom", error);
-      setCouponMessage("Não foi possível validar o cupom agora.");
+      if (stillCurrent()) setCouponMessage("Não foi possível consultar o cupom agora. Tente novamente.");
     } finally {
-      setLoading(false);
+      if (stillCurrent()) setCouponChecking(false);
     }
   };
 
@@ -615,6 +659,20 @@ export function CheckoutModal() {
       setErrorMessage("Você está sem internet. Seu carrinho continua salvo neste aparelho; reconecte para registrar o pedido.");
       return;
     }
+    // Preserve o carrinho caso o cliente o altere durante a confirmacao.
+    const submittedCart = JSON.stringify(items.map(item => ({
+      id: item.cartId, quantity: item.quantity, price: item.price,
+      addons: item.selectedAddons, observation: item.observation,
+    })));
+    const clearConfirmedCart = () => {
+      const currentCart = JSON.stringify(useCartStore.getState().items.map(item => ({
+        id: item.cartId, quantity: item.quantity, price: item.price,
+        addons: item.selectedAddons, observation: item.observation,
+      })));
+      if (submittedCart !== currentCart) return false;
+      clearCart();
+      return true;
+    };
     submittingRef.current=true;
     setErrorMessage("");
     setFallbackWhatsAppUrl("");
@@ -652,7 +710,26 @@ export function CheckoutModal() {
     try {
       const { status: shopStatus, testAccess } = await getCheckoutStoreAccess(currentUser?.email, true);
       const isClosed = !shopStatus.isOpen && !testAccess;
+      setShopClosed(isClosed);
       const selectedSchedule = isClosed ? scheduledFor : "";
+      if (isClosed && selectedSchedule) {
+        let latestSlots: OrderScheduleSlot[];
+        try {
+          latestSlots = await getOrderScheduleSlots();
+        } catch {
+          setStep(1);
+          setScheduleError("Não conseguimos confirmar as vagas agora. Tente novamente.");
+          setErrorMessage("Não foi possível validar o horário. Seu carrinho foi preservado.");
+          return;
+        }
+        setScheduleSlots(latestSlots);
+        if (!latestSlots.some(slot => slot.value === selectedSchedule && !slot.disabled)) {
+          setScheduledFor("");
+          setStep(1);
+          setErrorMessage("O horário selecionado não está mais disponível. Escolha outro horário.");
+          return;
+        }
+      }
       if (isClosed && !selectedSchedule) { setStep(1); setErrorMessage("Escolha o dia e o horário do seu pedido."); focusCheckoutIssue("schedule"); submittingRef.current=false; setLoading(false); return; }
       const finalAddress = isPickup
         ? "RETIRADA NO LOCAL"
@@ -675,8 +752,8 @@ export function CheckoutModal() {
         const whatsappUrl=businessWhatsAppUrl(guestMessage);
         saveGuestIdentity({name:customerName.trim()||"Cliente",phone:userPhone.trim(),lastDeliveryMode:deliveryMode,paymentPreference:method,...(isPickup?{}:{cep:cep.trim(),street:rua.trim(),number:numero.trim(),district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim()})});
         rememberGuestOrder({id:created.id,status:isClosed?"Agendado":"Pendente",total,deliveryMode,scheduledFor:isClosed?selectedSchedule:null,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):null,createdAt:Date.now(),customerName:customerName.trim()||"Cliente",items:items.map(item=>({name:item.name,quantity:item.quantity}))});
-        clearCart(); clearOrderAttempt(); clearCheckoutDraft(null);
-        openModal("order-success",{orderId:created.id,isScheduled:isClosed,deliveryMode,total,whatsappUrl,paymentMethod:method,pixKey:method==="pix"?BUSINESS_CONTACT.pixKey:undefined,cartPreserved:false,rescueMessage:guestMessage});
+        const cartCleared = clearConfirmedCart(); clearOrderAttempt(); clearCheckoutDraft(null);
+        openModal("order-success",{orderId:created.id,isScheduled:isClosed,deliveryMode,total,whatsappUrl,paymentMethod:method,pixKey:method==="pix"?BUSINESS_CONTACT.pixKey:undefined,cartPreserved:!cartCleared,rescueMessage:guestMessage});
         submittingRef.current=false; setLoading(false); return;
       }
 
@@ -791,7 +868,7 @@ export function CheckoutModal() {
 
       const whatsappUrl = businessWhatsAppUrl(whatsappMessage);
 
-      clearCart();
+      const cartCleared = clearConfirmedCart();
       clearOrderAttempt();
       clearCheckoutDraft(currentUser.uid);
       clearCheckoutDraft(null);
@@ -804,7 +881,7 @@ export function CheckoutModal() {
         whatsappUrl,
         paymentMethod: method,
         pixKey: method === "pix" ? BUSINESS_CONTACT.pixKey : undefined,
-        cartPreserved: false,
+        cartPreserved: !cartCleared,
         rescueMessage: whatsappMessage,
       });
     } catch (error) {
@@ -850,10 +927,14 @@ export function CheckoutModal() {
         setErrorMessage("O sistema de pedidos atingiu o limite temporário do banco. Seu carrinho foi preservado; aguarde alguns minutos e tente novamente.");
       } else if (code === "SERVICE_UNAVAILABLE") {
         setErrorMessage("O serviço de pedidos está temporariamente indisponível. Seu carrinho foi preservado; tente novamente em instantes.");
+      } else if (code === "IDEMPOTENCY_CONFLICT") {
+        setErrorMessage("Existe uma tentativa anterior deste pedido com informações diferentes. Por segurança, não vamos gerar outra cobrança ou pedido automaticamente. Confira Meus Pedidos antes de iniciar um novo pedido. Seu carrinho foi preservado.");
+      } else if (code === "IDEMPOTENCY_REQUIRED") {
+        setErrorMessage("Não foi possível identificar esta tentativa de pedido. Seu carrinho foi preservado. Feche e abra o checkout para tentar novamente.");
       } else if (code === "ORDER_TIMEOUT") {
-        setErrorMessage("O registro do pedido demorou mais que o esperado. Seu carrinho foi preservado. Você pode tentar novamente com segurança; não criaremos o mesmo pedido duas vezes.");
+        setErrorMessage("A resposta demorou, mas o pedido pode ter sido registrado. Seu carrinho continua salvo. Confira Meus Pedidos antes de tentar novamente. Se repetir sem alterar os dados, a loja reconhece a mesma tentativa.");
       } else if (code === "ORDER_NETWORK") {
-        setErrorMessage("A conexão falhou durante o registro do pedido. Seu carrinho foi preservado. Confira sua internet e tente novamente.");
+        setErrorMessage("A conexão caiu e não conseguimos confirmar se o pedido foi registrado. Seu carrinho continua salvo. Confira Meus Pedidos; se precisar repetir, mantenha os mesmos dados para recuperar a mesma tentativa.");
       } else if (code === "SERVICE_CONFIG") {
         setErrorMessage("O pedido não pôde ser gravado por uma configuração do servidor. Seu carrinho foi preservado e a loja precisa revisar o acesso ao banco.");
       } else {
@@ -1005,7 +1086,7 @@ export function CheckoutModal() {
         ) : (
           <div className={styles.stack}>
             <section className={styles.receiveCard}><div><strong>{customerName || (isPickup ? "Retirada no balcão" : "Entrega no endereço")}</strong><span>{isPickup ? "Retirada no balcão · sem taxa de entrega" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}${referencia ? ` · Ref.: ${referencia}` : ""}`}</span><small>{userPhone}</small></div><button type="button" onClick={() => setStep(1)}>Editar</button></section>
-            <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters"/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || !couponCode.trim()}>Aplicar</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
+            <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters"/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || couponChecking || !couponCode.trim()}>{couponChecking ? "Verificando…" : "Aplicar"}</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
             <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>{isPickup ? "Retirada" : "Entrega"}</span><b data-free={finalFee === 0}>{isPickup ? "Sem taxa" : finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{!isPickup && finalFee === 0 && <small>{hasFreeDelivery ? `Você ganhou entrega grátis por atingir o valor mínimo${freeThreshold ? ` de ${money(freeThreshold)}` : ""}.` : deliveryFee === 0 && bairro.trim() ? `Entrega grátis configurada para ${bairro.trim()}.` : "Entrega grátis aplicada a este pedido."}</small>}</section>
             <section><div className={styles.sectionLabel}>Como você quer pagar?</div><div className={styles.paymentTabs}>{(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => <button type="button" key={option} data-active={method === option} onClick={() => setMethod(option)}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>)}</div></section>
             {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Primeiro registraremos o pedido. Na tela seguinte você poderá copiar a chave, conferir o valor e enviar o comprovante.</span></div></div>}

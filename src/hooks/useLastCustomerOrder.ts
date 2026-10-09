@@ -130,12 +130,16 @@ async function load(uid: string, force = false) {
 
   const request = (async () => {
     try {
-      const projected =
-        await readProjectedOrder(uid);
-
-      const order =
-        projected ??
-        await readFallback(uid);
+      // A projecao de fidelidade pode apontar para um pedido concluido antigo.
+      // A consulta ordenada e a fonte de verdade para o ultimo concluido.
+      // Caso a consulta esteja indisponivel, a projecao ainda oferece fallback.
+      let order: CustomerOrder | null = null;
+      try {
+        order = await readFallback(uid);
+      } catch (fallbackError) {
+        console.warn("[last-order] consulta ordenada indisponivel; tentando projecao", fallbackError);
+        order = await readProjectedOrder(uid);
+      }
 
       const state: State = {
         order,

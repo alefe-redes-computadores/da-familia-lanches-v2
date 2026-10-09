@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, ChevronDown, X, Pencil, Pause, Play } from "lucide-react";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { auth } from "@/lib/firebase";
@@ -162,6 +162,23 @@ export function CatalogAdmin() {
   const [imageUploading, setImageUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
+  const [pauseReview, setPauseReview] = useState<Array<{id:string;name:string}>>([]);
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem("dfl:catalog-pause-review");
+      if (!raw) return;
+      window.sessionStorage.removeItem("dfl:catalog-pause-review");
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      const entries = parsed.filter((item): item is {id:string;name:string} =>
+        !!item && typeof item === "object" && typeof item.id === "string" && typeof item.name === "string"
+      ).slice(0, 30);
+      setPauseReview(entries);
+      setView("produtos");
+      setCategoryFilter("all");
+      setAvailabilityFilter("all");
+    } catch { /* Dados locais opcionais não podem bloquear o catálogo. */ }
+  }, []);
   const [categoryFilter, setCategoryFilter] = useState<"all" | ProductCategory>("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "active" | "paused">("all");
   const [categoryDraft, setCategoryDraft] = useState<{ id: string; label: string; mode: "create" | "edit" } | null>(null);
@@ -528,6 +545,14 @@ export function CatalogAdmin() {
       ]} />
     </section>
 
+    {pauseReview.length > 0 && (
+      <section className={styles.sectionBar} aria-label="Produtos para revisar após cancelamento">
+        <div><span>REVISÃO APÓS CANCELAMENTO</span><strong>{pauseReview.length} produto(s) selecionado(s)</strong><small>Confira cada item abaixo. Nenhum produto foi pausado automaticamente.</small>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:8}}>{pauseReview.map(item => <button key={item.id} type="button" onClick={() => {setSearch(item.id);setCategoryFilter("all");setAvailabilityFilter("all");}}>{item.name}</button>)}</div>
+        </div>
+        <button type="button" onClick={() => {setPauseReview([]);setSearch("");}}>Concluir revisão</button>
+      </section>
+    )}
     <div className={styles.sectionBar}>
       <div><span>PRODUTOS</span><strong>Gerenciar cardápio</strong><small className={styles.sectionHint}>{filteredProducts.length} exibidos</small></div>
       {(search || categoryFilter !== "all" || availabilityFilter !== "all") && <button onClick={() => { setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); }}>Limpar filtros</button>}

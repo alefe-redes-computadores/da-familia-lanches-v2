@@ -377,6 +377,9 @@ async function hydrate(docId:string, data:Record<string,unknown>):Promise<Projec
     customer_name:name,
     payload:{
       customer_name:name,
+      cancel_reason_code:text(order.cancelReasonCode)||null,
+      cancel_public_message:text(order.cancelPublicMessage)||null,
+      order_status:text(order.status)||null,
       order_number:orderId.slice(-8).toUpperCase(),
       total,
       items,

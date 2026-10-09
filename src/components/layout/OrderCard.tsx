@@ -18,7 +18,10 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [cancelReasonCode, setCancelReasonCode] = useState<OrderCancellationReasonCode | null>(null);
   const [cancelNote, setCancelNote] = useState("");
+  const [cancelPublicNote, setCancelPublicNote] = useState("");
   const [cancelBusy, setCancelBusy] = useState(false);
+  const [pauseSuggestions, setPauseSuggestions] = useState<Array<{id:string;name:string}>>([]);
+  const [pauseSelected, setPauseSelected] = useState<string[]>([]);
   const isExpanded = forceExpanded || expanded;
   const statusAtual = normalizarStatus(pedido.status);
   const terminal = statusAtual === "Finalizado" || statusAtual === "Cancelado";
@@ -170,20 +173,33 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     if (!cancelReasonCode || cancelBusy) return;
     const reason = ORDER_CANCELLATION_REASONS.find((item) => item.code === cancelReasonCode);
     if (!reason) return;
-    if (cancelReasonCode === "other" && !cancelNote.trim()) return;
+
     setCancelBusy(true);
     try {
       await updateStatus(pedido.id, "Cancelado", pedido, {
         reasonCode: reason.code,
         reasonLabel: reason.label,
         note: cancelNote.trim() || undefined,
+        publicNote: cancelPublicNote.trim() || undefined,
         itemProductIds: cancelReasonCode === "item_unavailable"
           ? itens.map((item: any) => String(item.id || "")).filter(Boolean)
           : [],
       });
+      if (cancelReasonCode === "item_unavailable") {
+        const candidates: Array<{id:string;name:string}> = itens
+          .map((item: any) => ({ id: String(item.id || "").trim(), name: String(item.name || "Produto").trim() }))
+          .filter((item: {id:string;name:string}) => Boolean(item.id))
+          .filter((item: {id:string;name:string}, index: number, all: Array<{id:string;name:string}>) => all.findIndex(other => other.id === item.id) === index);
+        setPauseSuggestions(candidates);
+        setPauseSelected([]);
+      } else {
+        setPauseSuggestions([]);
+        setPauseSelected([]);
+      }
       setCancelConfirm(false);
       setCancelReasonCode(null);
       setCancelNote("");
+      setCancelPublicNote("");
     } finally {
       setCancelBusy(false);
     }
@@ -470,23 +486,28 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
         </div>
       )}
 
-      {cancelConfirm && canCancel && (
-        <div className={styles.cancelConfirmPanel} role="alertdialog" aria-label="Confirmar cancelamento do pedido">
-          <span className={styles.cancelConfirmIcon}><TriangleAlert size={17}/></span>
+      {pauseSuggestions.length > 0 && statusAtual === "Cancelado" && (
+        <section className={styles.cancelConfirmPanel} aria-label="Revisar produtos indisponíveis">
+          <div><strong>Pedido cancelado. Revisar disponibilidade?</strong><small>Selecione somente os produtos realmente indisponíveis. Nenhum produto será pausado automaticamente.</small></div>
           <div>
-            <strong>Cancelar pedido #{shortOrderId}?</strong>
-            <small>Essa ação muda o estado comercial para Cancelado.</small>
+            {pauseSuggestions.map(product => (
+              <label key={product.id} style={{display:"flex",alignItems:"center",gap:8,marginTop:8}}>
+                <input type="checkbox" checked={pauseSelected.includes(product.id)} onChange={event => setPauseSelected(previous => event.target.checked ? [...previous,product.id] : previous.filter(id => id !== product.id))}/>
+                <span>{product.name}</span>
+              </label>
+            ))}
           </div>
           <div className={styles.cancelConfirmActions}>
-            <button type="button" disabled={updating} onClick={(event) => { event.stopPropagation(); haptic("step"); setCancelConfirm(false); }}><X size={13}/>Voltar</button>
-            <button type="button" disabled={updating} data-danger="true" onClick={(event) => {
-              event.stopPropagation();
-              haptic("step");
-              setCancelConfirm(false);
-              updateStatus(pedido.id, "Cancelado", pedido);
-            }}><TriangleAlert size={13}/>{updating ? "Cancelando…" : "Confirmar"}</button>
+            <button type="button" onClick={() => {setPauseSuggestions([]);setPauseSelected([]);}}>Agora não</button>
+            <button type="button" disabled={!pauseSelected.length} onClick={() => {
+              if (typeof window !== "undefined") {
+                window.sessionStorage.setItem("dfl:catalog-pause-review",JSON.stringify(pauseSuggestions.filter(product => pauseSelected.includes(product.id))));
+                window.location.assign("/admin?stage=catalogo");
+              }
+            }}>Revisar no cardápio ({pauseSelected.length})</button>
           </div>
-        </div>
+          <small>A pausa definitiva é feita no editor do cardápio, após conferir cada produto. Combos e ingredientes não são modificados aqui.</small>
+        </section>
       )}
 
       {cancelConfirm && (
@@ -514,12 +535,18 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
             {cancelReasonCode === "item_unavailable" && (
               <div className={styles.cancelNotice}><AlertTriangle size={16}/><span>Os itens do pedido serão registrados no cancelamento. Pausar produto no cardápio continua sendo uma ação separada para evitar alterações acidentais em combos.</span></div>
             )}
-            {cancelReasonCode === "other" && (
-              <textarea value={cancelNote} onChange={(event) => setCancelNote(event.target.value)} placeholder="Descreva o motivo interno…" maxLength={240}/>
+            {cancelReasonCode && (
+              <div>
+                <label htmlFor={`cancel-public-${pedido.id}`}>Explicação adicional ao cliente (opcional)</label>
+                <textarea id={`cancel-public-${pedido.id}`} value={cancelPublicNote} onChange={(event) => setCancelPublicNote(event.target.value)} placeholder="Ex.: infelizmente o ingrediente principal acabou hoje." maxLength={240}/>
+                <small>Esta informação aparece em Meus Pedidos e no evento enviado à integração. Não inclua dados internos.</small>
+                <label htmlFor={`cancel-internal-${pedido.id}`}>Observação interna (opcional)</label>
+                <textarea id={`cancel-internal-${pedido.id}`} value={cancelNote} onChange={(event) => setCancelNote(event.target.value)} placeholder="Anotação exclusiva da operação…" maxLength={240}/>
+              </div>
             )}
             <footer>
               <button type="button" onClick={() => setCancelConfirm(false)}>Voltar</button>
-              <button type="button" disabled={!cancelReasonCode || cancelBusy || (cancelReasonCode === "other" && !cancelNote.trim())} onClick={() => void confirmCancellation()}>
+              <button type="button" disabled={!cancelReasonCode || cancelBusy || updating} onClick={() => void confirmCancellation()}>
                 {cancelBusy ? "Cancelando…" : "Confirmar cancelamento"}
               </button>
             </footer>

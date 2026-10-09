@@ -81,7 +81,9 @@ export const useCartStore = create<CartState>()(
 
       restoreItem: (item) =>
         set((state) => ({
-          items: state.items.some((current) => current.cartId === item.cartId) ? state.items : [...state.items, item],
+          items: !item.cartId || !Number.isFinite(item.quantity) || item.quantity <= 0 ||
+            state.items.some((current) => current.cartId === item.cartId)
+            ? state.items : [...state.items, item],
         })),
 
       increaseQtd: (cartId) =>

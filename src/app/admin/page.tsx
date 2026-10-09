@@ -133,7 +133,7 @@ function AdminPageContent() {
   useEffect(() => {
     const requestedStage = searchParams.get("stage");
     const requestedOrder = searchParams.get("order");
-    const allowedStages: Tab[] = ["cozinha", "agendados", "expedicao", "concluidos", "cancelados"];
+    const allowedStages: Tab[] = ["cozinha", "agendados", "expedicao", "concluidos", "cancelados", "catalogo"];
 
     if (requestedStage && allowedStages.includes(requestedStage as Tab)) {
       setTab(requestedStage as Tab);

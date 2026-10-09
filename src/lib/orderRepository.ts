@@ -6,7 +6,7 @@ import {
   Timestamp,
   type DocumentReference,
 } from "firebase/firestore";
-import type { OrderCancellationReasonCode } from "@/lib/orderCancellation";
+import { cancellationPublicMessage, type OrderCancellationReasonCode } from "@/lib/orderCancellation";
 import { auth, db } from "@/lib/firebase";
 import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupons";
 import { normalizeReward, rewardDiscount, rewardIsExpired, type RewardGrantPlan } from "@/lib/rewards";
@@ -145,6 +145,7 @@ export async function updateOrderStatus(input: {
     reasonCode: OrderCancellationReasonCode;
     reasonLabel: string;
     note?: string;
+    publicNote?: string;
     itemProductIds?: string[];
   } | null;
 }) {
@@ -167,6 +168,7 @@ export async function updateOrderStatus(input: {
     const cancellationPatch = cancellation ? {
       cancelReasonCode: cancellation.reasonCode,
       cancelReasonLabel: cancellation.reasonLabel,
+      cancelPublicMessage: [cancellationPublicMessage(cancellation.reasonCode), cancellation.publicNote?.trim()].filter(Boolean).join(" ").slice(0, 500),
       cancelNote: cancellation.note?.trim() || null,
       cancelItemProductIds: cancellation.itemProductIds || [],
       cancelledAt: occurredAt,

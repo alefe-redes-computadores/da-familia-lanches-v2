@@ -33,6 +33,7 @@ export function OrderSuccessModal() {
 
   const [copied, setCopied] = useState(false);
   const [cartCleared, setCartCleared] = useState(false);
+  const [clearArmed, setClearArmed] = useState(false);
 
   const ref = data.orderId
     ? `#${data.orderId.slice(-8).toUpperCase()}`
@@ -72,8 +73,14 @@ export function OrderSuccessModal() {
   };
 
   const confirmClear = () => {
+    if (!clearArmed) {
+      setClearArmed(true);
+      haptic("step");
+      return;
+    }
     clearCart();
     setCartCleared(true);
+    setClearArmed(false);
     haptic("success");
   };
 
@@ -234,13 +241,13 @@ export function OrderSuccessModal() {
                   className={styles.clearConfirmed}
                   onClick={confirmClear}
                 >
-                  Limpar carrinho
+                  {clearArmed ? "Confirmar limpeza" : "Limpar carrinho"}
                 </button>
 
                 <button
                   type="button"
                   className={styles.keepCart}
-                  onClick={closeModal}
+                  onClick={() => { setClearArmed(false); closeModal(); }}
                 >
                   Manter itens
                 </button>

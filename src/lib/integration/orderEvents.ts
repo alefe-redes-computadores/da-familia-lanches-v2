@@ -54,6 +54,7 @@ export type DflSiteOrderEventPayloadV1 = {
   status: string;
   cancelReasonCode?: string | null;
   cancelReasonLabel?: string | null;
+  cancelPublicMessage?: string | null;
   cancelItemProductIds?: string[];
   isAgendamento: boolean;
   scheduledFor: string | null;
@@ -211,6 +212,7 @@ export function buildDflSiteOrderPayloadV1(
       text(rawOrder.status),
     cancelReasonCode: nullableText(rawOrder.cancelReasonCode),
     cancelReasonLabel: nullableText(rawOrder.cancelReasonLabel),
+    cancelPublicMessage: nullableText(rawOrder.cancelPublicMessage),
     cancelItemProductIds: Array.isArray(rawOrder.cancelItemProductIds)
       ? rawOrder.cancelItemProductIds.map((value) => text(value)).filter(Boolean)
       : [],
