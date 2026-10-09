@@ -22,7 +22,7 @@ ok(sender.includes('const DISPATCHES = "AdminPushDispatches"')&&sender.includes(
 ok(sw.includes("firebase-messaging-compat.js")&&sw.includes("onBackgroundMessage"),"SW não recebe push com Admin fechado");
 ok(sw.includes("hasVisibleAdminClient"),"SW não evita duplicar alerta quando Admin está visível");
 ok(sw.includes("/admin-notification-badge.png"),"badge monocromático V20 ausente");
-ok(orders.includes("sendAdminNewOrderPush")&&orders.includes("Promise.allSettled")&&orders.includes("after(async () =>"),"push não está pós-gravação e não bloqueante");
+ok(orders.includes("sendAdminNewOrderPush")&&orders.includes("Promise.allSettled")&&orders.includes("const result = await adminDb.runTransaction")&&orders.includes("if (result.adminPush) jobs.push(sendAdminNewOrderPush(result.adminPush))")&&orders.includes("for (const outcome of outcomes)"),"push não está pós-gravação e não bloqueante");
 ok(orders.includes("adminPush: null"),"replay idempotente ainda pode reenviar push");
 ok((hook.match(/onSnapshot\(/g)||[]).length===1,"V20 criou listener Firestore adicional");
 console.log("ADMIN WEB PUSH V20 CONTRACT: OK");

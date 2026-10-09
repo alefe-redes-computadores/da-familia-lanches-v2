@@ -32,7 +32,7 @@ ok(
 );
 
 ok(
-  checkout.includes("firstAvailable") &&
+  checkout.includes("setScheduledFor((current) =>") && checkout.includes("!slot.disabled") &&
   checkout.includes("scheduleGroups") &&
   checkout.includes("styles.scheduleSlots"),
   "horários não possuem seleção segura/visual",
