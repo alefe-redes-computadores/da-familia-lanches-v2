@@ -54,7 +54,7 @@ export function ProductDetailsModal() {
   const productAddons = availableAddonsForProduct(product, addons);
   const allowAddons = productAddons.length > 0;
   const bundleItems = resolveBundleItems(product, products);
-  const hasBundle = bundleItems.length > 0;
+  const hasBundle = Boolean(product.bundleItems?.length && bundleItems.length > 0);
   const leadDescription = productLeadDescription(product);
   const upsellProduct = product.upsellProductId
     ? products.find((candidate) => candidate.id === product.upsellProductId && candidate.disponivel !== false)

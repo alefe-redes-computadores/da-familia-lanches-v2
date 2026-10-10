@@ -607,3 +607,31 @@
  .editor .bundleRows>*{min-width:0;max-width:100%}
 }
 @media(max-width:360px){.editor .priceFields{grid-template-columns:minmax(0,1fr)}}
+
+
+/* DFL ADMIN V80 — CANONICAL CATALOG EDITOR */
+.editor{overflow:hidden;display:flex;flex-direction:column}
+.form{overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-bottom:16px}
+.editorHead{flex:0 0 auto}
+.editorActions{flex:0 0 auto;position:static!important;margin:0 -14px!important;padding:10px 14px calc(10px + env(safe-area-inset-bottom))!important;border-top:1px solid #2a2e33;background:#101215!important}
+.switches button,.advancedDisclosure,.addonDisclosure,.standardizeButton,.photoButton{font-size:13px;line-height:1.25;text-wrap:balance}
+.productCard,.itemCard{min-width:0;overflow:hidden}
+.productCard h3,.itemCard h3,.productCard p,.itemCard p{overflow-wrap:anywhere}
+@media(max-width:620px){
+ .editor{height:min(96dvh,920px);max-height:96dvh;padding:0 14px!important}
+ .editorHead{top:0!important;margin:0 -14px!important;padding:13px 14px!important}
+ .form{min-height:0;padding:12px 0 18px;gap:11px!important}
+ .editorIntro{font-size:12px;line-height:1.4}
+ .commercialBlock{padding:11px}
+ .commercialHead{align-items:flex-start;gap:8px}
+ .commercialHead>b{font-size:11px;padding:7px 9px}
+ .priceFields{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .switches{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .switches button{min-height:46px!important;padding:8px!important}
+ .switches button:nth-child(3):last-child{grid-column:1/-1}
+ .photoButton,.advancedDisclosure,.addonDisclosure{min-height:46px!important}
+ .bundleRow{grid-template-columns:minmax(0,1fr) 62px 42px!important}
+ .editorActions{display:grid!important;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr)!important;gap:9px!important}
+ .editorActions button{min-height:48px!important;font-size:13px!important;padding:0 10px!important}
+}
+@media(max-width:360px){.priceFields,.switches{grid-template-columns:minmax(0,1fr)!important}.switches button:nth-child(3):last-child{grid-column:auto}}

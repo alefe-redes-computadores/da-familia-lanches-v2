@@ -10,6 +10,7 @@ import { ageLabel, operationalAttention } from "@/lib/adminOrders";
 import { openDflEntregas } from "@/lib/adminDeliveryBridge";
 import { ORDER_CANCELLATION_REASONS, type OrderCancellationReasonCode } from "@/lib/orderCancellation";
 import styles from "./OrderCard.module.css";
+import { adminOrderAddress } from "@/lib/adminOrderAddress";
 
 export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false, updating = false, density = "comfortable" }: any) {
   const [expanded, setExpanded] = useState(false);
@@ -107,11 +108,9 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const messageStatusLabel = rawMessageStatus || "Sem status de mensagem no pedido";
 
   const shortOrderId = String(pedido.id || "").slice(-8).toUpperCase();
-  const addressLabel = String(
-    pedido.endereco ||
-    pedido.address ||
-    (pickup ? "Retirada no local" : "")
-  ).trim();
+  const normalizedAddress = adminOrderAddress(pedido);
+  const addressLabel = pickup ? "Retirada no local" : normalizedAddress.full;
+  const addressSummary = pickup ? "Retirada no local" : normalizedAddress.summary;
 
   const copyValue = async (key: string, value: string) => {
     const text = String(value || "").trim();
@@ -314,7 +313,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
             </div>
           )}
           <span className={styles.queueAddress}>
-            {pedido.endereco || (pickup ? "Retirada no local" : "Endereço não informado")}
+            {addressSummary || "Endereço não informado"}
           </span>
         </div>
         <div className={styles.summaryTotal}>
@@ -415,7 +414,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
             </div>
           )}
 
-          {(!inspector || inspectorTab === "cliente" || inspectorTab === "resumo") && (
+          {(!inspector || inspectorTab === "cliente") && (
             <div className={styles.person}>
               <div className={styles.personIdentity}>
                 <span className={styles.detailIcon}><UserRound size={16} /></span>
@@ -429,7 +428,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
             </div>
           )}
 
-          {(!inspector || inspectorTab === "entrega" || inspectorTab === "resumo") && (
+          {(!inspector || inspectorTab === "entrega") && (
             <div className={styles.delivery}>
               <span className={styles.detailIcon}><MapPin size={16} /></span>
               <div className={styles.deliveryCopy}>
@@ -459,7 +458,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
             </div>
           )}
 
-          {(!inspector || inspectorTab === "pagamento" || inspectorTab === "resumo") && (
+          {(!inspector || inspectorTab === "pagamento") && (
             <div className={styles.money}>
               <span className={styles.detailIcon}><CreditCard size={16} /></span>
               <div>

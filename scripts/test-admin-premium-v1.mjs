@@ -1,10 +1,10 @@
 import fs from "node:fs";
 const r=f=>fs.readFileSync(f,"utf8");const ok=(v,l)=>{if(!v)throw new Error("FALHOU: "+l);console.log("OK: "+l)};
-const p=r("src/app/admin/page.tsx"),a=r("src/app/admin/admin.module.css"),c=r("src/components/layout/OrderCard.module.css"),u=r("src/app/admin/admin-ui.css"),s=r("src/components/admin/StoreOperationAdmin.module.css");
+const p=r("src/app/admin/page.tsx"),a=r("src/app/admin/admin.module.css"),c=r("src/components/layout/OrderCard.module.css"),u=r("src/app/admin/admin-ui.css"),s=r("src/components/admin/StoreOperationAdmin.module.css"),x=r("src/components/admin/ui/AdminExperienceProvider.tsx");
 ok(a.includes("DFL ADMIN — REFERENCE REFACTOR"),"pele premium consolidada no refactor");
 ok(c.includes("DFL ORDER CARD — REFERENCE REFACTOR"),"cards premium consolidados");
-ok(u.includes("shared controls"),"controles premium preservados");
+ok(u.includes("DFL ADMIN V35 — GLOBAL DESIGN SYSTEM AUTHORITY"),"controles premium preservados");
 ok(s.includes("ADMIN PREMIUM V1 — STORE OPERATION"),"funcionamento premium preservado");
-ok(p.includes('data-tone={feedback.tone}')&&p.includes('tone: "progress"'),"toast semantico com progresso");
-ok(p.includes("updateOrderStatus"),"status preservado");
+ok(x.includes('data-tone={item.tone}')&&x.includes('item.tone==="progress"'),"toast semântico global com progresso");
+ok(p.includes("updateOrderStatus")&&p.includes('tone: "progress"'),"status e feedback operacional preservados");
 console.log("DFL ADMIN PREMIUM — COMPATIBILIDADE OK");

@@ -125,8 +125,8 @@ const draftFromProduct = (product: Product): ProductDraft => ({
   id: product.id,
   name: product.name,
   description: product.description,
-  price: String(product.price),
-  oldPrice: product.oldPrice == null ? "" : String(product.oldPrice),
+  price: moneyDraft(String(product.price)),
+  oldPrice: product.oldPrice == null ? "" : moneyDraft(String(product.oldPrice)),
   image: product.image,
   category: product.category,
   disponivel: product.disponivel,
@@ -243,15 +243,7 @@ export function CatalogAdmin() {
     const explicit = product.description.match(/\bAcompanha\s+(.+?)[.]?$/i)?.[1]?.trim();
     return explicit ? explicit.replace(/[.]$/, "") : "";
   };
-  const comboBundleFromDetails = (product: Product) => {
-    if (product.bundleItems?.length) return product.bundleItems;
-    const haystack=`${product.name} ${product.description} ${(product.detailsItems??[]).join(" ")}`.toLocaleLowerCase("pt-BR");
-    const candidates=products.filter(c=>c.id!==product.id&&!["bebidas","promocoes","combos"].includes(c.category)).sort((x,y)=>y.name.length-x.name.length);
-    const base=candidates.find(c=>haystack.includes(c.name.toLocaleLowerCase("pt-BR"))); if(!base)return [];
-    const escaped=base.name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-    const match=haystack.match(new RegExp(`(\\d+)\\s+(?:lanches?\\s+|burgers?\\s+|hot\\s*dogs?\\s+)?${escaped}`,"i"));
-    return [{productId:base.id,quantity:match?Math.max(1,Number(match[1])||1):1}];
-  };
+  const comboBundleFromDetails = (product: Product) => product.bundleItems ?? [];
   const buildStandardizationPreview = () => products.map((product) => {
     const isCombo=product.category==="combos"||product.category==="promocoes"||product.id.startsWith("combo-");
     const detailsItems=isCombo?(product.detailsItems?.map(x=>x.trim()).filter(Boolean)??[]):ingredientItems(product);

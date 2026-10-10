@@ -769,3 +769,32 @@
   .card[data-inspector=true] .cockpitGrid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .card[data-inspector=true] .iconBtn { min-height: 44px !important; }
 }
+
+
+/* DFL ADMIN V80 — CANONICAL ORDER EXPERIENCE */
+.summaryMain h3{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;text-overflow:ellipsis;line-height:1.14;overflow-wrap:anywhere}
+.queueAddress{white-space:normal!important;display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.35;overflow:hidden;text-overflow:ellipsis;overflow-wrap:anywhere}
+.deliveryCopy span{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere;word-break:normal}
+.inspectorMini strong,.inspectorMini span:not(.inspectorMiniIcon),.personIdentity strong{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.25;overflow:hidden;overflow-wrap:anywhere}
+.card[data-inspector=true] .summary{grid-template-columns:minmax(0,1fr) auto;min-height:0;padding:11px}
+.card[data-inspector=true] .summaryMain h3{font-size:18px;line-height:1.15}
+.card[data-inspector=true] .inspectorTabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible}
+.card[data-inspector=true] .inspectorTabs button{min-width:0;padding:0 4px;gap:4px}
+.card[data-inspector=true] .timeline{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.card[data-inspector=true] .timeline>div{min-height:0!important;padding:7px 5px!important}
+.card[data-inspector=true] .timelineDot{width:22px;height:22px}
+.card[data-inspector=true] .timeline small{display:none}
+.card[data-terminal="success"],.card[data-terminal="danger"]{padding:11px 12px 11px 15px!important}
+.card[data-terminal="success"] .summary,.card[data-terminal="danger"] .summary{min-height:42px!important;margin-top:6px}
+.card[data-terminal="success"] .summaryTotal,.card[data-terminal="danger"] .summaryTotal{display:none}
+@media(max-width:520px){
+ .card[data-inspector=true]{padding:0!important}
+ .card[data-inspector=true] .inspectorSummaryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .card[data-inspector=true] .inspectorMini{min-height:58px;padding:8px}
+ .card[data-inspector=true] .inspectorTabs button{height:44px;font-size:0}
+ .card[data-inspector=true] .inspectorTabs button span{font-size:7px;overflow:hidden;text-overflow:ellipsis}
+ .card[data-inspector=true] .timeline strong{font-size:9px!important;white-space:normal;line-height:1.15}
+ .card[data-inspector=true] .timeline>div{padding:6px 4px!important}
+ .deliveryActions,.metaActions{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .deliveryActions button,.metaActions button{min-width:0;width:100%;overflow-wrap:anywhere}
+}

@@ -48,6 +48,7 @@ export type DflSiteOrderEventPayloadV1 = {
   cupom: string | null;
   rewardId: string | null;
   total: number;
+  originalTotal: number;
   metodoPagamento: string;
   trocoPara: string | null;
   observacao: string | null;
@@ -76,14 +77,12 @@ const text = (
   value: unknown,
 ) => String(value ?? "").trim();
 
-const money = (
-  value: unknown,
-) => {
-  const amount = Number(value);
-  return Number.isFinite(amount)
-    ? amount
-    : 0;
+const money = (value: unknown) => {
+  const amount=Number(value);
+  return Number.isFinite(amount) ? Math.round((amount + Number.EPSILON) * 100) / 100 : 0;
 };
+
+const deliveryProjectedTotal = (value: unknown) => Math.ceil(money(value));
 
 const nullableText = (
   value: unknown,
@@ -107,7 +106,7 @@ const orderItemsSnapshot = (value: unknown): DflSiteOrderItemSnapshotV1[] => {
     const fallback=fallbackProducts.find((product)=>product.id===id);
     const productForComposition={...(fallback??{}),...item,id,name,quantity,price:unitPrice,category:text(item.category)||fallback?.category||""} as typeof fallbackProducts[number];
     const components=resolveBundleItems(productForComposition,fallbackProducts).flatMap((component)=>component.product?[{id:component.product.id,name:component.product.name,category:component.product.category||null,quantity:component.quantity*quantity,origin:"included_in_bundle" as const,note:component.note??null}]:[]);
-    return [{ id, name, quantity, unitPrice, lineTotal: unitPrice * quantity, category:text(item.category)||fallback?.category||null, detailsTitle: nullableText(item.detailsTitle), detailsItems, includedExtras: nullableText(item.includedExtras), components, selectedAddons, observation: nullableText(item.observation) }];
+    return [{ id, name, quantity, unitPrice, lineTotal: money(unitPrice * quantity), category:text(item.category)||fallback?.category||null, detailsTitle: nullableText(item.detailsTitle), detailsItems, includedExtras: nullableText(item.includedExtras), components, selectedAddons, observation: nullableText(item.observation) }];
   });
 };
 
@@ -200,7 +199,8 @@ export function buildDflSiteOrderPayloadV1(
     cupom: nullableText(rawOrder.cupom),
     rewardId:
       nullableText(rawOrder.rewardId),
-    total: money(rawOrder.total),
+    total: deliveryProjectedTotal(rawOrder.total),
+    originalTotal: money(rawOrder.total),
     metodoPagamento:
       text(rawOrder.metodoPagamento),
     trocoPara:
