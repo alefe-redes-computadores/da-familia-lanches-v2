@@ -590,3 +590,20 @@
 .editor .bundleEditorHead button{min-height:42px}
 .editor .editorActions button{min-height:48px;font-size:13px}
 @media(max-width:620px){.editor{width:100%;max-height:96dvh;padding:13px 14px 0;border-radius:22px 22px 0 0}.editorHead{position:sticky;top:-13px;z-index:3;margin:-13px -14px 12px;padding:15px 14px;background:#101215;border-bottom:1px solid #2a2e33}.editorHead>button{flex:none;min-width:40px;min-height:40px}.editorIntro{margin-bottom:12px}.editor .form{grid-template-columns:minmax(0,1fr);gap:12px}.editor .form>*{min-width:0}.editor .form .full{grid-column:1}.editor .priceFields{grid-template-columns:repeat(2,minmax(0,1fr))}.editor .bundleEditorHead{align-items:stretch;flex-direction:column}.editor .bundleEditorHead button{width:100%}.editor .bundleRow{grid-template-columns:minmax(0,1fr) 64px 40px}.editor .bundleRow input[aria-label="Observação do item"]{grid-column:1/-1;grid-row:2}.editor .switches{flex-wrap:wrap}.editor .switches button{min-height:44px}.editor .editorActions{position:sticky;bottom:0;z-index:3;margin:12px -14px 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#101215;border-top:1px solid #2a2e33}.editor .editorActions button{min-width:0}}
+
+/* V79 R2 mobile catalog layout */
+.editor,.editor *{box-sizing:border-box}
+.editor .form,.editor .form label,.editor .priceFields,.editor .moneyInput{min-width:0}
+.editor .moneyInput{display:flex;align-items:center;gap:6px;padding:0 10px;overflow:hidden}
+.editor .moneyInput>span{flex:0 0 auto;white-space:nowrap}
+.editor .moneyInput input{min-width:0;width:100%;flex:1 1 0;border:0!important;box-shadow:none!important;outline-offset:-2px;background:transparent!important;padding:10px 4px!important}
+.editor .form input,.editor .form textarea,.editor .form select{max-width:100%}
+@media(max-width:620px){
+ .editor .priceFields{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .editor .editorActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .editor .editorActions button{min-width:0;width:100%;min-height:52px}
+ .editor .switches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .editor .switches button{min-width:0;overflow-wrap:anywhere;min-height:52px}
+ .editor .bundleRows>*{min-width:0;max-width:100%}
+}
+@media(max-width:360px){.editor .priceFields{grid-template-columns:minmax(0,1fr)}}

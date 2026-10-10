@@ -95,13 +95,17 @@ async function readFallback(uid: string) {
     query(
       collection(db, "Pedidos"),
       where("userId", "==", uid),
-      where("status", "==", "Finalizado"),
       orderBy("data", "desc"),
-      limit(1),
+      limit(20),
     ),
   );
 
-  const document = snapshot.docs[0];
+  // V79 R4: busca limitada por usuario e normalizacao de status.
+  // O primeiro finalizado da lista ordenada e o ultimo concluido real.
+  // Nunca filtramos por disponibilidade dos produtos atuais.
+  const document = snapshot.docs.find((entry) =>
+    normalizarStatus(entry.data().status) === "Finalizado"
+  );
 
   return document
     ? ({

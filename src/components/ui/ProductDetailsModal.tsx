@@ -17,6 +17,16 @@ import { haptic } from "@/lib/haptics";
 import { productHref } from "@/lib/productRoutes";
 import { productLeadDescription } from "@/lib/productPresentation";
 
+function uniqueDetails(values: string[] | undefined): string[] {
+  const seen = new Set<string>();
+  return (values ?? []).filter((value) => {
+    const key = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/\s+/g, " ").toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function money(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -89,9 +99,9 @@ export function ProductDetailsModal() {
           {hasBundle ? <div className={styles.bundleList}>{bundleItems.map((item) =>
             <details className={styles.bundleItem} key={item.key}>
               <summary><span className={styles.bundleQty}>{item.quantity}×</span><span className={styles.bundleName}>{item.product?.name || item.label}</span>{item.note && <span className={styles.bundleNote}>{item.note}</span>}{item.product?.detailsItems?.length ? <b>›</b> : null}</summary>
-              {item.product?.detailsItems?.length ? <div className={styles.bundleInside}><small>{item.product.detailsTitle || `O que vem no ${item.product.name}?`}</small><div className={styles.detailChips}>{item.product.detailsItems.map((detail) => <span key={detail}>{detail}</span>)}</div>{item.product.includedExtras && <p><b>Acompanha:</b> {item.product.includedExtras}</p>}</div> : null}
+              {item.product?.detailsItems?.length ? <div className={styles.bundleInside}><small>{item.product.detailsTitle || `O que vem no ${item.product.name}?`}</small><div className={styles.detailChips}>{uniqueDetails(item.product.detailsItems).map((detail) => <span key={detail}>{detail}</span>)}</div>{item.product.includedExtras && <p><b>Acompanha:</b> {item.product.includedExtras}</p>}</div> : null}
             </details>)}</div>
-          : product.detailsItems?.length ? <div className={styles.detailChips}>{product.detailsItems.map((item) => <span key={item}>{item}</span>)}</div> : null}
+          : product.detailsItems?.length ? <div className={styles.detailChips}>{uniqueDetails(product.detailsItems).map((item) => <span key={item}>{item}</span>)}</div> : null}
           {product.includedExtras && !hasBundle && <p><b>Acompanha:</b> {product.includedExtras}</p>}
         </section>}
 
