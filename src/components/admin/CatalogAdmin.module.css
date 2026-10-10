@@ -635,3 +635,34 @@
  .editorActions button{min-height:48px!important;font-size:13px!important;padding:0 10px!important}
 }
 @media(max-width:360px){.priceFields,.switches{grid-template-columns:minmax(0,1fr)!important}.switches button:nth-child(3):last-child{grid-column:auto}}
+
+
+
+/* DFL ADMIN V81 — STEPPED CATALOG EDITOR + SEMANTIC FEEDBACK */
+.overlay{overflow:hidden;touch-action:none;overscroll-behavior:none}
+.editor{touch-action:pan-y;overscroll-behavior:contain}
+.editorHead,.editorSteps,.editorActions{flex:0 0 auto}
+.editorSteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 -14px;padding:8px 14px;border-bottom:1px solid #292d32;background:#0d1014}
+.editorSteps button{min-width:0;min-height:46px;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #292d32;border-radius:12px;background:#15191e;color:#8c97a2;font-size:12px;font-weight:800}
+.editorSteps button b{width:22px;height:22px;display:grid;place-items:center;flex:0 0 22px;border-radius:50%;background:#20262d;color:#aab3bb;font-size:11px}
+.editorSteps button[data-active=true]{border-color:rgba(255,199,44,.55);background:rgba(255,199,44,.10);color:#ffe08a}
+.editorSteps button[data-active=true] b{background:#ffc72c;color:#17120a}
+.editorScroll{min-height:0;flex:1 1 auto;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:12px 0 18px}
+.editorScroll .form{overflow:visible;padding-top:0}
+.editor [data-editor-step]{display:none!important}
+.editor[data-product-step=essencial] [data-editor-step=essencial],.editor[data-product-step=conteudo] [data-editor-step=conteudo],.editor[data-product-step=venda] [data-editor-step=venda],.editor[data-product-step=opcoes] [data-editor-step=opcoes]{display:flex!important}
+.editor[data-product-step=essencial] .formChoice,.editor[data-product-step=essencial] .photoUpload,.editor[data-product-step=essencial] .preview,.editor[data-product-step=venda] .commercialBlock,.editor[data-product-step=venda] .switches,.editor[data-product-step=venda] .addonPicker,.editor[data-product-step=conteudo] .bundleEditor,.editor[data-product-step=opcoes] .commercialBlock{display:block!important}
+.editor[data-product-step=opcoes] .advancedDisclosure{display:none!important}
+.editorIntro{margin-top:0}
+.message{display:grid;grid-template-columns:34px minmax(0,1fr) 38px;min-height:58px;padding:10px 10px 10px 12px!important;border-radius:16px!important;box-shadow:0 20px 60px rgba(0,0,0,.42)!important}
+.message::before{content:'✓';width:32px;height:32px;display:grid;place-items:center;border-radius:10px;background:rgba(52,211,153,.14);color:#61e3a7;font-size:18px;font-weight:950}
+.message[data-tone=error]::before{content:'!';background:rgba(248,113,113,.14);color:#ff8d96}
+.message[data-tone=success]{border-color:rgba(52,211,153,.32)!important;background:#102019!important}
+.message[data-tone=error]{border-color:rgba(248,113,113,.34)!important;background:#241317!important}
+.message span{align-self:center;line-height:1.4;font-size:13px;font-weight:800}
+.message button{width:38px;height:38px;align-self:center;border-radius:11px!important;color:#b9c1c8!important}
+.productTitle{align-items:flex-start}
+.productBadges{max-width:46%;align-content:flex-start}
+.productBadges b{min-height:26px;display:inline-flex;align-items:center;justify-content:center;padding:5px 8px!important;text-align:center;line-height:1.15;white-space:normal!important}
+.actions button{min-height:46px!important;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+@media(max-width:620px){.editorSteps{position:relative;z-index:2}.editorSteps button{min-height:48px;flex-direction:column;gap:2px;font-size:10px}.editorSteps button b{width:19px;height:19px;flex-basis:19px;font-size:10px}.editorScroll{padding-top:10px}.productTitle{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}.productBadges{max-width:none;justify-content:flex-start}.productBadges b{font-size:11px!important}.message{top:max(8px,calc(env(safe-area-inset-top) + 6px));width:calc(100vw - 16px)}}

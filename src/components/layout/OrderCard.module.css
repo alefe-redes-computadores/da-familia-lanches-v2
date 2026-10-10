@@ -798,3 +798,19 @@
  .deliveryActions,.metaActions{grid-template-columns:repeat(2,minmax(0,1fr))!important}
  .deliveryActions button,.metaActions button{min-width:0;width:100%;overflow-wrap:anywhere}
 }
+
+
+
+/* DFL ADMIN V81 — OPERATIONAL TYPOGRAPHIC HIERARCHY */
+.card[data-inspector=true] .summaryMain h3{font-size:20px!important;font-weight:900;letter-spacing:-.025em;color:#f4f7f9}
+.card[data-inspector=true] .summaryMeta b{font-weight:900;color:#d9e0e6}
+.card[data-inspector=true] .summaryMeta span{font-weight:800}
+.card[data-inspector=true] .operationalCockpit .cockpitHead strong{font-size:15px!important;font-weight:900;color:#f0f4f7}
+.card[data-inspector=true] .inspectorMini strong{font-size:14px!important;font-weight:850;color:#edf2f5}
+.card[data-inspector=true] .inspectorMini small{color:#788692;font-weight:850;letter-spacing:.09em}
+.card[data-inspector=true] .personIdentity strong,.card[data-inspector=true] .deliveryCopy span,.card[data-inspector=true] .money b{font-weight:850;color:#edf2f5}
+.card[data-inspector=true] .timeline>div[data-state=done]{opacity:.68}
+.card[data-inspector=true] .timeline>div[data-state=current]{opacity:1;box-shadow:inset 0 0 0 1px rgba(255,201,40,.08)}
+.card[data-inspector=true] .cockpitGrid>div{min-height:58px}
+.card[data-inspector=true] .cockpitGrid strong{white-space:normal!important;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.25;overflow:hidden}
+@media(max-width:520px){.card[data-inspector=true] .summaryMain h3{font-size:19px!important}.card[data-inspector=true] .operationalCockpit{padding:11px!important}.card[data-inspector=true] .inspectorSummaryGrid{gap:8px!important}}
