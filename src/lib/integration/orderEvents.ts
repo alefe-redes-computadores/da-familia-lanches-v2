@@ -91,6 +91,62 @@ const nullableText = (
   return normalized || null;
 };
 
+type OrderComponent = DflSiteOrderItemSnapshotV1["components"][number];
+
+const beverageSpecs = [
+  { id: "kuat-2l", name: "Kuat Guaraná 2L", pattern: /\bkuat(?: guarana)? 2l\b/ },
+  { id: "fanta-1l", name: "Fanta 1L", pattern: /\bfanta 1l\b/ },
+  { id: "coca-1l-zero", name: "Coca-Cola 1L Zero", pattern: /\bcoca(?: cola)? 1l zero\b/ },
+  { id: "coca-1l", name: "Coca-Cola 1L", pattern: /\bcoca(?: cola)? 1l\b(?!\s+zero)/ },
+  { id: "coca-2l", name: "Coca-Cola 2L", pattern: /\bcoca(?: cola)? 2l\b/ },
+] as const;
+
+const normalizedCompositionText = (value: unknown) => text(value)
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLocaleLowerCase("pt-BR")
+  .replace(/([0-9])\s+(ml|l)\b/g, "$1$2")
+  .replace(/[-–—+_,.;:()[\]]/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+
+function legacyBeverageComponents(
+  item: Record<string, unknown>,
+  lineQuantity: number,
+  explicit: OrderComponent[],
+): OrderComponent[] {
+  if (explicit.some((component) => normalizedCompositionText(component.category) === "bebidas")) {
+    return explicit;
+  }
+
+  const detailValues = Array.isArray(item.detailsItems) ? item.detailsItems : [];
+  const source = normalizedCompositionText([
+    item.name,
+    item.description,
+    item.detailsTitle,
+    ...detailValues,
+    item.includedExtras,
+  ].map(text).filter(Boolean).join(" | "));
+
+  const inferred = beverageSpecs.flatMap<OrderComponent>((spec) => {
+    if (!spec.pattern.test(source)) return [];
+    const before = source.slice(0, source.search(spec.pattern));
+    const amountMatch = before.match(/(?:^|[| ])(\d+)\s*(?:x\s*)?$/);
+    const amount = Math.max(1, Math.trunc(Number(amountMatch?.[1]) || 1));
+    const catalogProduct = fallbackProducts.find((product) => product.id === spec.id);
+    return [{
+      id: catalogProduct?.id || spec.id,
+      name: catalogProduct?.name || spec.name,
+      category: "bebidas",
+      quantity: amount * lineQuantity,
+      origin: "included_in_bundle" as const,
+      note: "Composição legada reconhecida no catálogo",
+    }];
+  });
+
+  return [...explicit, ...inferred];
+}
+
 const orderItemsSnapshot = (value: unknown): DflSiteOrderItemSnapshotV1[] => {
   if (!Array.isArray(value)) return [];
   return value.flatMap((raw) => {
@@ -105,7 +161,8 @@ const orderItemsSnapshot = (value: unknown): DflSiteOrderItemSnapshotV1[] => {
     }) : [];
     const fallback=fallbackProducts.find((product)=>product.id===id);
     const productForComposition={...(fallback??{}),...item,id,name,quantity,price:unitPrice,category:text(item.category)||fallback?.category||""} as typeof fallbackProducts[number];
-    const components=resolveBundleItems(productForComposition,fallbackProducts).flatMap((component)=>component.product?[{id:component.product.id,name:component.product.name,category:component.product.category||null,quantity:component.quantity*quantity,origin:"included_in_bundle" as const,note:component.note??null}]:[]);
+    const explicitComponents=resolveBundleItems(productForComposition,fallbackProducts).flatMap((component)=>component.product?[{id:component.product.id,name:component.product.name,category:component.product.category||null,quantity:component.quantity*quantity,origin:"included_in_bundle" as const,note:component.note??null}]:[]);
+    const components=legacyBeverageComponents(item,quantity,explicitComponents);
     return [{ id, name, quantity, unitPrice, lineTotal: money(unitPrice * quantity), category:text(item.category)||fallback?.category||null, detailsTitle: nullableText(item.detailsTitle), detailsItems, includedExtras: nullableText(item.includedExtras), components, selectedAddons, observation: nullableText(item.observation) }];
   });
 };

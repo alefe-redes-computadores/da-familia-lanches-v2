@@ -346,7 +346,11 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
     if (wins) {
       // assigned/position_changed continuam atualizando tracking,
       // mas não criam intent de mensagem: não possuem projeção automática.
-      const intentType = event.event_type === "delivery.out_for_delivery" ? "delivery_started"
+      // A primeira parada já nasce como nextStop=true no início da rota.
+      // Projetamos uma única mensagem de proximidade em vez de mandar o aviso
+      // genérico de saída e depender da conclusão de uma parada anterior.
+      const intentType = event.event_type === "delivery.out_for_delivery"
+        ? (event.payload.nextStop === true ? "delivery_next_stop" : "delivery_started")
         : event.event_type === "delivery.next_stop" ? "delivery_next_stop"
         : event.event_type === "delivery.completed" ? "delivery_completed"
         : event.event_type === "delivery.failed" ? "delivery_failed"

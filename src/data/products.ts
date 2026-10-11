@@ -81,6 +81,7 @@ export const products: Product[] = [
     includedExtras: "Acompanha molho verde da casa.",
     bundleItems: [
       { productId: "uai", quantity: 5 },
+      { productId: "kuat-2l", quantity: 1 },
     ],
   },
 
@@ -104,6 +105,7 @@ export const products: Product[] = [
     includedExtras: "Acompanha molho verde da casa.",
     bundleItems: [
       { productId: "bitela", quantity: 4 },
+      { productId: "kuat-2l", quantity: 1 },
     ],
   },
 
@@ -127,6 +129,7 @@ export const products: Product[] = [
     includedExtras: "Acompanha molho verde da casa.",
     bundleItems: [
       { productId: "apruma", quantity: 4 },
+      { productId: "fanta-1l", quantity: 1 },
     ],
   },
 
@@ -172,6 +175,7 @@ export const products: Product[] = [
     includedExtras: "Acompanha molho verde da casa.",
     bundleItems: [
       { productId: "armaria", quantity: 4 },
+      { productId: "kuat-2l", quantity: 1 },
     ],
   },
 
