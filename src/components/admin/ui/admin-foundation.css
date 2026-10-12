@@ -19,3 +19,56 @@
 .adminState strong{display:block;font-size:14px}.adminState small{display:block;margin-top:3px;color:var(--admin-muted)}.adminState button{grid-column:1/-1;justify-self:start;display:inline-flex;align-items:center;gap:7px;min-height:40px!important;border:1px solid var(--admin-line);background:var(--admin-surface-raised);color:var(--admin-text-secondary);padding:0 12px}
 .adminSkeletonLines{grid-column:1/-1;display:grid;gap:7px}.adminSkeletonLines i{height:8px;border-radius:99px;background:linear-gradient(90deg,rgba(148,163,184,.08),rgba(148,163,184,.17),rgba(148,163,184,.08));background-size:220% 100%;animation:admin-skeleton 1.3s ease-in-out infinite}.adminSkeletonLines i:nth-child(2){width:82%}.adminSkeletonLines i:nth-child(3){width:64%}@keyframes admin-skeleton{0%{background-position:100% 0}100%{background-position:-100% 0}}
 @media(max-width:479px){.adminGlobalToasts{right:12px;left:12px;width:auto;bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 8px))}.adminGlobalToast{grid-template-columns:36px minmax(0,1fr) auto}.adminGlobalToastAction{grid-column:2/-1;justify-self:start}.adminConfirmActions{grid-template-columns:1fr}.adminConfirmActions [data-admin-action=primary],.adminConfirmActions [data-admin-action=danger]{grid-row:1}}
+
+/* DFL V82.1 — contrato móvel dos toasts globais. */
+.adminGlobalToasts {
+  box-sizing: border-box;
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.adminGlobalToasts::-webkit-scrollbar { display: none; }
+.adminGlobalToast,
+.adminGlobalToastContent { min-width: 0; max-width: 100%; }
+.adminGlobalToastTitle,
+.adminGlobalToastMessage { overflow-wrap: anywhere; }
+
+@media (max-width: 640px) {
+  .adminGlobalToasts {
+    right: max(12px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(18px, calc(env(safe-area-inset-bottom, 0px) + 12px)) !important;
+    left: max(12px, env(safe-area-inset-left, 0px)) !important;
+    width: auto !important;
+  }
+
+  .adminGlobalToast {
+    grid-template-columns: 36px minmax(0, 1fr) 38px !important;
+    align-items: center !important;
+    overflow: hidden !important;
+  }
+
+  .adminGlobalToastClose {
+    position: static !important;
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: center !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .adminGlobalToastAction {
+    grid-column: 2 / 4 !important;
+    grid-row: 2 !important;
+    justify-self: start !important;
+    width: auto !important;
+    max-width: 100% !important;
+  }
+}

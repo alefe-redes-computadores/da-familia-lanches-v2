@@ -80,3 +80,59 @@
   .times{margin-top:7px!important}
   .save{margin-top:9px!important}
 }
+
+/* DFL V82.1 — feedback local móvel normalizado.
+   Esta tela ainda usa .msg; o botão de fechar deve pertencer ao mesmo cartão. */
+.msg {
+  position: fixed !important;
+  z-index: 10020 !important;
+  inset: auto max(12px, env(safe-area-inset-right, 0px))
+    max(18px, calc(env(safe-area-inset-bottom, 0px) + 12px))
+    max(12px, env(safe-area-inset-left, 0px)) !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 40px !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: min(420px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  min-height: 64px !important;
+  margin-inline: auto !important;
+  padding: 11px 11px 11px 15px !important;
+  overflow: hidden !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  border: 1px solid rgba(52, 211, 153, .28) !important;
+  border-radius: 18px !important;
+  background: rgba(5, 46, 32, .97) !important;
+  color: #d1fae5 !important;
+  box-shadow: 0 18px 52px rgba(0, 0, 0, .48) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+.msg > button {
+  position: static !important;
+  grid-column: 2 !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  place-items: center !important;
+  align-self: center !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255, 255, 255, .12) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, .08) !important;
+  color: #ecfdf5 !important;
+  font: inherit !important;
+  line-height: 1 !important;
+}
+
+.msg > button:focus-visible {
+  outline: 2px solid #6ee7b7 !important;
+  outline-offset: 2px !important;
+}
