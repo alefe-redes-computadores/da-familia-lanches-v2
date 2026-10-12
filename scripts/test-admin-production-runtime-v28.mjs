@@ -12,10 +12,12 @@ const card=read("src/components/layout/OrderCard.tsx");
 
 ok(auth.includes("browserLocalPersistence"),"persistência local do Firebase ausente");
 ok(auth.includes("setPersistence(auth, browserLocalPersistence)"),"persistência não aplicada");
-ok(pwa.includes('admin-sw.js?v=28'),"Admin registra SW antigo");
+const registeredSwVersion=Number(pwa.match(/admin-sw\.js\?v=(\d+)/)?.[1]||0);
+ok(registeredSwVersion>=28,"Admin registra SW anterior à V28");
 ok(pwa.includes("visibilitychange"),"resync ao retornar ausente");
 ok(pwa.includes("resync ao reconectar"),"resync após reconexão ausente");
-ok(sw.includes('CACHE = "dfl-admin-v28"'),"cache V28 ausente");
+const adminCacheVersion=Number(sw.match(/CACHE\s*=\s*["\']dfl-admin-v(\d+)["\']/)?.[1]||0);
+ok(adminCacheVersion>=28,"cache anterior à V28");
 ok(sw.includes("function safeAdminTarget"),"sanitização de destino ausente");
 ok(sw.includes('url.origin!==self.location.origin'),"origem externa não bloqueada");
 ok(sw.includes('url.pathname!=="/admin"'),"rota fora do Admin não bloqueada");

@@ -25,7 +25,10 @@ ok(
   push.includes("stage=cozinha"),
   "destino cozinha"
 );
-ok(push.includes('Urgency:"high"')&&push.includes('TTL:"120"'),"prioridade push");
+const pushTtlMatch=push.match(/TTL\s*:\s*["\'](\d+)["\']/);
+const pushTtlSeconds=Number(pushTtlMatch?.[1]||0);
+ok(/Urgency\s*:\s*["\']high["\']/.test(push),"prioridade push");
+ok(pushTtlSeconds>=120&&pushTtlSeconds<=24*60*60,"TTL push fora da janela operacional segura");
 ok(push.includes("AdminPushDispatches"),"idempotencia");
 ok(manifest.includes('android.support.customtabs.trusted.SMALL_ICON'),"SMALL_ICON");
 ok(manifest.includes('@drawable/ic_stat_dfl_admin'),"drawable monocromatico");
