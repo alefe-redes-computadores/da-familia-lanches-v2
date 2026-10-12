@@ -7,6 +7,8 @@ import { adminApp, adminDb } from "@/lib/integration/server/admin";
 const SUBSCRIPTIONS = "AdminPushSubscriptions";
 const DISPATCHES = "AdminPushDispatches";
 const TOKEN_LIMIT = 50;
+const PUSH_ATTEMPTS = 3;
+const PUSH_RETRY_MS = 350;
 
 type AdminNewOrderPush = {
   orderId: string;
@@ -23,6 +25,9 @@ function invalidTokenCode(code: string) {
 }
 function dispatchId(orderId: string) {
   return createHash("sha256").update(`admin-new-order-v1:${orderId}`).digest("hex");
+}
+function wait(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 export async function sendAdminNewOrderPush(input: AdminNewOrderPush) {
@@ -57,13 +62,21 @@ export async function sendAdminNewOrderPush(input: AdminNewOrderPush) {
         tag:`new-order-${orderId}`,
         url:`/admin?stage=cozinha&order=${encodeURIComponent(orderId)}`,
       },
-      webpush: { headers:{ Urgency:"high", TTL:"120" }, fcmOptions:{ link:"https://admin.dafamilialanches.com.br/" } },
+      webpush: { headers:{ Urgency:"high", TTL:"3600" }, fcmOptions:{ link:"https://admin.dafamilialanches.com.br/" } },
     };
 
-    const outcomes = await Promise.allSettled([getMessaging(adminApp).sendEachForMulticast(message)]);
-    const first = outcomes[0];
-    if (first.status !== "fulfilled") throw first.reason;
-    const response = first.value;
+    let response: Awaited<ReturnType<ReturnType<typeof getMessaging>["sendEachForMulticast"]>> | null = null;
+    let lastSendError: unknown = null;
+    for (let attempt = 1; attempt <= PUSH_ATTEMPTS; attempt += 1) {
+      try {
+        response = await getMessaging(adminApp).sendEachForMulticast(message);
+        break;
+      } catch (error) {
+        lastSendError = error;
+        if (attempt < PUSH_ATTEMPTS) await wait(PUSH_RETRY_MS * attempt);
+      }
+    }
+    if (!response) throw lastSendError ?? new Error("ADMIN_PUSH_SEND_FAILED");
 
     const invalidRefs = subscriptions.map((item,index) => ({ ref:item.ref, response:response.responses[index] })).filter(({ response:item }) => !item?.success && invalidTokenCode(String(item?.error?.code ?? ""))).map((item) => item.ref);
     if (invalidRefs.length) {
@@ -78,6 +91,7 @@ export async function sendAdminNewOrderPush(input: AdminNewOrderPush) {
       successCount:response.successCount,
       failureCount:response.failureCount,
       invalidTokenCount:invalidRefs.length,
+      attemptLimit:PUSH_ATTEMPTS, ttlSeconds:3600,
       processedAt:FieldValue.serverTimestamp(), updatedAt:FieldValue.serverTimestamp(),
     }, { merge:true });
 

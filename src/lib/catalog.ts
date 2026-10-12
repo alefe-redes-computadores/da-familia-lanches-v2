@@ -170,11 +170,10 @@ export function availableAddonsForProduct(product: Product, addons: Addon[]): Ad
 
 export function compareCatalogProducts(a: Product, b: Product): number {
   if (a.disponivel !== b.disponivel) return a.disponivel ? -1 : 1;
-  if (Boolean(a.isSuggestion) !== Boolean(b.isSuggestion)) return a.isSuggestion ? -1 : 1;
-
+  // Destaque visual não pode furar a sequência comercial salva.
   if (a.sortOrder !== undefined || b.sortOrder !== undefined) {
-    return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER);
+    const order = (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER);
+    if (order !== 0) return order;
   }
-
-  return a.price - b.price;
+  return a.price - b.price || a.name.localeCompare(b.name, "pt-BR");
 }

@@ -11,7 +11,7 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
-const CACHE = "dfl-admin-v28";
+const CACHE = "dfl-admin-v29";
 const SHELL = ["/admin", "/admin-manifest.webmanifest", "/admin-icon-192x192.png", "/admin-icon-512x512.png", "/admin-notification-badge.png"];
 
 self.addEventListener("install", (event) => {
@@ -43,7 +43,7 @@ async function showAdminNotification(payload){
     renotify:true,
     requireInteraction:Boolean(data.requireInteraction),
     icon:"/admin-icon-192x192.png?v=54",
-    badge:"/admin-notification-badge.png?v=28",
+    badge:"/admin-notification-badge.png?v=29",
     vibrate:[180,90,180],
     data:{url:data.url||"/admin",orderId:data.orderId||null,type:data.type||"admin.operation"},
   });

@@ -11,8 +11,8 @@ type InstallPromptEvent = Event & { prompt:()=>Promise<void>; userChoice:Promise
 type AdminAlert = { title:string; body:string; tag?:string; url?:string; forceVisible?:boolean };
 
 const DISMISSED_KEY="dfl-admin-alert-setup-dismissed-v1";
-const PUSH_SYNC_KEY="dfl-admin-push-sync-v20";
-const PUSH_SYNC_MS=24*60*60*1000;
+const PUSH_SYNC_KEY="dfl-admin-push-sync-v82";
+const PUSH_SYNC_MS=6*60*60*1000;
 
 async function adminBearer(){
   await auth.authStateReady(); const user=auth.currentUser;
@@ -68,7 +68,7 @@ export function AdminPwa(){
     const adminHost=window.location.hostname==="admin.dafamilialanches.com.br";
     const scope=adminHost?"/":"/admin/";
     if("serviceWorker" in navigator){
-      navigator.serviceWorker.register("/admin-sw.js?v=28",{scope}).then(async(registration)=>{
+      navigator.serviceWorker.register("/admin-sw.js?v=29",{scope}).then(async(registration)=>{
         registrationRef.current=registration; await registration.update();
         if("Notification" in window&&Notification.permission==="granted"){
           // V29: a abertura da TWA sempre revalida o token web remoto.
