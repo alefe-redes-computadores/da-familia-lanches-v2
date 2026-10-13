@@ -149,3 +149,46 @@
 }
 
 .error{display:block;margin-top:6px;color:#9f2f25;font-size:9px;line-height:1.35}
+
+
+/* DFL V84 R3 — LAST ORDER MOBILE FINISH
+   Melhor legibilidade, ações acessíveis e quebra segura de conteúdo.
+   Sem mudanças na seleção de pedidos, carrinho ou Firebase. */
+.card{min-width:0;overflow:hidden}
+.body{min-width:0;overflow-wrap:anywhere}
+.title{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  white-space:normal;
+  text-overflow:clip;
+  overflow:hidden;
+  line-height:1.3;
+}
+.body p{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  white-space:normal;
+  text-overflow:clip;
+  overflow:hidden;
+  overflow-wrap:anywhere;
+  font-size:11px;
+}
+.eyebrow{font-size:10px;letter-spacing:.09em}
+.actions button{min-height:44px;font-size:12px;line-height:1.2}
+.actions button:focus-visible{outline:3px solid #a97600;outline-offset:2px}
+.error{font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+@media(max-width:640px){
+  .card{grid-template-columns:70px minmax(0,1fr);gap:11px}
+  .title{font-size:14px}
+  .body p{font-size:11px}
+  .actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+  .actions button{width:100%;padding:9px 8px;white-space:normal}
+}
+@media(max-width:350px){
+  .card{grid-template-columns:56px minmax(0,1fr);gap:9px;padding:10px}
+  .visuals{width:56px;min-width:56px}
+  .visuals img,.visuals span{width:43px;height:43px}
+  .actions{grid-template-columns:1fr}
+}

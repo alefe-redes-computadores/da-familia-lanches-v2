@@ -92,3 +92,81 @@
 .addon:last-child,.addonSelected:last-child{border-bottom:0}.addon:hover{background:#faf9f6}.addonSelected{background:#fffaf0}
 .addonName{color:#171717;font-weight:850}.addon>strong,.addonSelected>strong{color:#16803a;font-weight:950}
 .addon button,.addonSelected button{background:#111;color:#fff;border-color:#111}.addonSelected button{background:#ffca28;color:#111;border-color:#ffca28}
+
+/* DFL V84 R2 — LIGHT COMBO COMPOSITION
+   Modal público claro: texto, chips e extras devem seguir a mesma superfície.
+   Apenas apresentação; bundleItems, preços e checkout intocados. */
+.composition{
+  border-color:rgba(177,122,24,.22);
+  background:linear-gradient(160deg,#fffaf0,#fff);
+  color:#1e2329;
+}
+.compositionHead span{color:#94600b}
+.compositionHead strong{color:#1e2329}
+.bundleList{gap:9px}
+.bundleItem{
+  border:1px solid #e8e2d6;
+  background:#fff;
+  color:#20242a;
+  box-shadow:0 2px 8px rgba(39,28,7,.035);
+}
+.bundleItem summary{
+  min-height:48px;
+  padding:10px 12px;
+  color:#20242a;
+}
+.bundleItem summary:focus-visible{
+  outline:2px solid #b98512;
+  outline-offset:-2px;
+}
+.bundleQty{
+  background:#fff1c6;
+  color:#6d4900;
+  font-variant-numeric:tabular-nums;
+}
+.bundleName{
+  min-width:0;
+  overflow-wrap:anywhere;
+  color:#20242a;
+  line-height:1.35;
+}
+.bundleNote{
+  max-width:100%;
+  overflow-wrap:anywhere;
+  background:#f5efe4;
+  color:#69512d;
+}
+.bundleInside{
+  border-top:1px solid #eee8dc;
+  color:#30363d;
+}
+.bundleInside>small{color:#6d7278}
+.bundleInside p{color:#4d5359}
+.bundleInside .detailChips span{
+  background:#faf8f3;
+  border-color:#e9e3d8;
+  color:#343b43;
+}
+.comboUpsell{
+  border-color:#e9e2d4;
+  background:linear-gradient(135deg,#fffaf0,#fff);
+  color:#222831;
+}
+.comboUpsellCopy>span{color:#7d590c;opacity:1}
+.comboUpsellCopy>strong{color:#222831}
+.comboUpsellCopy>p{color:#60666d;opacity:1}
+.comboUpsellCopy s{color:#7c8187;opacity:1}
+.comboUpsellCopy b{color:#166534}
+.comboUpsellCopy em{color:#166534;opacity:1}
+.comboUpsell>button{
+  background:#171717;
+  color:#fff;
+}
+@media(max-width:480px){
+  .composition{padding:12px;border-radius:15px}
+  .bundleItem summary{gap:7px;flex-wrap:wrap}
+  .bundleName{flex-basis:calc(100% - 48px)}
+  .bundleNote{margin-left:41px}
+  .comboUpsell{padding:13px;gap:10px}
+  .comboUpsell>button{min-height:48px}
+}

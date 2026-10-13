@@ -155,10 +155,28 @@ export function LastOrderCard() {
       0,
     );
 
+    // V84 R1: confirmacao explicita de pedido parcial
+    // Nunca substitua o carrinho sem consentimento quando o pedido antigo mudou.
     if (changedItems > 0 || changedAddons > 0) {
-      setRepeatError(
-        "O cardápio mudou desde esse pedido. Recriamos apenas o que continua disponível; revise o carrinho antes de finalizar.",
+      const parts = [
+        changedItems > 0
+          ? `${changedItems} produto(s) indisponível(is)`
+          : "",
+        changedAddons > 0
+          ? `${changedAddons} adicional(is) indisponível(is)`
+          : "",
+      ].filter(Boolean);
+      const approved = window.confirm(
+        `Seu pedido anterior mudou: ${parts.join(" e ")}.\\n\\n` +
+        "Deseja substituir o carrinho atual somente pelos itens disponíveis? " +
+        "Você poderá revisar tudo antes de finalizar.",
       );
+      if (!approved) {
+        setRepeatError(
+          "Pedido anterior preservado. Seu carrinho não foi alterado.",
+        );
+        return;
+      }
     }
 
     clearCart();

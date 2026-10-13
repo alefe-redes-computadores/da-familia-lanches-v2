@@ -268,3 +268,16 @@
   .coupon{padding:10px 11px!important}
   .actions{margin-top:7px!important}
 }
+
+/* DFL V83 R2 — MOBILE READABILITY AND CONTROL CONSISTENCY */
+.editor, .listCard { color: var(--admin-text, #f6f8fa); }
+.editorHeader span, .listHeader span, .couponTop > div > span, .grid label > span, .full > span { font-size: 12px !important; line-height: 1.4 !important; }
+.switchRow strong, .switchRow span, .feedback { font-size: 12px !important; line-height: 1.45 !important; }
+.grid input, .grid select, .full textarea, .listHeader input { min-width: 0; min-height: 44px !important; font-size: 16px !important; }
+.editorHeader button, .actions button, .primary, .reload { min-height: 44px !important; }
+@media (max-width: 620px) {
+  .wrap, .editor, .listCard, .coupon { min-width: 0; max-width: 100%; }
+  .listHeader, .headerActions { min-width: 0; }
+  .searchBox, .listHeader input { min-width: 0; max-width: 100%; }
+  .couponTop > div { min-width: 0; }
+}

@@ -72,3 +72,22 @@
     max-width: 100% !important;
   }
 }
+
+/* DFL V83 R3 — TOAST CONTRACT RECONCILIATION
+   Usa os nomes reais de classe do componente, sem alterar logica.
+*/
+.adminGlobalToasts{max-width:calc(100vw - 24px);overflow-x:hidden}
+.adminGlobalToast{box-sizing:border-box;min-width:0;max-width:100%;grid-template-columns:36px minmax(0,1fr) 40px;grid-template-rows:auto auto;align-items:center;gap:8px 10px;overflow:hidden}
+.adminGlobalToastIcon{grid-column:1;grid-row:1;align-self:start}
+.adminGlobalToastCopy{grid-column:2;grid-row:1;min-width:0;overflow-wrap:anywhere;word-break:normal}
+.adminGlobalToastCopy strong,.adminGlobalToastCopy small{display:block;max-width:100%;overflow-wrap:anywhere;white-space:normal}
+.adminGlobalToastClose{grid-column:3;grid-row:1;width:40px;min-width:40px;height:40px;min-height:40px!important;justify-self:end;align-self:start}
+.adminGlobalToastAction{grid-column:2 / 4;grid-row:2;justify-self:start;min-height:44px!important;max-width:100%;white-space:normal;text-align:left;overflow-wrap:anywhere}
+.adminGlobalToast[data-tone="progress"] .adminGlobalToastCopy{grid-column:2 / 4}
+@media(max-width:640px){
+.adminGlobalToasts{left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));width:auto}
+.adminGlobalToast{grid-template-columns:36px minmax(0,1fr) 40px!important;grid-template-rows:auto auto;padding:11px}
+.adminGlobalToastClose{grid-column:3!important;grid-row:1!important;width:40px!important;min-width:40px!important;max-width:40px!important;height:40px!important;min-height:40px!important}
+.adminGlobalToastAction{grid-column:2 / 4!important;grid-row:2!important;min-height:44px!important}
+}
+@media(max-width:340px){.adminGlobalToast{gap:7px;grid-template-columns:30px minmax(0,1fr) 40px!important}.adminGlobalToastIcon{width:30px;height:30px}}

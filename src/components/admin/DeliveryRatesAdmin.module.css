@@ -872,3 +872,19 @@
   .rateView>b{min-width:60px!important;font-size:12.5px!important}
   .editCue{width:25px!important;min-width:25px!important;height:25px!important}
 }
+
+/* DFL V83 R2 — MOBILE READABILITY AND CONTROL CONSISTENCY */
+/* Preserve grids, rate calculations and existing editing behavior. */
+.card { color: var(--admin-text, #f6f8fa); }
+.head span, .summary label > span, .health > span, .add > div:first-child > span { font-size: 12px !important; line-height: 1.4 !important; }
+.head p, .summary small, .health small, .toolbar span { font-size: 12px !important; line-height: 1.45 !important; }
+.rateIdentity strong { line-height: 1.35 !important; overflow-wrap: anywhere; }
+.moneyInput, .rate, .searchBox { min-width: 0; }
+.moneyInput:focus-within, .rate:focus-within { border-color: var(--admin-accent, #ffc928) !important; }
+@media (max-width: 620px) {
+  .card { max-width: 100%; min-width: 0; }
+  .rateView { min-width: 0; }
+  .rateIdentity { min-width: 0; }
+  .rateIdentity strong { font-size: 13px !important; line-height: 1.3 !important; }
+  .row button, .rateListToggle, .searchTrigger { min-height: 44px !important; }
+}
