@@ -247,7 +247,9 @@ export function CheckoutModal() {
     setMethod(draft.method);
     setTroco(draft.troco || "");
     setOrderObservation(draft.orderObservation || "");
-    setCouponCode(draft.couponCode || "");
+    const recoveredCoupon = (draft.couponCode || "").toUpperCase();
+    couponCodeRef.current = recoveredCoupon;
+    setCouponCode(recoveredCoupon);
     setScheduledFor(draft.scheduledFor || "");
 
     if (draft.rua || draft.bairro) {
@@ -475,7 +477,7 @@ export function CheckoutModal() {
   }, [currentUser?.email]);
 
   const changeCouponCode = (value: string) => {
-    const next = value.toUpperCase();
+    const next = value.toUpperCase().slice(0, 32);
     couponCodeRef.current = next;
     couponRequestRef.current += 1;
     setCouponChecking(false);
@@ -591,9 +593,30 @@ export function CheckoutModal() {
       setCouponMessage("Digite um cupom antes de validar.");
       return;
     }
+    if (!/^[A-Z0-9_-]{1,32}$/.test(code)) {
+      setCouponMessage("Código inválido. Use letras, números, hífen ou underline, sem espaços.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setCouponMessage("Sem conexão. Reconecte para consultar este cupom.");
+      return;
+    }
     setCouponChecking(true);
+    const couponTimeout = async <T,>(request: Promise<T>): Promise<T> => {
+      let timer: number | undefined;
+      try {
+        return await Promise.race([
+          request,
+          new Promise<T>((_, reject) => {
+            timer = window.setTimeout(() => reject(new Error("COUPON_CHECK_TIMEOUT")), 8000);
+          }),
+        ]);
+      } finally {
+        if (timer !== undefined) window.clearTimeout(timer);
+      }
+    };
     try {
-      const publicCoupon = await getDoc(doc(db, "Cupons", code));
+      const publicCoupon = await couponTimeout(getDoc(doc(db, "Cupons", code)));
       if (!stillCurrent()) return;
       if (publicCoupon.exists()) {
         const coupon = normalizeCoupon(publicCoupon.id, publicCoupon.data());
@@ -615,7 +638,7 @@ export function CheckoutModal() {
         if (availability.reason === "invalid") return setCouponMessage("Este cupom está configurado de forma inválida.");
       }
       if (currentUser) {
-        const reward = await findCustomerRewardByCode(currentUser.uid, code);
+        const reward = await couponTimeout(findCustomerRewardByCode(currentUser.uid, code));
         if (!stillCurrent()) return;
         if (reward) {
           if (reward.used) return setCouponMessage("Este benefício já foi utilizado.");
@@ -639,7 +662,9 @@ export function CheckoutModal() {
           : "Cupom não encontrado. Benefícios de fidelidade exigem entrar com sua conta.");
     } catch (error) {
       console.error("Erro ao validar cupom", error);
-      if (stillCurrent()) setCouponMessage("Não foi possível consultar o cupom agora. Tente novamente.");
+      if (stillCurrent()) setCouponMessage(error instanceof Error && error.message === "COUPON_CHECK_TIMEOUT"
+        ? "A consulta demorou demais. Confira a conexão e tente novamente."
+        : "Não foi possível consultar o cupom agora. Tente novamente.");
     } finally {
       if (stillCurrent()) setCouponChecking(false);
     }
@@ -1086,7 +1111,7 @@ export function CheckoutModal() {
         ) : (
           <div className={styles.stack}>
             <section className={styles.receiveCard}><div><strong>{customerName || (isPickup ? "Retirada no balcão" : "Entrega no endereço")}</strong><span>{isPickup ? "Retirada no balcão · sem taxa de entrega" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}${referencia ? ` · Ref.: ${referencia}` : ""}`}</span><small>{userPhone}</small></div><button type="button" onClick={() => setStep(1)}>Editar</button></section>
-            <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" value={couponCode} onChange={(event) => changeCouponCode(event.target.value)} autoCapitalize="characters"/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || couponChecking || !couponCode.trim()}>{couponChecking ? "Verificando…" : "Aplicar"}</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
+            <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" aria-label="Código do cupom ou benefício" value={couponCode} maxLength={32} autoComplete="off" autoCapitalize="characters" spellCheck={false} onChange={(event) => changeCouponCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void applyCoupon(); } }}/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || couponChecking || !couponCode.trim()}>{couponChecking ? "Verificando…" : "Aplicar"}</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
             <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>{isPickup ? "Retirada" : "Entrega"}</span><b data-free={finalFee === 0}>{isPickup ? "Sem taxa" : finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{!isPickup && finalFee === 0 && <small>{hasFreeDelivery ? `Você ganhou entrega grátis por atingir o valor mínimo${freeThreshold ? ` de ${money(freeThreshold)}` : ""}.` : deliveryFee === 0 && bairro.trim() ? `Entrega grátis configurada para ${bairro.trim()}.` : "Entrega grátis aplicada a este pedido."}</small>}</section>
             <section><div className={styles.sectionLabel}>Como você quer pagar?</div><div className={styles.paymentTabs}>{(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => <button type="button" key={option} data-active={method === option} onClick={() => setMethod(option)}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>)}</div></section>
             {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Primeiro registraremos o pedido. Na tela seguinte você poderá copiar a chave, conferir o valor e enviar o comprovante.</span></div></div>}

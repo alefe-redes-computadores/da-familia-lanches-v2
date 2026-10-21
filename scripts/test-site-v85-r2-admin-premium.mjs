@@ -1,0 +1,26 @@
+import fs from "node:fs";
+import assert from "node:assert/strict";
+const read = (p) => fs.readFileSync(p, "utf8");
+const page = read("src/app/admin/page.tsx");
+const catalog = read("src/components/admin/CatalogAdmin.tsx");
+const catalogCss = read("src/components/admin/CatalogAdmin.module.css");
+const operation = read("src/components/admin/StoreOperationAdmin.tsx");
+const operationCss = read("src/components/admin/StoreOperationAdmin.module.css");
+const provider = read("src/components/admin/ui/AdminExperienceProvider.tsx");
+function ok(value, label) { assert.ok(value, `V85 R2: ${label}`); console.log("✓", label); }
+ok(page.includes("{isOrderTab && <>") && page.includes("</>}\n\n        <section className={styles.operationBar}>"), "cards de operacao so nas filas; gestao abre diretamente");
+ok(page.includes("<section id=\"admin-management\"") && page.includes("useAdminOrders"), "gestao e listener operacional preservados");
+ok(catalog.includes("useDeferredValue(search)") && catalog.includes("[products, deferredSearch, categoryFilter, availabilityFilter]"), "busca no catalogo desacoplada da digitacao");
+ok(catalog.includes("const closeProductEditor = async") && catalog.includes("useAdminConfirm"), "confirmacao compartilhada protege edicoes nao salvas");
+ok(catalog.includes("productBaseline.current = JSON.stringify(draft)") && catalog.includes("productBaseline.current = \"\""), "comparacao de baseline ao abrir e depois de salvar");
+ok((catalog.match(/void closeProductEditor\(\)/g)||[]).length === 3, "fechamentos: backdrop, X e cancelar usam guarda unica");
+ok(catalog.includes("await mutateCatalog({ action: \"saveProduct\", id, data: payload });"), "persistencia de produto preservada");
+ok(catalog.includes("validateBundleItems(productDraft.bundleItems") && catalog.includes("bundleItems: productDraft.bundleItems.length"), "composicao de combos preservada");
+ok(catalog.includes("prepareCatalogImage(file)") && catalog.includes("/api/admin/catalog-image"), "upload otimizado de fotos preservado");
+ok(catalogCss.includes(".draftStatus") && !catalogCss.includes("V85 R2 — feedback objetivo de edicao pendente; sem overrides globais. */\n.draftStatus{"+"display:none"), "aviso de edicao pendente presente");
+ok(operation.includes("evaluateStoreStatus(liveSettings)") && operation.includes("const scheduleDirty"), "status real separado dos horarios em rascunho");
+ok(operation.includes("editingSchedule.current=true") && operation.includes("!editingSchedule.current"), "assinatura remota nao apaga rascunho semanal");
+ok(operation.includes("disabled={busy||!scheduleDirty}") && operation.includes("Salvar tudo e continuar"), "horarios so gravam quando alterados; modo alerta antes");
+ok(operation.includes('open:ex.open||"18:00",close:ex.close||"23:00"'), "excecao usa os horarios sugeridos realmente no estado");
+ok(operationCss.includes(".scheduleNotice") && provider.includes('autoFocus={confirmState.tone==="danger"||confirmState.tone==="warning"}'), "aviso visual e foco seguro em confirmacoes");
+console.log("DFL SITE V85 R2 — ADMIN PREMIUM: CONTRATOS OK");

@@ -75,3 +75,13 @@
 
 /* V56.2 FINAL cart hierarchy */
 .item{padding:13px!important}.itemInfo>b{font-size:16px!important}.summary>div strong{font-size:24px!important}.stepper button{min-width:36px!important}.remove{min-width:34px!important;min-height:34px!important}.remove:after{content:"🗑";font-size:15px}.itemInfo i:empty{display:none}
+
+/* V85 R4 — mudancas comerciais exigem revisao explicita, nunca exclusao silenciosa. */
+.cartReview{display:grid;gap:11px;padding:14px;border:1px solid #e8c76b;border-radius:16px;background:linear-gradient(145deg,#fff9e9,#fffef9);color:#392b0b}
+.cartReview strong{display:block;font-size:15px;line-height:1.3}
+.cartReview p{margin:5px 0 0;font-size:12px;line-height:1.45;color:#64542f}
+.cartReview small{display:block;margin-top:8px;font-size:11px;font-weight:800;line-height:1.4;color:#735118;overflow-wrap:anywhere}
+.cartReview button{width:100%;min-height:46px;padding:10px 12px;border:0;border-radius:12px;background:#161616;color:#fff;font-size:12px;font-weight:900;touch-action:manipulation}
+.catalogWait{padding:11px 12px;border:1px solid #e4dfd4;border-radius:13px;background:#f5f2ed;color:#655b4b;font-size:11px;line-height:1.5}
+.checkout:disabled{opacity:.58;cursor:not-allowed;box-shadow:none}
+@media(max-width:430px){.cartReview{padding:12px}.cartReview button{font-size:12px}}

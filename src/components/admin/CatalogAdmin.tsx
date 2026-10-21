@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search, ChevronDown, X, Pencil, Pause, Play } from "lucide-react";
+import { useAdminConfirm } from "@/components/admin/ui/AdminExperienceProvider";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { auth } from "@/lib/firebase";
 import { prepareCatalogImage } from "@/lib/catalogImageClient";
@@ -165,6 +166,8 @@ export function CatalogAdmin() {
   const [advancedProduct, setAdvancedProduct] = useState(false);
   const [showAddonChoices, setShowAddonChoices] = useState(false);
   const [productStep, setProductStep] = useState<ProductEditorStep>("essencial");
+  const productBaseline = useRef("");
+  const confirmProductClose = useAdminConfirm();
   useEffect(() => {
     if (!message) return;
     haptic(/falha|erro|inválid|não foi|obrigatóri|informe|precisa|não pode/i.test(message) ? "error" : "success");
@@ -172,6 +175,7 @@ export function CatalogAdmin() {
     return () => window.clearTimeout(timer);
   }, [message]);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [pauseReview, setPauseReview] = useState<Array<{id:string;name:string}>>([]);
   useEffect(() => {
     try {
@@ -199,7 +203,7 @@ export function CatalogAdmin() {
   const [restoreConfirm, setRestoreConfirm] = useState(false);
 
   const filteredProducts = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase("pt-BR");
+    const term = deferredSearch.trim().toLocaleLowerCase("pt-BR");
     return products.filter((product) => {
       if (categoryFilter !== "all" && product.category !== categoryFilter) return false;
       if (availabilityFilter === "active" && !product.disponivel) return false;
@@ -210,7 +214,7 @@ export function CatalogAdmin() {
       if (availabilityFilter === "all" && a.disponivel !== b.disponivel) return a.disponivel ? -1 : 1;
       return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER);
     });
-  }, [products, search, categoryFilter, availabilityFilter]);
+  }, [products, deferredSearch, categoryFilter, availabilityFilter]);
 
   const groupedProducts = useMemo(() => {
     const order = new Map(categories.map((category, index) => [category.id, index]));
@@ -268,7 +272,9 @@ export function CatalogAdmin() {
     setAdvancedProduct(false);
     setShowAddonChoices(false);
     setProductStep("essencial");
-    setProductDraft({ id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "", upsellProductId: "", upsellUnitPrice: "" });
+    const draft: ProductDraft = { id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "", upsellProductId: "", upsellUnitPrice: "" };
+    productBaseline.current = JSON.stringify(draft);
+    setProductDraft(draft);
     setMessage("");
   };
 
@@ -277,8 +283,27 @@ export function CatalogAdmin() {
     setAdvancedProduct(false);
     setShowAddonChoices(false);
     setProductStep("essencial");
-    setProductDraft(draftFromProduct(product));
+    const draft = draftFromProduct(product);
+    productBaseline.current = JSON.stringify(draft);
+    setProductDraft(draft);
     setMessage("");
+  };
+
+  const closeProductEditor = async () => {
+    if (busy.startsWith("product-") || imageUploading) return;
+    if (productDraft && JSON.stringify(productDraft) !== productBaseline.current) {
+      const approved = await confirmProductClose({
+        title: "Descartar alterações do produto?",
+        message: "Existem alterações ainda não salvas. Ao sair, os campos editados serão perdidos. Fotos já enviadas permanecem no armazenamento.",
+        tone: "warning",
+        confirmLabel: "Descartar alterações",
+        cancelLabel: "Continuar editando",
+      });
+      if (!approved) return;
+    }
+    setProductDraft(null);
+    setProductMode(null);
+    productBaseline.current = "";
   };
 
   const uploadProductImage = async (file: File) => {
@@ -377,6 +402,7 @@ export function CatalogAdmin() {
       else payload.addonIds = productDraft.addonIds ?? null;
 
       await mutateCatalog({ action: "saveProduct", id, data: payload });
+      productBaseline.current = "";
       setProductDraft(null);
       setProductMode(null);
       setMessage(productMode === "create" ? `Produto criado com ID ${id}.` : "Produto atualizado.");
@@ -633,9 +659,9 @@ export function CatalogAdmin() {
       </section>
     </div>}
 
-    {productDraft && productMode && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) { setProductDraft(null); setProductMode(null); } }}>
+    {productDraft && productMode && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) void closeProductEditor(); }}>
       <section className={styles.editor} data-product-step={productStep}>
-        <div className={styles.editorHead}><div><span>{productMode === "create" ? "NOVO PRODUTO" : "EDITAR PRODUTO"}</span><h3>{productMode === "create" ? "Cadastrar item" : productDraft.name}</h3></div><button type="button" aria-label="Fechar editor" onClick={() => { haptic("step"); setProductDraft(null); setProductMode(null); }}>×</button></div>
+        <div className={styles.editorHead}><div><span>{productMode === "create" ? "NOVO PRODUTO" : "EDITAR PRODUTO"}</span><h3>{productMode === "create" ? "Cadastrar item" : productDraft.name}</h3>{JSON.stringify(productDraft) !== productBaseline.current && <small className={styles.draftStatus} role="status">Alterações não salvas</small>}</div><button type="button" aria-label="Fechar editor" onClick={() => { haptic("step"); void closeProductEditor(); }}>×</button></div>
         <nav className={styles.editorSteps} aria-label="Etapas do produto">
           {([["essencial", "1", "Essencial"], ["conteudo", "2", "Conteúdo"], ["venda", "3", "Venda"], ["opcoes", "4", "Opções"]] as Array<[ProductEditorStep, string, string]>).map(([step, number, label]) => <button type="button" key={step} data-active={productStep === step} onClick={() => { haptic("step"); if (step === "opcoes") setAdvancedProduct(true); setProductStep(step); }}><b>{number}</b><span>{label}</span></button>)}
         </nav>
@@ -708,7 +734,7 @@ export function CatalogAdmin() {
         </div>}
         <button type="button" data-editor-step="opcoes" className={styles.advancedDisclosure} onClick={() => setAdvancedProduct(value => !value)}>{advancedProduct ? "Ocultar configurações avançadas" : "Configurações avançadas · link, upsell e caminho da foto"}</button>
         </div>
-        <div className={styles.editorActions}><button type="button" onClick={() => { haptic("step"); if (productStep === "essencial") { setProductDraft(null); setProductMode(null); } else setProductStep(productStep === "conteudo" ? "essencial" : productStep === "venda" ? "conteudo" : "venda"); }}>{productStep === "essencial" ? "Cancelar" : "Voltar"}</button>{productStep !== "opcoes" ? <button type="button" className={styles.save} onClick={() => { haptic("step"); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button> : <button className={styles.save} onClick={saveProduct} disabled={busy.startsWith("product-")}>{busy.startsWith("product-") ? "Salvando..." : productMode === "create" ? "Criar produto" : "Salvar alterações"}</button>}</div>
+        <div className={styles.editorActions}><button type="button" onClick={() => { haptic("step"); if (productStep === "essencial") { void closeProductEditor(); } else setProductStep(productStep === "conteudo" ? "essencial" : productStep === "venda" ? "conteudo" : "venda"); }}>{productStep === "essencial" ? "Cancelar" : "Voltar"}</button>{productStep !== "opcoes" ? <button type="button" className={styles.save} onClick={() => { haptic("step"); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button> : <button className={styles.save} onClick={saveProduct} disabled={busy.startsWith("product-")}>{busy.startsWith("product-") ? "Salvando..." : productMode === "create" ? "Criar produto" : "Salvar alterações"}</button>}</div>
       </section>
     </div>}
 

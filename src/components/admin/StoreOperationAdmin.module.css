@@ -136,3 +136,7 @@
   outline: 2px solid #6ee7b7 !important;
   outline-offset: 2px !important;
 }
+
+/* V85 R2 — agenda editada nao e estado efetivo da loja. */
+.scheduleNotice{margin:4px 0 12px;padding:10px 12px;border:1px solid rgba(255,202,40,.32);border-radius:12px;background:rgba(255,202,40,.09);color:#f5d878;font-size:12px;font-weight:750;line-height:1.45}
+.root .save:disabled{opacity:.52;cursor:default;box-shadow:none}

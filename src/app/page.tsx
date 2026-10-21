@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { readGuestIdentity, readGuestOrders, type GuestIdentity, type GuestOrderMemory } from "@/lib/guestContinuity";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import type { Product } from "@/data/products";
@@ -32,13 +32,14 @@ export default function Home() {
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const { activeCategories: categories } = useCatalogCategories();
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [activeCategory, setActiveCategory] = useState<string>("todos");
   const [showAllOffers, setShowAllOffers] = useState(false);
   const [guestIdentity, setGuestIdentity] = useState<GuestIdentity | null>(null);
   const [guestLastOrder, setGuestLastOrder] = useState<GuestOrderMemory | null>(null);
 
   const filtered = useMemo(() => {
-    const term = normalize(search);
+    const term = normalize(deferredSearch);
     const visibleCategories = new Set(categories.map((category) => category.id));
     const base = products.filter((product) => {
       if (product.disponivel === false) return false;
@@ -46,7 +47,7 @@ export default function Home() {
       return activeCategory === "todos" || product.category === activeCategory;
     });
     return term ? rankCatalogProducts(base, term) : base;
-  }, [activeCategory, categories, products, search]);
+  }, [activeCategory, categories, products, deferredSearch]);
 
   useEffect(() => {
     const onSearch = (event: Event) => {

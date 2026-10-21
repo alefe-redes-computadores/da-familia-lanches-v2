@@ -164,9 +164,11 @@
 }
 @media(max-width:480px){
   .composition{padding:12px;border-radius:15px}
-  .bundleItem summary{gap:7px;flex-wrap:wrap}
-  .bundleName{flex-basis:calc(100% - 48px)}
-  .bundleNote{margin-left:41px}
+  /* A seta fica na mesma linha dos itens, mesmo em tela estreita. */
+  .bundleItem summary{gap:7px;flex-wrap:nowrap;align-items:center}
+  .bundleName{flex:1 1 auto;flex-basis:auto;min-width:0;overflow-wrap:anywhere}
+  .bundleNote{margin-left:0;flex:0 0 auto}
+  .bundleItem summary>b{flex:0 0 auto;margin-left:auto;line-height:1;align-self:center}
   .comboUpsell{padding:13px;gap:10px}
   .comboUpsell>button{min-height:48px}
 }

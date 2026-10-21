@@ -22,7 +22,7 @@ export function CartModal() {
   const { closeModal, openModal, showCartToast } = useUIStore();
   const currentUser = useAuthStore((state) => state.currentUser);
   const orderStats = useCustomerOrderStats();
-  const { products, allAddons, loading: catalogLoading } = useCatalog();
+  const { products, allAddons, loading: catalogLoading, error: catalogError, source: catalogSource } = useCatalog();
   const { items, increaseQtd, decreaseQtd, removeItem, restoreItem, clearCart, replaceItems, getCartTotal } = useCartStore();
   const [clearArmed, setClearArmed] = useState(false);
   const [catalogNotice, setCatalogNotice] = useState("");
@@ -30,43 +30,60 @@ export function CartModal() {
   const [loginIntentAlreadyShown, setLoginIntentAlreadyShown] = useState(false);
   useEffect(() => { setLoginIntentAlreadyShown(window.sessionStorage.getItem("dfl_login_intent_shown") === "1"); }, []);
   useEffect(() => { void getCommercialSettings().then(setCommercial).catch(() => setCommercial(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
-  useEffect(() => {
-    if (catalogLoading || !items.length) return;
+  // V85 R4: preparo puro, sem alterar o carrinho ao abrir o modal.
+  // A atualizacao so acontece apos o cliente conferir e confirmar.
+  const reconciliation = useMemo(() => {
+    // Fallback em falha da API NAO pode sobrescrever preco ou disponibilidade
+    // do carrinho persistido. O servidor valida novamente no fechamento.
+    if (catalogLoading || !items.length || catalogError || catalogSource !== "hybrid") return null;
+    const byId = new Map(products.map((product) => [product.id, product]));
     const next = items.flatMap((item) => {
-      const product = products.find((candidate) => candidate.id === item.id);
-      if (!product?.disponivel) return [];
+      const product = byId.get(item.id);
+      if (!product || product.disponivel === false) return [];
       const allowed = new Map(availableAddonsForProduct(product, allAddons).map((addon) => [addon.id, addon]));
       const selectedAddons = (item.selectedAddons ?? []).flatMap((addon) => {
         const current = allowed.get(addon.id);
-        return current?.disponivel === false || !current ? [] : [current];
+        return !current || current.disponivel === false ? [] : [current];
       });
       const addonsId = selectedAddons.map((addon) => addon.id).sort().join("-");
       const observation = (item.observation ?? "").trim();
-      const source=item.upsellSourceId ? products.find(candidate=>candidate.id===item.upsellSourceId) : undefined;
-      const validUpsell=Boolean(source && source.upsellProductId===product.id && source.upsellUnitPrice!=null && source.upsellUnitPrice>=0 && source.upsellUnitPrice<product.price);
-      const basePrice=validUpsell ? Number(source!.upsellUnitPrice) : Number(product.price);
-      const commercialKey=validUpsell ? `upsell:${source!.id}` : "regular";
-      return [{ ...product, cartId: `${product.id}|${addonsId}|${observation}|${commercialKey}`, quantity:item.quantity, selectedAddons, observation, price:basePrice+selectedAddons.reduce((sum,addon)=>sum+Number(addon.price),0), ...(validUpsell?{upsellSourceId:source!.id}:{}) }];
+      const source = item.upsellSourceId ? byId.get(item.upsellSourceId) : undefined;
+      const validUpsell = Boolean(source && source.upsellProductId === product.id &&
+        source.upsellUnitPrice != null && source.upsellUnitPrice >= 0 && source.upsellUnitPrice < product.price);
+      const basePrice = validUpsell ? Number(source!.upsellUnitPrice) : Number(product.price);
+      const commercialKey = validUpsell ? `upsell:${source!.id}` : "regular";
+      return [{ ...product, cartId: `${product.id}|${addonsId}|${observation}|${commercialKey}`,
+        quantity: item.quantity, selectedAddons, observation,
+        price: basePrice + selectedAddons.reduce((sum, addon) => sum + Number(addon.price), 0),
+        ...(validUpsell ? { upsellSourceId: source!.id } : {}) }];
     });
     const compactedRaw = Array.from(next.reduce((map, item) => {
       const previous = map.get(item.cartId);
       map.set(item.cartId, previous ? { ...item, quantity: previous.quantity + item.quantity } : item);
       return map;
     }, new Map<string, (typeof next)[number]>()).values());
-    const compacted = compactedRaw.flatMap(item=>{
-      if(!item.upsellSourceId) return [item];
-      const entitlement=compactedRaw.filter(source=>source.id===item.upsellSourceId&&!source.upsellSourceId).reduce((sum,source)=>sum+source.quantity,0);
-      if(entitlement<=0) return [];
-      return [{...item,quantity:Math.min(item.quantity,entitlement)}];
+    const compacted = compactedRaw.flatMap((item) => {
+      if (!item.upsellSourceId) return [item];
+      const entitlement = compactedRaw.filter((other) => other.id === item.upsellSourceId && !other.upsellSourceId)
+        .reduce((sum, other) => sum + other.quantity, 0);
+      if (entitlement <= 0) return [];
+      return [{ ...item, quantity: Math.min(item.quantity, entitlement) }];
     });
-    const before = items.map(({ cartId, quantity, price }) => [cartId, quantity, price]);
-    const after = compacted.map(({ cartId, quantity, price }) => [cartId, quantity, price]);
-    if (JSON.stringify(before) !== JSON.stringify(after)) {
-      const removed = items.length - next.length;
-      replaceItems(compacted);
-      setCatalogNotice(removed > 0 ? "Atualizamos os preços e removemos item(ns) que não estão mais disponíveis." : "Seu carrinho foi atualizado com os preços atuais do cardápio.");
-    }
-  }, [allAddons, catalogLoading, items, products, replaceItems]);
+    const signature = (entries: typeof items) => JSON.stringify(entries.map((item) => ({
+      id: item.id, cartId: item.cartId, name: item.name, quantity: item.quantity, price: item.price,
+      upsellSourceId: item.upsellSourceId ?? "", observation: item.observation ?? "",
+      addons: (item.selectedAddons ?? []).map((addon) => [addon.id, addon.name, addon.price]),
+    })));
+    if (signature(items) === signature(compacted)) return null;
+    const removedNames = [...new Set(items.filter((item) => {
+      const oldQuantity = items.filter((old) => old.id === item.id && old.upsellSourceId === item.upsellSourceId)
+        .reduce((sum, old) => sum + old.quantity, 0);
+      const newQuantity = compacted.filter((updated) => updated.id === item.id && updated.upsellSourceId === item.upsellSourceId)
+        .reduce((sum, updated) => sum + updated.quantity, 0);
+      return newQuantity < oldQuantity;
+    }).map((item) => item.name))];
+    return { next: compacted, removedNames, originalSignature: signature(items) };
+  }, [allAddons, catalogLoading, catalogError, catalogSource, items, products]);
   const total = getCartTotal();
   const freeDeliveryTarget = commercial.freeDeliveryEnabled ? commercial.globalMinimum : null;
   const freeDeliveryMissing = freeDeliveryTarget === null ? 0 : Math.max(0, freeDeliveryTarget - total);
@@ -113,12 +130,40 @@ export function CartModal() {
     openModal("product-details",suggestion.product);
   };
 
-  const handleFinish = () => { openModal("checkout"); };
+  const applyCatalogReview = () => {
+    if (!reconciliation) return;
+    // Mudancas feitas no carrinho durante a revisao nunca sao sobrescritas.
+    const current = useCartStore.getState().items;
+    const signature = (entries: typeof items) => JSON.stringify(entries.map((item) => ({
+      id: item.id, cartId: item.cartId, name: item.name, quantity: item.quantity, price: item.price,
+      upsellSourceId: item.upsellSourceId ?? "", observation: item.observation ?? "",
+      addons: (item.selectedAddons ?? []).map((addon) => [addon.id, addon.name, addon.price]),
+    })));
+    if (signature(current) !== reconciliation.originalSignature) {
+      setCatalogNotice("Seu carrinho mudou. Confira os itens antes de atualizar.");
+      return;
+    }
+    replaceItems(reconciliation.next);
+    haptic("step");
+    setCatalogNotice(reconciliation.removedNames.length
+      ? "Pedido atualizado após sua confirmação. Itens indisponíveis ou ofertas sem vínculo foram removidos."
+      : "Preços e adicionais atualizados após sua confirmação.");
+  };
+  const handleFinish = () => {
+    if (reconciliation) { setCatalogNotice("Confira e confirme as mudanças do carrinho antes de finalizar."); return; }
+    openModal("checkout");
+  };
 
   return (
     <ModalBase title={`Seu carrinho${itemCount ? ` · ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}`} onClose={closeModal}>
       <div className={styles.body}>
         {catalogNotice && <div className={styles.catalogNotice} role="status">{catalogNotice}<button type="button" aria-label="Fechar aviso" onClick={() => setCatalogNotice("")}>×</button></div>}
+        {!catalogLoading && catalogError && <div className={styles.catalogWait} role="status">Não conseguimos conferir o cardápio atualizado agora. Seu carrinho foi mantido intacto; preços e disponibilidade serão conferidos ao finalizar.</div>}
+        {reconciliation && <section className={styles.cartReview} role="status" aria-label="Revisar mudanças do carrinho">
+          <div><strong>Seu cardápio mudou</strong><p>Encontramos diferenças de preço, adicionais ou disponibilidade. Nada foi removido do seu carrinho: confira antes de atualizar.</p>
+            {reconciliation.removedNames.length > 0 && <small>Itens indisponíveis ou quantidade ajustada: {reconciliation.removedNames.slice(0, 4).join(", ")}{reconciliation.removedNames.length > 4 ? " e outros" : ""}.</small>}</div>
+          <button type="button" onClick={applyCatalogReview}>Conferi, atualizar meu pedido</button>
+        </section>}
         {items.length === 0 ? (
           <div className={styles.empty}><span>🛒</span><strong>Seu carrinho está vazio</strong><p>Escolha seus favoritos e volte aqui para finalizar.</p><button type="button" onClick={closeModal}>Explorar cardápio</button></div>
         ) : <>
@@ -132,7 +177,7 @@ export function CartModal() {
           {suggestions.length > 0 && <section className={styles.smartSuggestions} aria-label="Sugestões para o pedido"><div className={styles.smartHead}><strong>Seu pedido, um pouco mais esperto</strong><span>Sugestões baseadas no que já está no carrinho.</span></div><div className={styles.smartList}>{suggestions.map((suggestion) => <button type="button" className={styles.smartCard} key={`${suggestion.kind}-${suggestion.product.id}`} onClick={() => handleSmartSuggestion(suggestion)}><CatalogImage src={suggestion.product.image} alt="" sizes="96px" quality={68} /><span className={styles.smartCopy}><small>{suggestion.eyebrow}</small><b>{suggestion.title}</b><em>{suggestion.description}</em>{suggestion.saving && suggestion.saving > 0 ? <strong>{suggestion.kind==="upsell" ? "Você economiza " : "Economia calculada de "}{money(suggestion.saving)}</strong> : null}</span><span className={styles.smartPrice}>{suggestion.kind==="upsell"&&suggestion.explicitUnitPrice!=null?<><del>{money(suggestion.product.price)}</del>{money(suggestion.explicitUnitPrice)}</>:money(suggestion.product.price)}<i>{suggestion.kind==="upsell"?"Adicionar agora +":"Ver opção ›"}</i></span></button>)}</div></section>}
 
           {freeDeliveryTarget !== null && <section className={styles.freeDeliveryProgress} data-earned={freeDeliveryMissing <= 0}><div className={styles.freeDeliveryCopy}><span>{freeDeliveryMissing <= 0 ? "ENTREGA GRÁTIS DESBLOQUEADA" : "CAMINHO PARA ENTREGA GRÁTIS"}</span><strong>{freeDeliveryMissing <= 0 ? "Você bateu a meta" : `Faltam ${money(freeDeliveryMissing)}`}</strong></div><div className={styles.freeDeliveryTrack}><i style={{ width: `${freeDeliveryProgress}%` }} /></div><small>{freeDeliveryMissing <= 0 ? "Benefício confirmado conforme o bairro informado no checkout." : `Complete o carrinho até ${money(freeDeliveryTarget)}.`}</small></section>}
-          <CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish}>Continuar para finalizar</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Toque novamente para esvaziar" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
+          <CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish} disabled={Boolean(reconciliation)}>{reconciliation ? "Revise as mudanças acima" : "Continuar para finalizar"}</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Toque novamente para esvaziar" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
         </>}
       </div>
     </ModalBase>

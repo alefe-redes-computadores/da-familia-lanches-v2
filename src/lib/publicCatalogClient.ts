@@ -50,7 +50,7 @@ async function load(force = false): Promise<State> {
     .catch((error) => {
       console.warn("[catalog] API pública indisponível; fallback local.", error);
       state = {
-        payload: null,
+        payload: state.payload,
         ready: true,
         error: "Não foi possível atualizar o cardápio agora.",
       };
@@ -64,12 +64,38 @@ async function load(force = false): Promise<State> {
   return inflight;
 }
 
+// Sem polling: tenta recuperar somente em online/retorno de aba e se houve erro.
+// Inscricao unica evita ouvintes e requests por card ou componente.
+const RECOVERY_COOLDOWN_MS = 30_000;
+let lastRecoveryAt = 0;
+function recoverOnConnection() {
+  if (!listeners.size || !state.error || inflight) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  const now = Date.now();
+  if (now - lastRecoveryAt < RECOVERY_COOLDOWN_MS) return;
+  lastRecoveryAt = now;
+  void load(true);
+}
+function recoverOnVisibility() {
+  if (document.visibilityState === "visible") recoverOnConnection();
+}
+
 export function subscribePublicCatalog(listener: (value: State) => void) {
+  const first = listeners.size === 0;
   listeners.add(listener);
+  if (first && typeof window !== "undefined") {
+    window.addEventListener("online", recoverOnConnection);
+    document.addEventListener("visibilitychange", recoverOnVisibility);
+  }
   listener(state);
   void load();
+  recoverOnConnection();
   return () => {
     listeners.delete(listener);
+    if (listeners.size === 0 && typeof window !== "undefined") {
+      window.removeEventListener("online", recoverOnConnection);
+      document.removeEventListener("visibilitychange", recoverOnVisibility);
+    }
   };
 }
 

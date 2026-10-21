@@ -9,7 +9,10 @@ ok(!/image:\s*["'][^"']+\.(png|jpe?g)["']/i.test(products),"fallback aponta para
 ok(catalog.includes("optimizeLegacyCatalogImage"),"Firestore legado traduz caminhos locais para WebP");
 ok(modal.includes("priority quality={72}"),"detalhe usa orçamento menor");
 const checkout=r("src/components/ui/CheckoutModal.tsx");
-ok(checkout.includes("saveCheckoutDraft(null"),"checkout convidado V51 preservado");
+const guestSaved = checkout.indexOf('const created=await createCustomerOrder({ userId: null');
+const guestCleared = checkout.indexOf('clearConfirmedCart(); clearOrderAttempt(); clearCheckoutDraft(null);');
+ok(guestSaved >= 0 && guestCleared > guestSaved,"checkout convidado cria pedido antes de limpar carrinho confirmado e rascunho");
+ok(checkout.includes('if (submittedCart !== currentCart) return false;'),"edicao concorrente nao apaga carrinho do cliente");
 ok(checkout.includes("createCustomerOrder"),"pedido autenticado V51 preservado");
 ok(r("src/lib/catalogSearch.ts").includes("catalogSearchScore"),"busca V51 preservada");
 console.log("\nDFL SITE V52 — IMAGES + COMMERCE FINAL — ZERO ERROS");

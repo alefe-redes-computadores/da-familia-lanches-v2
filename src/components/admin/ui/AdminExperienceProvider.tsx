@@ -110,8 +110,8 @@ export function AdminExperienceProvider({children}:{children:ReactNode}) {
         <div className="adminConfirmIcon"><AlertTriangle size={20}/></div>
         <div className="adminConfirmCopy"><strong id="admin-confirm-title">{confirmState.title}</strong><p id="admin-confirm-message">{confirmState.message}</p></div>
         <div className="adminConfirmActions">
-          <button type="button" data-admin-action="secondary" onClick={()=>finishConfirm(false)}>{confirmState.cancelLabel||"Cancelar"}</button>
-          <button type="button" data-admin-action={confirmState.tone==="danger"?"danger":"primary"} autoFocus onClick={()=>finishConfirm(true)}>{confirmState.confirmLabel||"Confirmar"}</button>
+          <button type="button" data-admin-action="secondary" autoFocus={confirmState.tone==="danger"||confirmState.tone==="warning"} onClick={()=>finishConfirm(false)}>{confirmState.cancelLabel||"Cancelar"}</button>
+          <button type="button" data-admin-action={confirmState.tone==="danger"?"danger":"primary"} autoFocus={confirmState.tone!=="danger"&&confirmState.tone!=="warning"} onClick={()=>finishConfirm(true)}>{confirmState.confirmLabel||"Confirmar"}</button>
         </div>
       </section>
     </div>:null}

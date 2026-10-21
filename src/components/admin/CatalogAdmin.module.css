@@ -666,3 +666,8 @@
 .productBadges b{min-height:26px;display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;text-align:center;line-height:1.15;white-space:normal}
 .actions button{min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
 @media(max-width:620px){.editorSteps{position:relative;z-index:2}.editorSteps button{min-height:48px;flex-direction:column;gap:2px;font-size:10px}.editorSteps button b{width:19px;height:19px;flex-basis:19px;font-size:10px}.editorScroll{padding-top:10px}.productTitle{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}.productBadges{max-width:none;justify-content:flex-start}.productBadges b{font-size:11px}.message{top:max(8px,calc(env(safe-area-inset-top) + 6px));width:calc(100vw - 16px)}}
+
+/* V85 R2 — feedback objetivo de edicao pendente; sem overrides globais. */
+.draftStatus{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;margin-top:7px;padding:5px 9px;border:1px solid rgba(255,202,40,.3);border-radius:999px;background:rgba(255,202,40,.08);color:#f8d46a;font-size:11px;font-weight:800;letter-spacing:0}
+.draftStatus::before{content:"";width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:#ffca28}
+@media(max-width:520px){.draftStatus{font-size:10px}.editorHead>div{min-width:0}.editorHead h3{overflow-wrap:anywhere}}

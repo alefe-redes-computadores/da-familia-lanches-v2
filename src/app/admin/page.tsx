@@ -724,6 +724,8 @@ function AdminPageContent() {
           </div>
         </header>
 
+        {/* O painel de gestao deve abrir diretamente nas ferramentas, sem repetir cards da cozinha. */}
+        {isOrderTab && <>
         <section
           className={styles.operationHero}
           data-tone={storeState.tone}
@@ -841,6 +843,7 @@ function AdminPageContent() {
             <small>{counts.rota > 0 ? "Com entregadores" : "Sem entregas"}</small>
           </button>
         </section>
+        </>}
 
         <section className={styles.operationBar}>
           <nav className={styles.primaryNav} aria-label="Operação">

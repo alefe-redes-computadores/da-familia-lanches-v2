@@ -1,15 +1,25 @@
 "use client";
-import{useEffect,useMemo,useState}from"react";import{Save,Plus,Trash2,Bot,DoorOpen,DoorClosed,FlaskConical}from"lucide-react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
+import{useEffect,useMemo,useRef,useState}from"react";import{Save,Plus,Trash2,Bot,DoorOpen,DoorClosed,FlaskConical}from"lucide-react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
 import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
 import styles from"./StoreOperationAdmin.module.css";
 import { haptic } from "@/lib/haptics";
 import{useAdminStoreSettings}from"@/hooks/useAdminStoreSettings";
 import{useAdminConfirm}from"@/components/admin/ui/AdminExperienceProvider";
 export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{settings:liveSettings,ready}=useAdminStoreSettings();const[s,setS]=useState<StoreSettings>(liveSettings),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
- const[ex,setEx]=useState<StoreException>({date:"",closed:true,label:""});useEffect(()=>{if(ready)setS(liveSettings)},[ready,liveSettings]);
- const current=useMemo(()=>evaluateStoreStatus(s),[s]);const save=async(next:StoreSettings,text:string)=>{setBusy(true);try{await setDoc(doc(db,"settings","loja"),{...next,updatedAt:serverTimestamp()},{merge:true});setS(next);setMsg(text);haptic("success")}catch(e){console.error(e);setMsg("Falha ao salvar funcionamento.");haptic("error")}finally{setBusy(false)}};
+ const[ex,setEx]=useState<StoreException>({date:"",closed:true,label:""});
+ const editingSchedule = useRef(false);
+ useEffect(()=>{if(ready&&!editingSchedule.current)setS(liveSettings)},[ready,liveSettings]);
+ // Estado efetivo vem da nuvem; edicoes locais de horario nao simulam loja aberta.
+ const current=useMemo(()=>evaluateStoreStatus(liveSettings),[liveSettings]);
+ const scheduleDirty=JSON.stringify(s.schedule)!==JSON.stringify(liveSettings.schedule);
+ useEffect(()=>{if(!scheduleDirty)editingSchedule.current=false},[scheduleDirty]);
+ const save=async(next:StoreSettings,text:string)=>{if(busy)return;setBusy(true);try{await setDoc(doc(db,"settings","loja"),{...next,updatedAt:serverTimestamp()},{merge:true});setS(next);editingSchedule.current=false;setMsg(text);haptic("success")}catch(e){console.error(e);setMsg("Falha ao salvar funcionamento.");haptic("error")}finally{setBusy(false)}};
  const mode=async(m:StoreMode)=>{
   if(m===s.mode)return;
+  if(scheduleDirty){
+   const approved=await confirm({title:"Horários ainda não salvos",message:"Ao mudar o modo, suas alterações de horários também serão salvas. Deseja continuar?",tone:"warning",confirmLabel:"Salvar tudo e continuar"});
+   if(!approved)return;
+  }
   const risky=m==="force_open"||m==="force_closed";
   if(risky){
    const approved=await confirm({
@@ -37,12 +47,12 @@ export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{sett
    <div className={styles.testForm}><input type="email" value={testEmail} onChange={e=>setTestEmail(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addTestEmail()}}} placeholder="email@exemplo.com" className={styles.testInput}/><button disabled={busy} onClick={addTestEmail} className={styles.testAdd}>Liberar</button></div>
    <div className={styles.testList}>{s.testAllowedEmails.length?s.testAllowedEmails.map(email=><div key={email} className={styles.testRow}><span className={styles.testEmail}>{email}</span><button disabled={busy} onClick={()=>removeTestEmail(email)} className={styles.testRemove}>Remover</button></div>):<small>Nenhum e-mail liberado.</small>}</div>
   </div>}</div>
-  <div className={styles.block}><header><div><span>AGENDA SEMANAL</span><strong>Dias e horários</strong></div><p>Horário de Brasília.</p></header><div className={styles.week}>{DAYS.map(({key,label})=>{const d=s.schedule[key];return<div className={styles.day} data-enabled={d.enabled} key={key}>
-   <label className={styles.toggle}><input type="checkbox" checked={d.enabled} onChange={e=>setS({...s,schedule:{...s.schedule,[key]:{...d,enabled:e.target.checked}}})}/><strong>{label}</strong><b>{d.enabled?"Aberto":"Fechado"}</b></label>
-   {d.enabled&&<div className={styles.times}><label>Abre<input type="time" value={d.open} onChange={e=>setS({...s,schedule:{...s.schedule,[key]:{...d,open:e.target.value}}})}/></label><label>Fecha<input type="time" value={d.close} onChange={e=>setS({...s,schedule:{...s.schedule,[key]:{...d,close:e.target.value}}})}/></label></div>}
-  </div>})}</div><button className={styles.save} disabled={busy} onClick={()=>void save(s,"Horários atualizados.")}>{busy?"Salvando...":<><Save size={15}/>Salvar horários</>}</button></div>
+  <div className={styles.block}><header><div><span>AGENDA SEMANAL</span><strong>Dias e horários</strong></div><p>Horário de Brasília.</p></header>{scheduleDirty&&<p className={styles.scheduleNotice} role="status">Você tem horários editados que ainda não foram publicados.</p>}<div className={styles.week}>{DAYS.map(({key,label})=>{const d=s.schedule[key];return<div className={styles.day} data-enabled={d.enabled} key={key}>
+   <label className={styles.toggle}><input type="checkbox" checked={d.enabled} onChange={e=>{editingSchedule.current=true;setS({...s,schedule:{...s.schedule,[key]:{...d,enabled:e.target.checked}}})}}/><strong>{label}</strong><b>{d.enabled?"Aberto":"Fechado"}</b></label>
+   {d.enabled&&<div className={styles.times}><label>Abre<input type="time" value={d.open} onChange={e=>{editingSchedule.current=true;setS({...s,schedule:{...s.schedule,[key]:{...d,open:e.target.value}}})}}/></label><label>Fecha<input type="time" value={d.close} onChange={e=>{editingSchedule.current=true;setS({...s,schedule:{...s.schedule,[key]:{...d,close:e.target.value}}})}}/></label></div>}
+  </div>})}</div><button className={styles.save} disabled={busy||!scheduleDirty} onClick={()=>void save(s,"Horários atualizados.")}>{busy?"Salvando...":scheduleDirty?<><Save size={15}/>Salvar horários</>:"Horários salvos"}</button></div>
   <div className={styles.block}><header><div><span>EXCEÇÕES</span><strong>Feriados e dias especiais</strong></div><p>A exceção vence a agenda daquele dia.</p></header><div className={styles.exform}>
-   <label>Data<input type="date" value={ex.date} onChange={e=>setEx({...ex,date:e.target.value})}/></label><label className={styles.closed}><input type="checkbox" checked={ex.closed} onChange={e=>setEx({...ex,closed:e.target.checked})}/>Fechado o dia todo</label>
+   <label>Data<input type="date" value={ex.date} onChange={e=>setEx({...ex,date:e.target.value})}/></label><label className={styles.closed}><input type="checkbox" checked={ex.closed} onChange={e=>setEx({...ex,closed:e.target.checked,...(!e.target.checked?{open:ex.open||"18:00",close:ex.close||"23:00"}:{})})}/>Fechado o dia todo</label>
    {!ex.closed&&<><label>Abre<input type="time" value={ex.open??"18:00"} onChange={e=>setEx({...ex,open:e.target.value})}/></label><label>Fecha<input type="time" value={ex.close??"23:00"} onChange={e=>setEx({...ex,close:e.target.value})}/></label></>}
    <label className={styles.note}>Observação<input value={ex.label??""} onChange={e=>setEx({...ex,label:e.target.value})} placeholder="Ex.: feriado"/></label><button disabled={busy} onClick={addEx}><Plus size={15}/>Adicionar</button>
   </div>{s.exceptions.length>0&&<div className={styles.exceptions}>{s.exceptions.map(x=><div key={x.date}><span><strong>{x.date.split("-").reverse().join("/")}</strong><small>{x.label||"Exceção"}</small></span><b>{x.closed?"FECHADO":`${x.open}–${x.close}`}</b><button onClick={()=>void save({...s,exceptions:s.exceptions.filter(y=>y.date!==x.date)},"Exceção removida.")}><Trash2 size={14}/></button></div>)}</div>}</div>

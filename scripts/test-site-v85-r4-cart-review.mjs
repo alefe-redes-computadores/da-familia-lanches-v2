@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+const read=(file)=>fs.readFileSync(file,'utf8');
+const cart=read('src/components/ui/CartModal.tsx');
+const cartCss=read('src/components/ui/CartModal.module.css');
+const homeCss=read('src/app/page.module.css');
+const checkout=read('src/components/ui/CheckoutModal.tsx');
+const imgTest=read('scripts/test-images-commerce-v52.mjs');
+const ok=(cond,label)=>{assert.ok(cond,`V85 R4: ${label}`);console.log('✓',label)};
+ok(cart.includes('const reconciliation = useMemo(() => {') && cart.includes('const applyCatalogReview = () => {'), 'carrinho prepara diferencas e aguarda confirmacao');
+ok(!cart.includes('replaceItems(compacted);'), 'nao remove itens dentro do efeito de abertura');
+ok(cart.includes('if (signature(current) !== reconciliation.originalSignature)') && cart.includes('replaceItems(reconciliation.next);'), 'cliente confirma e alteracoes simultaneas sao protegidas');
+ok(cart.includes('disabled={Boolean(reconciliation)}') && cart.includes('if (reconciliation) { setCatalogNotice('), 'checkout bloqueado enquanto o carrinho precisa de revisao');
+ok(cart.includes('catalogError || catalogSource !== "hybrid"'), 'fallback remoto indisponivel nao substitui carrinho');
+ok(cart.includes('source.upsellProductId === product.id') && cart.includes('entitlement <= 0'), 'limites comerciais e vinculos de upsell mantidos');
+ok(cart.includes('availableAddonsForProduct') && cart.includes('addon.id'), 'precos de adicionais sao reconciliados');
+ok(cartCss.includes('.cartReview') && cartCss.includes('.catalogWait'), 'avisos mobile legiveis');
+ok(homeCss.includes('V85 R4 — novas fotos 1:1') && homeCss.includes('grid-template-columns:minmax(0,37%)'), 'cards mobile proporcionais as novas fotos');
+ok(checkout.includes('createCustomerOrder') && checkout.includes('clearConfirmedCart'), 'checkout oficial preservado');
+ok(imgTest.includes('guestSaved') && !imgTest.includes('checkout.includes("saveCheckoutDraft(null"'), 'teste legado V52 permanentemente atualizado');
+
+// Executa a logica real extraida de dentro do useMemo com dados simulados.
+const begin='  const reconciliation = useMemo(() => {';
+const finish='  }, [allAddons, catalogLoading, catalogError, catalogSource, items, products]);';
+const start=cart.indexOf(begin),end=cart.indexOf(finish,start);
+ok(start>=0 && end>start, 'localizada a funcao real de reconciliacao para teste funcional');
+const body=cart.slice(start+begin.length,end);
+const source=`function evaluate(items,products,allAddons,catalogLoading,catalogError,catalogSource){${body}\n}`;
+const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+const ctx={};
+ctx.availableAddonsForProduct=(p,addons)=>addons.filter(a=>a.disponivel!==false);
+vm.runInNewContext(compiled,ctx);
+const evaluate=ctx.evaluate;
+const active={id:'uai',name:'Uai',price:15,disponivel:true};
+const paused={id:'pausado',name:'Pausado',price:21,disponivel:false};
+const oldItems=[{id:'uai',name:'Uai',cartId:'uai|| |regular',quantity:1,price:12,selectedAddons:[],observation:''},
+{id:'pausado',name:'Pausado',cartId:'pausado|||regular',quantity:1,price:21,selectedAddons:[],observation:''}];
+const original=JSON.stringify(oldItems);
+const proposal=evaluate(oldItems,[active,paused],[],false,'','hybrid');
+ok(Boolean(proposal) && proposal.next.length===1 && proposal.removedNames.includes('Pausado'), 'produto pausado aparece na revisao, sem ser excluido automaticamente');
+ok(JSON.stringify(oldItems)===original,'avaliacao nao modifica o carrinho persistido');
+ok(proposal.next[0].price===15, 'revisao informa novo preco, sem aceitar total velho silenciosamente');
+ok(evaluate(oldItems,[active,paused],[],false,'API indisponivel','hybrid')===null, 'falha na API nao aplica valores fallback');
+ok(evaluate(oldItems,[active,paused],[],false,'','fallback')===null, 'fallback local nao tem autoridade para reprecificar');
+ok(evaluate(proposal.next,[active,paused],[],false,'','hybrid')===null,'depois de confirmar, revisao e idempotente');
+console.log('\nDFL SITE V85 R4 — CARRINHO E CATALOGO: CONTRATOS E RUNTIME OK');
