@@ -10,6 +10,7 @@ import { useCustomerOrders } from "@/hooks/useCustomerOrders";
 import { useLastCustomerOrder } from "@/hooks/useLastCustomerOrder";
 import { useCatalog } from "@/hooks/useCatalog";
 import { haptic } from "@/lib/haptics";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import styles from "./LastOrderCard.module.css";
 
 const money = (value: number) =>
@@ -35,7 +36,10 @@ export function LastOrderCard() {
     activeOrders,
     loading: activeLoading,
   } = useCustomerOrders(user);
-  const { lastOrder: order, loading: lastOrderLoading } = useLastCustomerOrder(user);
+  const { lastOrder: order, loading: lastOrderLoading } = useLastCustomerOrder(
+    user,
+    !activeLoading && activeOrders.length === 0,
+  );
 
   const { products, addons } = useCatalog();
 
@@ -197,10 +201,12 @@ export function LastOrderCard() {
         aria-hidden="true"
       >
         {images.map((item, index) => (
-          <img
+          <CatalogImage
             key={`${item.name}-${index}`}
             src={item.image}
             alt=""
+            sizes="64px"
+            quality={62}
           />
         ))}
 

@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 
-import { useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import {
   Activity,
   Bell,
@@ -24,11 +24,13 @@ import { evaluateStoreStatus } from "@/lib/storeSchedule";
 import { useAdminStoreSettings } from "@/hooks/useAdminStoreSettings";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
-import { adminOrderSearchText, compareOperationalOrders, ageLabel, operationalAttention } from "@/lib/adminOrders";
+import { adminOrderSearchText, compareOperationalOrders, ageLabel, operationalAttention, orderAgeMinutes } from "@/lib/adminOrders";
 import styles from "./admin.module.css";
 import { haptic } from "@/lib/haptics";
 import { AdminAuthGate } from "@/components/admin/AdminAuthGate";
 import { OperationHealthAdmin } from "@/components/admin/OperationHealthAdmin";
+import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";
+import { AdminSectionBoundary } from "@/components/admin/ui/AdminSectionBoundary";
 import { AdminNotificationCenter } from "@/components/admin/AdminNotificationCenter";
 import { AdminQuickStoreControl } from "@/components/admin/AdminQuickStoreControl";
 import { useAdminFeedback } from "@/components/admin/ui/AdminExperienceProvider";
@@ -39,7 +41,6 @@ const AdminPanelLoading = () => <AdminLoadingState label="Carregando painel" com
 
 const RelatoriosAdmin = dynamic(() => import("@/components/layout/RelatoriosAdmin").then((mod) => mod.RelatoriosAdmin), { loading: AdminPanelLoading });
 const CatalogAdmin = dynamic(() => import("@/components/admin/CatalogAdmin").then((mod) => mod.CatalogAdmin), { loading: AdminPanelLoading });
-const StoreOperationAdmin = dynamic(() => import("@/components/admin/StoreOperationAdmin").then((mod) => mod.StoreOperationAdmin), { loading: AdminPanelLoading });
 const SchedulingAdmin = dynamic(() => import("@/components/admin/SchedulingAdmin").then((mod) => mod.SchedulingAdmin), { loading: AdminPanelLoading });
 const RewardsAdmin = dynamic(() => import("@/components/admin/RewardsAdmin").then((mod) => mod.RewardsAdmin), { loading: AdminPanelLoading });
 const CouponsAdmin = dynamic(() => import("@/components/admin/CouponsAdmin").then((mod) => mod.CouponsAdmin), { loading: AdminPanelLoading });
@@ -115,6 +116,7 @@ function AdminPageContent() {
   const { settings: adminStoreSettings } = useAdminStoreSettings(authorized);
   const storeStatus = useMemo(() => evaluateStoreStatus(adminStoreSettings), [adminStoreSettings]);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
   const [storeQuickOpen, setStoreQuickOpen] = useState(false);
@@ -147,8 +149,16 @@ function AdminPageContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 60000);
-    return () => window.clearInterval(timer);
+    // Relogio de atencao: pausa em segundo plano e recupera na volta.
+    const updateClock = () => {
+      if (document.visibilityState === "visible") setNow(Date.now());
+    };
+    const timer = window.setInterval(updateClock, 60000);
+    document.addEventListener("visibilitychange", updateClock);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", updateClock);
+    };
   }, []);
 
 
@@ -416,7 +426,7 @@ function AdminPageContent() {
   }, [tab]);
 
   const filtered = useMemo(() => {
-    const term = normalizeSearch(search);
+    const term = normalizeSearch(deferredSearch);
     return operationalPedidos
       .filter((pedido) => {
         const status = normalizarStatus(pedido.status);
@@ -436,7 +446,7 @@ function AdminPageContent() {
         return true;
       })
       .sort(compareOperationalOrders);
-  }, [operationalPedidos, search, tab, serviceFilter, attentionOnly, now]);
+  }, [operationalPedidos, deferredSearch, tab, serviceFilter, attentionOnly, now]);
 
   const queueDensity =
     filtered.length >= 9
@@ -445,13 +455,15 @@ function AdminPageContent() {
         ? "compact"
         : "comfortable";
 
-  const priorityOrder =
-    operationalPedidos.find(
-      (pedido) =>
+  const priorityOrder = useMemo(() =>
+    operationalPedidos
+      .filter((pedido) =>
         ["Pendente", "Em Produção", "Pronto", "Saiu para Entrega"].includes(
           normalizarStatus(pedido.status),
-        ) && Boolean(operationalAttention(pedido, now)),
-    ) ?? null;
+        ) && Boolean(operationalAttention(pedido, now)))
+      .sort((a, b) => (orderAgeMinutes(b, now) ?? 0) - (orderAgeMinutes(a, now) ?? 0))[0] ?? null,
+    [operationalPedidos, now]
+  );
 
   const selectedOrder = useMemo(
     () =>
@@ -474,6 +486,20 @@ function AdminPageContent() {
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [selectedOrder, updatingOrderId]);
+
+  // O inspetor recebe foco ao abrir e devolve ao comando original ao fechar.
+  // Hook antes dos retornos de auth/loading: ordem estavel em todas as renderizacoes.
+  useEffect(() => {
+    if (!selectedOrderId) return;
+    const origin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const animation = window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>('[data-admin-inspector-close="true"]')?.focus({ preventScroll: true });
+    });
+    return () => {
+      window.cancelAnimationFrame(animation);
+      if (origin?.isConnected) origin.focus({ preventScroll: true });
+    };
+  }, [selectedOrderId]);
 
   if (!currentUser) {
     return <AdminAuthGate />;
@@ -708,7 +734,7 @@ function AdminPageContent() {
             <span><strong>DA FAMÍLIA</strong><small>{desktopDate} · {desktopTime}</small></span>
           </div>
           <div className={styles.mobileTopActions}>
-            <button type="button" className={styles.mobileBell} data-active={counts.attention > 0} onClick={() => setNotificationCenterOpen(true)} aria-label="Abrir central de notificações">
+            <button type="button" className={styles.mobileBell} data-active={counts.attention > 0} onClick={() => setNotificationCenterOpen(true)} aria-label={counts.attention > 0 ? `Abrir notificações. ${counts.attention} pedidos precisam de atenção` : "Abrir central de notificações"}>
               <AdminIcon name="bell" />{counts.attention > 0 && <b>{counts.attention}</b>}
             </button>
           <button
@@ -730,6 +756,7 @@ function AdminPageContent() {
           className={styles.operationHero}
           data-tone={storeState.tone}
           data-attention={counts.attention > 0}
+          data-idle={activeOrders === 0 && counts.attention === 0}
         >
           <div className={styles.operationHeroMain}>
             <span className={styles.operationEyebrow}>
@@ -949,19 +976,28 @@ function AdminPageContent() {
 
 
         {tab === "catalogo" ? (
-          <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><CatalogAdmin /></section>
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><AdminSectionBoundary section="Cardápio" onBack={() => setTab("cozinha")}><CatalogAdmin /></AdminSectionBoundary></section>
         ) : tab === "operacao" ? (
-          <section className={styles.management}><div className={styles.sectionHeading}><div><span>FUNCIONAMENTO</span><h2>Loja agora & horários</h2></div><p>Abertura automática, forçada, modo de teste e agenda semanal.</p></div><StoreOperationAdmin /></section>
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>FUNCIONAMENTO</span><h2>Loja agora & horários</h2></div><p>Abertura automática, forçada, modo de teste e agenda semanal.</p></div><AdminSectionBoundary section="Funcionamento" onBack={() => setTab("cozinha")}><StoreOperationAdmin /></AdminSectionBoundary></section>
         ) : tab === "agendamentos" ? (
-          <section className={styles.management}><div className={styles.sectionHeading}><div><span>AGENDAMENTOS</span><h2>Pedidos futuros</h2></div><p>Intervalo, antecedência, horários disponíveis e capacidade por faixa.</p></div><SchedulingAdmin /></section>
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>AGENDAMENTOS</span><h2>Pedidos futuros</h2></div><p>Intervalo, antecedência, horários disponíveis e capacidade por faixa.</p></div><AdminSectionBoundary section="Agendamentos" onBack={() => setTab("cozinha")}><SchedulingAdmin /></AdminSectionBoundary></section>
         ) : tab === "frete" ? (
-          <section className={styles.management}><div className={styles.sectionHeading}><div><span>ENTREGA & FRETE</span><h2>Taxas e benefícios de entrega</h2></div><p>Taxa padrão, bairros e regras de frete grátis em um único lugar.</p></div><DeliveryRatesAdmin /><FreeDeliveryAdmin /></section>
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>ENTREGA & FRETE</span><h2>Taxas e benefícios de entrega</h2></div><p>Taxa padrão, bairros e regras de frete grátis em um único lugar.</p></div><AdminSectionBoundary section="Entrega e frete" onBack={() => setTab("cozinha")}><DeliveryRatesAdmin /><FreeDeliveryAdmin /></AdminSectionBoundary></section>
         ) : tab === "cupons" ? (
-          <section className={styles.management}><div className={styles.sectionHeading}><div><span>CENTRAL DE PROMOÇÕES</span><h2>Campanhas & cupons</h2></div><p>Crie descontos, defina pedido mínimo e período, pause campanhas e escolha quais ofertas podem aparecer ao cliente.</p></div><CouponsAdmin /><PublicPromotionsAdmin /></section>
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>CENTRAL DE PROMOÇÕES</span><h2>Campanhas & cupons</h2></div><p>Crie descontos, defina pedido mínimo e período, pause campanhas e escolha quais ofertas podem aparecer ao cliente.</p></div><AdminSectionBoundary section="Cupons e promoções" onBack={() => setTab("cozinha")}><CouponsAdmin /><PublicPromotionsAdmin /></AdminSectionBoundary></section>
         ) : tab === "fidelidade" ? (
-          <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><RewardsAdmin /></section>
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><AdminSectionBoundary section="Fidelidade" onBack={() => setTab("cozinha")}><RewardsAdmin /></AdminSectionBoundary></section>
         ) : tab === "gestao" ? (
-          <section className={styles.management}><div className={styles.sectionHeading}><div><span>SAÚDE DA OPERAÇÃO</span><h2>Saúde da loja</h2></div><p>Exceções operacionais, pressão de leituras e indicadores comerciais sem novas assinaturas em tempo real.</p></div><OperationHealthAdmin pedidos={pedidos} historyHasMore={historyHasMore} /><CustomerExperienceAdmin /><FirestoreBudgetAdmin /><RelatoriosAdmin pedidos={pedidos} /></section>
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>SAÚDE DA OPERAÇÃO</span><h2>Saúde da loja</h2></div><p>Exceções operacionais, pressão de leituras e indicadores comerciais sem novas assinaturas em tempo real.</p></div><AdminSectionBoundary section="Saúde e relatórios" onBack={() => setTab("cozinha")}>
+            <AdminSectionBoundary
+                section={"Saúde da operação"} onBack={() => setTab("cozinha")}><OperationHealthAdmin pedidos={pedidos} historyHasMore={historyHasMore} /></AdminSectionBoundary>
+            <AdminSectionBoundary
+                section={"Experiência dos clientes"} onBack={() => setTab("cozinha")}><CustomerExperienceAdmin /></AdminSectionBoundary>
+            <AdminSectionBoundary
+                section={"Consumo do Firestore"} onBack={() => setTab("cozinha")}><FirestoreBudgetAdmin /></AdminSectionBoundary>
+            <AdminSectionBoundary
+                section={"Relatórios"} onBack={() => setTab("cozinha")}><RelatoriosAdmin pedidos={pedidos} /></AdminSectionBoundary>
+          </AdminSectionBoundary></section>
         ) : isOrderTab ? (
           <>
             <div className={styles.queueHead}>
@@ -1007,6 +1043,18 @@ function AdminPageContent() {
               </label>
             )}
 
+            {(search.trim() || attentionOnly || serviceFilter !== "todos") && (
+              <div className={styles.filterSummary} role="status">
+                <span>{filtered.length} {filtered.length === 1 ? "pedido encontrado" : "pedidos encontrados"} com os filtros atuais</span>
+                <button type="button" onClick={() => {
+                  setSearch("");
+                  setSearchOpen(false);
+                  setAttentionOnly(false);
+                  setServiceFilter("todos");
+                }}>Limpar filtros</button>
+              </div>
+            )}
+
             <div className={styles.orderWorkspace} data-inspector-open={Boolean(selectedOrder)}>
               <div className={styles.grid} data-density={queueDensity}>
                 {filtered.length
@@ -1035,7 +1083,7 @@ function AdminPageContent() {
                   <aside className={styles.orderInspector} role="dialog" aria-modal="true" aria-label="Detalhes do pedido">
                     <div className={styles.inspectorHead}>
                       <div><span>PEDIDO SELECIONADO</span><strong>Detalhes e ações</strong></div>
-                      <button type="button" disabled={Boolean(updatingOrderId)} onClick={() => setSelectedOrderId(null)} aria-label="Fechar detalhes">×</button>
+                      <button type="button" disabled={Boolean(updatingOrderId)} onClick={() => setSelectedOrderId(null)} aria-label="Fechar detalhes" data-admin-inspector-close="true">×</button>
                     </div>
                     <OrderCard
                       pedido={selectedOrder}

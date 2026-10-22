@@ -183,3 +183,22 @@
   .addButton{width:44px;height:44px;flex:0 0 44px;border-radius:14px;touch-action:manipulation}
 }
 @media(max-width:360px){.card{grid-template-columns:minmax(0,36%) minmax(0,1fr)}.cardBody{padding:9px}.cardBody h3{font-size:13px}}
+
+/* DFL V85.1 R3 - PUBLIC SEARCH AND KEYBOARD ACCESS */
+.searchSummary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:1px 0 13px;padding:12px 14px;border:1px solid rgba(25,20,10,.09);border-radius:14px;background:#fff;box-shadow:0 4px 15px rgba(23,20,10,.035)}
+.searchSummary>div{min-width:0;display:grid;gap:3px}.searchSummary strong{color:#171717;font-size:14px;font-weight:900}.searchSummary span{color:#74706a;font-size:12px;line-height:1.3;overflow-wrap:anywhere}
+.searchSummary button{flex:0 0 auto;min-height:44px;padding:8px 14px;background:#201e1b;color:#fff;border:0;border-radius:10px;font-size:12px;font-weight:850;cursor:pointer}
+.card{position:relative}.cardActionArea{position:absolute;inset:0;z-index:2;display:block;width:100%;height:100%;padding:0;border:0;background:transparent;cursor:pointer;border-radius:inherit}
+.cardActionArea:focus-visible{outline:3px solid #e5aa18;outline-offset:-4px}.card .addButton{position:relative;z-index:3}
+@media(max-width:560px){.searchSummary{padding:10px 11px;margin-bottom:9px}.searchSummary strong{font-size:13px}.searchSummary span{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.card,.promoHeroCard{transition:none!important}}
+
+/* DFL V85.1 R9 - PROMO LEGIBILITY: mais legivel, sem nova requisicao */
+.promoHeroCard{min-height:104px;padding:10px;align-items:center}
+.promoHeroCopy>small{font-size:10px;line-height:1.2;letter-spacing:.08em}
+.promoHeroCopy>strong{font-size:13px;line-height:1.25}
+.promoHeroCopy s{font-size:10px}
+.promoHeroCopy em{font-size:10px;line-height:1.35}
+.promoHeroCopy .promoHint{font-size:10px;line-height:1.35;margin-top:5px}
+.promoHeroCopy b{font-size:15px}
+@media(max-width:699px){.promoHeroCard{min-height:110px}.promoHeroCopy>strong{font-size:13px}}

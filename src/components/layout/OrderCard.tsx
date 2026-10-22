@@ -12,6 +12,8 @@ import { ORDER_CANCELLATION_REASONS, type OrderCancellationReasonCode } from "@/
 import styles from "./OrderCard.module.css";
 import { adminOrderAddress } from "@/lib/adminOrderAddress";
 
+const adminBRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
 export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = false, onSelect, forceExpanded = false, inspector = false, updating = false, density = "comfortable" }: any) {
   const [expanded, setExpanded] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<"resumo" | "itens" | "cliente" | "entrega" | "pagamento">("resumo");
@@ -33,6 +35,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const telefone = String(pedido.userPhone || pedido.phone || customer.phone || customer.phoneE164 || "").trim();
   const pickup = pedido.tipoEntrega === "pickup";
   const total = Number(pedido.total || 0);
+  const formatBRL = (amount: number) => adminBRL.format(Number.isFinite(amount) ? amount : 0);
   const troco = Number(String(pedido.trocoPara ?? pedido.troco ?? "").replace(",", "."));
   const attention = operationalAttention(pedido);
   const logisticsCompleted =
@@ -312,12 +315,12 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
               <span>{queueObservation}</span>
             </div>
           )}
-          <span className={styles.queueAddress}>
-            {addressSummary || "Endereço não informado"}
+          <span className={styles.queueAddress} title={addressLabel || "Endereço não informado"}>
+            {inspector ? (addressLabel || "Endereço não informado") : (addressSummary || "Endereço não informado")}
           </span>
         </div>
         <div className={styles.summaryTotal}>
-          <strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong>
+          <strong>{formatBRL(total)}</strong>
           <span>{isExpanded ? (inspector ? "Em foco" : "Fechar") : "Detalhes"}</span>
         </div>
       </button>
@@ -409,7 +412,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
               </div>
               <div className={styles.inspectorMini}>
                 <span className={styles.inspectorMiniIcon}><CreditCard size={16} /></span>
-                <div><small>Total</small><strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong><span>{paymentLabel(pedido.metodoPagamento)}</span></div>
+                <div><small>Total</small><strong>{formatBRL(total)}</strong><span>{paymentLabel(pedido.metodoPagamento)}</span></div>
               </div>
             </div>
           )}
@@ -434,6 +437,9 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
               <div className={styles.deliveryCopy}>
                 <b>{pickup ? "RETIRADA NO BALCÃO" : "ENTREGA"}</b>
                 <span>{addressLabel || "Endereço não informado"}</span>
+                {typeof pedido.observacao === "string" && pedido.observacao.trim() && (
+                  <small className={styles.deliveryNote}>Observação: {pedido.observacao.trim()}</small>
+                )}
                 {inspector && (
                   <div className={styles.deliveryActions}>
                     {!pickup && addressLabel && <button type="button" onClick={(event) => { event.stopPropagation(); void copyValue("address", addressLabel); }}>{copiedKey === "address" ? <Check size={13}/> : <Copy size={13}/>}Copiar endereço</button>}
@@ -464,9 +470,22 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
               <div>
                 <small>Pagamento</small>
                 <b>{paymentLabel(pedido.metodoPagamento)}</b>
-                <strong>R$ {Number.isFinite(total) ? total.toFixed(2) : "0.00"}</strong>
+                <strong>{formatBRL(total)}</strong>
+                {inspector && (
+                  <div className={styles.paymentBreakdown}>
+                    {Number.isFinite(Number(pedido.subtotal)) && Number(pedido.subtotal) > 0 &&
+                      <span><small>Produtos</small><b>{formatBRL(Number(pedido.subtotal))}</b></span>}
+                    {Number.isFinite(Number(pedido.taxaEntrega)) && Number(pedido.taxaEntrega) > 0 &&
+                      <span><small>Entrega</small><b>{formatBRL(Number(pedido.taxaEntrega))}</b></span>}
+                    {Number.isFinite(Number(pedido.desconto)) && Number(pedido.desconto) > 0 &&
+                      <span><small>Desconto</small><b>− {formatBRL(Number(pedido.desconto))}</b></span>}
+                    {typeof pedido.cupom === "string" && pedido.cupom.trim() &&
+                      <span><small>Cupom aplicado</small><b>{pedido.cupom}</b></span>}
+                    <small>Forma escolhida no pedido — não confirma recebimento do pagamento.</small>
+                  </div>
+                )}
                 {paymentLabel(pedido.metodoPagamento) === "DINHEIRO" && Number.isFinite(troco) && troco > 0 &&
-                  <span className={styles.cash}>Troco para R$ {troco.toFixed(2)}</span>}
+                  <span className={styles.cash}>Troco para {formatBRL(troco)}</span>}
               </div>
             </div>
           )}

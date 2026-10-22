@@ -44,9 +44,20 @@ export function Header() {
 
   const updateCatalogSearch = (value: string) => {
     setCatalogSearch(value);
+    if (pathname !== "/") {
+      try { window.sessionStorage.setItem("dfl:pending-catalog-search", value.slice(0, 100)); } catch { /* modo privado */ }
+    }
     window.dispatchEvent(new CustomEvent(CATALOG_SEARCH_EVENT, { detail: value }));
     if (pathname !== "/") router.push("/");
   };
+
+  useEffect(() => {
+    const syncSearch = (event: Event) => {
+      setCatalogSearch(String((event as CustomEvent<string>).detail ?? "").slice(0, 100));
+    };
+    window.addEventListener(CATALOG_SEARCH_EVENT, syncSearch);
+    return () => window.removeEventListener(CATALOG_SEARCH_EVENT, syncSearch);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

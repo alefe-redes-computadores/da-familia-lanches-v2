@@ -1,0 +1,9 @@
+/* Isola uma falha da Gestão sem desativar a operação principal. */
+.fallback{padding:18px;display:grid;gap:10px;min-width:0;border:1px solid rgba(255,193,47,.24);border-radius:18px;background:linear-gradient(150deg,rgba(255,193,47,.075),rgba(16,22,28,.97));color:#e8edf1}
+.eyebrow{font-size:10px;letter-spacing:.12em;font-weight:850;color:#d7ad55}
+.fallback>strong{font-size:18px;line-height:1.25}
+.fallback p{color:#a7b4c0;font-size:13px;line-height:1.55;margin:0}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:5px}
+.actions button{border:1px solid rgba(255,201,40,.25);border-radius:12px;min-height:45px;padding:10px 13px;background:rgba(255,201,40,.13);color:#f5d579;font-size:13px;font-weight:800;touch-action:manipulation}
+.actions button:first-child{background:#172129;border-color:rgba(148,163,184,.2);color:#dae3e8}
+@media(max-width:520px){.actions{display:grid;grid-template-columns:1fr}.actions button{width:100%}}

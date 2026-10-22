@@ -9,8 +9,8 @@ export const DAYS:Array<{key:DayKey;label:string}>=[
  {key:"wed",label:"Quarta"},{key:"thu",label:"Quinta"},{key:"fri",label:"Sexta"},{key:"sat",label:"Sábado"}
 ];
 export const DEFAULT_STORE_SETTINGS:StoreSettings={mode:"auto",timezone:"America/Sao_Paulo",schedule:{
- sun:{enabled:true,open:"18:00",close:"23:15"},mon:{enabled:true,open:"18:00",close:"22:45"},
- tue:{enabled:false,open:"18:00",close:"22:45"},wed:{enabled:true,open:"18:00",close:"22:45"},
+ sun:{enabled:true,open:"18:00",close:"23:15"},mon:{enabled:false,open:"18:00",close:"22:45"},
+ tue:{enabled:false,open:"18:00",close:"22:45"},wed:{enabled:false,open:"18:00",close:"22:45"},
  thu:{enabled:true,open:"18:00",close:"22:45"},fri:{enabled:true,open:"18:00",close:"23:15"},
  sat:{enabled:true,open:"18:00",close:"23:15"}},exceptions:[],testAllowedEmails:[]};
 

@@ -178,6 +178,7 @@ async function load(uid: string, force = false) {
 
 export function useLastCustomerOrder(
   user: User | null | undefined,
+  enabled = true,
 ) {
   const [state, setState] =
     useState<State>(() =>
@@ -206,6 +207,8 @@ export function useLastCustomerOrder(
       });
       return;
     }
+    // Nao consultar historico para montar card oculto por um pedido ativo.
+    if (!enabled) return;
 
     const uid = user.uid;
 
@@ -220,6 +223,9 @@ export function useLastCustomerOrder(
     const known = cache.get(uid);
     if (known) {
       setState(known);
+    } else {
+      // Uma troca de conta nao pode mostrar os dados anteriores.
+      setState({ order: null, loading: true, error: "", at: 0 });
     }
 
     void load(uid);
@@ -257,7 +263,7 @@ export function useLastCustomerOrder(
         refresh,
       );
     };
-  }, [user?.uid]);
+  }, [user?.uid, enabled]);
 
   return {
     lastOrder: state.order,

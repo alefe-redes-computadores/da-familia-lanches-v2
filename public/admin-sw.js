@@ -11,7 +11,7 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
-const CACHE = "dfl-admin-v29";
+const CACHE = "dfl-admin-v30";
 const SHELL = ["/admin", "/admin-manifest.webmanifest", "/admin-icon-192x192.png", "/admin-icon-512x512.png", "/admin-notification-badge.png"];
 
 self.addEventListener("install", (event) => {
@@ -24,10 +24,10 @@ self.addEventListener("fetch", (event) => {
   const request=event.request; if(request.method!=="GET") return;
   const url=new URL(request.url); if(url.origin!==self.location.origin || url.pathname.startsWith("/api/")) return;
   if(request.mode==="navigate"){
-    event.respondWith(fetch(request).then((response)=>{const copy=response.clone();caches.open(CACHE).then((cache)=>cache.put(request,copy));return response;}).catch(async()=> (await caches.match(request)) || (await caches.match("/admin")))); return;
+    event.respondWith(fetch(request).then((response)=>{if(response.ok && response.type!=="opaque") {const copy=response.clone();void caches.open(CACHE).then((cache)=>cache.put(request,copy)).catch(()=>undefined);}return response;}).catch(async()=> (await caches.match(request)) || (await caches.match("/admin")))); return;
   }
   if(url.pathname.startsWith("/_next/static/") || /admin-(icon|apple|notification)/.test(url.pathname)){
-    event.respondWith(caches.match(request).then((cached)=>cached || fetch(request).then((response)=>{const copy=response.clone();caches.open(CACHE).then((cache)=>cache.put(request,copy));return response;})));
+    event.respondWith(caches.match(request).then((cached)=>cached || fetch(request).then((response)=>{if(response.ok && response.type!=="opaque") {const copy=response.clone();void caches.open(CACHE).then((cache)=>cache.put(request,copy)).catch(()=>undefined);}return response;})));
   }
 });
 

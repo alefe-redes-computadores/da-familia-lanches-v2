@@ -68,7 +68,7 @@ export function AdminPwa(){
     const adminHost=window.location.hostname==="admin.dafamilialanches.com.br";
     const scope=adminHost?"/":"/admin/";
     if("serviceWorker" in navigator){
-      navigator.serviceWorker.register("/admin-sw.js?v=29",{scope}).then(async(registration)=>{
+      navigator.serviceWorker.register("/admin-sw.js?v=30",{scope}).then(async(registration)=>{
         registrationRef.current=registration; await registration.update();
         if("Notification" in window&&Notification.permission==="granted"){
           // V29: a abertura da TWA sempre revalida o token web remoto.

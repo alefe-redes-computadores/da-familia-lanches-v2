@@ -1,0 +1,27 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const read=p=>fs.readFileSync(p,'utf8');
+const file=p=>fs.existsSync(p)&&fs.statSync(p).size>0;
+function check(ok,label){assert.ok(ok,`R7 RELEASE GATE: ${label}`);console.log('✓',label);}
+const admin=read('src/app/admin/page.tsx');
+const orders=read('src/hooks/useAdminOrders.ts');
+const publicPage=read('src/app/page.tsx');
+const checkout=read('src/components/ui/CheckoutModal.tsx');
+const relay=read('src/lib/integration/server/relay.ts');
+const orderApi=read('src/app/api/orders/route.ts');
+const orderRepo=read('src/lib/orderRepository.ts');
+const sw=read('public/admin-sw.js');
+const pwa=read('src/components/admin/AdminPwa.tsx');
+const print=read('src/lib/printOrder.ts');
+check(admin.includes('AdminSectionBoundary') && file('src/components/admin/ui/AdminSectionBoundary.tsx'),'gestao protegida por isolamento de erros');
+check(admin.includes('filterSummary') && admin.includes('orderInspector'),'filtros e inspetor preservados');
+check((orders.match(/onSnapshot\s*\(/g)||[]).length===1,'admin mantem um listener realtime de pedidos');
+check(publicPage.includes('className={styles.searchSummary}') && publicPage.includes('cardActionArea'),'busca global e card acessivel preservados');
+check(checkout.includes('clientRequestId'),'checkout continua usando chave de idempotencia');
+check(orderApi.includes('buildOrderCreatedEvent'),'API comercial continua criando evento de integracao');
+check(orderRepo.includes('buildOrderUpdatedEvent') && orderRepo.includes('Cancelado'),'edicao e cancelamento continuam publicando eventos');
+check(relay.includes('claimOutboxBatch')&&relay.includes('markOutboxSent')&&relay.includes('markOutboxFailed'),'relay preserva retry e controle de entrega');
+check(/dfl-admin-v30/.test(sw)&&/admin-sw\.js\?v=30/.test(pwa),'SW e registro PWA usam mesma versao');
+check(print.includes('buildThermalReceiptHtml') && !print.includes('window.print()'),'impressao do pedido depende de previa manual');
+for(const name of ['scripts/test-site-v85-1-r1-management-mobile.mjs','scripts/test-site-v85-1-r2-admin-mobile.mjs','scripts/test-site-v85-1-r3-discovery.mjs','scripts/test-site-v85-1-r4-thermal.mjs','scripts/test-site-v85-1-r5-usb-calibration.mjs','scripts/test-site-v85-1-r6-dual-ticket.mjs'])check(file(name),`teste de regressao: ${name.split('/').at(-1)}`);
+console.log('DFL SITE V85.1 R7 — 16 VERIFICACOES DE RELEASE APROVADAS');

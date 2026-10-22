@@ -9,6 +9,7 @@ import { useCatalogCategories } from "@/hooks/useCatalogCategories";
 import { compareCatalogProducts } from "@/lib/catalog";
 import { useShopStatus } from "@/hooks/useShopStatus";
 import { useUIStore } from "@/store/ui";
+import { useAuthStore } from "@/store/auth.store";
 import { ActiveOrderBanner } from "@/components/ui/ActiveOrderBanner";
 import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
@@ -27,6 +28,7 @@ function normalize(value: string) {
 
 export default function Home() {
   const openModal = useUIStore((s) => s.openModal);
+  const currentUser = useAuthStore((s) => s.currentUser);
   const shopStatus = useShopStatus();
   const { products, loading: catalogLoading, error: catalogError, reload: reloadCatalog } = useCatalog();
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
@@ -37,6 +39,21 @@ export default function Home() {
   const [showAllOffers, setShowAllOffers] = useState(false);
   const [guestIdentity, setGuestIdentity] = useState<GuestIdentity | null>(null);
   const [guestLastOrder, setGuestLastOrder] = useState<GuestOrderMemory | null>(null);
+
+  useEffect(() => {
+    // Uma busca no Header feita de pagina interna continua na Home.
+    try {
+      const pending = window.sessionStorage.getItem("dfl:pending-catalog-search");
+      if (pending !== null) {
+        window.sessionStorage.removeItem("dfl:pending-catalog-search");
+        setSearch(pending.slice(0, 100));
+        if (pending.trim()) setActiveCategory("todos");
+      }
+    } catch { /* armazenamento indisponivel */ }
+  }, []);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(CATALOG_SEARCH_EVENT, { detail: search }));
+  }, [search]);
 
   const filtered = useMemo(() => {
     const term = normalize(deferredSearch);
@@ -74,10 +91,10 @@ export default function Home() {
 
   const promoProducts = useMemo(
     () => products
-      .filter((product) => product.disponivel !== false && typeof product.oldPrice === "number" && product.oldPrice > product.price && (product.promoPlacement === "home_showcase" || (product.promoPlacement == null && product.isSuggestion === true)))
+      .filter((product) => categories.some((category) => category.id === product.category) && product.disponivel !== false && typeof product.oldPrice === "number" && product.oldPrice > product.price && (product.promoPlacement === "home_showcase" || (product.promoPlacement == null && product.isSuggestion === true)))
       .sort((a, b) => (((b.oldPrice! - b.price) / b.oldPrice!) * 100) - (((a.oldPrice! - a.price) / a.oldPrice!) * 100))
       .slice(0, 6),
-    [products],
+    [products, categories],
   );
 
   const openProduct = (product: Product) => {
@@ -94,7 +111,7 @@ export default function Home() {
 
           <label className={styles.searchBox}>
             <span aria-hidden="true">⌕</span>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar lanche, combo ou bebida" aria-label="Buscar no cardápio" />
+            <input value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setActiveCategory("todos"); }} placeholder="Buscar lanche, combo ou bebida" aria-label="Buscar no cardápio" />
             {search && <button type="button" onClick={() => setSearch("")} aria-label="Limpar busca">×</button>}
           </label>
         </div>
@@ -115,9 +132,9 @@ export default function Home() {
         <div className={styles.orderSlot}>
           <ActiveOrderBanner />
           <LastOrderCard />
-          {guestLastOrder && <button type="button" className={styles.guestOrderCard} onClick={()=>openModal("orders")}><span>SEU PEDIDO NESTE APARELHO</span><strong>{guestLastOrder.status === "Agendado" ? "Seu pedido está agendado" : `Seu pedido está ${guestLastOrder.status.toLowerCase()}`}</strong><small>{guestLastOrder.scheduledLabel ? `${guestLastOrder.scheduledLabel} · Ver detalhes do pedido` : "Ver detalhes do pedido"}</small></button>}
+          {!currentUser && guestLastOrder && <button type="button" className={styles.guestOrderCard} onClick={()=>openModal("orders")}><span>SEU PEDIDO NESTE APARELHO</span><strong>{guestLastOrder.status === "Agendado" ? "Seu pedido está agendado" : `Seu pedido está ${guestLastOrder.status.toLowerCase()}`}</strong><small>{guestLastOrder.scheduledLabel ? `${guestLastOrder.scheduledLabel} · Ver detalhes do pedido` : "Ver detalhes do pedido"}</small></button>}
         </div>
-        {guestLastOrder&&<CustomerExperiencePrompt />}
+        {!currentUser && guestLastOrder && <CustomerExperiencePrompt />}
         {catalogLoading && <section className={styles.catalogSkeleton} aria-label="Carregando cardápio" aria-busy="true"><div className={styles.skeletonTitle}/><div className={styles.skeletonGrid}>{[0,1,2,3].map((item)=><div className={styles.skeletonCard} key={item}><i/><span/><b/></div>)}</div></section>}
         {activeCategory === "todos" && !search.trim() && promoProducts.length > 0 && (
           <section className={styles.promoShowcase}>
@@ -128,7 +145,7 @@ export default function Home() {
             {!showAllOffers && <div className={styles.promoRail}>
               {promoProducts.map((product, promoIndex) => {
                 const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
-                return <article className={styles.promoHeroCard} key={`promo-${product.id}`} role="button" tabIndex={0} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openProduct(product); }}>
+                return <article className={styles.promoHeroCard} key={`promo-${product.id}`} role="button" tabIndex={0} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openProduct(product); } }}>
                   <div className={styles.promoHeroMedia}><CatalogImage src={product.image} alt="" sizes="(max-width: 699px) 74px, 82px" priority={promoIndex === 0} quality={70} /><span>-{discount}%</span></div>
                   <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em><span className={styles.promoHint}>Toque para ver e personalizar</span></div>
                 </article>;
@@ -142,6 +159,18 @@ export default function Home() {
           <div className={styles.closedNotice}>
             <strong>{shopStatus.message || "A loja está fechada agora."}</strong>
             <span>Você ainda pode explorar o cardápio e montar seu pedido para agendamento.</span>
+          </div>
+        )}
+
+        {(Boolean(search.trim()) || activeCategory !== "todos") && !catalogLoading && (
+          <div className={styles.searchSummary} role="status" aria-live="polite">
+            <div>
+              <strong>{filtered.length} {filtered.length === 1 ? "resultado" : "resultados"}</strong>
+              <span>{search.trim()
+                ? `Busca por “${search.trim()}”`
+                : `Categoria: ${categories.find((category) => category.id === activeCategory)?.label ?? "Todos"}`}</span>
+            </div>
+            <button type="button" onClick={() => { setSearch(""); setActiveCategory("todos"); }}>Limpar</button>
           </div>
         )}
 
@@ -162,7 +191,8 @@ export default function Home() {
                   const hasDiscount = typeof product.oldPrice === "number" && product.oldPrice > product.price;
                   const discount = hasDiscount ? Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100) : 0;
                   return (
-                    <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id} onClick={() => available && openProduct(product)}>
+                    <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id}>
+                      {available && <button type="button" className={styles.cardActionArea} onClick={() => openProduct(product)} aria-label={`Ver detalhes e personalizar ${product.name}`} />}
                       <div className={styles.media}>
                         <CatalogImage src={product.image} alt={product.name} sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 280px" quality={72} />
                         <div className={styles.badges}>

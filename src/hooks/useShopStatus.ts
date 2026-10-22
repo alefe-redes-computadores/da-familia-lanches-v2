@@ -48,15 +48,26 @@ async function load(force = false) {
 function startTimer() {
   if (timer || typeof window === "undefined") return;
 
+  // Pausa consultas periodicas quando o PWA estiver em segundo plano.
   timer = window.setInterval(() => {
-    void load(true);
+    if (document.visibilityState === "visible") void load(true);
   }, REFRESH_MS);
+  document.addEventListener("visibilitychange", recoverVisibleStatus);
+  window.addEventListener("online", recoverVisibleStatus);
+}
+
+function recoverVisibleStatus() {
+  if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+  // O TTL e a promessa inflight globais impedem consultas duplicadas.
+  void load();
 }
 
 function stopTimer() {
   if (!timer || typeof window === "undefined") return;
   window.clearInterval(timer);
   timer = undefined;
+  document.removeEventListener("visibilitychange", recoverVisibleStatus);
+  window.removeEventListener("online", recoverVisibleStatus);
 }
 
 function subscribe(listener: (value: ShopStatus) => void) {
