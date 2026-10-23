@@ -691,12 +691,12 @@
 .editorActionsV86 button:disabled{opacity:.45;cursor:wait}
 .editorLivePreview :is(img,button){max-width:100%}
 @media(max-width:650px){.editorLivePreview{grid-template-columns:70px minmax(0,1fr)}.livePreviewMedia{width:70px;height:70px}.editorActionsV86{grid-template-columns:1fr 1fr;margin:12px -14px -14px;padding:9px 14px calc(10px + env(safe-area-inset-bottom));bottom:-14px}.editorActionsV86 .publishAction{grid-column:1/-1;grid-row:1;min-height:52px;font-size:13px}.editorActionsV86 .backAction{grid-column:1}.editorActionsV86 .nextAction{grid-column:2}}
-@media(prefers-reduced-motion:reduce){.editorActionsV86 button,.editorLivePreview{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.editorActionsV86 button,.editorLivePreview{transition:none}}
 
 /* DFL SITE V86 R4 — POLÍTICA DE ADICIONAIS, ESTADO CLARO E TOQUE MOBILE */
 .addonLimitsV86{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px;padding:12px;border:1px solid rgba(255,202,40,.2);border-radius:14px;background:#111c24;color:#eef3f7}
 .addonPolicyInfo{grid-column:1/-1;display:grid;gap:2px}.addonPolicyInfo strong{font-size:12px;color:#ffda73}.addonPolicyInfo span{font-size:11px;color:#aab5bf}
 .addonLimitsV86 label{min-width:0;display:grid;gap:6px;font-size:11px;text-transform:none;font-weight:800;color:#dce5eb}
-.addonLimitsV86 input{width:100%;min-height:46px;font-size:16px!important;padding:8px 10px;border:1px solid #425064;border-radius:10px;background:#0f1720;color:#fff}
+.addonLimitsV86 input{width:100%;min-height:46px;font-size:16px;padding:8px 10px;border:1px solid #425064;border-radius:10px;background:#0f1720;color:#fff}
 .addonLimitsV86>small{grid-column:1/-1;color:#a0acb6;font-size:11px;line-height:1.45}
 @media(max-width:360px){.addonLimitsV86{grid-template-columns:1fr}}

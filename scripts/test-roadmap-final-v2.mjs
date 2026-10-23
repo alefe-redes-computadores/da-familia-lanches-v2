@@ -23,7 +23,6 @@ const rescue=fs.readFileSync(
 const heavy=[
   "RelatoriosAdmin",
   "CatalogAdmin",
-  "StoreOperationAdmin",
   "SchedulingAdmin",
   "RewardsAdmin",
   "CouponsAdmin",
@@ -34,6 +33,14 @@ const heavy=[
 ];
 
 const tests=[];
+
+tests.push([
+  admin.includes('import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";') &&
+  admin.includes('AdminSectionBoundary section="Funcionamento"') &&
+  admin.includes('<StoreOperationAdmin />'),
+  "Loja: importação direta protegida pelo boundary (V85.1 R13)",
+]);
+
 
 tests.push([
   admin.includes('from "next/dynamic"') ||
