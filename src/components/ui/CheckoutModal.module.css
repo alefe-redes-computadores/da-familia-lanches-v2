@@ -154,3 +154,15 @@
 
 /* V56.3 compact schedule */
 .scheduleDay{padding:10px!important}.scheduleSlots{gap:6px!important}.scheduleSlots button{min-height:44px!important;padding:7px 9px!important}.addressGrid{grid-template-columns:minmax(72px,.38fr) minmax(0,1fr)!important}
+
+
+/* V86 R1 — sugestoes de bairro: compacto, legivel e navegavel por toque. */
+.districtHelper{display:grid;gap:8px;margin-top:-4px;color:#585148}
+.districtHelper[data-invalid="true"]{border:1px solid #efd39b;border-radius:13px;padding:11px;background:#fff9e9}
+.districtHelper>strong{color:#8a4a0b;font-size:12px;line-height:1.4}
+.districtSuggestions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.districtSuggestions small{flex-basis:100%;font-size:11px;color:#73665b;font-weight:850}
+.districtSuggestions button{border:1px solid #d8c7a8;border-radius:999px;min-height:38px;padding:8px 12px;background:#fff;color:#302513;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.districtSuggestions button:focus-visible{outline:3px solid #f5c74e;outline-offset:2px}
+.districtSuggestions button:active{background:#ffecb0}
+@media(max-width:420px){.districtSuggestions button{max-width:100%;text-align:left;white-space:normal}}

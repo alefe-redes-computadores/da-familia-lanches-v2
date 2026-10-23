@@ -12,14 +12,19 @@ export type CatalogMutation =
  | { action:"saveAddon"; id:string; data:Record<string,unknown> }
  | { action:"toggleAddon"; id:string; data:Record<string,unknown> }
  | { action:"reorderProducts"; items:Array<{id:string;sortOrder:number}> }
+ | { action:"bulkAvailability"; enabled:boolean; items:Array<{id:string;expected:boolean}> }
  | { action:"standardizeProducts"; items:Array<{id:string;data:Record<string,unknown>}> }
  | { action:"restoreCatalogBackup"; backupId:string };
 
 const messages:Record<string,string>={
  ADMIN_AUTH_REQUIRED:"Sua sessão expirou. Entre novamente no Admin.",
+ BULK_AVAILABILITY_INVALID:"Lote inválido ou grande demais. Revise sua seleção.",
+ BULK_AVAILABILITY_STALE:"A disponibilidade de um produto mudou. Atualize o catálogo e revise a seleção.",
  AUTH_REQUIRED:"Sua sessão expirou. Entre novamente no Admin.",
  PRODUCT_INVALID:"Revise nome, descrição, imagem, categoria e preço.",
  PROMOTION_INVALID:"O preço anterior precisa ser maior que o preço atual.",
+ ADDON_POLICY_INVALID:"Revise os limites de adicionais: mínimo e máximo devem ser inteiros entre 0 e 20.",
+ ADDON_GROUP_INVALID:"Revise os grupos de escolhas: opções repetidas, limites incompatíveis ou regras incompletas.",
  ADDON_INVALID:"Revise o nome e o preço do adicional.",
  CATEGORY_INVALID:"Informe um nome válido para a categoria.",
  CATEGORY_IN_USE:"Essa categoria ainda possui produtos. Mova-os antes de excluir.",

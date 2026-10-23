@@ -37,6 +37,9 @@ export default function Home() {
   const deferredSearch = useDeferredValue(search);
   const [activeCategory, setActiveCategory] = useState<string>("todos");
   const [showAllOffers, setShowAllOffers] = useState(false);
+  const menuCategories = useMemo(() => categories.filter(category =>
+    products.some(product => product.category === category.id && product.disponivel !== false)
+  ), [categories, products]);
   const [guestIdentity, setGuestIdentity] = useState<GuestIdentity | null>(null);
   const [guestLastOrder, setGuestLastOrder] = useState<GuestOrderMemory | null>(null);
 
@@ -76,8 +79,8 @@ export default function Home() {
     return () => window.removeEventListener(CATALOG_SEARCH_EVENT, onSearch);
   }, []);
   useEffect(() => {
-    if (activeCategory !== "todos" && !categories.some((category) => category.id === activeCategory)) setActiveCategory("todos");
-  }, [activeCategory, categories]);
+    if (activeCategory !== "todos" && !menuCategories.some((category) => category.id === activeCategory)) setActiveCategory("todos");
+  }, [activeCategory, menuCategories]);
   useEffect(() => {
     const syncGuest=()=>{setGuestIdentity(readGuestIdentity());setGuestLastOrder(readGuestOrders()[0]||null)};
     syncGuest(); window.addEventListener("dfl:guest-continuity",syncGuest);
@@ -120,7 +123,7 @@ export default function Home() {
       <div className={styles.categoryRailWrap}>
         <nav className={styles.categoryRail} aria-label="Categorias do cardápio">
           <button type="button" className={activeCategory === "todos" ? styles.categoryActive : styles.category} onClick={() => setActiveCategory("todos")}>Todos</button>
-          {categories.map((category) => (
+          {menuCategories.map((category) => (
             <button type="button" key={category.id} className={activeCategory === category.id ? styles.categoryActive : styles.category} onClick={() => setActiveCategory(category.id)}>{category.label}</button>
           ))}
         </nav>
@@ -143,7 +146,7 @@ export default function Home() {
               <button type="button" className={styles.allOffersButton} onClick={()=>setShowAllOffers(v=>!v)}>{showAllOffers?"Fechar ofertas":`Ver ${promoProducts.length} ofertas`}</button>
             </div>
             {!showAllOffers && <div className={styles.promoRail}>
-              {promoProducts.map((product, promoIndex) => {
+              {promoProducts.slice(0, 4).map((product, promoIndex) => {
                 const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
                 return <article className={styles.promoHeroCard} key={`promo-${product.id}`} role="button" tabIndex={0} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openProduct(product); } }}>
                   <div className={styles.promoHeroMedia}><CatalogImage src={product.image} alt="" sizes="(max-width: 699px) 74px, 82px" priority={promoIndex === 0} quality={70} /><span>-{discount}%</span></div>
@@ -176,7 +179,8 @@ export default function Home() {
 
         {categories.map((category) => {
           if (activeCategory !== "todos" && activeCategory !== category.id) return null;
-          const categoryProducts = filtered.filter((product) => product.category === category.id).sort(compareCatalogProducts);
+          const heroIds = activeCategory === "todos" && !search.trim() ? new Set(promoProducts.map(product=>product.id)) : new Set<string>();
+          const categoryProducts = filtered.filter((product) => product.category === category.id && !heroIds.has(product.id)).sort(compareCatalogProducts);
           if (!categoryProducts.length) return null;
 
           return (

@@ -16,6 +16,12 @@ export type Product = {
   promoPlacement?: "home_showcase" | "none";
   sortOrder?: number;
   addonIds?: string[];
+  /** V86 R4: número mínimo de adicionais escolhidos por unidade (padrão 0). */
+  minAddonSelections?: number;
+  /** V86 R4: número máximo por unidade (padrão 20). */
+  maxAddonSelections?: number;
+  /** V86 R5: grupos independentes, em que cada adicional pertence a um único grupo. */
+  addonGroups?: import("@/lib/catalogModifierGroups").AddonChoiceGroup[];
   detailsTitle?: string;
   detailsItems?: string[];
   includedExtras?: string;

@@ -1,6 +1,7 @@
 import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { products as fallbackProducts, type Product, type ProductCategory } from "@/data/products";
 import { ADDONS as fallbackAddons, type Addon } from "@/data/addons";
+import { parseAddonGroups } from "@/lib/catalogModifierGroups";
 
 export const CATALOG_PRODUCTS_COLLECTION = "CatalogoProdutos";
 export const CATALOG_ADDONS_COLLECTION = "CatalogoAdicionais";
@@ -71,6 +72,9 @@ export function normalizeRemoteProductRecord(snapshotId: string, raw: DocumentDa
   const suggestion = booleanOrUndefined(raw.isSuggestion ?? raw.sugestao);
   const sortOrder = finiteOrder(raw.sortOrder ?? raw.ordem);
   const addonIds = stringArray(raw.addonIds ?? raw.adicionaisIds);
+  const minAddonSelections = finiteOrder(raw.minAddonSelections);
+  const maxAddonSelections = finiteOrder(raw.maxAddonSelections);
+  const addonGroups = parseAddonGroups(raw.addonGroups);
   const detailsTitle = text(raw.detailsTitle ?? raw.tituloDetalhes) || undefined;
   const detailsItems = stringArray(raw.detailsItems ?? raw.itensDetalhes);
   const includedExtras = text(raw.includedExtras ?? raw.acompanha) || undefined;
@@ -92,6 +96,9 @@ export function normalizeRemoteProductRecord(snapshotId: string, raw: DocumentDa
     ...(suggestion !== undefined ? { isSuggestion: suggestion } : {}),
     ...(sortOrder !== undefined ? { sortOrder } : {}),
     ...(addonIds !== undefined ? { addonIds } : {}),
+    ...(minAddonSelections !== undefined ? { minAddonSelections } : {}),
+    ...(maxAddonSelections !== undefined ? { maxAddonSelections } : {}),
+    ...(addonGroups.groups.length ? { addonGroups: addonGroups.groups } : {}),
     ...(detailsTitle ? { detailsTitle } : {}),
     ...(detailsItems !== undefined ? { detailsItems } : {}),
     ...(includedExtras ? { includedExtras } : {}),

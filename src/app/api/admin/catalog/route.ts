@@ -6,6 +6,8 @@ import { adminDb } from"@/lib/integration/server/admin";
 import { isAdminEmail } from"@/lib/adminAuthorization";
 import { CATALOG_PRODUCTS_COLLECTION,CATALOG_ADDONS_COLLECTION } from"@/lib/catalog";
 import { CATALOG_CATEGORIES_COLLECTION } from"@/lib/catalogCategories";
+import { addonPolicy } from "@/lib/catalogAddonPolicy";
+import { parseAddonGroups, productGroupConfiguration } from "@/lib/catalogModifierGroups";
 
 export const runtime="nodejs"; export const dynamic="force-dynamic";
 const SNAPSHOT_COLLECTION="public_materialized",SNAPSHOT_DOCUMENT="catalog_v1";
@@ -30,13 +32,20 @@ function product(data:Raw){
  const price=finite(data.price);
  const oldPrice=numericOrNull(data.oldPrice);
  const sortOrder=numericOrNull(data.sortOrder);
- const upsellUnitPrice=numericOrNull(data.upsellUnitPrice);
+  const upsellUnitPrice=numericOrNull(data.upsellUnitPrice);
+  const rawMin=data.minAddonSelections == null ? 0 : data.minAddonSelections;
+  const rawMax=data.maxAddonSelections == null ? 20 : data.maxAddonSelections;
+  const policy=addonPolicy({minAddonSelections:rawMin as number,maxAddonSelections:rawMax as number});
+  if(!policy.valid)throw new Error("ADDON_POLICY_INVALID");
+  const addonGroups=parseAddonGroups(data.addonGroups);
+  if(!addonGroups.valid || !productGroupConfiguration({addonGroups:addonGroups.groups,minAddonSelections:policy.min,maxAddonSelections:policy.max}).valid) throw new Error("ADDON_GROUP_INVALID");
  if(!name||!description||!image||!category||price==null||price<0)throw new Error("PRODUCT_INVALID");
  if(oldPrice!=null&&(oldPrice<0||oldPrice<=price))throw new Error("PROMOTION_INVALID");
 
  const addonIds=Array.isArray(data.addonIds)
   ? data.addonIds.map(v=>cleanString(v,100)).filter(Boolean).slice(0,100)
   : null;
+ if(addonGroups.groups.some(group=>group.addonIds.some(optionId=>addonIds!==null&&!addonIds.includes(optionId))))throw new Error("ADDON_GROUP_INVALID");
  const detailsItems=Array.isArray(data.detailsItems)
   ? data.detailsItems.map(v=>cleanString(v,300)).filter(Boolean).slice(0,50)
   : [];
@@ -59,7 +68,10 @@ function product(data:Raw){
   isSuggestion:boolean(data.isSuggestion),
   promoPlacement:cleanString(data.promoPlacement,40)||"none",
   sortOrder:sortOrder??FieldValue.delete(),
-  addonIds:addonIds??FieldValue.delete(),
+   addonIds:addonIds??FieldValue.delete(),
+   minAddonSelections:policy.min,
+   maxAddonSelections:policy.max,
+   addonGroups:addonGroups.groups.length?addonGroups.groups:FieldValue.delete(),
   detailsTitle:cleanString(data.detailsTitle,200)||FieldValue.delete(),
   detailsItems,
   includedExtras:cleanString(data.includedExtras,500)||FieldValue.delete(),
@@ -89,7 +101,26 @@ export async function POST(request:NextRequest){
   const body=await request.json() as Raw,action=cleanString(body.action,40),id=cleanString(body.id,100),data=(body.data&&typeof body.data==="object"?body.data:{}) as Raw;
   const products=adminDb.collection(CATALOG_PRODUCTS_COLLECTION),categories=adminDb.collection(CATALOG_CATEGORIES_COLLECTION),addons=adminDb.collection(CATALOG_ADDONS_COLLECTION);
   if(action==="saveProduct"||action==="toggleProduct"){if(!id||!validId(id))throw new Error("ID_REQUIRED");await products.doc(id).set(product(data),{merge:true});}
-  else if(action==="saveCategory"||action==="toggleCategory"){if(!id||!validId(id))throw new Error("ID_REQUIRED");const label=cleanString(data.label,100);if(!label)throw new Error("CATEGORY_INVALID");await categories.doc(id).set({...data,id,label,updatedAt:FieldValue.serverTimestamp()},{merge:true});}
+  else if(action==="bulkAvailability"){
+    const enabled=body.enabled;
+    const rawItems=Array.isArray(body.items)?body.items as Array<Raw>:[];
+    if(typeof enabled!=="boolean"||!rawItems.length||rawItems.length>40)throw new Error("BULK_AVAILABILITY_INVALID");
+    const items=rawItems.map(item=>({id:cleanString(item.id,100),expected:item.expected}));
+    if(items.some(item=>!validId(item.id)||typeof item.expected!=="boolean"||item.expected===enabled)||new Set(items.map(item=>item.id)).size!==items.length)throw new Error("BULK_AVAILABILITY_INVALID");
+    // Todos os documentos precisam existir. Não criar documentos parciais do catálogo.
+    await adminDb.runTransaction(async tx => {
+      const refs=items.map(item=>products.doc(item.id));
+      const snapshots=await Promise.all(refs.map(ref=>tx.get(ref)));
+      snapshots.forEach((snapshot,index)=>{
+        if(!snapshot.exists)throw new Error("PRODUCT_NOT_FOUND");
+        const data=snapshot.data() as Raw;
+        const current=typeof data.disponivel==="boolean"?data.disponivel:typeof data.available==="boolean"?data.available:true;
+        if(current!==items[index].expected)throw new Error("BULK_AVAILABILITY_STALE");
+      });
+      refs.forEach(ref=>tx.update(ref,{disponivel:enabled,updatedAt:FieldValue.serverTimestamp()}));
+    });
+   }
+   else if(action==="saveCategory"||action==="toggleCategory"){if(!id||!validId(id))throw new Error("ID_REQUIRED");const label=cleanString(data.label,100);if(!label)throw new Error("CATEGORY_INVALID");await categories.doc(id).set({...data,id,label,updatedAt:FieldValue.serverTimestamp()},{merge:true});}
   else if(action==="deleteCategory"){if(!id||!validId(id))throw new Error("ID_REQUIRED");const used=await products.where("category","==",id).limit(1).get();if(!used.empty)throw new Error("CATEGORY_IN_USE");await categories.doc(id).delete();}
   else if(action==="saveAddon"||action==="toggleAddon"){if(!id||!validId(id))throw new Error("ID_REQUIRED");await addons.doc(id).set({...addon(data),id},{merge:true});}
   else if(action==="reorderCategories"||action==="reorderProducts"){
@@ -136,7 +167,7 @@ export async function POST(request:NextRequest){
  }catch(error){
   const code=error instanceof Error?error.message:"CATALOG_MUTATION_FAILED";
   console.error("[api/admin/catalog]",error);
-  const client=new Set(["PRODUCT_INVALID","PROMOTION_INVALID","ADDON_INVALID","CATEGORY_INVALID","CATEGORY_IN_USE","ID_REQUIRED","ORDER_INVALID","PRODUCT_NOT_FOUND","BACKUP_ID_REQUIRED","BACKUP_NOT_FOUND","BACKUP_INVALID"]);
+  const client=new Set(["BULK_AVAILABILITY_INVALID","BULK_AVAILABILITY_STALE","PRODUCT_INVALID","PROMOTION_INVALID","ADDON_INVALID","CATEGORY_INVALID","CATEGORY_IN_USE","ID_REQUIRED","ORDER_INVALID","PRODUCT_NOT_FOUND","BACKUP_ID_REQUIRED","BACKUP_NOT_FOUND","BACKUP_INVALID"]);
   return NextResponse.json({ok:false,error:client.has(code)?code:"CATALOG_MUTATION_FAILED"},{status:client.has(code)?400:500});
  }
 }

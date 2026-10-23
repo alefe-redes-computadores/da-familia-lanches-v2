@@ -12,7 +12,10 @@ import { INTEGRATION_COLLECTIONS } from "@/lib/integration/firestore";
 import { capacityForTime, normalizeSchedulingConfig, scheduleSlotId } from "@/lib/schedulingConfig";
 import { normalizeStoreSettings } from "@/lib/storeSchedule";
 import { isScheduledValueAllowed } from "@/lib/orderSchedulePolicy";
-import { normalizeCommercialSettings, freeDeliveryThreshold, normalizeCommercialText } from "@/lib/commercialSettings";
+import { addonPolicy, validAddonSelection } from "@/lib/catalogAddonPolicy";
+import { productGroupConfiguration, inspectProductSelections } from "@/lib/catalogModifierGroups";
+import { normalizeCommercialSettings, freeDeliveryThreshold } from "@/lib/commercialSettings";
+import { inspectDistrict, matchDeliveryRate } from "@/lib/addressIntelligence";
 import { drainIntegrationOutboxEvent } from "@/lib/integration/server/relay";
 import { errorCode,finishRouteTrace,startRouteTrace } from "@/lib/server/observability";
 
@@ -57,7 +60,11 @@ function remoteProduct(id: string, raw: Raw, fallback?: Product): Product | null
   const bundleRaw=raw.bundleItems ?? raw.itensCombo; const bundleItems=Array.isArray(bundleRaw)?bundleRaw.flatMap(v=>{const x=object(v),productId=text(x.productId??x.id,120);return productId?[{productId,quantity:Math.max(1,Math.trunc(Number(x.quantity??x.qtd)||1)),...(text(x.note,180)?{note:text(x.note,180)}:{})}]:[]}):fallback?.bundleItems;
   const includedExtras=text(raw.includedExtras ?? fallback?.includedExtras,600)||undefined;
   return { ...(fallback ?? { id, name, description, image, category, price, disponivel: true }), id, name, description, image, category, price,
-    disponivel: bool(raw.disponivel ?? raw.available, fallback?.disponivel ?? true), ...(addonIds ? { addonIds } : {}), ...(detailsTitle?{detailsTitle}:{}), ...(detailsItems?{detailsItems}:{}), ...(bundleItems?{bundleItems}:{}), ...(includedExtras?{includedExtras}:{}), ...(upsellProductId?{upsellProductId}:{}), ...(upsellUnitPrice!==null?{upsellUnitPrice}:{}) };
+    disponivel: bool(raw.disponivel ?? raw.available, fallback?.disponivel ?? true), ...(addonIds ? { addonIds } : {}),
+    minAddonSelections: raw.minAddonSelections == null ? fallback?.minAddonSelections : Number(raw.minAddonSelections),
+    maxAddonSelections: raw.maxAddonSelections == null ? fallback?.maxAddonSelections : Number(raw.maxAddonSelections),
+    addonGroups: (raw.addonGroups === undefined ? fallback?.addonGroups : raw.addonGroups) as Product["addonGroups"],
+    ...(detailsTitle?{detailsTitle}:{}), ...(detailsItems?{detailsItems}:{}), ...(bundleItems?{bundleItems}:{}), ...(includedExtras?{includedExtras}:{}), ...(upsellProductId?{upsellProductId}:{}), ...(upsellUnitPrice!==null?{upsellUnitPrice}:{}) };
 }
 function remoteAddon(id: string, raw: Raw, fallback?: Addon): Addon | null {
   const price = finiteMoney(raw.price ?? raw.preco ?? fallback?.price);
@@ -196,6 +203,10 @@ export async function POST(request: NextRequest) {
         const remote = remoteProducts.get(line.id);
         const product = remote ? remoteProduct(line.id, remote, fallback) : fallback;
         if (!product || product.disponivel === false) throw new Error("PRODUCT_UNAVAILABLE");
+        if (!addonPolicy(product).valid) throw new Error("ADDON_POLICY_INVALID");
+        if (!validAddonSelection(product,line.selectedAddons.length)) throw new Error("ADDON_SELECTION_INVALID");
+        if (!productGroupConfiguration(product).valid) throw new Error("ADDON_GROUP_INVALID");
+        if (!inspectProductSelections(product,line.selectedAddons.map(item=>item.id)).valid) throw new Error("ADDON_GROUP_SELECTION_INVALID");
         const allowed = product.category === "bebidas" ? new Set<string>() : product.addonIds ? new Set(product.addonIds) : null;
         const selectedAddons = line.selectedAddons.map(({ id }) => {
           const base = addonFallback.get(id); const remoteRaw = remoteAddons.get(id);
@@ -260,6 +271,7 @@ export async function POST(request: NextRequest) {
       const deliveryMode: "pickup" | "delivery" = incoming.tipoEntrega === "pickup" ? "pickup" : "delivery";
       const delivery = object(incoming.deliverySnapshot);
       const district = text(delivery.district, 120);
+      if (deliveryMode === "delivery" && !inspectDistrict(district).valid) throw new Error("ADDRESS_INVALID");
       const [ratesSnap, deliverySettingsSnap, commercialSnap] = await Promise.all([
         tx.get(adminDb.doc("TaxasDeEntrega/bairros/lista/tabela")), tx.get(adminDb.doc("settings/delivery")), tx.get(adminDb.doc("settings/commercial")),
       ]);
@@ -268,8 +280,8 @@ export async function POST(request: NextRequest) {
         const configured = Number(deliverySettingsSnap.data()?.defaultFee);
         fee = Number.isFinite(configured) && configured >= 0 ? configured : 6;
         const rates = Array.isArray(ratesSnap.data()?.data) ? ratesSnap.data()!.data as Array<Raw> : [];
-        const key = normalizeCommercialText(district);
-        const found = rates.find((rate) => { const name = normalizeCommercialText(rate.nome); return name === key || name.includes(key) || key.includes(name); });
+        if (!inspectDistrict(district, rates.map(rate=>String(rate.nome ?? ""))).valid) throw new Error("ADDRESS_INVALID");
+        const found = matchDeliveryRate(district, rates);
         const selected = Number(found?.taxa);
         if (found && Number.isFinite(selected) && selected >= 0) fee = selected;
         const settings = normalizeCommercialSettings(commercialSnap.exists ? commercialSnap.data() as Raw : undefined);
@@ -334,7 +346,12 @@ export async function POST(request: NextRequest) {
         requestFingerprint, userName: text(incoming.userName, 120) || text(decoded?.name, 120) || "Cliente", userEmail: decoded?.email || "", userPhone: phone,
         itens: canonicalItems, subtotal, taxaEntrega: fee, desconto: discount, cupom: discount > 0 && code ? code : null, rewardId: rewardId || null, total,
         metodoPagamento: method, trocoPara: method === "dinheiro" ? text(incoming.trocoPara, 40) || null : null, observacao: text(incoming.observacao, 300) || null,
-        endereco: deliveryMode === "pickup" ? "RETIRADA NO LOCAL" : text(incoming.endereco, 600), tipoEntrega: deliveryMode,
+        endereco: deliveryMode === "pickup" ? "RETIRADA NO LOCAL" : [
+          [text(delivery.street, 180), text(delivery.number, 30)].filter(Boolean).join(", "),
+          district ? `- ${district}` : "",
+          text(delivery.complement, 180) ? `(${text(delivery.complement, 180)})` : "",
+          text(delivery.reference, 240) ? `Ref.: ${text(delivery.reference, 240)}` : "",
+        ].filter(Boolean).join(" ").slice(0, 600), tipoEntrega: deliveryMode,
         data: FieldValue.serverTimestamp(),
         status: isScheduled ? "Agendado" : "Pendente",
         isAgendamento: isScheduled,
@@ -348,7 +365,7 @@ export async function POST(request: NextRequest) {
         customerSnapshot: { id: actorId, name: text(customer.name, 120) || text(incoming.userName, 120), email: decoded?.email || "", phone, phoneE164: `+55${phone.replace(/\D/g, "")}` },
         deliverySnapshot: deliveryMode === "pickup" ? null : { cep: text(delivery.cep, 20), street: text(delivery.street, 180), number: text(delivery.number, 30), district, complement: text(delivery.complement, 180), reference: text(delivery.reference, 240) },
       };
-      if (deliveryMode === "delivery" && (!text(delivery.street) || !text(delivery.number) || !district)) throw new Error("ADDRESS_INVALID");
+      if (deliveryMode === "delivery" && (text(delivery.street).length < 4 || !text(delivery.number) || !inspectDistrict(district).valid || text(delivery.cep).replace(/\D/g, "").length !== 8)) throw new Error("ADDRESS_INVALID");
       const event = buildOrderCreatedEvent({ orderId: orderRef.id, order: canonicalOrder, occurredAt });
       tx.create(orderRef, canonicalOrder);
 
@@ -410,7 +427,7 @@ export async function POST(request: NextRequest) {
     const rawCode = String((error && typeof error === "object" && "code" in error) ? (error as { code?: unknown }).code ?? "" : "").toLowerCase();
     const original = error instanceof Error ? error.message : "ORDER_FAILED";
     const message = rawCode.includes("resource-exhausted") || rawCode === "8" || /quota|resource exhausted/i.test(original) ? "SERVICE_BUSY" : rawCode.includes("permission-denied") || rawCode === "7" ? "SERVICE_CONFIG" : rawCode.includes("unavailable") || rawCode === "14" ? "SERVICE_UNAVAILABLE" : original;
-    const known = /^(AUTH_REQUIRED|PAYLOAD_INVALID|IDEMPOTENCY_|CART_INVALID|ADDON_DUPLICATE|PRODUCT_UNAVAILABLE|ADDON_UNAVAILABLE|UPSELL_|PRICE_CHANGED|DELIVERY_CHANGED|COUPON_|REWARD_|SCHEDULE_|PAYMENT_INVALID|PHONE_INVALID|ADDRESS_INVALID|SERVICE_BUSY|SERVICE_CONFIG|SERVICE_UNAVAILABLE)/.test(message);
+    const known = /^(AUTH_REQUIRED|PAYLOAD_INVALID|IDEMPOTENCY_|CART_INVALID|ADDON_DUPLICATE|PRODUCT_UNAVAILABLE|ADDON_UNAVAILABLE|ADDON_SELECTION_INVALID|ADDON_POLICY_INVALID|ADDON_GROUP_INVALID|ADDON_GROUP_SELECTION_INVALID|UPSELL_|PRICE_CHANGED|DELIVERY_CHANGED|COUPON_|REWARD_|SCHEDULE_|PAYMENT_INVALID|PHONE_INVALID|ADDRESS_INVALID|SERVICE_BUSY|SERVICE_CONFIG|SERVICE_UNAVAILABLE)/.test(message);
     finishRouteTrace(trace,"error",{errorCode:errorCode(error),businessCode:known?message:"ORDER_FAILED",status:known?409:500});
     return NextResponse.json({ok:false,error:known?message:"ORDER_FAILED"},{status:known?409:500,headers:{"x-dfl-trace-id":trace.id}});
   }

@@ -11,6 +11,7 @@ import { openDflEntregas } from "@/lib/adminDeliveryBridge";
 import { ORDER_CANCELLATION_REASONS, type OrderCancellationReasonCode } from "@/lib/orderCancellation";
 import styles from "./OrderCard.module.css";
 import { adminOrderAddress } from "@/lib/adminOrderAddress";
+import { inspectDistrict } from "@/lib/addressIntelligence";
 
 const adminBRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -437,6 +438,9 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
               <div className={styles.deliveryCopy}>
                 <b>{pickup ? "RETIRADA NO BALCÃO" : "ENTREGA"}</b>
                 <span>{addressLabel || "Endereço não informado"}</span>
+                {!pickup && !inspectDistrict(normalizedAddress.district).valid && (
+                  <small role="alert" style={{color:"#b45309",fontWeight:850}}><TriangleAlert size={13} style={{verticalAlign:"middle"}} /> Bairro ausente ou incompleto: confirme com o cliente antes de despachar.</small>
+                )}
                 {typeof pedido.observacao === "string" && pedido.observacao.trim() && (
                   <small className={styles.deliveryNote}>Observação: {pedido.observacao.trim()}</small>
                 )}

@@ -172,3 +172,8 @@
   .comboUpsell{padding:13px;gap:10px}
   .comboUpsell>button{min-height:48px}
 }
+
+/* DFL SITE V86 R4 — adicionais guiados sem esconder botões */
+.addonNoticeV86,.addonHintV86{margin:10px 0;padding:10px 12px;border:1px solid #f0d386;border-radius:12px;background:#fff9e8;color:#5b3d07;font-size:12px;font-weight:750;line-height:1.4}
+.addonNoticeV86{border-color:#f3b5a6;background:#fff0ec;color:#8b2e15}
+.confirm:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}

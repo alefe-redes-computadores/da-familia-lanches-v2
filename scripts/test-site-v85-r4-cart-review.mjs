@@ -12,7 +12,7 @@ const ok=(cond,label)=>{assert.ok(cond,`V85 R4: ${label}`);console.log('✓',lab
 ok(cart.includes('const reconciliation = useMemo(() => {') && cart.includes('const applyCatalogReview = () => {'), 'carrinho prepara diferencas e aguarda confirmacao');
 ok(!cart.includes('replaceItems(compacted);'), 'nao remove itens dentro do efeito de abertura');
 ok(cart.includes('if (signature(current) !== reconciliation.originalSignature)') && cart.includes('replaceItems(reconciliation.next);'), 'cliente confirma e alteracoes simultaneas sao protegidas');
-ok(cart.includes('disabled={Boolean(reconciliation)}') && cart.includes('if (reconciliation) { setCatalogNotice('), 'checkout bloqueado enquanto o carrinho precisa de revisao');
+ok(cart.includes('disabled={Boolean(reconciliation) || (catalogSource === "hybrid" && invalidSelections.length > 0)}') && cart.includes('if (catalogSource==="hybrid" && invalidSelections.length)') && cart.includes('if (reconciliation) { setCatalogNotice('), 'checkout bloqueado enquanto o carrinho precisa de revisao');
 ok(cart.includes('catalogError || catalogSource !== "hybrid"'), 'fallback remoto indisponivel nao substitui carrinho');
 ok(cart.includes('source.upsellProductId === product.id') && cart.includes('entitlement <= 0'), 'limites comerciais e vinculos de upsell mantidos');
 ok(cart.includes('availableAddonsForProduct') && cart.includes('addon.id'), 'precos de adicionais sao reconciliados');

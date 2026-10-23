@@ -15,8 +15,14 @@ import { CATALOG_ADDONS_COLLECTION, CATALOG_PRODUCTS_COLLECTION } from "@/lib/ca
 import { CATALOG_CATEGORIES_COLLECTION, type CatalogCategory } from "@/lib/catalogCategories";
 import styles from "./CatalogAdmin.module.css";
 import { CatalogOrganizerAdmin } from "./CatalogOrganizerAdmin";
+import { CatalogQualityPanel } from "./CatalogQualityPanel";
+import { CatalogBulkOperations } from "./CatalogBulkOperations";
+import { CatalogLaunchCenter } from "./CatalogLaunchCenter";
 import { productPublicSection, productPublicSlug } from "@/lib/productRoutes";
 import { validateBundleItems } from "@/lib/catalogComposition";
+import { addonPolicy, addonPolicyHint } from "@/lib/catalogAddonPolicy";
+import { productGroupConfiguration, type AddonChoiceGroup } from "@/lib/catalogModifierGroups";
+import { AddonGroupsEditor } from "./AddonGroupsEditor";
 import { haptic } from "@/lib/haptics";
 
 
@@ -33,6 +39,9 @@ type ProductDraft = {
   showInOffers: boolean;
   sortOrder: string;
   addonIds?: string[];
+  minAddonSelections: string;
+  maxAddonSelections: string;
+  addonGroups: AddonChoiceGroup[];
   detailsTitle: string;
   detailsItems: string;
   includedExtras: string;
@@ -135,6 +144,9 @@ const draftFromProduct = (product: Product): ProductDraft => ({
   showInOffers: product.promoPlacement === "home_showcase" || (product.promoPlacement == null && Boolean(product.isSuggestion) && typeof product.oldPrice === "number" && product.oldPrice > product.price),
   sortOrder: product.sortOrder == null ? "" : String(product.sortOrder),
   addonIds: product.addonIds,
+  minAddonSelections: String(product.minAddonSelections ?? 0),
+  maxAddonSelections: String(product.maxAddonSelections ?? 20),
+  addonGroups: product.addonGroups ?? [],
   detailsTitle: product.detailsTitle ?? "",
   detailsItems: product.detailsItems?.join("\n") ?? "",
   includedExtras: product.includedExtras ?? "",
@@ -166,6 +178,7 @@ export function CatalogAdmin() {
   const [advancedProduct, setAdvancedProduct] = useState(false);
   const [showAddonChoices, setShowAddonChoices] = useState(false);
   const [productStep, setProductStep] = useState<ProductEditorStep>("essencial");
+  const saveProductBusy = useRef(false);
   const productBaseline = useRef("");
   const confirmProductClose = useAdminConfirm();
   useEffect(() => {
@@ -254,7 +267,7 @@ export function CatalogAdmin() {
     const detailsItems=isCombo?(product.detailsItems?.map(x=>x.trim()).filter(Boolean)??[]):ingredientItems(product);
     const bundleItems=isCombo?comboBundleFromDetails(product):(product.bundleItems??[]);
     const base=bundleItems.length===1?products.find(c=>c.id===bundleItems[0].productId):undefined;
-    const data:Record<string,unknown>={id:product.id,name:product.name.trim(),description:product.description.trim(),price:product.price,oldPrice:product.oldPrice??null,image:product.image,category:product.category,disponivel:product.disponivel,isSuggestion:Boolean(product.isSuggestion),promoPlacement:product.promoPlacement??"none",sortOrder:product.sortOrder??null,addonIds:product.category==="bebidas"?[]:(product.addonIds??null),detailsTitle:isCombo?`O que vem no ${product.name}?`:(product.category==="bebidas"?null:`O que vem no ${product.name}?`),detailsItems,includedExtras:defaultExtras(product)||null,bundleItems:bundleItems.length?bundleItems:null,publicSlug:product.publicSlug??null,publicSection:product.publicSection??null,upsellProductId:product.upsellProductId??(isCombo&&base?.disponivel!==false?base?.id??null:null),upsellUnitPrice:product.upsellUnitPrice??null};
+    const data:Record<string,unknown>={id:product.id,name:product.name.trim(),description:product.description.trim(),price:product.price,oldPrice:product.oldPrice??null,image:product.image,category:product.category,disponivel:product.disponivel,isSuggestion:Boolean(product.isSuggestion),promoPlacement:product.promoPlacement??"none",sortOrder:product.sortOrder??null,minAddonSelections:product.minAddonSelections??0,maxAddonSelections:product.maxAddonSelections??20,addonGroups:product.addonGroups??null,addonIds:product.category==="bebidas"?[]:(product.addonIds??null),detailsTitle:isCombo?`O que vem no ${product.name}?`:(product.category==="bebidas"?null:`O que vem no ${product.name}?`),detailsItems,includedExtras:defaultExtras(product)||null,bundleItems:bundleItems.length?bundleItems:null,publicSlug:product.publicSlug??null,publicSection:product.publicSection??null,upsellProductId:product.upsellProductId??(isCombo&&base?.disponivel!==false?base?.id??null:null),upsellUnitPrice:product.upsellUnitPrice??null};
     const changes:string[]=[];
     if(!product.detailsTitle&&data.detailsTitle)changes.push("título dos detalhes");
     if(!(product.detailsItems?.length)&&detailsItems.length)changes.push("ingredientes");
@@ -272,7 +285,7 @@ export function CatalogAdmin() {
     setAdvancedProduct(false);
     setShowAddonChoices(false);
     setProductStep("essencial");
-    const draft: ProductDraft = { id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "", upsellProductId: "", upsellUnitPrice: "" };
+    const draft: ProductDraft = { id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, minAddonSelections: "0", maxAddonSelections: "20", addonGroups: [], detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "", upsellProductId: "", upsellUnitPrice: "" };
     productBaseline.current = JSON.stringify(draft);
     setProductDraft(draft);
     setMessage("");
@@ -352,24 +365,66 @@ export function CatalogAdmin() {
   };
 
   const saveProduct = async () => {
+    if (!productDraft || !productMode || saveProductBusy.current || imageUploading) return;
+    saveProductBusy.current = true;
+    try {
+      await persistProductDraft();
+    } finally {
+      saveProductBusy.current = false;
+    }
+  };
+
+  const persistProductDraft = async () => {
     if (!productDraft || !productMode) return;
     const price = parseMoneyInput(productDraft.price);
     const oldPrice = productDraft.oldPrice.trim() ? parseMoneyInput(productDraft.oldPrice) : null;
     const sortOrder = productDraft.sortOrder.trim() ? Number(productDraft.sortOrder) : null;
     const upsellUnitPrice = productDraft.upsellUnitPrice.trim() ? parseMoneyInput(productDraft.upsellUnitPrice) : null;
+    const policy = addonPolicy({minAddonSelections: Number(productDraft.minAddonSelections),maxAddonSelections: Number(productDraft.maxAddonSelections)});
+    if (!policy.valid || !productDraft.minAddonSelections.trim() || !productDraft.maxAddonSelections.trim()) {
+      setProductStep("venda");
+      return setMessage("Revise os adicionais: mínimo e máximo devem ser números inteiros entre 0 e 20, com mínimo menor ou igual ao máximo.");
+    }
+    const groupPolicy=productGroupConfiguration({minAddonSelections:policy.min,maxAddonSelections:policy.max,addonGroups:productDraft.addonGroups});
+    if(!groupPolicy.valid){setProductStep("venda");return setMessage(groupPolicy.reason);}
+    const allowedSet=new Set(productDraft.addonIds===undefined?addons.map(a=>a.id):productDraft.addonIds);
+    const invalidGroupOption=productDraft.addonGroups.some(group=>group.addonIds.some(id=>!allowedSet.has(id)||addons.find(a=>a.id===id)?.disponivel===false));
+    if(invalidGroupOption){setProductStep("venda");return setMessage("Um grupo utiliza adicional não permitido, pausado ou não encontrado. Revise as opções.");}
+    if (productDraft.category === "bebidas" && productDraft.addonGroups.length){setProductStep("venda");return setMessage("Bebidas não aceitam grupos de adicionais neste catálogo.");}
+    if (productDraft.category === "bebidas" && policy.min > 0) {
+      setProductStep("venda"); return setMessage("Bebidas não têm adicionais neste catálogo. Use mínimo zero.");
+    }
+    const selectableCount = productDraft.category === "bebidas" ? 0 : (productDraft.addonIds === undefined ? addons.length : addons.filter(item => productDraft.addonIds?.includes(item.id)).length);
+    if (policy.min > selectableCount) {setProductStep("venda");return setMessage(`Você exige ${policy.min} adicionais, mas só há ${selectableCount} opções permitidas.`);}
+    if (productDraft.upsellProductId && (products.find(p=>p.id===productDraft.upsellProductId)?.minAddonSelections ?? 0)>0) {
+      setProductStep("opcoes");return setMessage("O produto Turbine exige personalização e não pode ser adicionado automaticamente.");
+    }
 
-    if (!productDraft.name.trim()) return setMessage("Informe o nome do produto.");
-    if (!productDraft.description.trim()) return setMessage("Informe a descrição do produto.");
-    if (!productDraft.image.trim()) return setMessage("Informe a imagem ou caminho do produto.");
-    if (price === null || price < 0) return setMessage("Informe um preço válido.");
-    if (oldPrice !== null && oldPrice < 0) return setMessage("Preço anterior inválido.");
-    if (oldPrice !== null && oldPrice <= price) return setMessage("Para criar promoção, o preço anterior precisa ser maior que o preço atual.");
+    if (!productDraft.name.trim()) { setProductStep("essencial"); return setMessage("Informe o nome do produto."); }
+    if (!productDraft.description.trim()) { setProductStep("essencial"); return setMessage("Informe a descrição do produto."); }
+    if (!productDraft.image.trim()) { setProductStep("essencial"); return setMessage("Selecione a foto do produto."); }
+    if (price === null || price < 0) { setProductStep("venda"); return setMessage("Informe um preço válido."); }
+    if (oldPrice !== null && oldPrice < 0) { setProductStep("venda"); return setMessage("Preço anterior inválido."); }
+    if (oldPrice !== null && oldPrice <= price) { setProductStep("venda"); return setMessage("Para criar promoção, o preço anterior precisa ser maior que o preço atual."); }
     if(productDraft.upsellProductId && (!products.some(p=>p.id===productDraft.upsellProductId)||productDraft.upsellProductId===productDraft.id)) return setMessage("Selecione um produto válido para o upsell.");
     if(productDraft.upsellProductId && (upsellUnitPrice===null||upsellUnitPrice<0)) return setMessage("Informe o preço explícito do upsell.");
     const bundleValidation = validateBundleItems(productDraft.bundleItems, new Set(products.map((item) => item.id)));
     if (!bundleValidation.valid) return setMessage(bundleValidation.errors[0] || "Revise a composição inclusa.");
     if (productDraft.bundleItems.some((item) => item.productId === productDraft.id)) return setMessage("O produto não pode incluir ele mesmo na composição.");
 
+    const duplicate = products.find((item) =>
+      item.id !== productDraft.id && item.category === productDraft.category &&
+      item.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR") ===
+      productDraft.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR")
+    );
+    if (productMode === "create" && duplicate) {
+      setProductStep("essencial");
+      return setMessage(`Já existe um produto chamado ${duplicate.name} nesta categoria. Edite o existente para evitar duplicidade.`);
+    }
+    if (productDraft.disponivel && categories.find((item) => item.id === productDraft.category)?.active === false) {
+      setProductStep("essencial");
+      return setMessage("Esta categoria está oculta. Reative a categoria ou pause o produto antes de salvar.");
+    }
     const usedIds = new Set(products.map((product) => product.id));
     const id = productMode === "edit" ? productDraft.id : nextId(productDraft.name, usedIds);
 
@@ -387,6 +442,9 @@ export function CatalogAdmin() {
         isSuggestion: productDraft.isSuggestion,
         promoPlacement: productDraft.showInOffers ? "home_showcase" : "none",
         sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : null,
+        minAddonSelections: policy.min,
+        maxAddonSelections: policy.max,
+        addonGroups: productDraft.addonGroups.length?productDraft.addonGroups:null,
         detailsTitle: productDraft.detailsTitle.trim() || null,
         detailsItems: productDraft.detailsItems.split("\n").map((item) => item.trim()).filter(Boolean),
         includedExtras: productDraft.includedExtras.trim() || null,
@@ -421,7 +479,12 @@ export function CatalogAdmin() {
         id: product.id, name: product.name, description: product.description, price: product.price,
         oldPrice: product.oldPrice ?? null, image: product.image, category: product.category,
         disponivel: !product.disponivel, isSuggestion: Boolean(product.isSuggestion), promoPlacement: product.promoPlacement ?? null,
-        sortOrder: product.sortOrder ?? null, addonIds: product.addonIds ?? null,
+        sortOrder: product.disponivel ? product.sortOrder ?? null :
+           Math.max(0, ...products.filter(item => item.category === product.category && item.id !== product.id && item.disponivel !== false)
+             .map(item => Number.isFinite(item.sortOrder) ? Number(item.sortOrder) : 0)) + 10,
+         addonIds: product.addonIds ?? null,
+         minAddonSelections: product.minAddonSelections ?? 0, maxAddonSelections: product.maxAddonSelections ?? 20,
+         addonGroups: product.addonGroups ?? null,
         detailsTitle: product.detailsTitle ?? null, detailsItems: product.detailsItems ?? [],
         includedExtras: product.includedExtras ?? null, bundleItems: product.bundleItems ?? null,
         publicSlug: product.publicSlug ?? null, publicSection: product.publicSection ?? null,
@@ -560,6 +623,9 @@ export function CatalogAdmin() {
 
     {message && <div className={styles.message} data-tone={/falha|erro|inválid|não foi|obrigatóri|informe|precisa|não pode/i.test(message) ? "error" : "success"} role="status" aria-live="polite"><span>{message}</span><button type="button" aria-label="Fechar aviso" onClick={() => setMessage("")}>×</button></div>}
 
+    <CatalogQualityPanel products={products} categories={categories} />
+    <CatalogBulkOperations products={products} categories={categories} source={source} />
+    <CatalogLaunchCenter products={products} addons={allAddons} categories={categories} source={source} onEdit={openEditProduct} />
     <nav className={styles.viewTabs} aria-label="Seções do cardápio">
       {([["produtos", "Produtos", products.length], ["categorias", "Categorias", categories.length], ["adicionais", "Adicionais", allAddons.length], ["ordem", "Ordem", null]] as Array<[CatalogView, string, number | null]>).map(([key, label, count]) => (
         <button key={key} type="button" data-active={view === key} onClick={() => setView(key)}><span>{label}</span>{count !== null && <b>{count}</b>}</button>
@@ -665,6 +731,20 @@ export function CatalogAdmin() {
         <nav className={styles.editorSteps} aria-label="Etapas do produto">
           {([["essencial", "1", "Essencial"], ["conteudo", "2", "Conteúdo"], ["venda", "3", "Venda"], ["opcoes", "4", "Opções"]] as Array<[ProductEditorStep, string, string]>).map(([step, number, label]) => <button type="button" key={step} data-active={productStep === step} onClick={() => { haptic("step"); if (step === "opcoes") setAdvancedProduct(true); setProductStep(step); }}><b>{number}</b><span>{label}</span></button>)}
         </nav>
+        <div className={styles.editorLivePreview} aria-label="Prévia do produto no cardápio">
+          <div className={styles.livePreviewMedia}>
+            {productDraft.image.trim() ? <CatalogImage src={productDraft.image} alt="" sizes="92px" quality={65}/> : <span>Sem foto</span>}
+          </div>
+          <div className={styles.livePreviewCopy}>
+            <span>COMO O CLIENTE VERÁ</span>
+            <strong>{productDraft.name.trim() || "Nome do produto"}</strong>
+            <small>{productDraft.description.trim() || "A descrição aparecerá aqui."}</small>
+            <div>{promoMetrics(productDraft.price, productDraft.oldPrice) && <s>{money(promoMetrics(productDraft.price, productDraft.oldPrice)!.oldPrice)}</s>}
+              <b>{parseMoneyInput(productDraft.price) === null ? "Preço não definido" : money(parseMoneyInput(productDraft.price)!)}</b>
+              {!productDraft.disponivel && <em>Pausado</em>}
+            </div>
+          </div>
+        </div>
         <div className={styles.editorScroll}>
         <div className={styles.editorIntro} data-editor-step="essencial">Preencha o essencial primeiro. Ingredientes descrevem o lanche; componentes vinculados são os produtos entregues no combo.</div>
         {productMode === "edit" && advancedProduct && <div className={styles.idBox} data-editor-step="opcoes"><span>ID permanente</span><strong>{productDraft.id}</strong></div>}
@@ -721,7 +801,7 @@ export function CatalogAdmin() {
             </div>
             {advancedProduct && <label className={styles.full} data-editor-step="opcoes">Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /><small>Você também pode informar um caminho ou URL de imagem.</small></label>}
         </div>
-        {productDraft.image.trim() && <div className={styles.preview} data-editor-step="essencial"><CatalogImage src={productDraft.image} alt="" sizes="120px" quality={68} /><div><span>PRÉVIA</span><strong>{productDraft.name || "Novo produto"}</strong><small>{productDraft.image}</small></div></div>}
+        {productDraft.image.trim() && <div className={styles.photoReady} data-editor-step="essencial" role="status">✓ Foto selecionada. Confira a prévia acima.</div>}
         <div className={styles.switches} data-editor-step="venda">
           <button type="button" data-on={productDraft.disponivel} onClick={() => setProductDraft({ ...productDraft, disponivel: !productDraft.disponivel })}><i />Disponível</button>
           <button type="button" data-on={productDraft.isSuggestion} onClick={() => setProductDraft({ ...productDraft, isSuggestion: !productDraft.isSuggestion })}><i />Sugestão da casa</button>
@@ -730,11 +810,24 @@ export function CatalogAdmin() {
         {productDraft.category !== "bebidas" && <div className={styles.addonPicker} data-editor-step="venda">
           <div className={styles.addonPickerHead}><div><strong>Adicionais permitidos</strong><span>{productDraft.addonIds === undefined ? "Todos os adicionais ativos" : `${productDraft.addonIds.length} selecionados`}</span></div><button type="button" onClick={() => setProductDraft({ ...productDraft, addonIds: undefined })}>Permitir todos</button></div>
           <button type="button" className={styles.addonDisclosure} onClick={() => setShowAddonChoices(value => !value)}>{showAddonChoices ? "Ocultar seleção" : "Personalizar adicionais permitidos"}</button>
-          {showAddonChoices && <div className={styles.checks}>{addons.map((addon) => { const checked = productDraft.addonIds === undefined || productDraft.addonIds.includes(addon.id); return <label key={addon.id}><input type="checkbox" checked={checked} onChange={() => { const base = productDraft.addonIds === undefined ? addons.map((item) => item.id) : productDraft.addonIds; setProductDraft({ ...productDraft, addonIds: checked ? base.filter((id) => id !== addon.id) : [...base, addon.id] }); }} /><span>{addon.name}</span><small>{money(addon.price)}</small></label>; })}</div>}
+           <div className={styles.addonLimitsV86}>
+             <div className={styles.addonPolicyInfo}><strong>Regras de escolha</strong><span>{addonPolicyHint({minAddonSelections:Number(productDraft.minAddonSelections),maxAddonSelections:Number(productDraft.maxAddonSelections)})}</span></div>
+             <label>Mínimo de adicionais<input aria-label="Mínimo de adicionais" inputMode="numeric" type="number" min="0" max="20" value={productDraft.minAddonSelections} onChange={e=>setProductDraft({...productDraft,minAddonSelections:e.target.value})}/></label>
+             <label>Máximo de adicionais<input aria-label="Máximo de adicionais" inputMode="numeric" type="number" min="0" max="20" value={productDraft.maxAddonSelections} onChange={e=>setProductDraft({...productDraft,maxAddonSelections:e.target.value})}/></label>
+             <small>Sem alterar os produtos antigos: 0–20. Para exigir uma escolha, use mínimo 1. Configuração validada novamente no servidor.</small>
+           </div>
+           <AddonGroupsEditor value={productDraft.addonGroups} addons={addons} onChange={addonGroups=>setProductDraft({...productDraft,addonGroups})}/>
+           {showAddonChoices && <div className={styles.checks}>{addons.map((addon) => { const checked = productDraft.addonIds === undefined || productDraft.addonIds.includes(addon.id); return <label key={addon.id}><input type="checkbox" checked={checked} onChange={() => { const base = productDraft.addonIds === undefined ? addons.map((item) => item.id) : productDraft.addonIds; setProductDraft({ ...productDraft, addonIds: checked ? base.filter((id) => id !== addon.id) : [...base, addon.id] }); }} /><span>{addon.name}</span><small>{money(addon.price)}</small></label>; })}</div>}
         </div>}
         <button type="button" data-editor-step="opcoes" className={styles.advancedDisclosure} onClick={() => setAdvancedProduct(value => !value)}>{advancedProduct ? "Ocultar configurações avançadas" : "Configurações avançadas · link, upsell e caminho da foto"}</button>
         </div>
-        <div className={styles.editorActions}><button type="button" onClick={() => { haptic("step"); if (productStep === "essencial") { void closeProductEditor(); } else setProductStep(productStep === "conteudo" ? "essencial" : productStep === "venda" ? "conteudo" : "venda"); }}>{productStep === "essencial" ? "Cancelar" : "Voltar"}</button>{productStep !== "opcoes" ? <button type="button" className={styles.save} onClick={() => { haptic("step"); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button> : <button className={styles.save} onClick={saveProduct} disabled={busy.startsWith("product-")}>{busy.startsWith("product-") ? "Salvando..." : productMode === "create" ? "Criar produto" : "Salvar alterações"}</button>}</div>
+        <div className={styles.editorActionsV86}>
+          <button type="button" className={styles.backAction} onClick={() => { haptic("step"); if (productStep === "essencial") { void closeProductEditor(); } else setProductStep(productStep === "conteudo" ? "essencial" : productStep === "venda" ? "conteudo" : "venda"); }}>{productStep === "essencial" ? "Cancelar" : "Voltar"}</button>
+          {productStep !== "opcoes" && <button type="button" className={styles.nextAction} onClick={() => { haptic("step"); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button>}
+          <button type="button" className={styles.publishAction} onClick={() => void saveProduct()} disabled={busy.startsWith("product-") || imageUploading || saveProductBusy.current}>
+            {busy.startsWith("product-") ? "Salvando..." : imageUploading ? "Aguarde a foto" : productMode === "create" ? "Criar produto" : "Salvar alterações"}
+          </button>
+        </div>
       </section>
     </div>}
 

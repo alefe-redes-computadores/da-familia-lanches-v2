@@ -7,6 +7,9 @@ import type { Addon } from "@/data/addons";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
 import { availableAddonsForProduct } from "@/lib/catalog";
+import { addonPolicy, addonPolicyHint, validAddonSelection } from "@/lib/catalogAddonPolicy";
+import { inspectProductSelections } from "@/lib/catalogModifierGroups";
+import { AddonGroupsChoices } from "./AddonGroupsChoices";
 import { resolveBundleItems } from "@/lib/catalogComposition";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
@@ -43,6 +46,7 @@ export function ProductDetailsModal() {
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [observation, setObservation] = useState("");
+  const [addonNotice, setAddonNotice] = useState("");
   const product = modalData as Product | null;
 
   const addonsTotal = useMemo(() => selectedAddons.reduce((sum, addon) => sum + addon.price, 0), [selectedAddons]);
@@ -53,6 +57,8 @@ export function ProductDetailsModal() {
   const savings = hasDiscount ? product.oldPrice! - product.price : 0;
   const productAddons = availableAddonsForProduct(product, addons);
   const allowAddons = productAddons.length > 0;
+  const limits=addonPolicy(product);
+  const addOk=inspectProductSelections(product,selectedAddons.map(item=>item.id)).valid;
   const bundleItems = resolveBundleItems(product, products);
   const hasBundle = Boolean(product.bundleItems?.length && bundleItems.length > 0);
   const leadDescription = productLeadDescription(product);
@@ -63,17 +69,28 @@ export function ProductDetailsModal() {
   const upsellSaving = hasExplicitUpsell ? upsellProduct!.price - product.upsellUnitPrice! : 0;
 
   const toggleAddon = (addon: Addon) => {
-    setSelectedAddons((current) => current.some((item) => item.id === addon.id) ? current.filter((item) => item.id !== addon.id) : [...current, addon]);
+    setAddonNotice("");
+    if(selectedAddons.some(item=>item.id===addon.id)){
+      setSelectedAddons(current=>current.filter(item=>item.id!==addon.id));return;
+    }
+    if(selectedAddons.length>=limits.max){setAddonNotice(`Limite de ${limits.max} adicional(is) atingido.`);return;}
+    const currentGroup=product.addonGroups?.find(group=>group.addonIds.includes(addon.id));
+    if(currentGroup&&selectedAddons.filter(item=>currentGroup.addonIds.includes(item.id)).length>=currentGroup.max){setAddonNotice(`${currentGroup.title}: máximo de ${currentGroup.max} escolha(s).`);return;}
+    setSelectedAddons(current=>current.some(item=>item.id===addon.id)?current:[...current,addon]);
   };
 
   const handleUpsell = () => {
     if (!hasExplicitUpsell || !upsellProduct || product.upsellUnitPrice == null) return;
+    if (!inspectProductSelections(upsellProduct,[]).valid) {
+      setAddonNotice("O item Turbine exige personalização. Abra-o separadamente no cardápio.");return;
+    }
     addItem(upsellProduct, quantity, [], "", { upsellSourceId: product.id, unitPrice: product.upsellUnitPrice });
     haptic("add");
     showCartToast({ title: `${upsellProduct.name} adicionado`, message: `Preço especial de ${money(product.upsellUnitPrice)} aplicado com ${product.name}.`, kind: "add" });
   };
 
   const handleAdd = () => {
+    if(!addOk){setAddonNotice(inspectProductSelections(product,selectedAddons.map(item=>item.id)).reason||addonPolicyHint(product));haptic("error");return;}
     addItem(product, quantity, selectedAddons, observation.trim());
     haptic("add");
     showCartToast({ title: `${product.name} adicionado`, message: quantity > 1 ? `${quantity} unidades entraram no carrinho.` : "Seu carrinho foi atualizado.", kind: "add", actionLabel: "Ver carrinho", onAction: () => openModal("cart") });
@@ -118,9 +135,9 @@ export function ProductDetailsModal() {
 
         {allowAddons && (
           <section className={styles.section}>
-            <div className={styles.sectionTitle}><div><strong>Turbine seu lanche</strong><span>Escolha extras para deixar do seu jeito</span></div>{selectedAddons.length > 0 && <b>{selectedAddons.length}</b>}</div>
+            <div className={styles.sectionTitle}><div><strong>Turbine seu lanche</strong><span>{addonPolicyHint(product)}</span></div><b>{selectedAddons.length}/{limits.max}</b></div>
             <div className={styles.addons}>
-              {productAddons.map((addon) => {
+              {product.addonGroups?.length ? <AddonGroupsChoices groups={product.addonGroups} addons={productAddons} selected={selectedAddons.map(item=>item.id)} onToggle={toggleAddon}/> : productAddons.map((addon) => {
                 const selected = selectedAddons.some((item) => item.id === addon.id);
                 return <button type="button" key={addon.id} className={selected ? styles.addonSelected : styles.addon} onClick={() => toggleAddon(addon)}><span className={styles.check}>{selected ? "✓" : "+"}</span><span className={styles.addonName}>{addon.name}</span><strong>+ {money(addon.price)}</strong></button>;
               })}
@@ -136,9 +153,11 @@ export function ProductDetailsModal() {
           </label>
         </section>
 
+        {addonNotice && <div className={styles.addonNoticeV86} role="alert">{addonNotice}</div>}
+        {!addOk && !addonNotice && <div className={styles.addonHintV86} role="status">{inspectProductSelections(product,selectedAddons.map(item=>item.id)).reason||addonPolicyHint(product)}</div>}
         <div className={styles.bottom}>
           <div className={styles.quantity}><button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>−</button><span>{quantity}</span><button type="button" onClick={() => setQuantity((q) => q + 1)}>+</button></div>
-          <button type="button" className={styles.confirm} onClick={handleAdd}><span>Adicionar</span><strong>{money(total)}</strong></button>
+          <button type="button" className={styles.confirm} onClick={handleAdd} disabled={!addOk}><span>Adicionar</span><strong>{money(total)}</strong></button>
         </div>
       </div>
     </ModalBase>

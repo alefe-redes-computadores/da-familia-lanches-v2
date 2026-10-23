@@ -1,0 +1,10 @@
+.root{display:grid;gap:12px;margin:13px 0;padding:13px;border:1px solid rgba(255,202,40,.28);border-radius:16px;background:#111920;color:#e8edf1}
+.top{display:flex;gap:10px;align-items:center;justify-content:space-between}.top>div{flex:1;min-width:0}.top strong{color:#ffe098;font-size:13px}.top p{font-size:11px;line-height:1.45;color:#aab8c4;margin:4px 0 0}
+.top>button,.head>button{min-height:40px;padding:7px 12px;border:1px solid #526071;border-radius:10px;background:#293443;color:#f7f7f7;font-weight:850;font-size:11px;white-space:nowrap}
+.top>button:disabled{opacity:.35}.group{display:grid;gap:10px;border-radius:13px;border:1px solid #384453;padding:12px;background:#19232c}
+.head{display:flex;justify-content:space-between;align-items:center;gap:12px}.head strong{font-size:12px;color:#f6d37c}.head>button{color:#ffb2a8;min-height:33px}
+.title,.limits label{display:grid;gap:5px;font-weight:800;font-size:11px;color:#ccd6e0}.title input,.limits input{width:100%;min-width:0;min-height:43px;font-size:15px;padding:9px;border-radius:9px;color:#fff;background:#0d151f;border:1px solid #536477}
+.limits{display:grid;grid-template-columns:1fr 1fr;gap:9px}.group>small{font-size:10px;color:#a8b4bf;line-height:1.5}
+.options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:210px;overflow:auto}.options label{display:flex;gap:7px;align-items:center;min-height:39px;border-radius:9px;padding:6px 8px;background:#25313d;border:1px solid #415162;font-size:11px}.options label[data-selected=true]{background:#3b3427;border-color:#c99648}.options label[data-disabled=true]{opacity:.4}.options span{flex:1;min-width:0;overflow-wrap:anywhere}.options small{font-size:10px;color:#d6c6a7}.options input{accent-color:#f1c36b;width:18px;height:18px;flex:0 0 18px}
+.warning{margin:0;color:#ffc7a6;font-size:11px;line-height:1.5}.empty{margin:0;color:#a1b3bf;font-size:11px;line-height:1.5}
+@media(max-width:440px){.top{align-items:flex-start;flex-wrap:wrap}.options{grid-template-columns:1fr}.root{padding:10px}.group{padding:10px}}

@@ -9,6 +9,7 @@ import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { formatCEPBR, formatPhoneBR, saveUserAddresses, saveUserProfile, type SavedAddress } from "@/lib/userProfile";
+import { inspectDistrict, matchDeliveryRate, suggestDistricts } from "@/lib/addressIntelligence";
 import { db } from "@/lib/firebase";
 import { createCustomerOrder } from "@/lib/orderRepository";
 import { getCheckoutStoreAccess } from "@/lib/shopStatus";
@@ -190,7 +191,10 @@ export function CheckoutModal() {
   }, [scheduleSlots]);
 
   const phoneDigits = userPhone.replace(/\D/g, "");
-  const addressReady = isPickup || Boolean(cep.replace(/\D/g, "").length === 8 && rua.trim() && numero.trim() && bairro.trim());
+  const configuredDistricts = deliveryTableCache?.list.map(item => String(item.nome ?? "")) ?? [];
+  const districtInspection = inspectDistrict(bairro, configuredDistricts);
+  const districtSuggestions = suggestDistricts(bairro, configuredDistricts);
+  const addressReady = isPickup || Boolean(cep.replace(/\D/g, "").length === 8 && rua.trim().length >= 4 && numero.trim() && districtInspection.valid);
   const phoneReady = phoneDigits.length === 10 || phoneDigits.length === 11;
 
   const nameReady = customerName.trim().length >= 2;
@@ -224,7 +228,7 @@ export function CheckoutModal() {
         setDeliveryMode(local.lastDeliveryMode || "delivery"); if (local.paymentPreference) setMethod(local.paymentPreference);
         if (local.street && local.number && local.district) {
           setCep(local.cep || ""); setRua(local.street); setNumero(local.number); setBairro(local.district);
-          setComplemento(local.complement || ""); setReferencia(local.reference || ""); setManualMode(true); setAddressEditorOpen(false);
+          setComplemento(local.complement || ""); setReferencia(local.reference || ""); setManualMode(true); setAddressEditorOpen(!inspectDistrict(local.district).valid);
         }
       }
     }
@@ -234,7 +238,7 @@ export function CheckoutModal() {
 
     customerEditingRef.current = true;
 
-    setStep(draft.step === 2 ? 2 : 1);
+    setStep(draft.step === 2 && (draft.deliveryMode === "pickup" || inspectDistrict(draft.bairro).valid) ? 2 : 1);
     setDeliveryMode(draft.deliveryMode);
     setCustomerName(draft.customerName || "");
     setUserPhone(draft.userPhone || "");
@@ -254,7 +258,7 @@ export function CheckoutModal() {
 
     if (draft.rua || draft.bairro) {
       setManualMode(true);
-      setAddressEditorOpen(false);
+      setAddressEditorOpen(!inspectDistrict(draft.bairro).valid);
     }
 
     if (draft.bairro) {
@@ -423,12 +427,12 @@ export function CheckoutModal() {
     setUserPhone(profile?.phone || "");
     const saved=profile?.addresses?.find(a=>a.isDefault)||profile?.addresses?.[0]||profile?.address;
     setCep(saved?.cep||""); setRua(saved?.street||""); setNumero(saved?.number||""); setBairro(saved?.district||""); setComplemento(saved?.complement||""); setReferencia(saved?.reference||"");
-    if(saved?.street||saved?.district){setSelectedAddressId(saved.id||"address-1");setManualMode(true);setAddressEditorOpen(false);if(saved.district)void calculateDeliveryFee(saved.district);}else setAddressEditorOpen(true);
+    if(saved?.street||saved?.district){setSelectedAddressId(saved.id||"address-1");setManualMode(true);setAddressEditorOpen(!inspectDistrict(saved.district).valid);if(saved.district && inspectDistrict(saved.district).valid)void calculateDeliveryFee(saved.district);}else setAddressEditorOpen(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, profile, profileLoading]);
 
 
-  const selectSavedAddress=(a:SavedAddress)=>{customerEditingRef.current=true;setSelectedAddressId(a.id);setCep(a.cep);setRua(a.street);setNumero(a.number);setBairro(a.district);setComplemento(a.complement);setReferencia(a.reference);setManualMode(true);setAddressPickerOpen(false);setAddressEditorOpen(false);if(a.district)void calculateDeliveryFee(a.district);};
+  const selectSavedAddress=(a:SavedAddress)=>{customerEditingRef.current=true;setSelectedAddressId(a.id);setCep(a.cep);setRua(a.street);setNumero(a.number);setBairro(a.district);setComplemento(a.complement);setReferencia(a.reference);setManualMode(true);setAddressPickerOpen(false);setAddressEditorOpen(!inspectDistrict(a.district).valid);if(a.district && inspectDistrict(a.district).valid)void calculateDeliveryFee(a.district);};
   const startNewCheckoutAddress=()=>{customerEditingRef.current=true;setSelectedAddressId("");setCep("");setRua("");setNumero("");setBairro("");setComplemento("");setReferencia("");setManualMode(false);setAddressPickerOpen(false);setAddressEditorOpen(true);setDeliveryStatus("");};
   const savedAddresses = profile?.addresses || [];
   const selectedSavedAddress = savedAddresses.find((address) => address.id === selectedAddressId);
@@ -491,8 +495,10 @@ export function CheckoutModal() {
   };
 
   const calculateDeliveryFee = async (district: string) => {
-    const cleanedDistrict = normalizeText(district);
-    if (!cleanedDistrict) return;
+    if (!inspectDistrict(district).valid) {
+      setDeliveryStatus("Bairro incompleto. Selecione a sugestão ou informe o nome completo.");
+      return;
+    }
 
     try {
       const { list, defaultFee: configuredDefaultFee } = await getDeliveryTableCached();
@@ -501,10 +507,7 @@ export function CheckoutModal() {
         setDeliveryStatus(`Taxa padrão: ${money(configuredDefaultFee)}`);
         return;
       }
-      const found = list.find((item) => {
-        const name = typeof item.nome === "string" ? normalizeText(item.nome) : "";
-        return name === cleanedDistrict || name.includes(cleanedDistrict) || cleanedDistrict.includes(name);
-      });
+      const found = matchDeliveryRate(district, list);
 
       const rate = Number(found?.taxa);
       if (found && Number.isFinite(rate) && rate >= 0) {
@@ -550,9 +553,10 @@ export function CheckoutModal() {
       const nextDistrict = typeof data.bairro === "string" ? data.bairro : "";
       setRua(nextStreet);
       setBairro(nextDistrict);
-      setManualMode(!nextStreet || !nextDistrict);
-      setDeliveryStatus("Endereço encontrado.");
-      if (nextDistrict) await calculateDeliveryFee(nextDistrict);
+      const districtVerified = inspectDistrict(nextDistrict).valid;
+      setManualMode(!nextStreet || !districtVerified);
+      setDeliveryStatus(districtVerified ? "Endereço encontrado. Confira o bairro." : "CEP localizado. Complete ou confirme o nome do bairro antes de continuar.");
+      if (districtVerified) await calculateDeliveryFee(nextDistrict);
       window.setTimeout(() => { numberInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); numberInputRef.current?.focus(); }, 80);
     } catch (error) {
       console.error("Erro ao consultar CEP", error);
@@ -721,7 +725,7 @@ export function CheckoutModal() {
     if (!addressReady) {
       submittingRef.current=false;
       setStep(1);
-      setErrorMessage(!numero.trim() ? "Falta o número da entrega. Complete o endereço para continuar." : "Complete rua, número e bairro para entrega.");
+      setErrorMessage(!districtInspection.valid ? "O bairro está incompleto. Confira as sugestões e informe o nome inteiro." : !numero.trim() ? "Falta o número da entrega. Complete o endereço para continuar." : "Complete rua, número e bairro para entrega.");
       setAddressEditorOpen(true); focusCheckoutIssue("address");
       return;
     }
@@ -776,7 +780,7 @@ export function CheckoutModal() {
         const guestMessage=buildOrderWhatsAppMessage({registered:true,orderId:created.id,customerName:customerName.trim()||"Cliente",phone:userPhone.trim(),items:items.map((item)=>({quantity:item.quantity,name:item.name,price:item.price,addons:item.selectedAddons?.map((addon)=>addon.name)??[],observation:item.observation})),deliveryMode,address:isPickup?"Retirada no balcão":finalAddress,district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim(),subtotal,deliveryFee:finalFee,discount:safeDiscount,couponCode:appliedCouponCode,total,paymentMethod:method,changeFor:troco,orderObservation,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):undefined});
         const whatsappUrl=businessWhatsAppUrl(guestMessage);
         saveGuestIdentity({name:customerName.trim()||"Cliente",phone:userPhone.trim(),lastDeliveryMode:deliveryMode,paymentPreference:method,...(isPickup?{}:{cep:cep.trim(),street:rua.trim(),number:numero.trim(),district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim()})});
-        rememberGuestOrder({id:created.id,status:isClosed?"Agendado":"Pendente",total,deliveryMode,scheduledFor:isClosed?selectedSchedule:null,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):null,createdAt:Date.now(),customerName:customerName.trim()||"Cliente",items:items.map(item=>({name:item.name,quantity:item.quantity}))});
+        rememberGuestOrder({id:created.id,trackingKey:orderAttemptRef.current,status:isClosed?"Agendado":"Pendente",total,deliveryMode,scheduledFor:isClosed?selectedSchedule:null,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):null,createdAt:Date.now(),customerName:customerName.trim()||"Cliente",items:items.map(item=>({name:item.name,quantity:item.quantity}))});
         const cartCleared = clearConfirmedCart(); clearOrderAttempt(); clearCheckoutDraft(null);
         openModal("order-success",{orderId:created.id,isScheduled:isClosed,deliveryMode,total,whatsappUrl,paymentMethod:method,pixKey:method==="pix"?BUSINESS_CONTACT.pixKey:undefined,cartPreserved:!cartCleared,rescueMessage:guestMessage});
         submittingRef.current=false; setLoading(false); return;
@@ -938,7 +942,7 @@ export function CheckoutModal() {
         orderObservation,
         scheduledLabel: shopClosed && scheduledFor ? scheduleHumanLabel(scheduledFor) : undefined,
       });
-      setFallbackWhatsAppUrl(businessWhatsAppUrl(fallbackMessage));
+      setFallbackWhatsAppUrl(code === "ADDON_SELECTION_INVALID" || code === "ADDON_POLICY_INVALID" || code === "ADDON_GROUP_INVALID" || code === "ADDON_GROUP_SELECTION_INVALID" ? "" : businessWhatsAppUrl(fallbackMessage));
       haptic("error");
       if (code === "SCHEDULE_REQUIRED") { setErrorMessage("Escolha um horário disponível para o pedido agendado."); } else if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {
         setAppliedCouponCode("");
@@ -946,8 +950,14 @@ export function CheckoutModal() {
         setDiscount(0);
         setCouponMessage("O cupom ou benefício mudou desde a validação. Aplique o código novamente.");
         setErrorMessage("Revise o cupom ou benefício antes de confirmar. Seu carrinho foi preservado.");
-      } else if (["PRICE_CHANGED", "DELIVERY_CHANGED", "PRODUCT_UNAVAILABLE", "ADDON_UNAVAILABLE", "UPSELL_CHANGED", "UPSELL_INVALID"].includes(code)) {
+      } else if (["PRICE_CHANGED", "DELIVERY_CHANGED", "PRODUCT_UNAVAILABLE", "ADDON_UNAVAILABLE", "ADDON_SELECTION_INVALID", "ADDON_POLICY_INVALID", "ADDON_GROUP_INVALID", "ADDON_GROUP_SELECTION_INVALID", "UPSELL_CHANGED", "UPSELL_INVALID"].includes(code)) {
         setErrorMessage("O cardápio ou a taxa mudou. Feche o checkout, confira o carrinho atualizado e tente novamente.");
+      } else if (code === "ADDRESS_INVALID") {
+        setStep(1);
+        setAddressEditorOpen(true);
+        setManualMode(true);
+        setErrorMessage("Não conseguimos confirmar o bairro. Confira rua, número, CEP e o nome completo do bairro.");
+        focusCheckoutIssue("address");
       } else if (code === "SERVICE_BUSY") {
         setErrorMessage("O sistema de pedidos atingiu o limite temporário do banco. Seu carrinho foi preservado; aguarde alguns minutos e tente novamente.");
       } else if (code === "SERVICE_UNAVAILABLE") {
@@ -1016,7 +1026,12 @@ export function CheckoutModal() {
                   <div className={styles.newAddressIntro}><strong>{savedAddresses.length ? "Novo endereço" : "Seu primeiro endereço"}</strong><span>Busque pelo CEP para preencher mais rápido.</span></div>
                   {!manualMode&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepLookupRef.current="";setCep(formatCEPBR(e.target.value))}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();cepLookupRef.current="";void handleSearchCep()}}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"Digite os 8 números e encontramos o endereço automaticamente."}</small></div>}
                   <input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
-                  <div className={styles.addressGrid}><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/><input className={styles.input} placeholder="Bairro" value={bairro} onChange={e=>{customerEditingRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim())void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
+                  <div className={styles.addressGrid}><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/><input className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={Boolean(bairro.trim()) && !districtInspection.valid} value={bairro} onChange={e=>{customerEditingRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid)void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
+                  <div className={styles.districtHelper} aria-live="polite" data-invalid={(Boolean(bairro.trim()) && !districtInspection.valid) || (Boolean(rua.trim()) && rua.trim().length < 4)}>
+                    {Boolean(bairro.trim()) && !districtInspection.valid && <strong>Confira o bairro: use o nome completo, não apenas a inicial.</strong>}
+                    {Boolean(rua.trim()) && rua.trim().length < 4 && <strong>Confira a rua: informe o nome completo, não apenas uma letra.</strong>}
+                    {districtSuggestions.length > 0 && manualMode && <div className={styles.districtSuggestions} aria-label="Sugestões de bairros"><small>Você quis dizer:</small>{districtSuggestions.map(name=><button type="button" key={name} onClick={()=>{setBairro(name);setDeliveryStatus(`Bairro escolhido: ${name}. Confira rua e número.`);void calculateDeliveryFee(name);}}>{name}</button>)}</div>}
+                  </div>
                   <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info}>{deliveryStatus}</div>}
                   <div className={styles.addressFormActions}><button className={styles.linkButton} type="button" onClick={()=>setManualMode(v=>!v)}>{manualMode?"← Usar meu CEP":"Não sei meu CEP · preencher endereço manualmente"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
@@ -1106,7 +1121,7 @@ export function CheckoutModal() {
                 )}
               </section>
             )}
-            <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance && (!shopClosed || Boolean(scheduledFor))) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : !addressReady ? "Complete o endereço para continuar." : "Escolha um horário disponível para o agendamento."); }}>Continuar</button>
+            <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance && (!shopClosed || Boolean(scheduledFor))) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : !addressReady ? (!districtInspection.valid && !isPickup ? "Informe o nome completo do bairro e confira o endereço." : "Complete o endereço para continuar.") : "Escolha um horário disponível para o agendamento."); }}>Continuar</button>
           </div>
         ) : (
           <div className={styles.stack}>

@@ -14,6 +14,8 @@ import { CartPromotionInsight } from "@/components/ui/CartPromotionInsight";
 import { selectSmartCartSuggestions } from "@/lib/smartCart";
 import { DEFAULT_COMMERCIAL_SETTINGS, getCommercialSettings, type CommercialSettings } from "@/lib/commercialSettings";
 import { availableAddonsForProduct } from "@/lib/catalog";
+import { validAddonSelection, addonPolicyHint } from "@/lib/catalogAddonPolicy";
+import { inspectProductSelections } from "@/lib/catalogModifierGroups";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -84,6 +86,12 @@ export function CartModal() {
     }).map((item) => item.name))];
     return { next: compacted, removedNames, originalSignature: signature(items) };
   }, [allAddons, catalogLoading, catalogError, catalogSource, items, products]);
+  const invalidSelections = useMemo(()=>items.flatMap(item=>{
+    const product=products.find(p=>p.id===item.id);
+    if(!product)return [];
+    const review=inspectProductSelections(product,(item.selectedAddons??[]).map(a=>a.id));
+    return !review.valid ? [{name:item.name,hint:review.reason||addonPolicyHint(product)}] : [];
+  }),[items,products]);
   const total = getCartTotal();
   const freeDeliveryTarget = commercial.freeDeliveryEnabled ? commercial.globalMinimum : null;
   const freeDeliveryMissing = freeDeliveryTarget === null ? 0 : Math.max(0, freeDeliveryTarget - total);
@@ -120,6 +128,10 @@ export function CartModal() {
 
   const handleSmartSuggestion = (suggestion: (typeof suggestions)[number]) => {
     if(suggestion.kind==="upsell" && suggestion.upsellSourceId && suggestion.explicitUnitPrice!=null){
+      if(!inspectProductSelections(suggestion.product,[]).valid){
+        openModal("product-details",suggestion.product);
+        setCatalogNotice("Este item exige escolha de adicionais. Personalize antes de incluir.");return;
+      }
       const sourceQty=items.filter(i=>i.id===suggestion.upsellSourceId&&!i.upsellSourceId).reduce((n,i)=>n+i.quantity,0);
       const used=items.filter(i=>i.id===suggestion.product.id&&i.upsellSourceId===suggestion.upsellSourceId).reduce((n,i)=>n+i.quantity,0);
       if(used>=sourceQty){showCartToast({title:"Oferta já aproveitada",message:"A quantidade promocional acompanha a quantidade do combo.",kind:"restore"});return;}
@@ -151,6 +163,7 @@ export function CartModal() {
   };
   const handleFinish = () => {
     if (reconciliation) { setCatalogNotice("Confira e confirme as mudanças do carrinho antes de finalizar."); return; }
+    if (catalogSource==="hybrid" && invalidSelections.length){setCatalogNotice(`Revise os adicionais de ${invalidSelections[0].name}: ${invalidSelections[0].hint}. Remova o item e adicione novamente com as opções corretas.`);return;}
     openModal("checkout");
   };
 
@@ -177,7 +190,7 @@ export function CartModal() {
           {suggestions.length > 0 && <section className={styles.smartSuggestions} aria-label="Sugestões para o pedido"><div className={styles.smartHead}><strong>Seu pedido, um pouco mais esperto</strong><span>Sugestões baseadas no que já está no carrinho.</span></div><div className={styles.smartList}>{suggestions.map((suggestion) => <button type="button" className={styles.smartCard} key={`${suggestion.kind}-${suggestion.product.id}`} onClick={() => handleSmartSuggestion(suggestion)}><CatalogImage src={suggestion.product.image} alt="" sizes="96px" quality={68} /><span className={styles.smartCopy}><small>{suggestion.eyebrow}</small><b>{suggestion.title}</b><em>{suggestion.description}</em>{suggestion.saving && suggestion.saving > 0 ? <strong>{suggestion.kind==="upsell" ? "Você economiza " : "Economia calculada de "}{money(suggestion.saving)}</strong> : null}</span><span className={styles.smartPrice}>{suggestion.kind==="upsell"&&suggestion.explicitUnitPrice!=null?<><del>{money(suggestion.product.price)}</del>{money(suggestion.explicitUnitPrice)}</>:money(suggestion.product.price)}<i>{suggestion.kind==="upsell"?"Adicionar agora +":"Ver opção ›"}</i></span></button>)}</div></section>}
 
           {freeDeliveryTarget !== null && <section className={styles.freeDeliveryProgress} data-earned={freeDeliveryMissing <= 0}><div className={styles.freeDeliveryCopy}><span>{freeDeliveryMissing <= 0 ? "ENTREGA GRÁTIS DESBLOQUEADA" : "CAMINHO PARA ENTREGA GRÁTIS"}</span><strong>{freeDeliveryMissing <= 0 ? "Você bateu a meta" : `Faltam ${money(freeDeliveryMissing)}`}</strong></div><div className={styles.freeDeliveryTrack}><i style={{ width: `${freeDeliveryProgress}%` }} /></div><small>{freeDeliveryMissing <= 0 ? "Benefício confirmado conforme o bairro informado no checkout." : `Complete o carrinho até ${money(freeDeliveryTarget)}.`}</small></section>}
-          <CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish} disabled={Boolean(reconciliation)}>{reconciliation ? "Revise as mudanças acima" : "Continuar para finalizar"}</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Toque novamente para esvaziar" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
+          {catalogSource === "hybrid" && invalidSelections.length > 0 && <div className={styles.catalogNotice} role="alert">Revise os adicionais de {invalidSelections[0].name}: {invalidSelections[0].hint}. Remova esse item e adicione novamente com as escolhas corretas. Seu carrinho foi preservado.</div>}<CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish} disabled={Boolean(reconciliation) || (catalogSource === "hybrid" && invalidSelections.length > 0)}>{reconciliation ? "Revise as mudanças acima" : "Continuar para finalizar"}</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Toque novamente para esvaziar" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
         </>}
       </div>
     </ModalBase>

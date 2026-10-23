@@ -15,7 +15,7 @@ import { cancellationPublicMessage } from "@/lib/orderCancellation";
 import { cancelCustomerScheduledOrder, rescheduleCustomerOrder } from "@/lib/orderRepository";
 import { getOrderScheduleSlots, scheduleHumanLabel, type OrderScheduleSlot } from "@/lib/orderScheduling";
 import styles from "./OrdersModal.module.css";
-import { readGuestOrders, type GuestOrderMemory } from "@/lib/guestContinuity";
+import { readGuestOrders, updateGuestOrderStatus, type GuestOrderMemory } from "@/lib/guestContinuity";
 
 const money=(v:unknown)=>(Number.isFinite(Number(v))?Number(v):0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const TERMINAL=new Set(["Finalizado","Cancelado"]);
@@ -35,12 +35,48 @@ export function OrdersModal(){
  const visible=useMemo(()=>tab==="active"?activeOrders:pastOrders,[activeOrders,pastOrders,tab]);
  useEffect(()=>{if(modalTarget?.tab)setTab(modalTarget.tab)},[modalTarget?.tab]);
  useEffect(()=>{const sync=()=>setGuestOrders(readGuestOrders());sync();window.addEventListener("dfl:guest-continuity",sync);return()=>window.removeEventListener("dfl:guest-continuity",sync)},[]);
- useEffect(()=>{if(!historyReady)void loadMore()},[historyReady,loadMore]);
+ useEffect(()=>{if(!historyReady && currentUser)void loadMore()},[currentUser,historyReady,loadMore]);
+ // Consulta sob demanda: só enquanto a tela de pedidos do convidado está aberta e visível.
+ // O identificador do pedido não é suficiente: o servidor também exige a chave aleatória
+ // guardada no aparelho. Não realiza escutas permanentes nem lê endereços do cliente.
+ useEffect(()=>{
+   if(currentUser)return;
+   let alive=true, working=false;
+   const refresh=async()=>{
+     if(!alive||working||document.visibilityState!=="visible"||navigator.onLine===false)return;
+     const pending=readGuestOrders().filter(o=>o.trackingKey && Date.now()-o.createdAt<14*86400000 && !TERMINAL.has(normalizarStatus(o.status))).slice(0,3);
+     if(!pending.length)return;
+     working=true;
+     try {
+       const outcomes=await Promise.allSettled(pending.map(async order=>{
+         const controller=new AbortController();const timer=window.setTimeout(()=>controller.abort(),9000);
+         try {
+           const response=await fetch("/api/customer/guest-order-status",{
+             method:"POST",headers:{"Content-Type":"application/json"},
+             body:JSON.stringify({orderId:order.id,trackingKey:order.trackingKey}),
+             signal:controller.signal,cache:"no-store"
+           });
+           if(!response.ok)return;
+           const data=await response.json() as {ok?:boolean;status?:string;cancelPublicMessage?:string;deliveryTrackingEvent?:string};
+           if(alive&&data.ok&&typeof data.status==="string")updateGuestOrderStatus(order.id,data.status,{cancelPublicMessage:data.cancelPublicMessage,deliveryTrackingEvent:data.deliveryTrackingEvent});
+         } finally {window.clearTimeout(timer)}
+       }));
+       // Falhas de rede não substituem status conhecido nem marcam pedido como entregue.
+       void outcomes;
+     } finally {working=false}
+   };
+   void refresh();
+   const onResume=()=>{if(document.visibilityState==="visible")void refresh()};
+   window.addEventListener("online",onResume);
+   document.addEventListener("visibilitychange",onResume);
+   const timer=window.setInterval(()=>{void refresh()},90000);
+   return()=>{alive=false;window.clearInterval(timer);window.removeEventListener("online",onResume);document.removeEventListener("visibilitychange",onResume)};
+ },[currentUser]);
  const repeat=(order:CustomerOrder)=>{const old=getOrderItems(order); if(!old.length){setNotice("Esse pedido antigo não possui itens reconhecíveis para repetir.");return;} const resolved=old.flatMap(item=>{const p=products.find(x=>x.id===item.id)??products.find(x=>normalizeText(x.name)===normalizeText(item.name)); if(!p||!p.disponivel)return[]; const allowedAddons=availableAddonsForProduct(p,addons); const resolvedAddons=item.selectedAddons.flatMap(a=>{const n=allowedAddons.find(x=>x.id===a.id)??allowedAddons.find(x=>normalizeText(x.name)===normalizeText(a.name));return n?[n]:[]});return[{item,product:p,addons:resolvedAddons}]}); if(!resolved.length){setNotice("Os produtos desse pedido não estão disponíveis no cardápio atual.");setRepeatTarget(null);return;} const skipped=old.length-resolved.length;clearCart();resolved.forEach(({item,product,addons})=>addItem(product,item.quantity,addons,item.observation));setNotice(skipped?`${skipped} item(ns) indisponível(is) foram ignorados. O restante usa preços atuais.`:"");setRepeatTarget(null);closeModal();openModal("cart")};
  return <ModalBase title="Meus pedidos" onClose={closeModal}><div className={styles.body}>
    {error&&<div className={styles.error}>{error}</div>}{notice&&<div className={styles.notice}>{notice}</div>}
    {loading&&<div className={styles.loading}>Conectando aos seus pedidos…</div>}
-   {!currentUser&&guestOrders.length>0&&<><div className={styles.guestIntro}><strong>Pedidos deste aparelho</strong><span>Histórico local deste navegador. Google sincroniza entre aparelhos.</span></div><div className={styles.list}>{guestOrders.map(order=><article className={styles.card} key={order.id}><div className={styles.head}><div><span className={styles.date}>{new Date(order.createdAt).toLocaleDateString("pt-BR")}</span><div className={styles.orderId}>#{String(order.id).slice(-8).toUpperCase()}</div></div><span className={styles.total}>{money(order.total)}</span></div><div className={styles.statusBox}><div className={styles.statusTop}><div><span>STATUS NESTE APARELHO</span><div className={styles.statusTitle}>{normalizarStatus(order.status)}</div></div></div><div className={styles.statusDesc}>{order.scheduledLabel?`Agendado para ${order.scheduledLabel}`:"Pedido registrado com sucesso."}</div></div><details className={styles.details}><summary>{order.items.length} {order.items.length===1?"item":"itens"} · Ver detalhes</summary><div className={styles.items}>{order.items.map((item,i)=><div key={`${item.name}-${i}`}>{item.quantity}x {item.name}</div>)}</div></details></article>)}</div></>}
+   {!currentUser&&guestOrders.length>0&&<><div className={styles.guestIntro}><strong>Pedidos deste aparelho</strong><span>Pedidos recentes com comprovante privado recebem atualizações enquanto esta tela estiver aberta. Os mais antigos mostram o último estado salvo; entrar com Google sincroniza entre dispositivos.</span></div><div className={styles.list}>{guestOrders.map(order=><article className={styles.card} key={order.id}><div className={styles.head}><div><span className={styles.date}>{new Date(order.createdAt).toLocaleDateString("pt-BR")}</span><div className={styles.orderId}>#{String(order.id).slice(-8).toUpperCase()}</div></div><span className={styles.total}>{money(order.total)}</span></div><div className={styles.statusBox}><div className={styles.statusTop}><div><span>STATUS NESTE APARELHO</span><div className={styles.statusTitle}>{normalizarStatus(order.status)}</div></div></div><div className={styles.statusDesc}>{order.cancelPublicMessage || (order.scheduledLabel?`Agendado para ${order.scheduledLabel}`:statusDescription(normalizarStatus(order.status),order.deliveryMode==="pickup"))}</div>{order.trackingKey&&<small className={styles.guestStatusMeta}>{order.lastCheckedAt?`Atualizado às ${new Date(order.lastCheckedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}`:"Consultando status quando houver conexão"}</small>}{!order.trackingKey&&<small className={styles.guestStatusMeta}>Registro local antigo · sem atualização automática</small>}</div><details className={styles.details}><summary>{order.items.length} {order.items.length===1?"item":"itens"} · Ver detalhes</summary><div className={styles.items}>{order.items.map((item,i)=><div key={`${item.name}-${i}`}>{item.quantity}x {item.name}</div>)}</div></details></article>)}</div></>}
    {!loading&&!error&&!orders.length&&!guestOrders.length&&<div className={styles.empty}><div className={styles.emptyIcon}>□</div><strong>Seu histórico começa no primeiro pedido.</strong><p>Quando você pedir, o acompanhamento aparece aqui.</p><button className={styles.primaryGhost} onClick={closeModal}>Ver cardápio</button></div>}
    {orders.length>0&&<><div className={styles.live}>● Atualizações em tempo real · sem estimativas inventadas</div><div className={styles.tabs}><button data-active={tab==="active"} onClick={()=>setTab("active")}>Em andamento <b>{activeOrders.length}</b></button><button data-active={tab==="history"} onClick={()=>setTab("history")}>Histórico <b>{pastOrders.length}</b></button></div></>}
    {!loading&&orders.length>0&&!visible.length&&<div className={styles.tabEmpty}>{tab==="active"?"Nenhum pedido em andamento agora.":"Seu histórico ainda está vazio."}</div>}

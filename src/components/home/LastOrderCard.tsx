@@ -30,6 +30,7 @@ export function LastOrderCard() {
   const user = useAuthStore((state) => state.currentUser);
   const openModal = useUIStore((state) => state.openModal);
   const { addItem, clearCart } = useCartStore();
+  const cartItems = useCartStore((state) => state.items);
   const [repeatError, setRepeatError] = useState("");
 
   const {
@@ -161,7 +162,7 @@ export function LastOrderCard() {
 
     // V84 R1: confirmacao explicita de pedido parcial
     // Nunca substitua o carrinho sem consentimento quando o pedido antigo mudou.
-    if (changedItems > 0 || changedAddons > 0) {
+    if (changedItems > 0 || changedAddons > 0 || cartItems.length > 0) {
       const parts = [
         changedItems > 0
           ? `${changedItems} produto(s) indisponível(is)`
@@ -169,9 +170,10 @@ export function LastOrderCard() {
         changedAddons > 0
           ? `${changedAddons} adicional(is) indisponível(is)`
           : "",
+        cartItems.length > 0 ? `seu carrinho atual contém ${cartItems.length} item(ns)` : "",
       ].filter(Boolean);
       const approved = window.confirm(
-        `Seu pedido anterior mudou: ${parts.join(" e ")}.\\n\\n` +
+        `Antes de repetir o pedido: ${parts.join(" e ")}.\n\n` +
         "Deseja substituir o carrinho atual somente pelos itens disponíveis? " +
         "Você poderá revisar tudo antes de finalizar.",
       );
