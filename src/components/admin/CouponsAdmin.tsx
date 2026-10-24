@@ -48,10 +48,21 @@ const toTimestamp = (value: string) =>
 const sortCoupons = (items: StoreCoupon[]) =>
   [...items].sort((a, b) => a.code.localeCompare(b.code, "pt-BR"));
 
+type CouponFilter = "all" | "active" | "scheduled" | "paused" | "expired";
+function couponState(item: StoreCoupon, now: number): Exclude<CouponFilter,"all"> {
+  if (!item.active) return "paused";
+  if (item.expiresAt && item.expiresAt.toMillis() < now) return "expired";
+  if (item.startsAt && item.startsAt.toMillis() > now) return "scheduled";
+  return "active";
+}
+function couponSearch(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g," ");
+}
 export function CouponsAdmin() {
   const [coupons, setCoupons] = useState<StoreCoupon[]>([]);
   const [editor, setEditor] = useState<Editor>(emptyEditor);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<CouponFilter>("all");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -92,16 +103,18 @@ export function CouponsAdmin() {
     void load(false);
   }, [load]);
 
+  const summary = useMemo(() => {
+    const totals: Record<CouponFilter, number> = {all: coupons.length, active:0, scheduled:0, paused:0, expired:0};
+    const now = Date.now();
+    for(const item of coupons) totals[couponState(item,now)] += 1;
+    return totals;
+  }, [coupons]);
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return term
-      ? coupons.filter(
-          (coupon) =>
-            coupon.code.toLowerCase().includes(term) ||
-            coupon.description.toLowerCase().includes(term),
-        )
-      : coupons;
-  }, [coupons, search]);
+    const now = Date.now();
+    const terms = couponSearch(search).split(" ").filter(Boolean);
+    return coupons.filter(item => (statusFilter === "all" || couponState(item,now) === statusFilter) &&
+      terms.every(term => couponSearch(item.code + " " + item.description).includes(term)));
+  }, [coupons, search, statusFilter]);
 
   const editCoupon = (coupon: StoreCoupon) => {
     haptic("step");
@@ -513,27 +526,18 @@ export function CouponsAdmin() {
           </div>
         </div>
 
+        <div className={styles.statusFilters} role="group" aria-label="Filtrar situação de cupons">
+          {([ ["all","Todos"], ["active","Ativos"], ["scheduled","Agendados"], ["paused","Pausados"], ["expired","Expirados"] ] as const).map(([key,title]) => <button key={key} type="button" aria-pressed={statusFilter === key} onClick={() => setStatusFilter(key)}><span>{title}</span><b>{summary[key]}</b></button>)}
+        </div>
+        {(search || statusFilter !== "all") && <div className={styles.filterInfo} role="status"><span>{filtered.length} de {coupons.length} cupons</span><button type="button" onClick={() => {setSearch("");setStatusFilter("all");}}>Limpar filtros</button></div>}
         {loading
           ? <AdminLoadingState label="Carregando cupons" compact />
           : <div className={styles.list}>
               {filtered.length === 0
                 ? <div className={styles.empty}>Nenhum cupom encontrado.</div>
                 : filtered.map((coupon) => {
-                    const expired = Boolean(
-                      coupon.expiresAt &&
-                      coupon.expiresAt.toMillis() < Date.now(),
-                    );
-                    const scheduled = Boolean(
-                      coupon.startsAt &&
-                      coupon.startsAt.toMillis() > Date.now(),
-                    );
-                    const status = !coupon.active
-                      ? "Pausado"
-                      : expired
-                        ? "Expirado"
-                        : scheduled
-                          ? "Agendado"
-                          : "Ativo";
+                    const currentState = couponState(coupon, Date.now());
+                    const status = currentState === "paused" ? "Pausado" : currentState === "expired" ? "Expirado" : currentState === "scheduled" ? "Agendado" : "Ativo";
 
                     return (
                       <article className={styles.coupon} key={coupon.code}>

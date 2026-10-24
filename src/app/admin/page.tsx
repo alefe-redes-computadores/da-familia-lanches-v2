@@ -32,6 +32,7 @@ import { OperationHealthAdmin } from "@/components/admin/OperationHealthAdmin";
 import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";
 import { AdminSectionBoundary } from "@/components/admin/ui/AdminSectionBoundary";
 import { AdminNotificationCenter } from "@/components/admin/AdminNotificationCenter";
+import { AdminQuickSwitcher, type AdminQuickTarget } from "@/components/admin/AdminQuickSwitcher";
 import { AdminQuickStoreControl } from "@/components/admin/AdminQuickStoreControl";
 import { useAdminFeedback } from "@/components/admin/ui/AdminExperienceProvider";
 import { AdminLoadingState } from "@/components/admin/ui/AdminState";
@@ -119,6 +120,7 @@ function AdminPageContent() {
   const deferredSearch = useDeferredValue(search);
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [storeQuickOpen, setStoreQuickOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("todos");
   const [attentionOnly, setAttentionOnly] = useState(false);
@@ -131,6 +133,18 @@ function AdminPageContent() {
   const previousStageCounts = useRef<{ cozinha: number; expedicao: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const urlOrderAppliedRef = useRef<string>("");
+
+  // V87 R3: um único listener de teclado enquanto o Admin está montado.
+  useEffect(() => {
+    const onQuickShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setQuickSwitcherOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onQuickShortcut);
+    return () => window.removeEventListener("keydown", onQuickShortcut);
+  }, []);
 
   useEffect(() => {
     const requestedStage = searchParams.get("stage");
@@ -708,6 +722,7 @@ function AdminPageContent() {
           </div>
 
           <div className={styles.toolbarRight}>
+            <button type="button" className={styles.quickJumpTrigger} onClick={() => { haptic("step"); setQuickSwitcherOpen(true); }} aria-label="Acesso rápido às ferramentas do Admin" aria-keyshortcuts="Control+K Meta+K"><Search size={17}/><span>Acesso rápido</span><kbd>Ctrl K</kbd></button>
             <button
               type="button"
               className={styles.notificationButton}
@@ -734,6 +749,7 @@ function AdminPageContent() {
             <span><strong>DA FAMÍLIA</strong><small>{desktopDate} · {desktopTime}</small></span>
           </div>
           <div className={styles.mobileTopActions}>
+            <button type="button" className={styles.quickJumpMobile} onClick={() => { haptic("step"); setQuickSwitcherOpen(true); }} aria-label="Buscar ferramentas do Admin"><Search size={18}/></button>
             <button type="button" className={styles.mobileBell} data-active={counts.attention > 0} onClick={() => setNotificationCenterOpen(true)} aria-label={counts.attention > 0 ? `Abrir notificações. ${counts.attention} pedidos precisam de atenção` : "Abrir central de notificações"}>
               <AdminIcon name="bell" />{counts.attention > 0 && <b>{counts.attention}</b>}
             </button>
@@ -1117,6 +1133,16 @@ function AdminPageContent() {
           </>
         ) : null}
       </div>
+      <AdminQuickSwitcher
+        open={quickSwitcherOpen}
+        onClose={() => setQuickSwitcherOpen(false)}
+        currentTab={tab as AdminQuickTarget}
+        onNavigate={(target) => { setTab(target); setAttentionOnly(false); setSelectedOrderId(null); }}
+        onAttention={() => { setTab("cozinha"); setAttentionOnly(true); setSearch(""); setServiceFilter("todos"); setSelectedOrderId(null); }}
+        onNotifications={() => setNotificationCenterOpen(true)}
+        onStore={() => setStoreQuickOpen(true)}
+        counts={{cozinha:counts.cozinha,agendados:counts.agendados,expedicao:counts.expedicao,attention:counts.attention}}
+      />
       <AdminNotificationCenter
         open={notificationCenterOpen}
         onClose={() => setNotificationCenterOpen(false)}

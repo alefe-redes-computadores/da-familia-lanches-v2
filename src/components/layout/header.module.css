@@ -32,3 +32,9 @@
 
 /* V56.3 guest account */
 .guestAccountMenu{min-width:min(330px,calc(100vw - 24px));padding:10px}.guestAccountIntro{display:flex;gap:10px;align-items:center;padding:10px 10px 12px}.guestAccountIntro>div{display:grid;gap:2px}.guestAccountIntro strong{font-size:13px}.guestAccountIntro small{font-size:11px;opacity:.68}.guestAccountCheck{display:grid;place-items:center;width:26px;height:26px;border-radius:999px;background:rgba(34,197,94,.14);font-weight:900}.googleSyncButton{display:flex!important;align-items:center!important;gap:10px!important}.googleSyncButton svg{width:20px;height:20px;flex:0 0 20px}.googleSyncButton span{display:grid;text-align:left;gap:1px}.googleSyncButton small{font-size:10px;opacity:.65}
+
+/* DFL SITE V87 R3 — HEADER ACCESSIBILITY */
+.header :is(button,a,input):focus-visible{outline:3px solid #c89510;outline-offset:3px}
+@media(hover:hover) and (pointer:fine){.header button{transition:border-color 180ms ease,background-color 180ms ease}}
+@media(max-width:640px){.header :is(.iconButton,.account,.login){min-height:44px;touch-action:manipulation}}
+@media(prefers-reduced-motion:reduce){.header button{transition:none}}

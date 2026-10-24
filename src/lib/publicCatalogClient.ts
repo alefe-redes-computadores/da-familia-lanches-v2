@@ -26,6 +26,7 @@ let state: State = {
 };
 
 let inflight: Promise<State> | null = null;
+let recoveryFailures = 0;
 const listeners = new Set<(value: State) => void>();
 
 const emit = () => listeners.forEach((listener) => listener(state));
@@ -40,15 +41,21 @@ async function load(force = false): Promise<State> {
   })
     .then(async (response) => {
       if (!response.ok) throw new Error(`catalog_http_${response.status}`);
-      return response.json() as Promise<PublicCatalogPayload>;
+      const payload = await response.json() as PublicCatalogPayload;
+      if (!payload || !Array.isArray(payload.products) || !Array.isArray(payload.addons) || !Array.isArray(payload.categories)) {
+        throw new Error("catalog_payload_invalid");
+      }
+      return payload;
     })
     .then((payload) => {
+      recoveryFailures = 0;
       state = { payload, ready: true, error: "" };
       emit();
       return state;
     })
     .catch((error) => {
       console.warn("[catalog] API pública indisponível; fallback local.", error);
+      recoveryFailures = Math.min(recoveryFailures + 1, 4);
       state = {
         payload: state.payload,
         ready: true,
@@ -72,7 +79,8 @@ function recoverOnConnection() {
   if (!listeners.size || !state.error || inflight) return;
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
   const now = Date.now();
-  if (now - lastRecoveryAt < RECOVERY_COOLDOWN_MS) return;
+  const cooldown = Math.min(5 * 60_000, RECOVERY_COOLDOWN_MS * (2 ** Math.max(0, recoveryFailures - 1)));
+  if (now - lastRecoveryAt < cooldown) return;
   lastRecoveryAt = now;
   void load(true);
 }
@@ -119,7 +127,8 @@ export function patchPublicCatalogProduct(id: string, data: Record<string, unkno
 }
 
 export function reloadPublicCatalog() {
-  state = { ...state, ready: false, error: "" };
+  // Preserve o catálogo em tela ao revalidar; use loading apenas na primeira visita.
+  state = { ...state, ready: state.payload !== null, error: "" };
   emit();
   return load(true);
 }

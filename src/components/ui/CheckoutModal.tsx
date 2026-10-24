@@ -75,6 +75,7 @@ export function CheckoutModal() {
   const numberInputRef = useRef<HTMLInputElement>(null);
   const scheduleSectionRef = useRef<HTMLElement>(null);
   const cepLookupRef = useRef("");
+  const cepRequestRef = useRef(0);
 
   const orderAttemptStorageKey = currentUser?.uid
     ? `dfl:pending-order:${currentUser.uid}`
@@ -531,12 +532,17 @@ export function CheckoutModal() {
       return;
     }
 
+    const requestId = ++cepRequestRef.current;
+    cepLookupRef.current = digits;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 8000);
     setLoading(true);
     setErrorMessage("");
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`, { signal: controller.signal });
       if (!response.ok) throw new Error(`ViaCEP respondeu ${response.status}`);
       const data = await response.json();
+      if (requestId !== cepRequestRef.current) return; // resposta antiga não altera novo endereço
       if (data.erro) {
         setManualMode(true);
         setDeliveryStatus("CEP não encontrado. Preencha o endereço manualmente.");
@@ -559,12 +565,16 @@ export function CheckoutModal() {
       if (districtVerified) await calculateDeliveryFee(nextDistrict);
       window.setTimeout(() => { numberInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); numberInputRef.current?.focus(); }, 80);
     } catch (error) {
+      if (requestId !== cepRequestRef.current) return;
       console.error("Erro ao consultar CEP", error);
       cepLookupRef.current = "";
       setManualMode(true);
-      setDeliveryStatus("Não foi possível consultar o CEP. Tente novamente ou preencha manualmente.");
+      setDeliveryStatus(controller.signal.aborted
+        ? "A consulta do CEP demorou demais. Confira a conexão ou preencha manualmente."
+        : "Não foi possível consultar o CEP. Tente novamente ou preencha manualmente.");
     } finally {
-      setLoading(false);
+      window.clearTimeout(timer);
+      if (requestId === cepRequestRef.current) setLoading(false);
     }
   };
 
@@ -1024,7 +1034,7 @@ export function CheckoutModal() {
                 </div>}
                 {(!addressReady || addressEditorOpen) && <div className={styles.addressForm}>
                   <div className={styles.newAddressIntro}><strong>{savedAddresses.length ? "Novo endereço" : "Seu primeiro endereço"}</strong><span>Busque pelo CEP para preencher mais rápido.</span></div>
-                  {!manualMode&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepLookupRef.current="";setCep(formatCEPBR(e.target.value))}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();cepLookupRef.current="";void handleSearchCep()}}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"Digite os 8 números e encontramos o endereço automaticamente."}</small></div>}
+                  {!manualMode&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepRequestRef.current+=1;cepLookupRef.current="";setCep(formatCEPBR(e.target.value));if(!submittingRef.current)setLoading(false)}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();cepLookupRef.current="";void handleSearchCep()}}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"Digite os 8 números e encontramos o endereço automaticamente."}</small></div>}
                   <input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
                   <div className={styles.addressGrid}><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/><input className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={Boolean(bairro.trim()) && !districtInspection.valid} value={bairro} onChange={e=>{customerEditingRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid)void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
                   <div className={styles.districtHelper} aria-live="polite" data-invalid={(Boolean(bairro.trim()) && !districtInspection.valid) || (Boolean(rua.trim()) && rua.trim().length < 4)}>
@@ -1032,7 +1042,7 @@ export function CheckoutModal() {
                     {Boolean(rua.trim()) && rua.trim().length < 4 && <strong>Confira a rua: informe o nome completo, não apenas uma letra.</strong>}
                     {districtSuggestions.length > 0 && manualMode && <div className={styles.districtSuggestions} aria-label="Sugestões de bairros"><small>Você quis dizer:</small>{districtSuggestions.map(name=><button type="button" key={name} onClick={()=>{setBairro(name);setDeliveryStatus(`Bairro escolhido: ${name}. Confira rua e número.`);void calculateDeliveryFee(name);}}>{name}</button>)}</div>}
                   </div>
-                  <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info}>{deliveryStatus}</div>}
+                  <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info} role="status" aria-live="polite">{deliveryStatus}</div>}
                   <div className={styles.addressFormActions}><button className={styles.linkButton} type="button" onClick={()=>setManualMode(v=>!v)}>{manualMode?"← Usar meu CEP":"Não sei meu CEP · preencher endereço manualmente"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
               </section>

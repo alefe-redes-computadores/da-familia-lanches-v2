@@ -37,13 +37,20 @@ export function OperationHealthAdmin({ pedidos, historyHasMore }:{pedidos:AdminO
       const user=auth.currentUser;
       if(!user)throw new Error("Sessão administrativa indisponível.");
       const token=await user.getIdToken();
-      const response=await fetch("/api/admin/operation-health",{cache:"no-store",headers:{Authorization:`Bearer ${token}`}});
+      const controller=new AbortController();
+      const timeout=window.setTimeout(()=>controller.abort(),10000);
+      let response: Response;
+      try {
+        response=await fetch("/api/admin/operation-health",{cache:"no-store",headers:{Authorization:`Bearer ${token}`},signal:controller.signal});
+      } finally { window.clearTimeout(timeout); }
       const data=await response.json().catch(()=>null);
       if(!response.ok||!data?.ok)throw new Error(data?.error||"Falha ao consultar integração.");
       setRemote(data);
       haptic(data.integration.backlog||data.integration.quarantine?"error":"success");
     }catch(error){
-      setRemoteError(error instanceof Error?error.message:"Falha ao consultar integração.");
+      setRemoteError(error instanceof Error && error.name==="AbortError"
+        ? "A consulta demorou demais. Tente novamente com conexão estável."
+        : error instanceof Error?error.message:"Falha ao consultar integração.");
       haptic("error");
     }finally{setChecking(false)}
   };

@@ -7,6 +7,7 @@ const REFRESH_MS = 5 * 60 * 1000;
 
 let status: ShopStatus = getScheduleShopStatus();
 let loadedAt = 0;
+let hasRemoteStatus = false;
 let inflight: Promise<ShopStatus> | null = null;
 let timer: number | undefined;
 let refs = 0;
@@ -27,14 +28,17 @@ async function load(force = false) {
   inflight = getEffectiveShopStatus()
     .then((next) => {
       status = next;
+      hasRemoteStatus = true;
       loadedAt = Date.now();
       emit();
       return next;
     })
     .catch((error) => {
       console.warn("[shop-status] leitura remota indisponível", error);
-      status = getScheduleShopStatus();
-      loadedAt = Date.now();
+      if (!hasRemoteStatus) status = getScheduleShopStatus();
+      // Uma falha não deve mascarar uma manutenção manual recém conhecida por 5 minutos.
+      // Nova consulta só após um cooldown limitado, sem criar outro timer/listener.
+      loadedAt = Date.now() - REFRESH_MS + 30_000;
       emit();
       return status;
     })

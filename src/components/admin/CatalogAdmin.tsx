@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { catalogProductMatchesSearch } from "@/lib/catalogAdminSearch";
 import { Plus, Search, ChevronDown, X, Pencil, Pause, Play } from "lucide-react";
 import { useAdminConfirm } from "@/components/admin/ui/AdminExperienceProvider";
 import { CatalogImage } from "@/components/ui/CatalogImage";
@@ -216,15 +217,15 @@ export function CatalogAdmin() {
   const [restoreConfirm, setRestoreConfirm] = useState(false);
 
   const filteredProducts = useMemo(() => {
-    const term = deferredSearch.trim().toLocaleLowerCase("pt-BR");
+    const term = deferredSearch.trim();
     return products.filter((product) => {
       if (categoryFilter !== "all" && product.category !== categoryFilter) return false;
-      if (availabilityFilter === "active" && !product.disponivel) return false;
-      if (availabilityFilter === "paused" && product.disponivel) return false;
+      if (availabilityFilter === "active" && product.disponivel === false) return false;
+      if (availabilityFilter === "paused" && product.disponivel !== false) return false;
       if (!term) return true;
-      return product.name.toLocaleLowerCase("pt-BR").includes(term) || product.description.toLocaleLowerCase("pt-BR").includes(term) || product.id.toLocaleLowerCase("pt-BR").includes(term);
+      return catalogProductMatchesSearch(product, term);
     }).sort((a, b) => {
-      if (availabilityFilter === "all" && a.disponivel !== b.disponivel) return a.disponivel ? -1 : 1;
+      if (availabilityFilter === "all" && (a.disponivel === false) !== (b.disponivel === false)) return a.disponivel === false ? 1 : -1;
       return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER);
     });
   }, [products, deferredSearch, categoryFilter, availabilityFilter]);
@@ -237,12 +238,13 @@ export function CatalogAdmin() {
       list.push(product);
       groups.set(product.category, list);
     }
+    const categoryLabels = new Map(categories.map((category) => [category.id, category.label]));
     return [...groups.entries()]
       .sort(([a], [b]) => (order.get(a) ?? 9999) - (order.get(b) ?? 9999) || a.localeCompare(b, "pt-BR"))
-      .map(([categoryId, items]) => ({ categoryId, label: categories.find((category) => category.id === categoryId)?.label ?? categoryId, items }));
+      .map(([categoryId, items]) => ({ categoryId, label: categoryLabels.get(categoryId) ?? categoryId, items }));
   }, [filteredProducts, categories]);
 
-  const activeProducts = products.filter((product) => product.disponivel).length;
+  const activeProducts = products.filter((product) => product.disponivel !== false).length;
   const pausedProducts = products.length - activeProducts;
   const activeAddons = allAddons.filter((addon) => addon.disponivel !== false).length;
 
@@ -633,7 +635,7 @@ export function CatalogAdmin() {
     </nav>
     {view === "produtos" && <>
     <section className={styles.catalogTools}>
-      <div className={styles.searchWrap}><Search size={17}/><div><span>BUSCAR</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, descrição ou ID" /></div></div>
+      <div className={styles.searchWrap}><Search size={17}/><div><span>BUSCAR</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, descrição ou ID" aria-label="Buscar produto no catálogo" autoComplete="off" /></div></div>
       <ChoicePicker label="Categoria" value={categoryFilter} onChange={setCategoryFilter} options={[
         { value: "all", label: "Todas as categorias" },
         ...categoryOptions,
@@ -662,7 +664,7 @@ export function CatalogAdmin() {
       {groupedProducts.map((group) => <details className={styles.productGroup} key={group.categoryId} open={Boolean(search || categoryFilter !== "all" || availabilityFilter !== "all")}>
         <summary><div><span>CATEGORIA</span><strong>{group.label}</strong></div><b>{group.items.length} produto{group.items.length===1?"":"s"}</b><ChevronDown size={16}/></summary>
         <div className={styles.products}>
-          {group.items.map((product) => <article className={styles.product} key={product.id} data-off={!product.disponivel}>
+          {group.items.map((product) => <article className={styles.product} key={product.id} data-off={product.disponivel === false}>
             <CatalogImage src={product.image} alt="" sizes="76px" quality={65} />
             <div className={styles.productInfo}>
               <div className={styles.productTitle}><div><strong>{product.name}</strong><span>{product.id}</span></div><div className={styles.productBadges}>{product.isSuggestion && <b>Sugestão da casa</b>}{(product.promoPlacement === "home_showcase" || (product.promoPlacement == null && product.isSuggestion && typeof product.oldPrice === "number" && product.oldPrice > product.price)) && <b>Ofertas da Família</b>}</div></div>

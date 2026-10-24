@@ -114,6 +114,10 @@ export function CartModal() {
   const handleIncreaseItem = (cartId: string) => {
     const item=items.find(current=>current.cartId===cartId);
     if(!item) return;
+    if(item.quantity >= 30){
+      showCartToast({title:"Limite de unidades",message:"Cada produto permite até 30 unidades por linha.",kind:"restore"});
+      haptic("step"); return;
+    }
     if(item.upsellSourceId){
       const sourceQty=items.filter(current=>current.id===item.upsellSourceId&&!current.upsellSourceId).reduce((sum,current)=>sum+current.quantity,0);
       const usedQty=items.filter(current=>current.id===item.id&&current.upsellSourceId===item.upsellSourceId).reduce((sum,current)=>sum+current.quantity,0);
@@ -182,7 +186,7 @@ export function CartModal() {
         ) : <>
           <div className={styles.items}>{items.map((item) => <article className={styles.item} key={item.cartId}>
             <div className={styles.itemInfo}><strong>{item.name}</strong>{item.upsellSourceId && <span className={styles.offerBadge}>PREÇO ESPECIAL DO COMBO</span>}{item.selectedAddons?.length > 0 && <small>+ {item.selectedAddons.map((addon) => addon.name).join(", ")}</small>}{item.observation?.trim() && <small>Obs.: {item.observation.trim()}</small>}<b>{money(item.price * item.quantity)}</b>{item.quantity > 1 && <i>{money(item.price)} cada</i>}</div>
-            <div className={styles.itemActions}><div className={styles.stepper}><button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => handleDecreaseItem(item.cartId)}>−</button><span>{item.quantity}</span><button type="button" aria-label={`Aumentar ${item.name}`} onClick={() => handleIncreaseItem(item.cartId)}>+</button></div><button className={styles.remove} type="button" onClick={() => handleRemoveItem(item.cartId)}>Remover</button></div>
+            <div className={styles.itemActions}><div className={styles.stepper}><button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => handleDecreaseItem(item.cartId)}>−</button><span>{item.quantity}</span><button type="button" aria-label={`Aumentar ${item.name}`} disabled={item.quantity >= 30} onClick={() => handleIncreaseItem(item.cartId)}>+</button></div><button className={styles.remove} type="button" onClick={() => handleRemoveItem(item.cartId)}>Remover</button></div>
           </article>)}</div>
 
           {!currentUser && !loginIntentAlreadyShown ? <div className={styles.loginCard}><strong>Quer agilizar os próximos pedidos?</strong><p>Entrar com Google é opcional: salva seu histórico e seus dados entre dispositivos. Você também pode continuar como convidado.</p><button type="button" onClick={() => openModal("login", { returnTo: "cart" })}>Entrar com Google</button></div> : currentUser ? <button className={styles.progress} type="button" onClick={() => openModal("rewards")}><div><strong>Seu histórico na casa</strong><span>{orderStats.loading ? "..." : `${orderStats.completed} concluído${orderStats.completed === 1 ? "" : "s"}`}</span></div><small>{orderStats.active > 0 ? `${orderStats.active} pedido${orderStats.active === 1 ? "" : "s"} em andamento. ` : ""}A fidelidade será baseada em pedidos realmente concluídos.</small></button> : null}

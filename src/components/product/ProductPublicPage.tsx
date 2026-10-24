@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { ArrowLeft, ChevronRight, Copy, MessageCircle, Share2, ShoppingCart } from "lucide-react";
 import type { Product } from "@/data/products";
@@ -24,9 +24,20 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   const [copied, setCopied] = useState(false);
   const [shareFallback, setShareFallback] = useState(false);
   const [shareError, setShareError] = useState(false);
+  const primaryActionRef = useRef<HTMLButtonElement>(null);
+  const [floatingBuyVisible, setFloatingBuyVisible] = useState(false);
   const product = useMemo(() => products.find((item) => matchesProductRoute(item, section, slug)), [products, section, slug]);
   const bundle = useMemo(() => product ? resolveBundleItems(product, products) : [], [product, products]);
   const related = useMemo(() => product ? getCommercialRecommendations(product, products, cartItems) : [], [product, products, cartItems]);
+
+  // Apenas um observer na rota individual, habilitado no mobile; sem scroll listener.
+  useEffect(() => {
+    const target = primaryActionRef.current;
+    if (!target || !product?.id || !("IntersectionObserver" in window) || !window.matchMedia("(max-width: 760px)").matches) return;
+    const observer = new IntersectionObserver(([entry]) => setFloatingBuyVisible(!entry.isIntersecting), { threshold: 0 });
+    observer.observe(target);
+    return () => { observer.disconnect(); setFloatingBuyVisible(false); };
+  }, [product?.id, loading]);
 
   if (loading) return <main className={styles.state}><strong>Abrindo o cardápio...</strong></main>;
   if (!product) return <main className={styles.state}><span>ITEM NÃO ENCONTRADO</span><h1>Esse endereço não está mais disponível.</h1><p>O produto pode ter mudado de endereço ou saído do cardápio.</p><Link href="/">Ver cardápio completo</Link></main>;
@@ -78,7 +89,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
           <a href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`} target="_blank" rel="noopener noreferrer"><MessageCircle size={16} /> WhatsApp</a>
           {shareError && <input aria-label="Selecione e copie o link do produto" readOnly value={shareUrl} onFocus={(event) => event.currentTarget.select()} onClick={(event) => event.currentTarget.select()} />}
         </div>}
-        <button className={styles.primaryAction} disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><ShoppingCart size={20} strokeWidth={2} /><span>{available ? "Personalizar e adicionar" : "Indisponível no momento"}</span><b>{available ? money(product.price) : ""}</b></button>
+        <button ref={primaryActionRef} type="button" className={styles.primaryAction} disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><ShoppingCart size={20} strokeWidth={2} /><span>{available ? "Personalizar e adicionar" : "Indisponível no momento"}</span><b>{available ? money(product.price) : ""}</b></button>
         {inCart > 0 && <button className={styles.inCart} onClick={() => openModal("cart")}><span>{inCart} no carrinho</span><b>Ver pedido <ChevronRight size={15} /></b></button>}
         {hasComposition && <section className={styles.composition}>
           <div className={styles.compositionHead}><span>{bundle.length ? "POR DENTRO DO COMBO" : "INGREDIENTES"}</span><h2>{product.detailsTitle || `O que vem no ${product.name}?`}</h2></div>
@@ -87,6 +98,10 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
         </section>}
       </div>
     </section>
+    {available && floatingBuyVisible && <div className={styles.floatingBuy} role="region" aria-label="Personalizar produto">
+      <span><small>{product.name}</small><strong>{money(product.price)}</strong></span>
+      <button type="button" onClick={() => { haptic("step"); openModal("product-details", product); }}><ShoppingCart size={17}/><b>Personalizar</b></button>
+    </div>}
     {related.length > 0 && <section className={styles.related}><div className={styles.relatedHead}><div><span>ESCOLHAS PARA O SEU PEDIDO</span><h2>Complete do seu jeito</h2><p>Sem repetir o que já vem neste item ou no seu carrinho.</p></div></div><div className={styles.relatedGrid}>{related.map((entry) => <Link href={productHref(entry.product)} key={entry.product.id}><CatalogImage src={entry.product.image} alt="" sizes="(max-width: 700px) 38vw, 180px" quality={68} /><span><small>{entry.eyebrow}</small><strong>{entry.product.name}</strong><em>{entry.reason}</em><b>{money(entry.product.price)} <span aria-hidden="true">›</span></b></span></Link>)}</div></section>}
 
   </main>;

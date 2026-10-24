@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UserRound, MapPin, CreditCard, ShoppingBag, ReceiptText, MessageCircle, Printer, Info, PackageCheck, Copy, Check, Clock3, Route, MessageSquareText, ExternalLink, X, TriangleAlert, Store, PackageX, Bike, Gauge, Wrench, PhoneOff, UserRoundX, PauseCircle, AlertTriangle } from "lucide-react";
 import { haptic } from "@/lib/haptics";
 import { getOrderItems, paymentLabel } from "@/lib/orderCompat";
@@ -20,6 +20,8 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const [inspectorTab, setInspectorTab] = useState<"resumo" | "itens" | "cliente" | "entrega" | "pagamento">("resumo");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState(false);
+  const cancelCloseRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {if (cancelConfirm) cancelCloseRef.current?.focus();},[cancelConfirm]);
   const [cancelReasonCode, setCancelReasonCode] = useState<OrderCancellationReasonCode | null>(null);
   const [cancelNote, setCancelNote] = useState("");
   const [cancelPublicNote, setCancelPublicNote] = useState("");
@@ -533,11 +535,11 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
       )}
 
       {cancelConfirm && (
-        <div className={styles.cancelIntelligence} onClick={(event) => { event.stopPropagation(); setCancelConfirm(false); }}>
+        <div className={styles.cancelIntelligence} onClick={(event) => { event.stopPropagation(); if(!cancelBusy) setCancelConfirm(false); }} onKeyDown={(event) => {if(event.key==="Escape"&&!cancelBusy){event.stopPropagation();setCancelConfirm(false);}}}>
           <section className={styles.cancelSheet} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Cancelar pedido">
             <header>
               <div><TriangleAlert size={20}/><div><strong>Cancelar pedido</strong><small>Informe o motivo para manter o histórico da operação.</small></div></div>
-              <button type="button" onClick={() => setCancelConfirm(false)} aria-label="Fechar"><X size={18}/></button>
+              <button type="button" ref={cancelCloseRef} disabled={cancelBusy} onClick={() => setCancelConfirm(false)} aria-label="Fechar cancelamento"><X size={18}/></button>
             </header>
             <div className={styles.cancelReasons}>
               {ORDER_CANCELLATION_REASONS.map((reason) => {
@@ -549,7 +551,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
                   : reason.code === "customer_unreachable" ? PhoneOff
                   : reason.code === "customer_request" ? UserRoundX
                   : MessageSquareText;
-                return <button key={reason.code} type="button" data-selected={cancelReasonCode === reason.code} onClick={() => setCancelReasonCode(reason.code)}>
+                return <button key={reason.code} type="button" data-selected={cancelReasonCode === reason.code} aria-pressed={cancelReasonCode === reason.code} onClick={() => setCancelReasonCode(reason.code)}>
                   <Icon size={18}/><span>{reason.label}</span>
                 </button>;
               })}

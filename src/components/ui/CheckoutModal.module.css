@@ -166,3 +166,28 @@
 .districtSuggestions button:focus-visible{outline:3px solid #f5c74e;outline-offset:2px}
 .districtSuggestions button:active{background:#ffecb0}
 @media(max-width:420px){.districtSuggestions button{max-width:100%;text-align:left;white-space:normal}}
+
+/* DFL SITE V87 R3 — CHECKOUT KEYBOARD & TOUCH */
+.body{overscroll-behavior:contain;scroll-padding-bottom:110px}
+.body :is(button,a,input,select,textarea):focus-visible{outline:3px solid #c99b17;outline-offset:3px}
+.body button{touch-action:manipulation}
+@media(max-width:640px){
+ .body{max-height:min(87dvh,880px)}
+ .body :is(input,select,textarea){font-size:16px}
+ .body :is(.primary,.secondary,.yellowButton){min-height:48px}
+ .body .linkButton{min-height:36px;padding-inline:6px}
+ .body .actions{gap:9px;padding-bottom:max(10px,env(safe-area-inset-bottom,0px))}
+ .body .totalCard .total strong:last-child{font-variant-numeric:tabular-nums}
+}
+
+/* DFL SITE V87 R4 — CHECKOUT STABILITY */
+.body [role="status"] {line-height:1.5;overflow-wrap:anywhere}
+.body input[aria-invalid="true"] {border-color:#b9382c;box-shadow:0 0 0 2px rgba(185,56,44,.13)}
+.body button:focus-visible,.body select:focus-visible,.body input:focus-visible {
+  outline:3px solid #d4a318;outline-offset:2px;
+}
+@media(max-width:560px){
+  .addressFormActions{flex-wrap:wrap}
+  .addressFormActions button{min-height:44px}
+  .districtSuggestions button{min-height:42px}
+}

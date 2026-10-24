@@ -102,3 +102,26 @@
 @media(prefers-reduced-motion:reduce) {
   .relatedGrid {scroll-behavior:auto}
 }
+
+/* DFL SITE V87 R2 — PRODUCT DETAIL REFINEMENT */
+.price strong{font-variant-numeric:tabular-nums}
+.primaryAction{transition:transform 180ms ease,background-color 180ms ease,box-shadow 180ms ease}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .primaryAction:not(:disabled):hover{transform:translateY(-2px);background:#292722;box-shadow:0 12px 24px rgba(14,11,5,.2)}
+ .share:hover{border-color:#d1a53a;background:#fffaf0}
+ .relatedGrid a:hover{border-color:rgba(255,202,40,.6)}
+}
+@media(prefers-reduced-motion:reduce){.primaryAction{transition:none}.primaryAction:hover{transform:none}}
+@media(max-width:760px){.relatedGrid{scroll-padding-inline:15px}.primaryAction{touch-action:manipulation}}
+
+/* DFL SITE V87 R3 — MOBILE FLOATING BUY */
+.floatingBuy{display:none}
+@media(max-width:760px){
+ .page{padding-bottom:calc(162px + env(safe-area-inset-bottom,0px))}
+ .floatingBuy{position:fixed;display:flex;align-items:center;justify-content:space-between;gap:12px;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(620px,calc(100% - 22px));min-height:62px;padding:9px 10px 9px 14px;border:1px solid rgba(255,202,40,.32);border-radius:18px;background:#171717;color:#fff;box-shadow:0 9px 32px rgba(0,0,0,.28);z-index:45}
+ .floatingBuy>span{display:grid;min-width:0;gap:2px}.floatingBuy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c4c1bc;font-size:10px;max-width:33vw}.floatingBuy strong{font-size:17px;font-weight:950;font-variant-numeric:tabular-nums}
+ .floatingBuy button{display:flex;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;min-height:46px;padding:0 16px;border:0;border-radius:12px;background:#ffca28;color:#17120a;font-size:13px;font-weight:950;cursor:pointer}
+ .floatingBuy button:focus-visible{outline:3px solid #ffdf73;outline-offset:3px}
+}
+@media(max-width:355px){.floatingBuy button{padding-inline:11px}.floatingBuy strong{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.floatingBuy{scroll-behavior:auto}}

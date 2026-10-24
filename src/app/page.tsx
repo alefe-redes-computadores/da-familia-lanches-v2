@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { readGuestIdentity, readGuestOrders, type GuestIdentity, type GuestOrderMemory } from "@/lib/guestContinuity";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import type { Product } from "@/data/products";
@@ -34,12 +34,27 @@ export default function Home() {
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const { activeCategories: categories } = useCatalogCategories();
   const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault(); searchInputRef.current?.focus(); searchInputRef.current?.select();
+      } else if (event.key === "Escape" && document.activeElement === searchInputRef.current) {
+        setSearch(""); searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, []);
   const deferredSearch = useDeferredValue(search);
   const [activeCategory, setActiveCategory] = useState<string>("todos");
   const [showAllOffers, setShowAllOffers] = useState(false);
-  const menuCategories = useMemo(() => categories.filter(category =>
-    products.some(product => product.category === category.id && product.disponivel !== false)
-  ), [categories, products]);
+  const menuCategories = useMemo(() => {
+    const availableCategoryIds = new Set(
+      products.filter((product) => product.disponivel !== false).map((product) => product.category),
+    );
+    return categories.filter((category) => availableCategoryIds.has(category.id));
+  }, [categories, products]);
   const [guestIdentity, setGuestIdentity] = useState<GuestIdentity | null>(null);
   const [guestLastOrder, setGuestLastOrder] = useState<GuestOrderMemory | null>(null);
 
@@ -100,6 +115,21 @@ export default function Home() {
     [products, categories],
   );
 
+  // V87 R1: uma indexação por render, sem filtragens/ordenações repetidas por categoria.
+  const groupedProducts = useMemo(() => {
+    const excludePromos = activeCategory === "todos" && !search.trim();
+    const promoIds = excludePromos ? new Set(promoProducts.map((product) => product.id)) : null;
+    const groups = new Map<string, Product[]>();
+    for (const product of filtered) {
+      if (promoIds?.has(product.id)) continue;
+      const current = groups.get(product.category);
+      if (current) current.push(product);
+      else groups.set(product.category, [product]);
+    }
+    for (const group of groups.values()) group.sort(compareCatalogProducts);
+    return groups;
+  }, [activeCategory, filtered, promoProducts, search]);
+
   const openProduct = (product: Product) => {
     if (product.disponivel === false) return;
     openModal("product-details", product);
@@ -114,7 +144,7 @@ export default function Home() {
 
           <label className={styles.searchBox}>
             <span aria-hidden="true">⌕</span>
-            <input value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setActiveCategory("todos"); }} placeholder="Buscar lanche, combo ou bebida" aria-label="Buscar no cardápio" />
+            <input ref={searchInputRef} aria-keyshortcuts="Control+K Meta+K" value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setActiveCategory("todos"); }} placeholder="Buscar lanche, combo ou bebida" aria-label="Buscar no cardápio" /><kbd className={styles.searchShortcut} aria-hidden="true">Ctrl K</kbd>
             {search && <button type="button" onClick={() => setSearch("")} aria-label="Limpar busca">×</button>}
           </label>
         </div>
@@ -179,8 +209,7 @@ export default function Home() {
 
         {categories.map((category) => {
           if (activeCategory !== "todos" && activeCategory !== category.id) return null;
-          const heroIds = activeCategory === "todos" && !search.trim() ? new Set(promoProducts.map(product=>product.id)) : new Set<string>();
-          const categoryProducts = filtered.filter((product) => product.category === category.id && !heroIds.has(product.id)).sort(compareCatalogProducts);
+           const categoryProducts = groupedProducts.get(category.id) ?? [];
           if (!categoryProducts.length) return null;
 
           return (
@@ -198,7 +227,7 @@ export default function Home() {
                     <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id}>
                       {available && <button type="button" className={styles.cardActionArea} onClick={() => openProduct(product)} aria-label={`Ver detalhes e personalizar ${product.name}`} />}
                       <div className={styles.media}>
-                        <CatalogImage src={product.image} alt={product.name} sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 280px" quality={72} />
+                        <CatalogImage src={product.image} alt={product.name} sizes="(max-width: 560px) 37vw, (max-width: 640px) 50vw, (max-width: 1100px) 33vw, 280px" quality={72} />
                         <div className={styles.badges}>
                           {product.isSuggestion && available && <span className={styles.featured}>Sugestão da casa</span>}
                           {hasDiscount && available && <span className={styles.discount}>-{discount}%</span>}

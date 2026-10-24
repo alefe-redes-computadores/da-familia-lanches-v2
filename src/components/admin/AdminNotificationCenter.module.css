@@ -18,3 +18,16 @@
 @keyframes v32spin{to{transform:rotate(360deg)}}
 @media(max-width:680px){.prefIcon{width:34px;height:34px;flex-basis:34px}.preference{gap:10px;padding:12px}.preference small{font-size:8.5px}}
 @media(prefers-reduced-motion:reduce){.spin{animation:none}.preference,.testButton,.diagTitle button,.footer button{transition:none}}
+
+/* DFL SITE V87 R1 — ADMIN NOTIFICATION ACCESSIBILITY */
+.sheet :is(button,input):focus-visible,.preference:focus-within {
+  outline:2px solid #ffca28;
+  outline-offset:3px;
+}
+@media(max-width:640px) {
+  .diagTitle button,.testButton,.footer button {min-height:44px}
+  .preference {min-height:60px}
+}
+@media(prefers-reduced-motion:reduce) {
+  .sheet :is(button,input) {scroll-behavior:auto}
+}

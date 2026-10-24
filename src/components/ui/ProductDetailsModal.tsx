@@ -90,6 +90,7 @@ export function ProductDetailsModal() {
   };
 
   const handleAdd = () => {
+    if (quantity > 30) { setAddonNotice("Limite de 30 unidades por produto."); return; }
     if(!addOk){setAddonNotice(inspectProductSelections(product,selectedAddons.map(item=>item.id)).reason||addonPolicyHint(product));haptic("error");return;}
     addItem(product, quantity, selectedAddons, observation.trim());
     haptic("add");
@@ -156,7 +157,7 @@ export function ProductDetailsModal() {
         {addonNotice && <div className={styles.addonNoticeV86} role="alert">{addonNotice}</div>}
         {!addOk && !addonNotice && <div className={styles.addonHintV86} role="status">{inspectProductSelections(product,selectedAddons.map(item=>item.id)).reason||addonPolicyHint(product)}</div>}
         <div className={styles.bottom}>
-          <div className={styles.quantity}><button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>−</button><span>{quantity}</span><button type="button" onClick={() => setQuantity((q) => q + 1)}>+</button></div>
+          <div className={styles.quantity} aria-label="Quantidade de unidades"><button type="button" aria-label="Diminuir quantidade" disabled={quantity <= 1} onClick={() => setQuantity((q) => Math.max(1, q - 1))}>−</button><span aria-live="polite">{quantity}</span><button type="button" aria-label="Aumentar quantidade" disabled={quantity >= 30} onClick={() => setQuantity((q) => Math.min(30, q + 1))}>+</button></div>
           <button type="button" className={styles.confirm} onClick={handleAdd} disabled={!addOk}><span>Adicionar</span><strong>{money(total)}</strong></button>
         </div>
       </div>

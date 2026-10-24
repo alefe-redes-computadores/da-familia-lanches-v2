@@ -177,3 +177,8 @@
 .addonNoticeV86,.addonHintV86{margin:10px 0;padding:10px 12px;border:1px solid #f0d386;border-radius:12px;background:#fff9e8;color:#5b3d07;font-size:12px;font-weight:750;line-height:1.4}
 .addonNoticeV86{border-color:#f3b5a6;background:#fff0ec;color:#8b2e15}
 .confirm:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+
+/* DFL SITE V87 R3 — MODIFIERS ACCESSIBILITY */
+.wrap :is(button,input,textarea):focus-visible{outline:3px solid #c99611;outline-offset:3px}
+.wrap button{touch-action:manipulation}
+@media(max-width:640px){.addon,.addonSelected{min-height:46px}.quantity button{min-width:44px;min-height:44px}.confirm{min-height:52px}}

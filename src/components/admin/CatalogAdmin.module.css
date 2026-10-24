@@ -700,3 +700,14 @@
 .addonLimitsV86 input{width:100%;min-height:46px;font-size:16px;padding:8px 10px;border:1px solid #425064;border-radius:10px;background:#0f1720;color:#fff}
 .addonLimitsV86>small{grid-column:1/-1;color:#a0acb6;font-size:11px;line-height:1.45}
 @media(max-width:360px){.addonLimitsV86{grid-template-columns:1fr}}
+
+/* DFL SITE V87 R4 — CATALOG SEARCH CLARITY */
+.searchWrap input:focus-visible{outline:2px solid #ffc928;outline-offset:3px}
+.productGroup summary:focus-visible,.products button:focus-visible,.catalogTools button:focus-visible{
+  outline:2px solid #ffc928;outline-offset:3px;
+}
+.productInfo .adminPrice{font-variant-numeric:tabular-nums}
+@media(max-width:560px){
+  .searchWrap input{min-height:44px;font-size:16px}
+  .productGroup summary{min-height:48px}
+}

@@ -12,6 +12,10 @@ export class AdminSectionBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State { return { error }; }
 
+  componentDidUpdate(prevProps: Props) {
+    if (prevProps.section !== this.props.section && this.state.error) this.setState({ error: null });
+  }
+
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[admin/management-recovery]", this.props.section, error, info.componentStack);
   }

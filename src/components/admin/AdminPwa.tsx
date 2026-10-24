@@ -44,6 +44,7 @@ async function syncRemotePush(registration:ServiceWorkerRegistration){
   if(!pushToken) throw new Error("PUSH_TOKEN_EMPTY");
   await persistPushToken(pushToken);
   localStorage.setItem(PUSH_SYNC_KEY,String(Date.now()));
+  window.dispatchEvent(new Event("dfl:admin-push-sync-complete"));
   return true;
 }
 
@@ -113,7 +114,7 @@ export function AdminPwa(){
   },[syncPush]);
 
   useEffect(() => {
-    const resync=()=>{void syncPush().catch((error)=>console.warn("[admin-pwa] resync manual pendente",error));};
+    const resync=()=>{void syncPush().then(ok=>{if(!ok)window.dispatchEvent(new CustomEvent("dfl:admin-push-sync-failed",{detail:{reason:"unavailable"}}));}).catch((error)=>{console.warn("[admin-pwa] resync manual pendente",error);window.dispatchEvent(new CustomEvent("dfl:admin-push-sync-failed",{detail:{reason:"sync_failed"}}));});};
     const disable=()=>{void (async()=>{try{
       const registration=registrationRef.current||await navigator.serviceWorker?.ready;
       if(!registration||!(await isMessagingSupported()))return;

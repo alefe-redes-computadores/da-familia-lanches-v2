@@ -65,12 +65,21 @@ export function OrdersModal(){
        void outcomes;
      } finally {working=false}
    };
-   void refresh();
-   const onResume=()=>{if(document.visibilityState==="visible")void refresh()};
+   let timer: number | undefined;
+   const stopPolling=()=>{if(timer!==undefined){window.clearInterval(timer);timer=undefined}};
+   const startPolling=()=>{
+     if(timer!==undefined||document.visibilityState!=="visible"||navigator.onLine===false)return;
+     timer=window.setInterval(()=>{void refresh()},90000);
+   };
+   void refresh();startPolling();
+   const onResume=()=>{
+     if(document.visibilityState!=="visible"||navigator.onLine===false){stopPolling();return;}
+     startPolling();void refresh();
+   };
    window.addEventListener("online",onResume);
+   window.addEventListener("offline",onResume);
    document.addEventListener("visibilitychange",onResume);
-   const timer=window.setInterval(()=>{void refresh()},90000);
-   return()=>{alive=false;window.clearInterval(timer);window.removeEventListener("online",onResume);document.removeEventListener("visibilitychange",onResume)};
+   return()=>{alive=false;stopPolling();window.removeEventListener("online",onResume);window.removeEventListener("offline",onResume);document.removeEventListener("visibilitychange",onResume)};
  },[currentUser]);
  const repeat=(order:CustomerOrder)=>{const old=getOrderItems(order); if(!old.length){setNotice("Esse pedido antigo não possui itens reconhecíveis para repetir.");return;} const resolved=old.flatMap(item=>{const p=products.find(x=>x.id===item.id)??products.find(x=>normalizeText(x.name)===normalizeText(item.name)); if(!p||!p.disponivel)return[]; const allowedAddons=availableAddonsForProduct(p,addons); const resolvedAddons=item.selectedAddons.flatMap(a=>{const n=allowedAddons.find(x=>x.id===a.id)??allowedAddons.find(x=>normalizeText(x.name)===normalizeText(a.name));return n?[n]:[]});return[{item,product:p,addons:resolvedAddons}]}); if(!resolved.length){setNotice("Os produtos desse pedido não estão disponíveis no cardápio atual.");setRepeatTarget(null);return;} const skipped=old.length-resolved.length;clearCart();resolved.forEach(({item,product,addons})=>addItem(product,item.quantity,addons,item.observation));setNotice(skipped?`${skipped} item(ns) indisponível(is) foram ignorados. O restante usa preços atuais.`:"");setRepeatTarget(null);closeModal();openModal("cart")};
  return <ModalBase title="Meus pedidos" onClose={closeModal}><div className={styles.body}>

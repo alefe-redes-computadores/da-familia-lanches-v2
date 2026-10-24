@@ -29,6 +29,15 @@ export function Header() {
   const [guestIdentity, setGuestIdentity] = useState<GuestIdentity | null>(null);
   const [guestOrderCount,setGuestOrderCount]=useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { setShowMenu(false); }, [pathname]);
+  useEffect(() => {
+    if (!showMenu) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowMenu(false);
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [showMenu]);
 
   useEffect(() => {
     const sync=()=>{setGuestIdentity(readGuestIdentity());setGuestOrderCount(readGuestOrders().length)}; sync();

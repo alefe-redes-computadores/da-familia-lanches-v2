@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, PackageCheck, Volume2, RefreshCw, Send, ShieldCheck, Smartphone, Radio, X } from "lucide-react";
 import { haptic } from "@/lib/haptics";
 import {
@@ -28,11 +28,15 @@ export function AdminNotificationCenter({
   const [lastSync, setLastSync] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const syncTimeoutRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (syncTimeoutRef.current !== null) window.clearTimeout(syncTimeoutRef.current);
+  }, []);
 
   const refreshStatus = useCallback(() => {
     setPrefs(readAdminNotificationPrefs());
     setPermission("Notification" in window ? Notification.permission : "unsupported");
-    setLastSync(Number(localStorage.getItem("dfl-admin-push-sync-v20") || 0));
+    setLastSync(Number(localStorage.getItem("dfl-admin-push-sync-v82") || 0));
     if ("serviceWorker" in navigator) {
       void navigator.serviceWorker.ready.then((r) => setServiceWorkerReady(Boolean(r.active))).catch(() => setServiceWorkerReady(false));
     } else {
@@ -43,12 +47,37 @@ export function AdminNotificationCenter({
   useEffect(() => {
     if (!open) return;
     refreshStatus();
-    const timer = window.setInterval(refreshStatus, 1500);
-    const onPrefs = () => refreshStatus();
-    window.addEventListener("dfl:admin-notification-prefs-changed", onPrefs);
+    const onRefresh = () => refreshStatus();
+    const onSyncSuccess = () => {
+      if (syncTimeoutRef.current !== null) window.clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = null;
+      refreshStatus();
+      setBusy(null);
+      setMessage("Token sincronizado com sucesso neste aparelho.");
+    };
+    const onSyncFailed = () => {
+      if (syncTimeoutRef.current !== null) window.clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = null;
+      refreshStatus();
+      setBusy(null);
+      setMessage("Não foi possível sincronizar o push. Confira a conexão e tente novamente.");
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshStatus();
+    };
+    window.addEventListener("dfl:admin-notification-prefs-changed", onRefresh);
+    window.addEventListener("dfl:admin-push-sync-complete", onRefresh);
+    window.addEventListener("dfl:admin-push-sync-complete", onSyncSuccess);
+    window.addEventListener("dfl:admin-push-sync-failed", onSyncFailed);
+    window.addEventListener("focus", onRefresh);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("dfl:admin-notification-prefs-changed", onPrefs);
+      window.removeEventListener("dfl:admin-notification-prefs-changed", onRefresh);
+      window.removeEventListener("dfl:admin-push-sync-complete", onRefresh);
+      window.removeEventListener("dfl:admin-push-sync-complete", onSyncSuccess);
+      window.removeEventListener("dfl:admin-push-sync-failed", onSyncFailed);
+      window.removeEventListener("focus", onRefresh);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [open, refreshStatus]);
 
@@ -129,12 +158,14 @@ export function AdminNotificationCenter({
     setBusy("sync");
     setMessage("Revalidando token e Service Worker…");
     window.dispatchEvent(new Event("dfl:admin-push-resync"));
-    window.setTimeout(() => {
-      refreshStatus();
+    // O prazo serve apenas para tirar o loading em falha de rede;
+    // não é confirmação fictícia de sucesso.
+    if (syncTimeoutRef.current !== null) window.clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = window.setTimeout(() => {
+      syncTimeoutRef.current = null;
       setBusy(null);
-      setMessage("Diagnóstico atualizado.");
-      haptic("success");
-    }, 1100);
+      setMessage("Sem confirmação de sincronização. Verifique o canal e tente novamente.");
+    }, 12000);
   };
 
   const testNotification = () => {

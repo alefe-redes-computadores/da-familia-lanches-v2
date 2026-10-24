@@ -27,6 +27,8 @@ interface CartState {
   getCartTotal: () => number;
 }
 
+const clampCartQuantity = (value: number) => Math.min(30, Math.max(1, Math.trunc(Number(value) || 1)));
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -50,8 +52,8 @@ export const useCartStore = create<CartState>()(
           if (existingItem) {
             return {
               items: state.items.map((i) =>
-                i.cartId === uniqueId 
-                  ? { ...i, quantity: i.quantity + quantity } 
+                i.cartId === uniqueId
+                  ? { ...i, quantity: clampCartQuantity(i.quantity + quantity) }
                   : i
               ),
             };
@@ -63,7 +65,7 @@ export const useCartStore = create<CartState>()(
               { 
                 ...product, 
                 cartId: uniqueId, // O segredo está aqui
-                quantity: quantity, 
+                quantity: clampCartQuantity(quantity),
                 price: finalPrice, // O preço salvo já é o (Unitário + Adicionais)
                 selectedAddons: addons,
                 observation: obs,
@@ -83,13 +85,13 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: !item.cartId || !Number.isFinite(item.quantity) || item.quantity <= 0 ||
             state.items.some((current) => current.cartId === item.cartId)
-            ? state.items : [...state.items, item],
+            ? state.items : [...state.items, { ...item, quantity: clampCartQuantity(item.quantity) }],
         })),
 
       increaseQtd: (cartId) =>
         set((state) => ({
           items: state.items.map((i) =>
-            i.cartId === cartId ? { ...i, quantity: i.quantity + 1 } : i
+            i.cartId === cartId ? { ...i, quantity: clampCartQuantity(i.quantity + 1) } : i
           ),
         })),
 
@@ -103,7 +105,7 @@ export const useCartStore = create<CartState>()(
         })),
 
       clearCart: () => set({ items: [] }),
-      replaceItems: (items) => set({ items }),
+      replaceItems: (items) => set({ items: items.map((item) => ({ ...item, quantity: clampCartQuantity(item.quantity) })) }),
 
       getCartTotal: () => {
         return get().items.reduce((total, item) => {
