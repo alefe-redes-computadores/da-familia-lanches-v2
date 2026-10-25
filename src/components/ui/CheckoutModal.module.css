@@ -191,3 +191,11 @@
   .addressFormActions button{min-height:44px}
   .districtSuggestions button{min-height:42px}
 }
+
+/* DFL-R3:CHECKOUT-RECOVERY */
+.uncertainOrderAction{display:grid;gap:8px;margin:11px 0;padding:13px;border:1px solid rgba(194,133,29,.34);border-radius:14px;background:#fff7e7;color:#302518}
+.uncertainOrderAction strong{font-size:14px;font-weight:900}
+.uncertainOrderAction p{margin:0;color:#68533e;font-size:12px;line-height:1.45}
+.uncertainOrderAction button{justify-self:start;min-height:44px;padding:9px 14px;border:0;border-radius:11px;background:#232018;color:#fff;font-size:13px;font-weight:850;cursor:pointer}
+.uncertainOrderAction button:focus-visible{outline:3px solid #bb851d;outline-offset:3px}
+@media(max-width:520px){.uncertainOrderAction{padding:11px}.uncertainOrderAction button{width:100%}}

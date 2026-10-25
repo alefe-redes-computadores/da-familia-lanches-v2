@@ -85,6 +85,20 @@ export function operationalAttention(order: AdminOrder, now = Date.now()) {
   } as const;
 }
 
+/** Aviso apenas visual: não altera status, não produz nova leitura nem inicia pedido. */
+export function scheduledOrderUrgency(order: AdminOrder, now = Date.now()): null | { level: "medium" | "high"; label: string; detail: string } {
+  if (normalizarStatus(order.status) !== "Agendado" || typeof order.scheduledFor !== "string") return null;
+  const scheduled = Date.parse(order.scheduledFor);
+  if (!Number.isFinite(scheduled) || scheduled > now) return null;
+  const elapsed = Math.floor((now - scheduled) / 60_000);
+  return {
+    level: elapsed >= 15 ? "high" : "medium",
+    label: elapsed < 1 ? "Horário agendado chegou" : elapsed < 60 ?
+      `Agendamento há ${elapsed} min` : `Agendamento há ${Math.floor(elapsed / 60)}h`,
+    detail: "Confirme a fila e inicie o preparo quando apropriado. Status não alterado.",
+  };
+}
+
 export function adminOrderSearchText(order: AdminOrder) {
   const address = order.deliverySnapshot && typeof order.deliverySnapshot === "object"
     ? Object.values(order.deliverySnapshot).join(" ")

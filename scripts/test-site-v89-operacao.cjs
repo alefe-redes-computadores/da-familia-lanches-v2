@@ -1,0 +1,16 @@
+"use strict";
+const fs=require('node:fs'), assert=require('node:assert/strict'),vm=require('node:vm'),ts=require('typescript');
+const src=fs.readFileSync('src/lib/adminOrderStageFocus.ts','utf8');
+const transpiled=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020},reportDiagnostics:true});
+assert.equal(transpiled.diagnostics?.filter(x=>x.category===1).length,0);
+const context={exports:{}};vm.runInNewContext(transpiled.outputText,context);
+const {orderMatchesStageFocus:matches,stageFocusForTab:select}=context.exports;
+assert.equal(select('pendentes','cozinha'),'pendentes');assert.equal(select('prontos','cozinha'),'all');
+assert.equal(select('producao','expedicao'),'all');assert.equal(select('rota','expedicao'),'rota');
+assert.equal(select('prontos','cancelados'),'all');
+for(const [focus,status,expected] of [['pendentes','Pendente',true],['pendentes','Em Produção',false],['producao','Em Produção',true],['prontos','Pronto',true],['rota','Saiu para Entrega',true],['rota','Pendente',false],['all','Cancelado',true],['all','Agendado',true]]) assert.equal(matches(focus,status),expected,focus+' '+status);
+const page=fs.readFileSync('src/app/admin/page.tsx','utf8');const css=fs.readFileSync('src/app/admin/admin.module.css','utf8');
+for(const marker of ['orderMatchesStageFocus(visibleStageFocus, status)','stageFocusForTab(stageFocus, tab)','className={styles.stageFocusBar}','setStageFocus("all")','aria-pressed={visibleStageFocus === key}']) assert.ok(page.includes(marker),marker);
+assert.ok(css.includes('.stageFocusBar button[data-active=true]'));
+assert.ok(!src.includes('firebase')&&!src.includes('onSnapshot'),'Sem backend e sem novos listeners');
+console.log('V89 ADMIN ETAPAS — 20 contratos OK');

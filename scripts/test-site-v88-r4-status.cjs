@@ -1,0 +1,27 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm'),path=require('node:path');
+const ts=require(path.join(process.cwd(),'node_modules/typescript'));
+const source=fs.readFileSync('src/lib/shopStatus.ts','utf8');
+const transpiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+let online=true,remoteOpen=true,calls=0;
+const firestore={doc:()=>({}),getDoc:async()=>{calls++;if(!online)throw Error('OFFLINE');return {exists:()=>true,data:()=>({isOpen:remoteOpen})};}};
+const schedule={DEFAULT_STORE_SETTINGS:{isOpen:false},evaluateStoreStatus:x=>({isOpen:x.isOpen===true,message:x.isOpen?'Aberta':'Fechada'}),normalizeStoreSettings:x=>x,canPlaceImmediateTestOrder:()=>false};
+const mods={'firebase/firestore':firestore,'@/lib/firebase':{db:{}},'@/lib/storeSchedule':schedule};
+const exp={};vm.runInNewContext(transpiled,{require:id=>{if(!(id in mods))throw Error('Module desconhecido '+id);return mods[id]},module:{exports:exp},exports:exp,console:{warn(){}},Date,Promise},{filename:'shopStatus.mock.cjs'});
+(async()=>{
+ const initial=await exp.getCheckoutStoreAccess('cliente@example.com',true);
+ assert.equal(initial.status.isOpen,true,'O status aberto remoto tem autoridade');
+ online=false;
+ await assert.rejects(()=>exp.getCheckoutStoreAccess('cliente@example.com',true),/OFFLINE/,'Checkout não pode supor loja aberta após falha de leitura fresca');
+ const cached=await exp.getCheckoutStoreAccess(null,false);
+ assert.equal(cached.status.isOpen,true,'Visualização não destrói último snapshot confirmado');
+ exp.invalidateShopStatusCache();
+ const fallback=await exp.getCheckoutStoreAccess(null,false);
+ assert.equal(fallback.status.isOpen,false,'Sem snapshot confiável usa agenda padrão apenas para visualização');
+ await assert.rejects(()=>exp.getCheckoutStoreAccess(null,true),/OFFLINE/);
+ online=true;remoteOpen=false;
+ const recovered=await exp.getCheckoutStoreAccess(null,true);
+ assert.equal(recovered.status.isOpen,false,'Recuperação consulta o fechamento real');
+ assert.ok(calls>=5);
+ console.log('V88 R4: consulta fresca obrigatória, cache confiável e recuperação — 6 contratos OK');
+})().catch(e=>{console.error(e);process.exitCode=1});

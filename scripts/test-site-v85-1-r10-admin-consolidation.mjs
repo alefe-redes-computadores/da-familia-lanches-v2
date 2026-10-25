@@ -2,9 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(p,'utf8');
 const admin=read('src/app/admin/page.tsx'),css=read('src/app/admin/admin.module.css'),feedback=read('src/components/home/CustomerExperiencePrompt.tsx');
+// DFL R5 R4: validar o comportamento e as dependencias, nao a quantidade literal de filtros.
+const filterStart=admin.indexOf('  const filtered = useMemo(() => {');
+const filterEnd=admin.indexOf('  const queueDensity =',filterStart);
+const filteredMemo=filterStart>=0&&filterEnd>filterStart?admin.slice(filterStart,filterEnd):'';
+const filterDeps=(filteredMemo.match(/},\s*\[([^\]]+)\]\);/)?.[1]||'').split(',').map(s=>s.trim()).filter(Boolean);
 const tests=[
  ['Admin desacopla digitacao de busca pesada',admin.includes('useDeferredValue')&&admin.includes('normalizeSearch(deferredSearch)')],
- ['Admin usa filtro diferido sem alterar busca historica',admin.includes('searchHistoryIdentifier(term),550')&&admin.includes('[operationalPedidos, deferredSearch, tab, serviceFilter, attentionOnly, now]')],
+ ['Admin usa filtro diferido sem alterar busca historica',
+   admin.includes('searchHistoryIdentifier(term),550') &&
+   filteredMemo.includes('normalizeSearch(deferredSearch)') &&
+   filteredMemo.includes('adminOrderSearchText(pedido).includes(term)') &&
+   filteredMemo.includes('.sort(compareOperationalOrders)') &&
+   ['operationalPedidos','deferredSearch','tab','serviceFilter','attentionOnly','now'].every(dep=>filterDeps.includes(dep))],
  ['relogio operacional pausa no segundo plano',admin.includes('if (document.visibilityState === "visible") setNow(Date.now())')],
  ['relogio atualiza na volta ao PWA e limpa listener',admin.includes('visibilitychange", updateClock')&&admin.includes('removeEventListener("visibilitychange", updateClock)')],
  ['prioridade operacional encontra mais antigo em alerta',admin.includes('sort((a, b) => (orderAgeMinutes(b, now) ?? 0) - (orderAgeMinutes(a, now) ?? 0))')],

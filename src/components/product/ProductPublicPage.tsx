@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogImage } from "@/components/ui/CatalogImage";
-import { ArrowLeft, ChevronRight, Copy, MessageCircle, Share2, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ChevronRight, Copy, Heart, MessageCircle, Share2, ShoppingCart } from "lucide-react";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
 import { resolveBundleItems } from "@/lib/catalogComposition";
@@ -16,6 +16,8 @@ const money = (value: number) => value.toLocaleString("pt-BR", { style: "currenc
 import { getCommercialRecommendations } from "@/lib/commercialRecommendations";
 import { haptic } from "@/lib/haptics";
 import { productLeadDescription } from "@/lib/productPresentation";
+import { rememberRecentProductId } from "@/lib/recentProductViews";
+import { readSavedProductIds, toggleSavedProductId } from "@/lib/savedProductIds";
 
 export function ProductPublicPage({ section, slug }: { section: string; slug: string }) {
   const { products, loading } = useCatalog();
@@ -24,11 +26,20 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   const [copied, setCopied] = useState(false);
   const [shareFallback, setShareFallback] = useState(false);
   const [shareError, setShareError] = useState(false);
+  const [saved, setSaved] = useState(false);
   const primaryActionRef = useRef<HTMLButtonElement>(null);
   const [floatingBuyVisible, setFloatingBuyVisible] = useState(false);
   const product = useMemo(() => products.find((item) => matchesProductRoute(item, section, slug)), [products, section, slug]);
   const bundle = useMemo(() => product ? resolveBundleItems(product, products) : [], [product, products]);
   const related = useMemo(() => product ? getCommercialRecommendations(product, products, cartItems) : [], [product, products, cartItems]);
+  useEffect(() => { if (product && product.disponivel !== false) rememberRecentProductId(product.id); }, [product?.id, product?.disponivel]);
+  useEffect(() => {
+    const sync = () => setSaved(Boolean(product?.id && readSavedProductIds().includes(product.id)));
+    sync();
+    window.addEventListener("dfl:saved-products-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => { window.removeEventListener("dfl:saved-products-changed", sync); window.removeEventListener("storage", sync); };
+  }, [product?.id]);
 
   // Apenas um observer na rota individual, habilitado no mobile; sem scroll listener.
   useEffect(() => {
@@ -84,6 +95,10 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
       <div className={styles.summary}>
         <span className={styles.kicker}>{sectionLabel}</span><h1>{product.name}</h1>{leadDescription && <p>{leadDescription}</p>}
         <div className={styles.buyRow}><div className={styles.price}>{hasDiscount && <s>{money(product.oldPrice!)}</s>}<strong>{money(product.price)}</strong>{hasDiscount && <small>Economize {money(product.oldPrice! - product.price)}</small>}</div><button type="button" className={styles.share} onClick={share} aria-label="Compartilhar produto"><Share2 size={17} /><span>{copied ? "Link copiado" : "Compartilhar"}</span></button></div>
+        <button type="button" className={styles.saveFavorite} data-saved={saved} aria-pressed={saved}
+          onClick={() => { haptic("step"); setSaved(toggleSavedProductId(product.id)); }}>
+          <Heart size={17} fill={saved ? "currentColor" : "none"}/>{saved ? "Salvo nos favoritos" : "Salvar nos favoritos"}
+        </button>
         {shareFallback && <div className={styles.shareFallback} aria-label="Outras formas de compartilhar">
           <button type="button" onClick={copyLink}><Copy size={16} /> Copiar link</button>
           <a href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`} target="_blank" rel="noopener noreferrer"><MessageCircle size={16} /> WhatsApp</a>

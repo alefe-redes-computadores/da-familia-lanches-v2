@@ -6,7 +6,7 @@ import { haptic } from "@/lib/haptics";
 import { getOrderItems, paymentLabel } from "@/lib/orderCompat";
 import { normalizarStatus, getColorByStatus, formatarData } from "@/lib/orderUtils";
 import { canTransitionOrderStatus, statusTitle } from "@/lib/orderStatus";
-import { ageLabel, operationalAttention } from "@/lib/adminOrders";
+import { ageLabel, operationalAttention, scheduledOrderUrgency } from "@/lib/adminOrders";
 import { openDflEntregas } from "@/lib/adminDeliveryBridge";
 import { ORDER_CANCELLATION_REASONS, type OrderCancellationReasonCode } from "@/lib/orderCancellation";
 import styles from "./OrderCard.module.css";
@@ -41,6 +41,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const formatBRL = (amount: number) => adminBRL.format(Number.isFinite(amount) ? amount : 0);
   const troco = Number(String(pedido.trocoPara ?? pedido.troco ?? "").replace(",", "."));
   const attention = operationalAttention(pedido);
+  const scheduledUrgency = scheduledOrderUrgency(pedido);
   const logisticsCompleted =
     !pickup &&
     (pedido.deliveryTrackingEvent === "delivery.completed" ||
@@ -264,6 +265,13 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
           <span>AGENDADO</span>
           <strong>{scheduledLabel}</strong>
           <small>{pickup ? "Retirada programada" : "Entrega programada"}</small>
+        </div>
+      )}
+
+      {scheduledUrgency && (
+        <div className={styles.scheduledUrgency} data-level={scheduledUrgency.level} role="status">
+          <strong>{scheduledUrgency.label}</strong>
+          <span>{scheduledUrgency.detail}</span>
         </div>
       )}
 

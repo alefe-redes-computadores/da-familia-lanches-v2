@@ -50,8 +50,13 @@ async function readStoreSettings(forceFresh = false): Promise<StoreSnapshot> {
     })
     .catch((error) => {
       console.warn("Status remoto indisponível", error);
-      const next = { at: Date.now(), settings: DEFAULT_STORE_SETTINGS };
-      if (!forceFresh) cache = next;
+      // DFL-R4:STATUS-AUTHORITY: confirmar pedido requer leitura fresca e confiável.
+      // Nunca transformar falha de rede em uma autorização presumida para comprar.
+      if (forceFresh) throw error;
+      // Em leitura informativa, preserve a última configuração conhecida.
+      // Renova apenas o TTL do cache para não reler continuamente durante a queda.
+      const next = { at: Date.now(), settings: cache?.settings ?? DEFAULT_STORE_SETTINGS };
+      cache = next;
       return next;
     })
     .finally(() => {

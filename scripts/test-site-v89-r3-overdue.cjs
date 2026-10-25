@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+const s=fs.readFileSync('src/lib/scheduledOrderFocus.ts','utf8');
+const js=ts.transpileModule(s,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+const m={exports:{}};new Function('module','exports',js)(m,m.exports);
+const check=m.exports.isOverdueScheduledOrder,now=Date.parse('2026-10-25T19:00:00-03:00');
+assert.equal(check('Agendado','2026-10-25T19:00:00-03:00',now),true);
+assert.equal(check('Agendado','2026-10-25T18:45:00-03:00',now),true);
+assert.equal(check('Agendado','2026-10-25T19:30:00-03:00',now),false);
+for(const status of ['Pendente','Em Produção','Cancelado','Finalizado'])assert.equal(check(status,'2026-10-25T18:00:00-03:00',now),false,status);
+for(const value of ['',null,{},'nao eh data'])assert.equal(check('Agendado',value,now),false,String(value));
+const page=fs.readFileSync('src/app/admin/page.tsx','utf8');
+assert.ok(page.includes('overdueScheduledCount')&&page.includes('scheduledOverdueOnly')&&page.includes('Ver somente esses'));
+assert.ok(page.includes('isOverdueScheduledOrder(status, pedido.scheduledFor, now)'));
+assert.ok(page.includes('setScheduledOverdueOnly(false)'));
+assert.ok(!s.includes('firebase/'));
+console.log('V89 R3: 11 casos de agendamento + filtro local + reset PRESERVADOS');

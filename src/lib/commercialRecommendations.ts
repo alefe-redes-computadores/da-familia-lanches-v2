@@ -4,7 +4,9 @@ import { resolveBundleItems } from "@/lib/catalogComposition";
 
 const norm=(v:unknown)=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const drinkRx=/\b(bebida|refrigerante|refri|kuat|coca|guarana|suco|agua|fanta|2l|2 l|1l|1 l|600ml|600 ml|lata)\b/;
-export const isDrinkProduct=(p:Product)=>drinkRx.test(norm(`${p.category} ${p.name} ${p.description}`));
+/** Evita classificar combos como bebida por descrever "sem refrigerante". */
+const drinkMention=(text:string)=>drinkRx.test(norm(text).replace(/\b(?:sem|nao acompanha|nao inclui)\s+(?:(?:um|uma|o|a)\s+)?(?:bebida|refrigerante|refri|kuat|coca|guarana|suco|agua|fanta)\b/g,""));
+export const isDrinkProduct=(p:Product)=>/\b(bebidas?|refrigerantes?|sucos?|aguas?|drinks?)\b/.test(norm(p.category)) || (!/\b(combo|lanche|sanduiche|hamburguer)\b/.test(norm(p.name)) && !/\b(lanches|hamburgueres?|sanduiches?)\b/.test(norm(p.category)) && drinkMention(p.name));
 const words=(p:Product)=>norm(p.name).split(/[^a-z0-9]+/).filter(w=>w.length>=4&&!new Set(["combo","burger","burgers","lanche","lanches","familia","tradicional","artesanal","promocao","oferta"]).has(w));
 const textualComposition=(p:Product)=>norm([...(p.detailsItems??[]),p.includedExtras??"",p.description??""].join(" "));
 
@@ -13,13 +15,13 @@ function alreadyIncluded(source:Product,candidate:Product,products:Product[]){
   if(includedIds(source,products).has(candidate.id)) return true;
   const text=textualComposition(source), name=norm(candidate.name);
   if(name.length>=4&&text.includes(name)) return true;
-  if(isDrinkProduct(candidate)&&drinkRx.test(text)){
+  if(isDrinkProduct(candidate)&&drinkMention(text)){
     const cwords=words(candidate); if(cwords.some(w=>text.includes(w))) return true;
   }
   return false;
 }
 function hasDrink(source:Product,products:Product[],cart:CartItem[]){
-  if(isDrinkProduct(source)||drinkRx.test(textualComposition(source))) return true;
+  if(isDrinkProduct(source)||drinkMention(textualComposition(source))) return true;
   if(resolveBundleItems(source,products).some(x=>x.product&&isDrinkProduct(x.product))) return true;
   return cart.some(x=>isDrinkProduct(x));
 }

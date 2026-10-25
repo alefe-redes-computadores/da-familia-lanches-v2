@@ -2484,3 +2484,27 @@
 @media(hover:hover) and (pointer:fine){.quickJumpTrigger:hover,.quickJumpMobile:hover{border-color:#9d812d;background:#283039}}
 @media(max-width:820px){.quickJumpTrigger{display:none}.quickJumpMobile{display:grid}}
 @media(max-width:380px){.quickJumpMobile{width:40px;min-width:40px}}
+
+/* DFL SITE V89-STAGE-FOCUS */
+.stageFocusBar{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:6px 0 10px;min-width:0}
+.stageFocusBar>span{color:#93a3af;letter-spacing:.08em;font-size:10px;font-weight:900;padding-right:4px}
+.stageFocusBar button{display:inline-flex;align-items:center;gap:8px;justify-content:center;min-height:42px;padding:7px 12px;border:1px solid rgba(148,163,184,.19);border-radius:12px;background:#121b22;color:#d2dce4;font-size:12px;font-weight:800;line-height:1.2;cursor:pointer;touch-action:manipulation}
+.stageFocusBar button b{font-variant-numeric:tabular-nums;color:#aebdcb}
+.stageFocusBar button[data-active=true]{border-color:rgba(250,204,75,.62);background:#3b321c;color:#ffdf82}
+.stageFocusBar button:focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
+@media(max-width:520px){.stageFocusBar{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;padding:2px 0 8px}.stageFocusBar>span{position:sticky;left:0;background:#0c1218;padding:12px 8px 12px 0}.stageFocusBar button{flex:0 0 auto;min-height:44px}}
+
+/* DFL-R3:ADMIN-OVERDUE-FILTER */
+.overdueScheduleBar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:7px 0 11px;padding:10px 12px;background:rgba(250,204,75,.08);border:1px solid rgba(250,204,75,.33);border-radius:13px;color:#ffe3a3}
+.overdueScheduleBar span{font-size:12px;font-weight:850;line-height:1.35}
+.overdueScheduleBar button{flex:0 0 auto;min-height:44px;padding:8px 12px;border:1px solid rgba(250,204,75,.47);border-radius:11px;background:#302a1d;color:#ffe3a3;font-size:12px;font-weight:900;cursor:pointer}
+.overdueScheduleBar button[data-active=true]{background:#f6c84a;color:#242019}
+.overdueScheduleBar button:focus-visible{outline:3px solid #ffdf72;outline-offset:2px}
+@media(max-width:520px){.overdueScheduleBar{padding:9px}.overdueScheduleBar span{font-size:11px}.overdueScheduleBar button{max-width:48%;white-space:normal}}
+
+/* DFL-R4:ADMIN-AGENDA-PRIORITY */
+.scheduledPriorityBanner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 12px;padding:13px 14px;border:1px solid rgba(246,199,73,.38);border-radius:16px;background:linear-gradient(110deg,rgba(246,199,73,.13),rgba(246,199,73,.04));color:#ffe1a0}
+.scheduledPriorityBanner>div{display:grid;gap:3px;min-width:0}.scheduledPriorityBanner strong{font-size:14px;line-height:1.25}.scheduledPriorityBanner span{font-size:12px;line-height:1.4;opacity:.9}
+.scheduledPriorityBanner button{flex:0 0 auto;min-height:44px;padding:9px 14px;border:1px solid rgba(246,199,73,.48);border-radius:11px;background:#f6c849;color:#251e0b;font-size:12px;font-weight:900;cursor:pointer}
+.scheduledPriorityBanner button:focus-visible{outline:3px solid #ffe8a0;outline-offset:2px}
+@media(max-width:580px){.scheduledPriorityBanner{align-items:stretch;flex-direction:column;padding:12px}.scheduledPriorityBanner button{width:100%}}

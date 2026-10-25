@@ -17,6 +17,8 @@ import { getCheckoutStoreAccess } from "@/lib/shopStatus";
 import { findCustomerRewardByCode, rewardDiscount, rewardIsExpired } from "@/lib/rewards";
 import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupons";
 import styles from "./CheckoutModal.module.css";
+import { canOfferManualOrderFallback } from "@/lib/checkoutFallbackSafety";
+import { orderOutcomeNeedsReview } from "@/lib/orderOutcomeRecovery";
 import { DEFAULT_COMMERCIAL_SETTINGS, freeDeliveryThreshold, getCommercialSettings, type CommercialSettings } from "@/lib/commercialSettings";
 import { BUSINESS_CONTACT, businessWhatsAppUrl } from "@/lib/businessContact";
 import { buildOrderWhatsAppMessage } from "@/lib/orderWhatsApp";
@@ -142,6 +144,7 @@ export function CheckoutModal() {
   const [commercialSettings, setCommercialSettings] = useState<CommercialSettings>(DEFAULT_COMMERCIAL_SETTINGS);
   const [errorMessage, setErrorMessage] = useState("");
   const [fallbackWhatsAppUrl, setFallbackWhatsAppUrl] = useState("");
+  const [orderOutcomeUncertain, setOrderOutcomeUncertain] = useState(false);
   const [shopClosed, setShopClosed] = useState(false);
   const [scheduleSlots, setScheduleSlots] = useState<OrderScheduleSlot[]>([]);
   const [scheduledFor, setScheduledFor] = useState("");
@@ -715,6 +718,7 @@ export function CheckoutModal() {
     submittingRef.current=true;
     setErrorMessage("");
     setFallbackWhatsAppUrl("");
+    setOrderOutcomeUncertain(false);
     if (items.length === 0) {
       submittingRef.current=false;
       setErrorMessage("Seu carrinho está vazio.");
@@ -926,6 +930,7 @@ export function CheckoutModal() {
     } catch (error) {
       console.error("Erro ao salvar pedido", error);
       const code = error instanceof Error ? error.message : "";
+      setOrderOutcomeUncertain(orderOutcomeNeedsReview(code));
       const fallbackMessage = buildOrderWhatsAppMessage({
         registered: false,
         customerName: customerName.trim() || currentUser?.displayName || "Cliente",
@@ -952,7 +957,17 @@ export function CheckoutModal() {
         orderObservation,
         scheduledLabel: shopClosed && scheduledFor ? scheduleHumanLabel(scheduledFor) : undefined,
       });
-      setFallbackWhatsAppUrl(code === "ADDON_SELECTION_INVALID" || code === "ADDON_POLICY_INVALID" || code === "ADDON_GROUP_INVALID" || code === "ADDON_GROUP_SELECTION_INVALID" ? "" : businessWhatsAppUrl(fallbackMessage));
+      // Resposta incerta pode significar pedido já registrado: proibir duplicidade por WhatsApp.
+      // V86 R4 e V88: regras de adicionais jamais abrem pedido manual paralelo.
+      const addonRuleRejected = code === "ADDON_SELECTION_INVALID" ||
+        code === "ADDON_POLICY_INVALID" ||
+        code === "ADDON_GROUP_INVALID" ||
+        code === "ADDON_GROUP_SELECTION_INVALID";
+      if (addonRuleRejected) {
+        setFallbackWhatsAppUrl("");
+      } else {
+      setFallbackWhatsAppUrl(canOfferManualOrderFallback(code) ? businessWhatsAppUrl(fallbackMessage) : "");
+      }
       haptic("error");
       if (code === "SCHEDULE_REQUIRED") { setErrorMessage("Escolha um horário disponível para o pedido agendado."); } else if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {
         setAppliedCouponCode("");
@@ -996,6 +1011,11 @@ export function CheckoutModal() {
       <div className={styles.body}>
         {!isOnline && <div className={styles.offlineBanner} role="status"><strong>Sem conexão</strong><span>Seu carrinho e os dados deste checkout ficam preservados neste aparelho. Reconecte antes de confirmar.</span></div>}
         {draftRecovered && <div className={styles.recoveryBanner} role="status"><div><strong>Seu pedido estava te esperando</strong><span>{draftRecoveredAge === null ? "Recuperamos os dados recentes deste aparelho." : draftRecoveredAge < 1 ? "Recuperamos o que você preenchia agora há pouco." : draftRecoveredAge < 60 ? `Recuperamos seu checkout de há ${draftRecoveredAge} min.` : `Recuperamos seu checkout de há ${Math.floor(draftRecoveredAge / 60)}h.`} Continue sem preencher tudo de novo.</span></div><button type="button" aria-label="Fechar aviso" onClick={() => setDraftRecovered(false)}>×</button></div>}
+        {errorMessage && orderOutcomeUncertain && <section className={styles.uncertainOrderAction} role="status" aria-label="Verificação de pedido após instabilidade">
+          <strong>Seu pedido pode ter chegado à loja.</strong>
+          <p>Antes de tentar novamente, confira se o pedido já aparece no histórico. Não faça um segundo pedido pelo WhatsApp sem confirmar com a loja.</p>
+          <button type="button" onClick={() => { haptic("step"); openModal("orders"); }}>Conferir Meus Pedidos</button>
+        </section>}
         <div className={styles.steps} aria-label={`Etapa ${step} de 2`}>
           <i data-active="true" /><i data-active={step === 2} />
         </div>

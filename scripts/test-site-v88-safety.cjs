@@ -1,0 +1,16 @@
+"use strict";
+const fs=require('node:fs'), assert=require('node:assert/strict'), vm=require('node:vm'),ts=require('typescript');
+const source=fs.readFileSync('src/lib/checkoutFallbackSafety.ts','utf8');
+const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020},reportDiagnostics:true});
+assert.equal(js.diagnostics?.filter(x=>x.category===1).length,0,'Helper TS sem diagnosticos');
+const sandbox={exports:{}}; vm.runInNewContext(js.outputText,sandbox);
+const can=sandbox.exports.canOfferManualOrderFallback;
+assert.equal(typeof can,'function');
+for(const code of ['ORDER_TIMEOUT','ORDER_NETWORK','IDEMPOTENCY_CONFLICT','IDEMPOTENCY_REQUIRED','PRICE_CHANGED','DELIVERY_CHANGED','PRODUCT_UNAVAILABLE','ADDON_SELECTION_INVALID','SCHEDULE_REQUIRED','', 'UNKNOWN_ERROR','COUPON_EXPIRED','SERVICE_BUSY','SERVICE_UNAVAILABLE']) assert.equal(can(code),false,`Fallback proibido: ${code}`);
+for(const code of ['SERVICE_CONFIG']) assert.equal(can(code),true,`Recusa explicita: ${code}`);
+const checkout=fs.readFileSync('src/components/ui/CheckoutModal.tsx','utf8');
+assert.ok(checkout.includes('canOfferManualOrderFallback(code) ? businessWhatsAppUrl(fallbackMessage) : ""'),'Usa politica no fluxo real');
+assert.ok(checkout.includes('clientRequestId: orderAttemptRef.current'),'Idempotencia preservada');
+assert.ok(checkout.includes('clearConfirmedCart()'),'Carrinho apenas apos confirmacao');
+assert.ok(checkout.includes('ORDER_TIMEOUT')&&checkout.includes('ORDER_NETWORK'),'Feedback de pedido incerto');
+console.log('V88 SEGURANCA CHECKOUT — 21 contratos OK');

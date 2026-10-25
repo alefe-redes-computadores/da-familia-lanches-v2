@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs'),ts=require('typescript'),vm=require('node:vm'),assert=require('node:assert/strict');
+const path='src/lib/checkoutDraft.ts';
+const src=fs.readFileSync(path,'utf8');
+const compiled=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const store=new Map();const localStorage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
+const testModule={exports:{}};vm.runInNewContext(compiled,{module:testModule,exports:testModule.exports,window:{localStorage},Date,JSON},{filename:path});const api=testModule.exports;
+const base={step:2,deliveryMode:'delivery',customerName:'João',userPhone:'34988887777',cep:'38700000',rua:'Rua A',bairro:'Centro',numero:'1',complemento:'',referencia:'',method:'pix',troco:'',orderObservation:'',couponCode:'',scheduledFor:''};
+api.saveCheckoutDraft(null,base);
+assert.equal(api.readCheckoutDraft(null).customerName,'João','draft valido recupera');
+const guestKey='dfl:checkout-draft:guest';
+let v=JSON.parse(store.get(guestKey));v.updatedAt=Date.now()+120000;store.set(guestKey,JSON.stringify(v));assert.equal(api.readCheckoutDraft(null),null,'data futura rejeitada');assert.equal(store.has(guestKey),false,'invalido limpo');
+api.saveCheckoutDraft(null,base);v=JSON.parse(store.get(guestKey));v.customerName=null;store.set(guestKey,JSON.stringify(v));assert.equal(api.readCheckoutDraft(null),null,'tipo corrompido rejeitado');
+store.set(guestKey,'{invalid');assert.equal(api.readCheckoutDraft(null),null,'JSON invalido tolerado');assert.equal(store.has(guestKey),false,'JSON invalido removido');
+store.set(guestKey,'x'.repeat(17000));assert.equal(api.readCheckoutDraft(null),null,'payload excessivo rejeitado');
+api.saveCheckoutDraft(null,base);api.saveCheckoutDraft('user-1',{...base,customerName:'Já logado'});api.migrateGuestCheckoutDraft('user-1');assert.equal(api.readCheckoutDraft('user-1').customerName,'Já logado','sem sobrescrever draft autenticado');assert.equal(api.readCheckoutDraft(null),null,'draft guest limpo');
+api.saveCheckoutDraft(null,{...base,customerName:'Migrar'});api.migrateGuestCheckoutDraft('user-2');assert.equal(api.readCheckoutDraft('user-2').customerName,'Migrar','migracao valida');
+console.log('V88 R2: 8 cenarios funcionais de armazenamento/privacidade OK');

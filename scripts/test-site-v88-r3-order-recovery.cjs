@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+const source=fs.readFileSync('src/lib/orderOutcomeRecovery.ts','utf8');
+const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+const m={exports:{}};new Function('module','exports',js)(m,m.exports);
+const needs=m.exports.orderOutcomeNeedsReview;
+for(const code of ['ORDER_TIMEOUT','ORDER_NETWORK','SERVICE_BUSY','SERVICE_UNAVAILABLE','ORDER_FAILED','', 'UNKNOWN_RESPONSE'])assert.equal(needs(code),true,`Ambíguo ${code}`);
+for(const code of ['SERVICE_CONFIG','ADDRESS_INVALID','PRICE_CHANGED','IDEMPOTENCY_CONFLICT','COUPON_EXPIRED','ADDON_GROUP_INVALID','SCHEDULE_REQUIRED'])assert.equal(needs(code),false,`Negado ${code}`);
+const view=fs.readFileSync('src/components/ui/CheckoutModal.tsx','utf8');
+assert.ok(view.includes('setOrderOutcomeUncertain(orderOutcomeNeedsReview(code))'));
+assert.ok(view.includes('openModal("orders")')&&view.includes('Conferir Meus Pedidos'));
+assert.ok(view.includes('canOfferManualOrderFallback(code)'));
+assert.ok(view.includes('clearOrderAttempt()')&&view.includes('clientRequestId'));
+assert.ok(!source.includes('firebase/'));
+console.log('V88 R3: 14 politicas de desfecho + CTA de consulta + idempotência PRESERVADOS');

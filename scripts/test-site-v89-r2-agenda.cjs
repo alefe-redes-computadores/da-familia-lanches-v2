@@ -1,0 +1,17 @@
+'use strict';
+const fs=require('node:fs'),ts=require('typescript'),vm=require('node:vm'),assert=require('node:assert/strict');
+const f='src/lib/adminOrders.ts', src=fs.readFileSync(f,'utf8');
+const compiled=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const m={exports:{}};vm.runInNewContext(compiled,{module:m,exports:m.exports,Date,Intl,Set,require:p=>p.endsWith('orderCompat')?{orderDateToMillis:()=>Date.now(),normalizeText:s=>s.toLowerCase()}:{normalizarStatus:x=>x}},{filename:f});
+const {scheduledOrderUrgency}=m.exports,now=Date.parse('2026-10-25T19:00:00-03:00');
+const p=(status,s)=>({status,scheduledFor:s});
+assert.equal(scheduledOrderUrgency(p('Agendado','2026-10-25T19:30:00-03:00'),now),null,'futuro nao alerta');
+assert.equal(scheduledOrderUrgency(p('Agendado','errado'),now),null,'data invalida');
+assert.equal(scheduledOrderUrgency(p('Finalizado','2026-10-25T17:00:00-03:00'),now),null,'finalizado nao alerta');
+assert.equal(scheduledOrderUrgency(p('Agendado','2026-10-25T19:00:00-03:00'),now).level,'medium','horario chegou');
+assert.equal(scheduledOrderUrgency(p('Agendado','2026-10-25T18:30:00-03:00'),now).level,'high','30min atrasado prioritario');
+assert.match(scheduledOrderUrgency(p('Agendado','2026-10-25T18:30:00-03:00'),now).label,/30 min/);
+const card=fs.readFileSync('src/components/layout/OrderCard.tsx','utf8'),css=fs.readFileSync('src/components/layout/OrderCard.module.css','utf8');
+assert(card.includes('scheduledOrderUrgency(pedido)') && card.includes('styles.scheduledUrgency'),'cartao mostra aviso');
+assert(css.includes('.scheduledUrgency[data-level="high"]'),'urgencia destaca status');
+console.log('V89 R2: 8 contratos de agendamento e UI OK');

@@ -15,6 +15,8 @@ import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
 import { CustomerExperiencePrompt } from "@/components/home/CustomerExperiencePrompt";
 import { CATALOG_SEARCH_EVENT, rankCatalogProducts } from "@/lib/catalogSearch";
+import { readRecentProductIds, rememberRecentProductId } from "@/lib/recentProductViews";
+import { clearSavedProductIds, readSavedProductIds } from "@/lib/savedProductIds";
 
 
 
@@ -49,6 +51,27 @@ export default function Home() {
   const deferredSearch = useDeferredValue(search);
   const [activeCategory, setActiveCategory] = useState<string>("todos");
   const [showAllOffers, setShowAllOffers] = useState(false);
+  const [recentProductIds, setRecentProductIds] = useState<string[]>([]);
+  const [savedProductIds, setSavedProductIds] = useState<string[]>([]);
+  const [clearFavoritesConfirm, setClearFavoritesConfirm] = useState(false);
+  useEffect(() => {
+    const sync = () => setSavedProductIds(readSavedProductIds());
+    sync();
+    window.addEventListener("pageshow", sync);
+    window.addEventListener("dfl:saved-products-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("pageshow", sync);
+      window.removeEventListener("dfl:saved-products-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  useEffect(() => {
+    const sync = () => setRecentProductIds(readRecentProductIds());
+    sync();
+    window.addEventListener("pageshow", sync);
+    return () => window.removeEventListener("pageshow", sync);
+  }, []);
   const menuCategories = useMemo(() => {
     const availableCategoryIds = new Set(
       products.filter((product) => product.disponivel !== false).map((product) => product.category),
@@ -130,8 +153,17 @@ export default function Home() {
     return groups;
   }, [activeCategory, filtered, promoProducts, search]);
 
+  const savedProducts = useMemo(() => savedProductIds
+    .map((id) => products.find((product) => product.id === id))
+    .filter((product): product is Product => Boolean(product && product.disponivel !== false && categories.some((category) => category.id === product.category))),
+  [savedProductIds, products, categories]);
+  const recentlyViewed = useMemo(() => recentProductIds
+    .map((id) => products.find((product) => product.id === id))
+    .filter((product): product is Product => Boolean(product && product.disponivel !== false && categories.some((category) => category.id === product.category))), [recentProductIds, products, categories]);
   const openProduct = (product: Product) => {
     if (product.disponivel === false) return;
+    rememberRecentProductId(product.id);
+    setRecentProductIds(readRecentProductIds());
     openModal("product-details", product);
   };
 
@@ -207,6 +239,33 @@ export default function Home() {
           </div>
         )}
 
+        {activeCategory === "todos" && !search.trim() && savedProducts.length > 0 && (
+          <section className={`${styles.recentSection} ${styles.savedSection}`} aria-label="Seus produtos favoritos neste aparelho">
+            <div className={styles.recentHeading}><div><span>SUAS ESCOLHAS</span><h2>Favoritos</h2></div><div className={styles.savedHeadingActions}><small>{savedProducts.length} salvos neste aparelho</small><button type="button" onClick={() => setClearFavoritesConfirm(true)}>Limpar favoritos</button></div></div>
+            {clearFavoritesConfirm && <div className={styles.savedConfirm} role="group" aria-label="Confirmação para limpar favoritos"><span>Remover todos os favoritos deste aparelho?</span><button type="button" onClick={() => { if (clearSavedProductIds()) setClearFavoritesConfirm(false); }}>Sim, remover</button><button type="button" onClick={() => setClearFavoritesConfirm(false)}>Cancelar</button></div>}
+            <div className={styles.recentRail}>
+              {savedProducts.map((product) => <button type="button" key={product.id} onClick={() => openProduct(product)} aria-label={`Abrir favorito ${product.name}`}>
+                <span className={styles.recentImage}><CatalogImage src={product.image} alt="" sizes="68px" quality={68}/></span>
+                <span className={styles.recentInfo}><strong>{product.name}</strong><b>{money(product.price)}</b></span>
+                <span className={styles.recentArrow} aria-hidden="true">›</span>
+              </button>)}
+            </div>
+          </section>
+        )}
+        {activeCategory === "todos" && !search.trim() && recentlyViewed.length > 0 && (
+          <section className={styles.recentSection} aria-label="Produtos vistos nesta visita">
+            <div className={styles.recentHeading}><div><span>CONTINUE EXPLORANDO</span><h2>Vistos por você</h2></div><small>Só nesta visita</small></div>
+            <div className={styles.recentRail}>
+              {recentlyViewed.map((product) => (
+                <button key={product.id} type="button" onClick={() => openProduct(product)} aria-label={"Voltar para " + product.name}>
+                  <span className={styles.recentImage}><CatalogImage src={product.image} alt="" sizes="68px" quality={68}/></span>
+                  <span className={styles.recentInfo}><strong>{product.name}</strong><b>{money(product.price)}</b></span>
+                  <span className={styles.recentArrow} aria-hidden="true">›</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
         {categories.map((category) => {
           if (activeCategory !== "todos" && activeCategory !== category.id) return null;
            const categoryProducts = groupedProducts.get(category.id) ?? [];

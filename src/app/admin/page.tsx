@@ -25,6 +25,8 @@ import { useAdminStoreSettings } from "@/hooks/useAdminStoreSettings";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
 import { adminOrderSearchText, compareOperationalOrders, ageLabel, operationalAttention, orderAgeMinutes } from "@/lib/adminOrders";
+import { orderMatchesStageFocus, stageFocusForTab, type StageFocus } from "@/lib/adminOrderStageFocus";
+import { isOverdueScheduledOrder } from "@/lib/scheduledOrderFocus";
 import styles from "./admin.module.css";
 import { haptic } from "@/lib/haptics";
 import { AdminAuthGate } from "@/components/admin/AdminAuthGate";
@@ -124,6 +126,8 @@ function AdminPageContent() {
   const [storeQuickOpen, setStoreQuickOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("todos");
   const [attentionOnly, setAttentionOnly] = useState(false);
+  const [stageFocus, setStageFocus] = useState<StageFocus>("all");
+  const [scheduledOverdueOnly, setScheduledOverdueOnly] = useState(false);
   const { show: showFeedback } = useAdminFeedback();
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [optimisticStatuses, setOptimisticStatuses] = useState<Record<string, string>>({});
@@ -384,6 +388,7 @@ function AdminPageContent() {
     }
   };
 
+  const overdueScheduledCount = useMemo(() => operationalPedidos.filter((p) => isOverdueScheduledOrder(normalizarStatus(p.status), p.scheduledFor, now)).length, [operationalPedidos, now]);
   const counts = useMemo(() => ({
     pendentes: operationalPedidos.filter(
       (p) => normalizarStatus(p.status) === "Pendente",
@@ -439,6 +444,7 @@ function AdminPageContent() {
     if (tab === "expedicao") setUnreadStages((value) => value.expedicao ? ({ ...value, expedicao: false }) : value);
   }, [tab]);
 
+  const visibleStageFocus = stageFocusForTab(stageFocus, tab);
   const filtered = useMemo(() => {
     const term = normalizeSearch(deferredSearch);
     return operationalPedidos
@@ -453,6 +459,8 @@ function AdminPageContent() {
           tab === "cancelados" ? status === "Cancelado" :
           false;
         if (!inTab) return false;
+        if (!orderMatchesStageFocus(visibleStageFocus, status)) return false;
+        if (tab === "agendados" && scheduledOverdueOnly && !isOverdueScheduledOrder(status, pedido.scheduledFor, now)) return false;
         if (serviceFilter === "pickup" && pedido.tipoEntrega !== "pickup") return false;
         if (serviceFilter === "delivery" && pedido.tipoEntrega === "pickup") return false;
         if (attentionOnly && !operationalAttention(pedido, now)) return false;
@@ -460,7 +468,7 @@ function AdminPageContent() {
         return true;
       })
       .sort(compareOperationalOrders);
-  }, [operationalPedidos, deferredSearch, tab, serviceFilter, attentionOnly, now]);
+  }, [operationalPedidos, deferredSearch, tab, serviceFilter, attentionOnly, visibleStageFocus, now, scheduledOverdueOnly]);
 
   const queueDensity =
     filtered.length >= 9
@@ -837,6 +845,14 @@ function AdminPageContent() {
           </div>
         </section>
 
+        {overdueScheduledCount > 0 && (
+          <section className={styles.scheduledPriorityBanner} role="status" aria-label="Agendamentos que chegaram ao horário">
+            <div><strong>{overdueScheduledCount} {overdueScheduledCount === 1 ? "agendamento precisa de conferência" : "agendamentos precisam de conferência"}</strong><span>O horário previsto chegou. Confira a fila para iniciar o preparo quando apropriado.</span></div>
+            <button type="button" onClick={() => { setTab("agendados"); setScheduledOverdueOnly(true); setAttentionOnly(false); setServiceFilter("todos"); setStageFocus("all"); }}>
+              Ver agendamentos
+            </button>
+          </section>
+        )}
         <section className={styles.overviewGrid} aria-label="Visão geral da operação">
           <button
             type="button"
@@ -1025,6 +1041,36 @@ function AdminPageContent() {
               <b className={(tab === "concluidos" || tab === "cancelados") ? styles.historyCount : undefined}>{filtered.length}{(tab === "concluidos" || tab === "cancelados") ? <span>pedidos</span> : null}</b>
             </div>
 
+            {tab === "agendados" && (overdueScheduledCount > 0 || scheduledOverdueOnly) && (
+              <div className={styles.overdueScheduleBar} role="group" aria-label="Agendamentos no horário de preparo">
+                <span>{overdueScheduledCount} {overdueScheduledCount === 1 ? "agendamento chegou ao horário" : "agendamentos chegaram ao horário"}</span>
+                <button type="button" data-active={scheduledOverdueOnly} aria-pressed={scheduledOverdueOnly}
+                  onClick={() => { haptic("step"); setAttentionOnly(false); setScheduledOverdueOnly((value) => !value); }}>
+                  {scheduledOverdueOnly ? "Ver todos" : "Ver somente esses"}
+                </button>
+              </div>
+            )}
+            {(tab === "cozinha" || tab === "expedicao") && (
+              <div className={styles.stageFocusBar} role="group" aria-label="Filtrar pedidos por etapa">
+                <span>ETAPA</span>
+                {([
+                  ["all", "Todas", tab === "cozinha" ? counts.cozinha : counts.expedicao],
+                  ...(tab === "cozinha" ? [
+                    ["pendentes", "Novos", counts.pendentes],
+                    ["producao", "Em preparo", counts.producao],
+                  ] : [
+                    ["prontos", "Prontos", counts.prontos],
+                    ["rota", "Em rota", counts.rota],
+                  ]),
+                ] as Array<[StageFocus, string, number]>).map(([key, label, count]) => (
+                  <button type="button" key={key} aria-pressed={visibleStageFocus === key}
+                    data-active={visibleStageFocus === key}
+                    onClick={() => { haptic("step"); setStageFocus(key); }}>
+                    {label} <b>{count}</b>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={styles.queueTools}>
               <button
                 type="button"
@@ -1059,7 +1105,7 @@ function AdminPageContent() {
               </label>
             )}
 
-            {(search.trim() || attentionOnly || serviceFilter !== "todos") && (
+            {(search.trim() || attentionOnly || serviceFilter !== "todos" || visibleStageFocus !== "all" || (tab === "agendados" && scheduledOverdueOnly)) && (
               <div className={styles.filterSummary} role="status">
                 <span>{filtered.length} {filtered.length === 1 ? "pedido encontrado" : "pedidos encontrados"} com os filtros atuais</span>
                 <button type="button" onClick={() => {
@@ -1067,6 +1113,8 @@ function AdminPageContent() {
                   setSearchOpen(false);
                   setAttentionOnly(false);
                   setServiceFilter("todos");
+                  setStageFocus("all");
+                  setScheduledOverdueOnly(false);
                 }}>Limpar filtros</button>
               </div>
             )}
@@ -1088,8 +1136,8 @@ function AdminPageContent() {
                     ))
                   : <div className={styles.empty} data-tab={tab}>
                       <span className={styles.emptyIcon}><AdminIcon name={tab === "agendados" ? "calendar" : tab === "expedicao" ? "dispatch" : tab === "concluidos" ? "history" : "orders"} /></span>
-                      <strong>{search || attentionOnly || serviceFilter !== "todos" ? "Nenhum resultado com estes filtros." : tab === "cozinha" ? "Cozinha zerada." : tab === "agendados" ? "Agenda sem pedidos." : tab === "expedicao" ? "Expedição limpa." : "Nenhum pedido carregado."}</strong>
-                      <span>{search || attentionOnly || serviceFilter !== "todos" ? "Limpe a busca ou ajuste os filtros para ampliar a fila." : tab === "cozinha" ? "Quando chegar um novo pedido ele aparece aqui imediatamente." : tab === "agendados" ? "Pedidos programados aparecem aqui ordenados por horário." : tab === "expedicao" ? "Pedidos prontos e em rota aparecem aqui." : "O histórico será exibido conforme os pedidos forem carregados."}</span>
+                      <strong>{search || attentionOnly || serviceFilter !== "todos" || visibleStageFocus !== "all" || (tab === "agendados" && scheduledOverdueOnly) ? "Nenhum resultado com estes filtros." : tab === "cozinha" ? "Cozinha zerada." : tab === "agendados" ? "Agenda sem pedidos." : tab === "expedicao" ? "Expedição limpa." : "Nenhum pedido carregado."}</strong>
+                      <span>{search || attentionOnly || serviceFilter !== "todos" || visibleStageFocus !== "all" || (tab === "agendados" && scheduledOverdueOnly) ? "Limpe a busca ou ajuste os filtros para ampliar a fila." : tab === "cozinha" ? "Quando chegar um novo pedido ele aparece aqui imediatamente." : tab === "agendados" ? "Pedidos programados aparecem aqui ordenados por horário." : tab === "expedicao" ? "Pedidos prontos e em rota aparecem aqui." : "O histórico será exibido conforme os pedidos forem carregados."}</span>
                     </div>}
               </div>
 
