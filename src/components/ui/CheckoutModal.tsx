@@ -130,7 +130,8 @@ export function CheckoutModal() {
   const [numero, setNumero] = useState("");
   const [complemento, setComplemento] = useState("");
   const [referencia, setReferencia] = useState("");
-  const [manualMode, setManualMode] = useState(false);
+  const [manualMode, setManualMode] = useState(true);
+  const [cepExpanded, setCepExpanded] = useState(false); /* DFL-SITE-R21-BAIRRO-PRIMEIRO */
   const [addressPickerOpen, setAddressPickerOpen] = useState(false);
   const [addressEditorOpen, setAddressEditorOpen] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState("");
@@ -458,7 +459,7 @@ export function CheckoutModal() {
 
 
   const selectSavedAddress=(a:SavedAddress)=>{customerEditingRef.current=true;setSelectedAddressId(a.id);setCep(a.cep);setRua(a.street);setNumero(a.number);setBairro(a.district);setComplemento(a.complement);setReferencia(a.reference);setManualMode(true);setAddressPickerOpen(false);setAddressEditorOpen(!inspectDistrict(a.district).valid);if(a.district && inspectDistrict(a.district).valid)void calculateDeliveryFee(a.district);};
-  const startNewCheckoutAddress=()=>{customerEditingRef.current=true;setSelectedAddressId("");setCep("");setRua("");setNumero("");setBairro("");setComplemento("");setReferencia("");setManualMode(false);setAddressPickerOpen(false);setAddressEditorOpen(true);setDeliveryStatus("");};
+  const startNewCheckoutAddress=()=>{customerEditingRef.current=true;setSelectedAddressId("");setCep("");setRua("");setNumero("");setBairro("");setComplemento("");setReferencia("");setManualMode(true);setCepExpanded(false);setAddressPickerOpen(false);setAddressEditorOpen(true);setDeliveryStatus("");};
   const savedAddresses = profile?.addresses || [];
   const selectedSavedAddress = savedAddresses.find((address) => address.id === selectedAddressId);
   const addressLimitReached = savedAddresses.length >= 3;
@@ -519,6 +520,8 @@ export function CheckoutModal() {
     }
   };
 
+  // DFL-R23-ADDRESS-FEEDBACK
+  // DFL-R24-SAFE-WHATSAPP
   const calculateDeliveryFee = async (district: string) => {
     if (!inspectDistrict(district).valid) {
       setDeliveryStatus("Bairro incompleto. Selecione a sugestão ou informe o nome completo.");
@@ -529,7 +532,7 @@ export function CheckoutModal() {
       const { list, defaultFee: configuredDefaultFee } = await getDeliveryTableCached();
       if (!list.length) {
         setDeliveryFee(configuredDefaultFee);
-        setDeliveryStatus(`Taxa padrão: ${money(configuredDefaultFee)}`);
+        setDeliveryStatus("Não há bairros configurados na tabela. A taxa será validada antes de registrar o pedido.");
         return;
       }
       const found = matchDeliveryRate(district, list);
@@ -540,12 +543,12 @@ export function CheckoutModal() {
         setDeliveryStatus(`Taxa para ${found.nome || district}: ${money(rate)}`);
       } else {
         setDeliveryFee(configuredDefaultFee);
-        setDeliveryStatus(`Bairro fora da tabela. Taxa padrão: ${money(configuredDefaultFee)}`);
+        setDeliveryStatus("Não encontramos esse bairro na tabela de entrega. Confira o nome ou escolha uma sugestão. O valor exibido ainda precisa de confirmação.");
       }
     } catch (error) {
       console.error("Erro ao buscar taxas", error);
       setDeliveryFee(DEFAULT_DELIVERY_FEE);
-      setDeliveryStatus(`Não foi possível consultar a tabela. Taxa padrão: ${money(DEFAULT_DELIVERY_FEE)}`);
+      setDeliveryStatus("Não conseguimos consultar as taxas agora. Seu endereço foi preservado; tente novamente antes de confirmar.");
     }
   };
 
@@ -569,7 +572,7 @@ export function CheckoutModal() {
       if (requestId !== cepRequestRef.current) return; // resposta antiga não altera novo endereço
       if (data.erro) {
         setManualMode(true);
-        setDeliveryStatus("CEP não encontrado. Preencha o endereço manualmente.");
+        setDeliveryStatus("Não encontramos esse CEP. Você pode continuar normalmente pelo bairro, rua e número.");
         return;
       }
       const city = normalizeText(typeof data.localidade === "string" ? data.localidade : "");
@@ -584,7 +587,7 @@ export function CheckoutModal() {
       setRua(nextStreet);
       setBairro(nextDistrict);
       const districtVerified = inspectDistrict(nextDistrict).valid;
-      setManualMode(!nextStreet || !districtVerified);
+      setManualMode(true);
       setDeliveryStatus(districtVerified ? "Endereço encontrado. Confira o bairro." : "CEP localizado. Complete ou confirme o nome do bairro antes de continuar.");
       if (districtVerified) await calculateDeliveryFee(nextDistrict);
       window.setTimeout(() => { numberInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); numberInputRef.current?.focus(); }, 80);
@@ -1106,14 +1109,14 @@ export function CheckoutModal() {
         {draftRecovered && <div className={styles.recoveryBanner} role="status"><div><strong>Seu pedido estava te esperando</strong><span>{draftRecoveredAge === null ? "Recuperamos os dados recentes deste aparelho." : draftRecoveredAge < 1 ? "Recuperamos o que você preenchia agora há pouco." : draftRecoveredAge < 60 ? `Recuperamos seu checkout de há ${draftRecoveredAge} min.` : `Recuperamos seu checkout de há ${Math.floor(draftRecoveredAge / 60)}h.`} Continue sem preencher tudo de novo.</span></div><button type="button" aria-label="Fechar aviso" onClick={() => setDraftRecovered(false)}>×</button></div>}
         {errorMessage && orderOutcomeUncertain && <section className={styles.uncertainOrderAction} role="status" aria-label="Verificação de pedido após instabilidade">
           <strong>Seu pedido pode ter chegado à loja.</strong>
-          <p>Antes de tentar novamente, confira se o pedido já aparece no histórico. Não faça um segundo pedido pelo WhatsApp sem confirmar com a loja.</p>
+          <p>Não envie novamente nem finalize pelo WhatsApp enquanto esta tentativa não for esclarecida. Confira Meus Pedidos e, se necessário, confirme diretamente com a loja antes de fazer outra compra.</p>
           <button type="button" onClick={() => { haptic("step"); openModal("orders"); }}>Conferir Meus Pedidos</button>
         </section>}
         <div className={styles.steps} aria-label={`Etapa ${step} de 2`}>
           <i data-active="true" /><i data-active={step === 2} />
         </div>
         <div className={styles.stepCaption}><strong>{step === 1 ? "Entrega" : "Pagamento"}</strong><span>{step}/2</span></div>
-        {errorMessage && <div className={styles.errorFallback}><div className={styles.error}>{errorMessage}</div>{fallbackWhatsAppUrl && <div className={styles.contingency}><span>FINALIZAÇÃO ALTERNATIVA</span><strong>Seu pedido continua completo</strong><p>Os itens e os dados preenchidos foram preservados. Você pode tentar novamente ou enviar o pedido já organizado para confirmação pelo WhatsApp.</p><button type="button" onClick={() => { haptic("success"); window.location.href = fallbackWhatsAppUrl; }}>Continuar no WhatsApp</button><small>O envio não é automático: confira a mensagem e toque em enviar.</small></div>}</div>}
+        {errorMessage && <div className={styles.errorFallback}><div className={styles.error}>{errorMessage}</div>{!orderOutcomeUncertain && fallbackWhatsAppUrl && <div className={styles.contingency}><span>FINALIZAÇÃO ALTERNATIVA</span><strong>Seu pedido continua completo</strong><p>Os itens e os dados preenchidos foram preservados. Você pode tentar novamente ou enviar o pedido já organizado para confirmação pelo WhatsApp.</p><button type="button" onClick={() => { haptic("success"); window.location.href = fallbackWhatsAppUrl; }}>Continuar no WhatsApp</button><small>O envio não é automático: confira a mensagem e toque em enviar.</small></div>}</div>}
 
         {step === 1 ? (
           <div className={styles.stack}>
@@ -1146,23 +1149,44 @@ export function CheckoutModal() {
                   </div>
                 </div>}
                 {(!addressReady || addressEditorOpen) && <div className={styles.addressForm}>
-                  <div className={styles.newAddressIntro}><strong>{rua.trim() && numero.trim() && !bairro.trim() ? "Complete o endereço" : savedAddresses.length ? "Novo endereço" : "Seu primeiro endereço"}</strong><span>Busque pelo CEP para preencher mais rápido.</span></div>
-                  {!manualMode&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepRequestRef.current+=1;cepLookupRef.current="";setCep(formatCEPBR(e.target.value));if(!submittingRef.current)setLoading(false)}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();cepLookupRef.current="";void handleSearchCep()}}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"Digite os 8 números e encontramos o endereço automaticamente."}</small></div>}
+                  <div className={styles.newAddressIntro}><strong>{rua.trim() && numero.trim() && !bairro.trim() ? "Complete o endereço" : savedAddresses.length ? "Novo endereço" : "Seu primeiro endereço"}</strong><span>Escolha o bairro, informe a rua e o número. O CEP é opcional.</span></div>
+                  {cepExpanded&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepRequestRef.current+=1;cepLookupRef.current="";setCep(formatCEPBR(e.target.value));if(!submittingRef.current)setLoading(false)}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();cepLookupRef.current="";void handleSearchCep()}}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"O CEP é opcional. Consulte para preencher automaticamente."}</small><button className={styles.cepSearchAction} type="button" onClick={()=>void handleSearchCep()} disabled={loading || cep.replace(/\D/g,"").length!==8}>Buscar endereço pelo CEP</button></div>}
                   <div className={styles.addressFirstGuide} role="note">
                     <strong>Endereço em 3 passos</strong>
-                    <small>1. Escolha o bairro · 2. Digite a rua · 3. Informe o número. Se souber o CEP, você também pode buscá-lo acima.</small>
+                    <small>1. Escolha o bairro · 2. Digite a rua · 3. Informe o número. Se preferir, utilize a busca opcional por CEP.</small>
                   </div>
-                  <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid)void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></label>
-                  <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/></label>
+                  <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid)void calculateDeliveryFee(bairro);}} /></label>
+                  <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}}  autoComplete="address-line1"/></label>
                   {manualMode && districtInspection.valid && <StreetSuggestions street={rua} district={bairro} onSelect={name => { customerEditingRef.current=true; setRua(name); }} />}
                   <label className={styles.addressFirstField}><span>3 · Número</span><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/></label>
+                  {/* DFL-R22:ADDRESS-SUMMARY */}
+                  <div className={styles.addressLiveSummary}
+                    data-ready={districtInspection.valid && rua.trim().length >= 4 && Boolean(numero.trim()) && (cep.replace(/\\D/g, "").length === 0 || cep.replace(/\\D/g, "").length === 8)}
+                    aria-label="Resumo do endereço">
+                    <div className={styles.addressLiveTop}>
+                      <strong>Prévia da entrega</strong>
+                      <span>{districtInspection.valid && rua.trim().length >= 4 && numero.trim() ? "Confira os dados" : "Preencha os 3 passos"}</span>
+                    </div>
+                    <div className={styles.addressLiveCopy}>
+                      <strong>{bairro.trim() || "Bairro ainda não informado"}</strong>
+                      <span>{rua.trim() || "Rua ou avenida"}{numero.trim() ? `, ${numero.trim()}` : " · número pendente"}</span>
+                      <small>Patos de Minas · MG</small>
+                    </div>
+                    <div className={styles.addressLiveSteps}>
+                      <span data-done={districtInspection.valid}>Bairro</span>
+                      <span data-done={rua.trim().length >= 4}>Rua</span>
+                      <span data-done={Boolean(numero.trim())}>Número</span>
+                    </div>
+                    {!districtInspection.valid && bairro.trim() && <small className={styles.addressLiveHint}>Confira o nome completo do bairro ou escolha uma sugestão.</small>}
+                    {cep.replace(/\\D/g, "").length > 0 && cep.replace(/\\D/g, "").length !== 8 && <small className={styles.addressLiveHint}>O CEP é opcional. Se preencher, informe os 8 números.</small>}
+                  </div>
                   <div className={styles.districtHelper} aria-live="polite" data-invalid={(!districtInspection.valid && Boolean(rua.trim() && numero.trim())) || (Boolean(rua.trim()) && rua.trim().length < 4)}>
                     {Boolean(rua.trim() && numero.trim() && !bairro.trim()) && <strong>Falta informar o bairro da entrega. Toque no campo Bairro para completar.</strong>}{Boolean(bairro.trim()) && !districtInspection.valid && <strong>Confira o bairro: use o nome completo, não apenas a inicial.</strong>}
                     {Boolean(rua.trim()) && rua.trim().length < 4 && <strong>Confira a rua: informe o nome completo, não apenas uma letra.</strong>}
                     {districtSuggestions.length > 0 && manualMode && <div className={styles.districtSuggestions} aria-label="Sugestões de bairros"><small>Você quis dizer:</small>{districtSuggestions.map(name=><button type="button" key={name} onClick={()=>{setBairro(name);setDeliveryStatus(`Bairro escolhido: ${name}. Confira rua e número.`);void calculateDeliveryFee(name);}}>{name}</button>)}</div>}
                   </div>
                   <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info} role="status" aria-live="polite">{deliveryStatus}</div>}
-                  <div className={styles.addressFormActions}><button className={styles.linkButton} type="button" onClick={()=>setManualMode(v=>!v)}>{manualMode?"← Usar meu CEP":"Não sei meu CEP · preencher endereço manualmente"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
+                  <div className={styles.addressFormActions}><button className={styles.cepToggle} type="button" aria-expanded={cepExpanded} onClick={()=>{setCepExpanded(v=>!v);setManualMode(true);}}>{cepExpanded?"Ocultar busca pelo CEP":"Prefiro buscar pelo CEP (opcional)"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
               </section>
               {!isPickup && freeThreshold !== null && !hasFreeDelivery && <div className={styles.freightProgress}>Faltam <strong>{money(missingForFreeDelivery)}</strong> para ganhar entrega grátis.</div>}{hasFreeDelivery && <div className={styles.successHint}>Entrega grátis conquistada para este pedido.</div>}

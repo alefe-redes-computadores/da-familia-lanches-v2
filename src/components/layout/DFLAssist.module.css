@@ -17,3 +17,31 @@
 .offerQuery{width:100%;min-height:48px;min-width:0;border:1px solid #d8c5a1;border-radius:12px;background:#fff;color:#211a13;padding:10px 12px;font:inherit;font-size:16px}
 .offerQuery:focus-visible{outline:3px solid #c99516;outline-offset:2px}
 @media(max-width:360px){.offerFilters{grid-template-columns:1fr}}
+/* DFL R20 — assistente comercial premium */
+.panel{max-height:min(88dvh,860px);padding:clamp(14px,4vw,22px);gap:14px;scrollbar-gutter:stable}
+.assistHint{margin:0;color:#625242;font-size:12px;line-height:1.5}
+.message{font-size:13px;padding:12px 14px}
+.offers{gap:13px;padding-top:10px}
+.offerFilters{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;gap:10px}
+.peopleFilter,.budgetFilter{min-width:0;display:grid;gap:7px;color:#584735;font-size:12px;font-weight:850}
+.peopleStepper{min-height:48px;display:grid;grid-template-columns:42px minmax(0,1fr) 42px;align-items:center;border:1px solid #d8c5a1;background:#fff;border-radius:13px;overflow:hidden}
+.peopleStepper button{height:48px;border:0;background:#f8f0e2;color:#241b13;display:grid;place-items:center;cursor:pointer}
+.peopleStepper button:disabled{opacity:.32;cursor:not-allowed}
+.peopleStepper strong{text-align:center;font-size:12px;white-space:nowrap}
+.budgetFilter input{min-height:50px;border-radius:13px;padding:10px 12px}
+.offerList{gap:10px}
+.offerList li{grid-template-columns:72px minmax(0,1fr) auto;gap:10px;border-radius:16px;padding:9px;min-height:96px;box-shadow:0 5px 17px rgba(60,40,13,.04)}
+.offerImage{width:72px;height:76px;overflow:hidden;border-radius:12px;background:#f4e9d8;display:grid;place-items:center;color:#8a6626;font-weight:900;font-size:11px}
+.offerImage img{width:100%;height:100%;object-fit:cover}
+.offerCopy{display:grid;gap:5px;min-width:0}
+.offerCopy strong{font-size:12px;line-height:1.3;overflow-wrap:anywhere}
+.offerPrice{font-size:15px;letter-spacing:-.02em;color:#49300a}
+.offerCopy small{font-size:11px;line-height:1.35}
+.offerList button{min-height:44px;max-width:76px;padding:8px 10px}
+.offerButtonLabel{display:none}
+.offerToggle{min-height:40px}
+.actions{gap:8px}
+.actions button,.actions a{min-height:48px;font-size:13px}
+@media(min-width:430px){.offerButtonLabel{display:inline}}
+@media(max-width:370px){.offerFilters{grid-template-columns:1fr}.offerList li{grid-template-columns:60px minmax(0,1fr) auto;gap:7px}.offerImage{width:60px;height:66px}.offerList button{padding:8px}}
+@media(prefers-reduced-motion:reduce){.panel *{animation:none!important;transition:none!important}}

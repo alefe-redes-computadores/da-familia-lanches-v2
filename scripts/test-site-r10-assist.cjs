@@ -3,7 +3,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
 const rd=p=>fs.readFileSync(p,'utf8');
 const header=rd('src/components/layout/Header.tsx'),menu=rd('src/components/layout/MobileDrawerMenu.tsx'),shell=rd('src/components/layout/AppShell.tsx'),a=rd('src/components/layout/DFLAssist.tsx'),css=rd('src/components/layout/DFLAssist.module.css');
 assert(header.includes('dfl:assist-open')&&header.includes('Abrir DFL Assist'));
-assert(menu.includes('dfl:assist-open')&&menu.includes('DFL Assist · Ajuda para comprar'));
+assert(menu.includes('dfl:assist-open')&&menu.includes('<span>DFL Assist</span>'));
 assert(shell.includes('<DFLAssist />')&&shell.includes('import { DFLAssist }'));
 assert(a.includes('window.addEventListener("dfl:assist-open"')&&a.includes('window.removeEventListener("dfl:assist-open"'));
 assert(a.includes('CATALOG_SEARCH_EVENT')&&a.includes('dfl:pending-catalog-search'));

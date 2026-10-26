@@ -333,3 +333,401 @@
 @media(prefers-reduced-motion:reduce){
   .contingency button{transition:none}
 }
+
+
+/* DFL SITE R21 - ADDRESS FIRST PREMIUM */
+.addressForm{
+  display:grid;
+  gap:13px;
+}
+.newAddressIntro{
+  padding:15px;
+  border:1px solid #e8d8ae;
+  border-radius:16px;
+  background:linear-gradient(135deg,#fff7df,#fffdf8);
+}
+.newAddressIntro strong{
+  font-size:15px;
+  line-height:1.35;
+}
+.newAddressIntro span{
+  font-size:12px;
+  line-height:1.5;
+}
+.addressFirstGuide{
+  padding:12px 14px;
+  background:#fffaf0;
+  border:1px solid #ecdfc5;
+  border-radius:14px;
+}
+.addressFirstGuide strong{
+  font-size:13px;
+}
+.addressFirstGuide small{
+  display:block;
+  margin-top:5px;
+  font-size:12px;
+  line-height:1.55;
+}
+.addressFirstField{
+  display:grid;
+  gap:7px;
+}
+.addressFirstField>span{
+  font-size:13px;
+  font-weight:850;
+  color:#453728;
+}
+.addressFirstField>.input{
+  min-height:52px;
+  font-size:16px;
+  background:#fff;
+  border-radius:14px;
+}
+.addressFirstField>.input:focus-visible{
+  border-color:#c39a27;
+  outline:3px solid rgba(255,202,40,.24);
+  outline-offset:1px;
+}
+.cepToggle{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:48px;
+  border:1px solid #ddcfae;
+  background:#fffbf1;
+  border-radius:13px;
+  color:#5b441c;
+  font-size:13px;
+  font-weight:850;
+  cursor:pointer;
+}
+.cepToggle:focus-visible,
+.cepSearchAction:focus-visible{
+  outline:3px solid #cb9d20;
+  outline-offset:2px;
+}
+.cepAuto{
+  gap:11px;
+  padding:14px;
+  border:1px solid #e8dec9;
+  border-radius:14px;
+  background:#fff;
+}
+.cepSearchAction{
+  width:100%;
+  min-height:46px;
+  border:0;
+  border-radius:12px;
+  background:#211b13;
+  color:#fff;
+  font-size:13px;
+  font-weight:850;
+  cursor:pointer;
+}
+.cepSearchAction:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
+.addressFormActions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+.addressFormActions>.cepToggle{
+  flex:1 1 210px;
+}
+@media(max-width:420px){
+  .addressFirstField>.input{min-height:50px}
+  .newAddressIntro{padding:13px}
+  .cepAuto{padding:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .cepToggle,.cepSearchAction{
+    transition:none;
+    animation:none;
+  }
+}
+
+
+/* DFL R22 PREMIUM ADDRESS */
+.addressLiveSummary{
+  display:grid;
+  gap:13px;
+  min-width:0;
+  padding:16px;
+  border:1px solid #e7dac1;
+  border-radius:18px;
+  background:linear-gradient(150deg,#fffefb,#faf5eb);
+  box-shadow:0 8px 26px rgba(45,33,14,.055);
+}
+.addressLiveSummary[data-ready="true"]{
+  border-color:#c9dfcb;
+  background:linear-gradient(150deg,#fcfffc,#f1f8ef);
+}
+.addressLiveTop{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+}
+.addressLiveTop strong{
+  color:#2b241a;
+  font-size:13px;
+  font-weight:900;
+}
+.addressLiveTop span{
+  border-radius:999px;
+  padding:5px 9px;
+  background:#eee7d9;
+  color:#66533b;
+  font-size:10px;
+  font-weight:800;
+}
+.addressLiveSummary[data-ready="true"] .addressLiveTop span{
+  color:#246338;
+  background:#dff0e2;
+}
+.addressLiveCopy{
+  display:grid;
+  gap:4px;
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.addressLiveCopy strong{
+  color:#241e17;
+  font-size:16px;
+  line-height:1.35;
+}
+.addressLiveCopy span{
+  color:#57483a;
+  font-size:13px;
+  line-height:1.5;
+}
+.addressLiveCopy small{
+  color:#817462;
+  font-size:11px;
+}
+.addressLiveSteps{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+}
+.addressLiveSteps span{
+  min-width:0;
+  text-align:center;
+  padding:9px 5px;
+  border:1px solid #e4d9c8;
+  border-radius:10px;
+  color:#817363;
+  background:#fff;
+  font-size:11px;
+  font-weight:850;
+}
+.addressLiveSteps span[data-done="true"]{
+  background:#e7f5e8;
+  border-color:#c8dfcb;
+  color:#246338;
+}
+.addressLiveHint{
+  color:#8b5414;
+  font-size:12px;
+  line-height:1.5;
+}
+.addressForm .districtSuggestions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.addressForm .districtSuggestions button{
+  min-height:46px;
+  border-radius:12px;
+  padding:10px 13px;
+  font-size:13px;
+  font-weight:850;
+  background:#fff;
+  color:#3e311f;
+  border:1px solid #dfcda8;
+  box-shadow:0 3px 10px rgba(36,27,11,.04);
+}
+.addressForm .districtSuggestions button:active{
+  background:#fff1cb;
+}
+.addressForm .districtSuggestions button:focus-visible{
+  outline:3px solid #d3a22a;
+  outline-offset:2px;
+}
+.addressForm .addressFirstField>.input{
+  min-height:52px;
+  font-size:16px;
+  line-height:1.45;
+}
+.addressForm .addressFirstField>span{
+  font-size:13px;
+  line-height:1.4;
+}
+.addressForm .cepToggle{
+  font-size:13px;
+  min-height:48px;
+}
+@media(max-width:380px){
+  .addressLiveSummary{padding:12px;gap:10px}
+  .addressLiveCopy strong{font-size:14px}
+  .addressLiveSteps{gap:5px}
+  .addressLiveSteps span{font-size:10px;padding:8px 3px}
+}
+@media(prefers-reduced-motion:reduce){
+  .addressLiveSummary *,
+  .addressForm .districtSuggestions button{
+    animation:none;
+    transition:none;
+  }
+}
+
+
+/* DFL R23 ADDRESS FEEDBACK PREMIUM */
+.addressForm .info[role="status"]{
+  display:flex;
+  align-items:flex-start;
+  min-width:0;
+  padding:13px 15px;
+  border:1px solid #e8d6ab;
+  border-left:4px solid #c49220;
+  border-radius:14px;
+  background:linear-gradient(135deg,#fffaf0,#fffdf8);
+  color:#665020;
+  font-size:12px;
+  font-weight:750;
+  line-height:1.6;
+  overflow-wrap:anywhere;
+}
+.addressForm .districtHelper{
+  gap:10px;
+  min-width:0;
+}
+.addressForm .districtHelper[data-invalid="true"]{
+  padding:13px;
+  border:1px solid #ead7b3;
+  border-radius:14px;
+  background:#fffaf0;
+}
+.addressForm .districtHelper>strong{
+  font-size:12px;
+  font-weight:800;
+  color:#86551b;
+  line-height:1.55;
+}
+.addressForm .districtSuggestions{
+  gap:8px;
+}
+.addressForm .districtSuggestions small{
+  flex-basis:100%;
+  font-size:12px;
+  line-height:1.4;
+  color:#75634b;
+}
+.addressForm .districtSuggestions button{
+  min-width:0;
+  max-width:100%;
+  min-height:46px;
+  padding:10px 13px;
+  border-radius:12px;
+  white-space:normal;
+  text-align:left;
+  overflow-wrap:anywhere;
+}
+.addressForm .districtSuggestions button:focus-visible{
+  outline:3px solid #d5a72f;
+  outline-offset:2px;
+}
+.addressForm .addressLiveSummary{
+  overflow:hidden;
+}
+@media(max-width:380px){
+  .addressForm .info[role="status"]{
+    padding:11px 12px;
+    font-size:12px;
+  }
+  .addressForm .districtSuggestions button{
+    width:100%;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .addressForm .districtSuggestions button{
+    animation:none;
+    transition:none;
+  }
+}
+
+
+/* DFL R24 — SAFE RECOVERY PREMIUM */
+.uncertainOrderAction{
+  display:grid;
+  gap:11px;
+  padding:16px;
+  border:1px solid #e4c98d;
+  border-left:4px solid #bd891f;
+  border-radius:17px;
+  background:linear-gradient(135deg,#fffaf0,#fff4dd);
+  box-shadow:0 6px 24px rgba(74,47,11,.06);
+}
+.uncertainOrderAction strong{
+  font-size:15px;
+  line-height:1.4;
+  color:#503513;
+}
+.uncertainOrderAction p{
+  margin:0;
+  font-size:12px;
+  line-height:1.65;
+  color:#654d2d;
+  overflow-wrap:anywhere;
+}
+.uncertainOrderAction button{
+  width:100%;
+  min-height:48px;
+  padding:12px 15px;
+  border:0;
+  border-radius:12px;
+  background:#282018;
+  color:#fff;
+  font-size:13px;
+  font-weight:850;
+  cursor:pointer;
+}
+.uncertainOrderAction button:focus-visible{
+  outline:3px solid #d0a028;
+  outline-offset:3px;
+}
+.errorFallback{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.contingency{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.contingency button{
+  touch-action:manipulation;
+}
+@media(max-width:420px){
+  .uncertainOrderAction{
+    padding:13px;
+    gap:10px;
+  }
+  .uncertainOrderAction strong{
+    font-size:14px;
+  }
+  .uncertainOrderAction button{
+    min-height:50px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .uncertainOrderAction button,
+  .contingency button{
+    transition:none;
+    animation:none;
+  }
+}

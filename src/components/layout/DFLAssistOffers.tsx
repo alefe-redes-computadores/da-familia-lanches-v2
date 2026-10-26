@@ -1,5 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
+import { Minus, Plus } from "lucide-react";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useCatalog } from "@/hooks/useCatalog";
 import { recommendDFLProducts } from "@/lib/dflAssistRecommendations";
 import styles from "./DFLAssist.module.css";
@@ -13,7 +15,9 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
   const [query, setQuery] = useState("");
   const [budgetInput, setBudgetInput] = useState("");
   const [onlyCombos, setOnlyCombos] = useState(true);
-  const budget = budgetInput.trim() ? Number(budgetInput.replace(",",".")) : undefined;
+  // Centavos inteiros: formato previsível no teclado Android, sem input numérico nativo.
+  const budget = budgetInput ? Number(budgetInput) / 100 : undefined;
+  const formatBudget = (cents: string) => cents ? currency(Number(cents) / 100) : "";
   const validBudget = budget === undefined || (Number.isFinite(budget) && budget >= 0);
   const catalogReady = !loading && !error && source === "hybrid";
   const offers = useMemo(() => catalogReady && validBudget
@@ -24,19 +28,28 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
     <label className={styles.offerQueryLabel} htmlFor="dfl-assist-ingredients">O que você está com vontade de comer?</label>
     <input id="dfl-assist-ingredients" className={styles.offerQuery} type="search" autoComplete="off" maxLength={100} placeholder="Ex.: frango, bacon, sanduíche" value={query} onChange={e=>setQuery(e.target.value)} />
     <div className={styles.offerFilters}>
-      <label>Quantas pessoas?
-        <select value={people} onChange={e=>setPeople(Number(e.target.value))}>
-          {[1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>{n} {n===1?"pessoa":"pessoas"}</option>)}
-        </select>
-      </label>
-      <label>Orçamento (R$)
-        <input inputMode="decimal" type="text" value={budgetInput} onChange={e=>setBudgetInput(e.target.value.slice(0,12))} placeholder="Sem limite" aria-label="Orçamento aproximado em reais" />
+      <div className={styles.peopleFilter} role="group" aria-label="Quantidade de pessoas">
+        <span>Quantas pessoas?</span>
+        <div className={styles.peopleStepper}>
+          <button type="button" aria-label="Diminuir pessoas" disabled={people === 1} onClick={() => setPeople(n => Math.max(1,n-1))}><Minus size={18}/></button>
+          <strong aria-live="polite">{people} {people === 1 ? "pessoa" : "pessoas"}</strong>
+          <button type="button" aria-label="Aumentar pessoas" disabled={people === 8} onClick={() => setPeople(n => Math.min(8,n+1))}><Plus size={18}/></button>
+        </div>
+      </div>
+      <label className={styles.budgetFilter}>Orçamento (R$)
+        <input inputMode="numeric" type="text" value={formatBudget(budgetInput)}
+          onChange={e => setBudgetInput(e.target.value.replace(/\D/g, "").slice(0, 8))}
+          placeholder="Sem limite" aria-label="Orçamento em reais, opcional" autoComplete="off" />
       </label>
     </div>
     <label className={styles.offerToggle}><input type="checkbox" checked={onlyCombos} onChange={e=>setOnlyCombos(e.target.checked)}/> Priorizar combos</label>
     {!validBudget ? <p className={styles.offerNotice}>Confira o orçamento informado.</p> :
      !catalogReady ? <p className={styles.offerNotice} role="status">Não foi possível confirmar o cardápio atualizado. Você ainda pode pesquisar ou falar com a equipe.</p> :
-     offers.length ? <ul className={styles.offerList}>{offers.map(({product,reason,estimatedServings})=><li key={product.id}><div><strong>{product.name}</strong><small>{currency(product.price)} · {reason}</small>{estimatedServings!==null&&<small>{estimatedServings} lanche(s) no combo; confira a composição</small>}</div><button type="button" onClick={()=>onFindProduct(product.name)} aria-label={`Encontrar ${product.name} no cardápio`}>Ver</button></li>)}</ul> :
+     offers.length ? <ul className={styles.offerList}>{offers.map(({product,reason,estimatedServings})=><li key={product.id}>
+        <div className={styles.offerImage}>{product.image ? <CatalogImage src={product.image} alt={product.name} sizes="72px" /> : <span aria-hidden="true">DFL</span>}</div>
+        <div className={styles.offerCopy}><strong>{product.name}</strong><b className={styles.offerPrice}>{currency(product.price)}</b><small>{estimatedServings!==null ? `${estimatedServings} lanche(s) · confira a composição` : reason}</small></div>
+        <button type="button" onClick={()=>onFindProduct(product.name)} aria-label={`Encontrar ${product.name} no cardápio`}>Ver <span className={styles.offerButtonLabel}>produto</span></button>
+      </li>)}</ul> :
      <p className={styles.offerNotice}>Não encontrei opções confirmadas para esses filtros. Experimente outra busca, aumente o orçamento ou desmarque combos.</p>}
     <p className={styles.offerNotice}>Sugestões não reservam itens. Preço e disponibilidade são conferidos novamente na finalização.</p>
   </section>;

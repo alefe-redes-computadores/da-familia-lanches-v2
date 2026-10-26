@@ -103,7 +103,7 @@ export function MobileDrawerMenu() {
         </nav>
 
         <div className={styles.utility}>
-          <button type="button" onClick={() => { closeModal(); window.dispatchEvent(new Event("dfl:assist-open")); }}><Bot size={21} aria-hidden="true" /><span>DFL Assist · Ajuda para comprar</span></button>
+          <button type="button" onClick={() => { closeModal(); window.dispatchEvent(new Event("dfl:assist-open")); }}><Bot size={21} aria-hidden="true" /><span>DFL Assist</span></button>
           <button type="button" onClick={() => modal("account")}><Icon name="user" /><span>{currentUser ? "Minha conta" : "Entrar"}</span></button>
           <button type="button" onClick={share}><Icon name="share" /><span>{shared ? "Link copiado" : "Compartilhar"}</span></button>
           <a href={businessWhatsAppUrl("Olá! Preciso de ajuda com um pedido no site.")} target="_blank" rel="noreferrer"><Icon name="chat" /><span>Ajuda</span></a>
