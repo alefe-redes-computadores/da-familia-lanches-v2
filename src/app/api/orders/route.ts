@@ -399,6 +399,18 @@ export async function POST(request: NextRequest) {
         tx.set(adminDb.doc(`Usuarios/${decoded.uid}/Loyalty/state`), { version: 2, totalOrders: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       }
       tx.create(adminDb.collection(INTEGRATION_COLLECTIONS.outbox).doc(encodeURIComponent(event.event_id)), buildOutboxRecord(event, occurredAt));
+      // DFL-LATENCY-20261025: durable push dispatch before immediate HTTP 201.
+      // A fila do worker de notificacoes recupera mesmo se a tarefa post-response nao executar.
+      const pushDispatchId = createHash("sha256").update(`admin-new-order-v1:${orderRef.id}`).digest("hex");
+      tx.create(adminDb.collection("AdminPushDispatches").doc(pushDispatchId), {
+        protocol: "admin-new-order-v1", retryProtocol: "token-level-v2",
+        orderId: orderRef.id,
+        customerName: text(customer.name, 120) || text(incoming.userName, 120) || "Cliente",
+        total, deliveryMode, status: "retry", attemptCount: 0,
+        firstSeenAtMs: Date.now(), nextAttemptAtMs: 0,
+        createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+      });
+
       if (rewardRef) tx.update(rewardRef, { used: true, usedAt: FieldValue.serverTimestamp(), usedOrderId: orderRef.id });
       if (slotRef && slotData) tx.set(slotRef, slotData, { merge: true });
       return {
@@ -413,29 +425,39 @@ export async function POST(request: NextRequest) {
         },
       };
     });
-    let integration = result.reused
+    const integration = result.reused
       ? { queued: false, sent: true }
       : { queued: true, sent: false };
 
-    // V56.1: pedido criado precisa tentar projeção logística e push enquanto a request ainda
-    // possui runtime. Falha NÃO desfaz o pedido: a outbox permanece como retry idempotente.
+    // DFL-LATENCY-20261025: a transacao salvou pedido + outbox + fila FCM.
+    // Next.js/Vercel after mantem a invocacao viva para tentar os envios apos a resposta.
+    // NUNCA bloquear a confirmacao do cliente esperando a projecao ou o FCM.
     if (result.eventId || result.adminPush) {
-      const jobs: Promise<unknown>[] = [];
-      if (result.eventId) jobs.push((async () => {
-        try {
-          const relay = await drainIntegrationOutboxEvent(result.eventId!);
-          integration = { queued: relay.sent < 1, sent: relay.sent > 0 };
-          console.log("[orders/create] relay immediate", { eventId: result.eventId, sent: relay.sent, failed: relay.failed });
-        } catch (relayError) {
-          console.error("[orders/create] pedido salvo; relay preservado na outbox", relayError);
-        }
-      })());
-      if (result.adminPush) jobs.push(sendAdminNewOrderPush(result.adminPush));
-      const outcomes = await Promise.allSettled(jobs);
-      for (const outcome of outcomes) if (outcome.status === "rejected") console.error("[orders/create] pós-gravação falhou sem invalidar pedido", outcome.reason);
+      after(async () => {
+        const dispatchStarted = Date.now();
+        const jobs: Promise<unknown>[] = [];
+        if (result.eventId) jobs.push((async () => {
+          try {
+            const relay = await drainIntegrationOutboxEvent(result.eventId!);
+            console.info("[orders/create] post-commit relay", {
+              eventId: result.eventId, sent: relay.sent, failed: relay.failed,
+            });
+          } catch (relayError) {
+            console.error("[orders/create] outbox preservada para retry", relayError);
+          }
+        })());
+        if (result.adminPush) jobs.push(sendAdminNewOrderPush(result.adminPush));
+        const outcomes = await Promise.allSettled(jobs);
+        for (const outcome of outcomes) if (outcome.status === "rejected")
+          console.error("[orders/create] tarefa pos-resposta falhou; filas persistidas", outcome.reason);
+        console.info("[orders/create] post-commit dispatch", {
+          orderId: result.id, durationMs: Date.now() - dispatchStarted,
+          tasks: jobs.length, rejected: outcomes.filter(o => o.status === "rejected").length,
+        });
+      });
     }
 
-    finishRouteTrace(trace,"ok",{status:result.reused?200:201,reused:result.reused,integrationSent:integration.sent});
+    finishRouteTrace(trace,"ok",{status:result.reused?200:201,reused:result.reused,integrationSent:integration.sent,dispatchDeferred: true});
     return NextResponse.json(
       {
         ok: true,

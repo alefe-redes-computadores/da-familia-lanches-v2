@@ -7,6 +7,6 @@ ok(checkout.includes('city !== "patos de minas"'),"CEP fora de Patos de Minas é
 ok(checkout.includes("numberInputRef.current?.focus"),"CEP encontrado conduz ao número");
 ok(checkout.includes("rememberGuestOrder"),"pedido guest fica conhecido neste aparelho");
 ok(guest.includes("dfl:guest-orders:v1"),"continuidade guest tem índice local de pedidos");
-ok(api.includes("relay immediate")&&!api.includes("relay after-response"),"relay crítico não depende do pós-resposta");
+ok(api.includes("after(async () =>") && api.includes('tx.create(adminDb.collection("AdminPushDispatches")') && api.includes('tx.create(adminDb.collection(INTEGRATION_COLLECTIONS.outbox)') && api.includes('await Promise.allSettled(jobs)') && api.includes('dispatchDeferred: true'),"V56.1: pedido e filas persistidos antes do retorno; tentativa pos-resposta supervisionada");
 ok(home.includes("guestLastOrder")&&home.includes("showAllOffers"),"Home mostra continuidade guest e vitrine de ofertas");
 console.log("V56.1 CHECKOUT INTEGRITY: CONTRATOS OK");
