@@ -44,6 +44,31 @@ const timestampMillis = (value: unknown) => {
 function fail(error: string, status = 400) {
   return NextResponse.json({ ok: false, error }, { status });
 }
+
+// DFL-INCIDENT-20261025: Firestore nao permite undefined em objetos de itens.
+// Preserva null, arrays, valores definidos e instancias especiais (Timestamp etc.).
+function stripUndefinedOrderFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripUndefinedOrderFields);
+  if (value !== null && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(Object.entries(value)
+      .filter(([, field]) => field !== undefined)
+      .map(([key, field]) => [key, stripUndefinedOrderFields(field)]));
+  }
+  return value;
+}
+
+function safeOrderFailureKind(error: unknown): string {
+  const cause = error instanceof Error ? error.message : "";
+  if (/undefined.*(?:firestore|value)|(?:firestore|value).*undefined|cannot use.*undefined/i.test(cause)) return "INVALID_UNDEFINED_FIELD";
+  if (/invalid.*(?:document|field|value)|unsupported field value|cannot serialize/i.test(cause)) return "FIRESTORE_SERIALIZATION";
+  if (/quota|resource.?exhausted|limit exceeded/i.test(cause)) return "FIRESTORE_QUOTA";
+  if (/permission|denied|unauthoriz|credential/i.test(cause)) return "PERMISSION_OR_CREDENTIAL";
+  if (/transaction|read after write|aborted|failed precondition|contention/i.test(cause)) return "TRANSACTION";
+  if (/timeout|deadline|unavailable|network/i.test(cause)) return "BACKEND_CONNECTIVITY";
+  if (/document.*size|too large/i.test(cause)) return "DOCUMENT_LIMIT";
+  return "UNCLASSIFIED_SERVER_EXCEPTION";
+}
+
 function remoteProduct(id: string, raw: Raw, fallback?: Product): Product | null {
   const price = finiteMoney(raw.price ?? raw.preco ?? fallback?.price);
   const name = text(raw.name ?? raw.nome ?? fallback?.name, 120);
@@ -344,7 +369,7 @@ export async function POST(request: NextRequest) {
         userId: actorId,
         clientRequestId,
         requestFingerprint, userName: text(incoming.userName, 120) || text(decoded?.name, 120) || "Cliente", userEmail: decoded?.email || "", userPhone: phone,
-        itens: canonicalItems, subtotal, taxaEntrega: fee, desconto: discount, cupom: discount > 0 && code ? code : null, rewardId: rewardId || null, total,
+        itens: canonicalItems.map(stripUndefinedOrderFields), subtotal, taxaEntrega: fee, desconto: discount, cupom: discount > 0 && code ? code : null, rewardId: rewardId || null, total,
         metodoPagamento: method, trocoPara: method === "dinheiro" ? text(incoming.trocoPara, 40) || null : null, observacao: text(incoming.observacao, 300) || null,
         endereco: deliveryMode === "pickup" ? "RETIRADA NO LOCAL" : [
           [text(delivery.street, 180), text(delivery.number, 30)].filter(Boolean).join(", "),
@@ -428,7 +453,12 @@ export async function POST(request: NextRequest) {
     const original = error instanceof Error ? error.message : "ORDER_FAILED";
     const message = rawCode.includes("resource-exhausted") || rawCode === "8" || /quota|resource exhausted/i.test(original) ? "SERVICE_BUSY" : rawCode.includes("permission-denied") || rawCode === "7" ? "SERVICE_CONFIG" : rawCode.includes("unavailable") || rawCode === "14" ? "SERVICE_UNAVAILABLE" : original;
     const known = /^(AUTH_REQUIRED|PAYLOAD_INVALID|IDEMPOTENCY_|CART_INVALID|ADDON_DUPLICATE|PRODUCT_UNAVAILABLE|ADDON_UNAVAILABLE|ADDON_SELECTION_INVALID|ADDON_POLICY_INVALID|ADDON_GROUP_INVALID|ADDON_GROUP_SELECTION_INVALID|UPSELL_|PRICE_CHANGED|DELIVERY_CHANGED|COUPON_|REWARD_|SCHEDULE_|PAYMENT_INVALID|PHONE_INVALID|ADDRESS_INVALID|SERVICE_BUSY|SERVICE_CONFIG|SERVICE_UNAVAILABLE)/.test(message);
-    finishRouteTrace(trace,"error",{errorCode:errorCode(error),businessCode:known?message:"ORDER_FAILED",status:known?409:500});
+    if (!known) console.error("[orders/create] exception_category", {
+      traceId: trace.id,
+      failureKind: safeOrderFailureKind(error),
+      exceptionName: error instanceof Error ? error.name : "unknown",
+    });
+    finishRouteTrace(trace,"error",{errorCode:errorCode(error),businessCode:known?message:"ORDER_FAILED",status:known?409:500,failureKind: safeOrderFailureKind(error)});
     return NextResponse.json({ok:false,error:known?message:"ORDER_FAILED"},{status:known?409:500,headers:{"x-dfl-trace-id":trace.id}});
   }
 }
