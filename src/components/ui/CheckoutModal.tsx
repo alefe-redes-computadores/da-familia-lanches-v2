@@ -20,6 +20,7 @@ import { couponAvailability, couponDiscount, normalizeCoupon } from "@/lib/coupo
 import styles from "./CheckoutModal.module.css";
 import { canOfferManualOrderFallback } from "@/lib/checkoutFallbackSafety";
 import { orderOutcomeNeedsReview } from "@/lib/orderOutcomeRecovery";
+import { resolveCheckoutAttempt } from "@/lib/checkoutAttemptResolver";
 import { DEFAULT_COMMERCIAL_SETTINGS, freeDeliveryThreshold, getCommercialSettings, type CommercialSettings } from "@/lib/commercialSettings";
 import { BUSINESS_CONTACT, businessWhatsAppUrl } from "@/lib/businessContact";
 import { buildOrderWhatsAppMessage } from "@/lib/orderWhatsApp";
@@ -985,7 +986,31 @@ export function CheckoutModal() {
       }
       console.error("Erro ao salvar pedido", error);
       const code = error instanceof Error ? error.message : "";
-      setOrderOutcomeUncertain(orderOutcomeNeedsReview(code));
+      // R5: antes de alegar falha, consultar a MESMA tentativa. Nunca enviar outro POST.
+      if (orderOutcomeNeedsReview(code) && orderAttemptRef.current) {
+        const resolved = await resolveCheckoutAttempt(orderAttemptRef.current, currentUser ? "google" : "guest");
+        if (resolved.outcome === "found") {
+          setOrderOutcomeUncertain(false);
+          setFallbackWhatsAppUrl("");
+          setErrorMessage("");
+          try { clearOrderAttempt(); clearCheckoutDraft(currentUser?.uid ?? null); } catch {}
+          openModal("order-success", {
+            orderId: resolved.orderId,
+            isScheduled: shopClosed && Boolean(scheduledFor),
+            deliveryMode,
+            total,
+            whatsappUrl: "",
+            paymentMethod: method,
+            pixKey: method === "pix" ? BUSINESS_CONTACT.pixKey : undefined,
+            cartPreserved: true,
+          });
+          return;
+        }
+        // Mesmo not_found e incerto devido a corrida com POST original.
+        setOrderOutcomeUncertain(true);
+      } else {
+        setOrderOutcomeUncertain(false);
+      }
       const fallbackMessage = buildOrderWhatsAppMessage({
         registered: false,
         customerName: customerName.trim() || currentUser?.displayName || "Cliente",

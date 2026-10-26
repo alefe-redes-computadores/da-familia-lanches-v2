@@ -82,7 +82,7 @@ const recoveryGuard = recoveryCatch >= 0 && recoverySuccess > recoveryCatch
 ok(
   createCalls.length === 2 &&
   clearCalls.length === 2 &&
-  successCalls.length === 3 &&
+  successCalls.length === 4 &&
   createCalls.every((position, index) =>
     position < clearCalls[index] &&
     clearCalls[index] < successCalls[index]
@@ -92,7 +92,11 @@ ok(
   recoveryGuard.includes('setOrderOutcomeUncertain(false)') &&
   recoveryGuard.includes('setFallbackWhatsAppUrl("")') &&
   !recoveryGuard.includes('clearConfirmedCart()') &&
-  !recoveryGuard.includes('canOfferManualOrderFallback('),
+  !recoveryGuard.includes('canOfferManualOrderFallback(') &&
+  checkout.slice(successCalls[2], successCalls[3]).includes('resolved.outcome === "found"') &&
+  checkout.slice(successCalls[2], successCalls[3]).includes('setFallbackWhatsAppUrl("")') &&
+  !checkout.slice(successCalls[2], successCalls[3]).includes('clearConfirmedCart()') &&
+  checkout.slice(successCalls[3], checkout.indexOf('return;', successCalls[3])+7).includes('cartPreserved: true'),
   "convidado e cliente Google devem limpar somente após pedido criado",
 );
 

@@ -37,5 +37,11 @@ jobs:
         run: node scripts/test-site-sales-operation-r2.cjs
       - name: Validar confirmacao de pedido e falhas pos-registro
         run: node scripts/test-site-sales-recovery-r3.cjs
+      - name: Verificar resolvedor read-only R4 de pedidos incertos
+        run: node scripts/test-site-sales-r4-resolver.cjs
+      - name: R5 Recuperacao visivel de pedido incerto
+        run: node scripts/test-site-sales-r5-ui-recovery.cjs
+      - name: R6 - Integridade da protecao de vendas
+        run: node scripts/test-site-sales-r6-guard.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs
