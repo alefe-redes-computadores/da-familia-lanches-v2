@@ -770,6 +770,9 @@ export function CheckoutModal() {
       return;
     }
 
+    // R3: um HTTP 201/200 ja e compromisso confirmado. Erros locais posteriores
+    // nunca podem virar uma mensagem de "pedido nao registrado".
+    let confirmedOrderId: string | null = null;
     setLoading(true);
     try {
       const { status: shopStatus, testAccess } = await getCheckoutStoreAccess(currentUser?.email, true);
@@ -812,6 +815,7 @@ export function CheckoutModal() {
           deliverySnapshot: isPickup ? null : { cep: cep.trim(), street: rua.trim(), number: numero.trim(), district: bairro.trim(), complement: complemento.trim(), reference: referencia.trim() },
         };
         const created=await createCustomerOrder({ userId: null, order: guestOrder, subtotal, discount: safeDiscount > 0 && appliedCouponCode ? { code: appliedCouponCode, rewardId: null, expectedDiscount: safeDiscount } : null });
+        confirmedOrderId = created.id;
         const guestMessage=buildOrderWhatsAppMessage({registered:true,orderId:created.id,customerName:customerName.trim()||"Cliente",phone:userPhone.trim(),items:items.map((item)=>({quantity:item.quantity,name:item.name,price:item.price,addons:item.selectedAddons?.map((addon)=>addon.name)??[],observation:item.observation})),deliveryMode,address:isPickup?"Retirada no balcão":finalAddress,district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim(),subtotal,deliveryFee:finalFee,discount:safeDiscount,couponCode:appliedCouponCode,total,paymentMethod:method,changeFor:troco,orderObservation,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):undefined});
         const whatsappUrl=businessWhatsAppUrl(guestMessage);
         saveGuestIdentity({name:customerName.trim()||"Cliente",phone:userPhone.trim(),lastDeliveryMode:deliveryMode,paymentPreference:method,...(isPickup?{}:{cep:cep.trim(),street:rua.trim(),number:numero.trim(),district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim()})});
@@ -889,7 +893,10 @@ export function CheckoutModal() {
           expectedDiscount: safeDiscount,
         } : null,
       });
+      confirmedOrderId = created.id;
 
+      // O perfil e apenas conveniencia. Nao segurar confirmacao esperando Firestore.
+      const persistProfileAfterSuccess = async () => {
       try {
         await saveUserProfile(currentUser, { name: customerName, phone: userPhone, cep, street: rua, number: numero, district: bairro, complement: complemento, reference: referencia });
         if (!isPickup) {
@@ -901,6 +908,7 @@ export function CheckoutModal() {
       } catch (profileError) {
         console.error("Pedido salvo, mas falhou ao atualizar o perfil do cliente", profileError);
       }
+      };
 
       const whatsappMessage = buildOrderWhatsAppMessage({
         registered: true,
@@ -948,7 +956,33 @@ export function CheckoutModal() {
         cartPreserved: !cartCleared,
         rescueMessage: whatsappMessage,
       });
+      // Perfil atualizado depois de exibir o comprovante. Rejeicoes ja tratadas no helper.
+      void persistProfileAfterSuccess();
     } catch (error) {
+      if (confirmedOrderId) {
+        // Pode falhar um formatador, localStorage ou o WhatsApp DEPOIS do HTTP 201.
+        // Nunca dizer que o pedido nao foi salvo nem oferecer um pedido paralelo.
+        console.error("[checkout] pedido confirmado, falha local pos-registro", error);
+        setOrderOutcomeUncertain(false);
+        setFallbackWhatsAppUrl("");
+        setErrorMessage("");
+        try { clearOrderAttempt(); clearCheckoutDraft(currentUser?.uid ?? null); } catch {}
+        try {
+          openModal("order-success", {
+            orderId: confirmedOrderId,
+            isScheduled: shopClosed && Boolean(scheduledFor),
+            deliveryMode,
+            total,
+            whatsappUrl: "",
+            paymentMethod: method,
+            pixKey: method === "pix" ? BUSINESS_CONTACT.pixKey : undefined,
+            cartPreserved: true,
+          });
+        } catch {
+          setErrorMessage(`Pedido ${confirmedOrderId} confirmado! Consulte Meus Pedidos.`);
+        }
+        return;
+      }
       console.error("Erro ao salvar pedido", error);
       const code = error instanceof Error ? error.message : "";
       setOrderOutcomeUncertain(orderOutcomeNeedsReview(code));

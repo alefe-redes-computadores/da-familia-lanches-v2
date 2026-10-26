@@ -35,5 +35,7 @@ jobs:
         run: node scripts/test-site-sales-critical-r1.cjs
       - name: Validar autoridade da loja no backend e corrida de fechamento
         run: node scripts/test-site-sales-operation-r2.cjs
+      - name: Validar confirmacao de pedido e falhas pos-registro
+        run: node scripts/test-site-sales-recovery-r3.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs

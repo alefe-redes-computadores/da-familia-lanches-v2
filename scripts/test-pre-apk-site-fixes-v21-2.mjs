@@ -72,14 +72,27 @@ const clearCalls = [...checkout.matchAll(/const cartCleared\s*=\s*clearConfirmed
 const successCalls = [...checkout.matchAll(/openModal\s*\(\s*["']order-success["']/g)]
   .map(match => match.index);
 
+// R3: existem duas confirmacoes normais e uma recuperacao quando o
+// servidor JA confirmou o pedido, mas o processamento no celular falhou.
+// A terceira confirmacao NAO pode limpar o carrinho nem oferecer novo pedido.
+const recoveryCatch = checkout.indexOf('    } catch (error) {\n      if (confirmedOrderId) {');
+const recoverySuccess = successCalls[2] ?? -1;
+const recoveryGuard = recoveryCatch >= 0 && recoverySuccess > recoveryCatch
+  ? checkout.slice(recoveryCatch, recoverySuccess) : "";
 ok(
   createCalls.length === 2 &&
   clearCalls.length === 2 &&
-  successCalls.length === 2 &&
+  successCalls.length === 3 &&
   createCalls.every((position, index) =>
     position < clearCalls[index] &&
     clearCalls[index] < successCalls[index]
-  ),
+  ) &&
+  recoveryCatch > successCalls[1] &&
+  recoveryGuard.includes('if (confirmedOrderId) {') &&
+  recoveryGuard.includes('setOrderOutcomeUncertain(false)') &&
+  recoveryGuard.includes('setFallbackWhatsAppUrl("")') &&
+  !recoveryGuard.includes('clearConfirmedCart()') &&
+  !recoveryGuard.includes('canOfferManualOrderFallback('),
   "convidado e cliente Google devem limpar somente após pedido criado",
 );
 
