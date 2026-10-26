@@ -1,0 +1,39 @@
+name: DFL SITE - Protecao Critica de Vendas
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dfl-site-sales-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sales-critical:
+    name: Sales Critical / checkout + Firestore + regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Dependencias (lockfile)
+        run: npm ci
+      - name: Testar fluxo real da API com Firestore simulado
+        run: node scripts/test-site-sales-critical-r1.cjs
+      - name: Validar autoridade da loja no backend e corrida de fechamento
+        run: node scripts/test-site-sales-operation-r2.cjs
+      - name: Gates completos de regressao e TypeScript (sem build)
+        run: node scripts/test-site-v88-v90-release-gate.cjs

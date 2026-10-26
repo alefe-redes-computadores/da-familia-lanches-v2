@@ -68,6 +68,8 @@ jobs:
           node scripts/test-catalog-v49.mjs
           node scripts/test-mobile-viewport-v50.mjs
           node scripts/test-smartcart-v2.mjs
+          node scripts/test-site-sales-critical-r1.cjs
+          node scripts/test-site-sales-operation-r2.cjs
           node scripts/test-roadmap-final-v2.mjs
           node scripts/release-gate-catalog-v43.mjs
           node scripts/test-android-release-gate-v50-1.mjs

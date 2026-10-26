@@ -10,7 +10,7 @@ import { buildOrderCreatedEvent } from "@/lib/integration/orderEvents";
 import { buildOutboxRecord } from "@/lib/integration/contracts";
 import { INTEGRATION_COLLECTIONS } from "@/lib/integration/firestore";
 import { capacityForTime, normalizeSchedulingConfig, scheduleSlotId } from "@/lib/schedulingConfig";
-import { normalizeStoreSettings } from "@/lib/storeSchedule";
+import { normalizeStoreSettings, evaluateStoreStatus, canPlaceImmediateTestOrder } from "@/lib/storeSchedule";
 import { isScheduledValueAllowed } from "@/lib/orderSchedulePolicy";
 import { addonPolicy, validAddonSelection } from "@/lib/catalogAddonPolicy";
 import { productGroupConfiguration, inspectProductSelections } from "@/lib/catalogModifierGroups";
@@ -214,6 +214,17 @@ export async function POST(request: NextRequest) {
           adminPush: null,
         };
       }
+      // SALES-GATE-R2: autoridade final da abertura pertence ao servidor.
+      // Esta leitura faz parte da mesma transaction; sem liberar pedido por cache do cliente.
+      // A recuperacao idempotente acima deve continuar ANTES dessa checagem:
+      // um pedido ja gravado pode ser recuperado mesmo depois que a loja fecha.
+      const storeSnap = await tx.get(adminDb.doc("settings/loja"));
+      const authoritativeStore = normalizeStoreSettings(storeSnap.exists ? storeSnap.data() : {});
+      const mayOrderImmediately = evaluateStoreStatus(authoritativeStore).isOpen ||
+        canPlaceImmediateTestOrder(authoritativeStore, decoded?.email);
+      if (incoming.isAgendamento !== true && !mayOrderImmediately) {
+        throw new Error("SCHEDULE_REQUIRED");
+      }
       const productFallback = new Map(fallbackProducts.map((p) => [p.id, p]));
       const addonFallback = new Map(fallbackAddons.map((a) => [a.id, a]));
       const productIds = [...new Set(lines.flatMap(line=>[line.id,line.upsellSourceId].filter(Boolean) as string[]))];
@@ -345,12 +356,9 @@ export async function POST(request: NextRequest) {
       let slotData: Raw | null = null;
       if (isScheduled) {
         if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00-03:00$/.test(scheduledFor)) throw new Error("SCHEDULE_REQUIRED");
-        const [configSnap, storeSnap] = await Promise.all([
-          tx.get(adminDb.doc("settings/orderScheduling")),
-          tx.get(adminDb.doc("settings/loja")),
-        ]);
+        const configSnap = await tx.get(adminDb.doc("settings/orderScheduling"));
         const config = normalizeSchedulingConfig(configSnap.exists ? configSnap.data() : {});
-        const store = normalizeStoreSettings(storeSnap.exists ? storeSnap.data() : {});
+        const store = authoritativeStore;
         const time = scheduledFor.slice(11, 16);
         if (!isScheduledValueAllowed(scheduledFor, config, store, new Date(), 7)) {
           throw new Error("SCHEDULE_SLOT_DISABLED");

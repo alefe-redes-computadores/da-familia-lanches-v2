@@ -990,7 +990,19 @@ export function CheckoutModal() {
       setFallbackWhatsAppUrl(canOfferManualOrderFallback(code) ? businessWhatsAppUrl(fallbackMessage) : "");
       }
       haptic("error");
-      if (code === "SCHEDULE_REQUIRED") { setErrorMessage("Escolha um horário disponível para o pedido agendado."); } else if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {
+      if (code === "SCHEDULE_REQUIRED") {
+        // O backend pode detectar o fechamento entre a revisao e o clique final.
+        // Nunca perder carrinho/chave de idempotencia: voltar ao agendamento.
+        setShopClosed(true);
+        setStep(1);
+        setScheduledFor("");
+        setScheduleLoading(true);
+        setErrorMessage("A loja não está recebendo pedidos imediatos agora. Escolha um horário disponível para agendar.");
+        void getOrderScheduleSlots()
+          .then((slots) => { setScheduleSlots(slots); setScheduleError(""); })
+          .catch(() => setScheduleError("Não conseguimos carregar horários. Tente novamente em instantes."))
+          .finally(() => setScheduleLoading(false));
+      } else if (code.startsWith("COUPON_") || code.startsWith("REWARD_")) {
         setAppliedCouponCode("");
         setAppliedRewardId("");
         setDiscount(0);
