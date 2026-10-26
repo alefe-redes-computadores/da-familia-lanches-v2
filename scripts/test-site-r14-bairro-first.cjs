@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),ts=require('typescript');
+const s=fs.readFileSync('src/components/ui/CheckoutModal.tsx','utf8');
+const css=fs.readFileSync('src/components/ui/CheckoutModal.module.css','utf8');
+const indexes=['1 · Bairro','2 · Rua ou avenida','3 · Número'].map(x=>s.indexOf(x));
+assert(indexes.every(x=>x>0)&&indexes[0]<indexes[1]&&indexes[1]<indexes[2]);
+assert(s.includes('StreetSuggestions street={rua} district={bairro}'));
+assert(s.includes('aria-invalid={!isPickup && !districtInspection.valid'));
+assert(s.includes('calculateDeliveryFee(bairro)'));
+assert(s.includes('cep.replace(/\\D/g, "").length === 8'));
+assert(s.includes('orderAttemptRef')&&s.includes('createCustomerOrder'));
+assert.equal((s.match(/placeholder="Rua"/g)||[]).length,1);
+assert.equal((s.match(/placeholder="Bairro completo"/g)||[]).length,1);
+assert.equal((s.match(/placeholder="Nº"/g)||[]).length,1);
+assert(css.includes('.addressFirstGuide')&&css.includes('.addressFirstField'));
+const ast=ts.createSourceFile('CheckoutModal.tsx',s,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+assert.equal(ast.parseDiagnostics.length,0,'JSX R14 invalido');
+console.log('R14: endereco bairro primeiro, JSX e contratos de venda OK');

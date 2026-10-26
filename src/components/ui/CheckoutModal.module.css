@@ -199,3 +199,137 @@
 .uncertainOrderAction button{justify-self:start;min-height:44px;padding:9px 14px;border:0;border-radius:11px;background:#232018;color:#fff;font-size:13px;font-weight:850;cursor:pointer}
 .uncertainOrderAction button:focus-visible{outline:3px solid #bb851d;outline-offset:3px}
 @media(max-width:520px){.uncertainOrderAction{padding:11px}.uncertainOrderAction button{width:100%}}
+
+/* R7: sugestoes de bairro acessiveis em telas pequenas, sem sobrepor pagamento */
+@media(max-width:560px){
+  .districtHelper{margin-top:0;min-width:0}
+  .districtSuggestions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,135px),1fr));gap:8px}
+  .districtSuggestions small{grid-column:1 / -1}
+  .districtSuggestions button{width:100%;min-height:44px;white-space:normal;text-align:left;overflow-wrap:anywhere}
+}
+
+/* R14 — caminho visual bairro → rua → número, mantendo motor de entrega existente. */
+.addressFirstGuide{display:grid;gap:5px;border-radius:13px;padding:11px 12px;background:#fff6e5;border:1px solid #eddbb9;color:#493821}
+.addressFirstGuide strong{font-size:13px;font-weight:900}
+.addressFirstGuide small{font-size:12px;line-height:1.5;color:#69573c}
+.addressFirstField{display:grid;gap:6px;min-width:0}
+.addressFirstField>span{font-weight:850;font-size:12px;color:#5b482d}
+.addressFirstField>.input{width:100%;min-width:0;font-size:16px}
+@media(max-width:560px){.addressFirstGuide{padding:10px}.addressFirstField>.input{min-height:48px}}
+
+/* DFL SITE R16 - PREMIUM FEEDBACK MOBILE */
+/* Escopo exclusivamente visual. Nao altera logica, taxas ou pedidos. */
+.body{scrollbar-gutter:stable;overscroll-behavior:contain;scroll-padding-bottom:clamp(96px,13vh,148px)}
+.body :is(.card,.totalCard,.receiveCard,.pixCard,.pickupCard){box-shadow:0 4px 20px rgba(32,27,18,.035);transition:border-color .16s ease,box-shadow .16s ease}
+.body :is(.input,select,textarea){font-size:16px;line-height:1.45;transition:border-color .16s ease,box-shadow .16s ease,background-color .16s ease}
+.body .input::placeholder{color:#81796e;opacity:1}
+.body .input:focus-visible{border-color:#b68b14;box-shadow:0 0 0 3px rgba(242,189,49,.2);outline:0}
+.body .input[aria-invalid="true"]{border-color:#b9382c;box-shadow:0 0 0 3px rgba(185,56,44,.12)}
+.body :is(.primary,.secondary,.yellowButton,.modeTabs button,.paymentTabs button){transition:transform .12s ease,background-color .16s ease,box-shadow .16s ease}
+.body :is(.primary,.secondary,.yellowButton,.modeTabs button,.paymentTabs button):not(:disabled):active{transform:scale(.985)}
+.body :is(.primary,.secondary,.yellowButton):disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+.body .error,.body .couponError{font-size:12px;line-height:1.5;font-weight:750;overflow-wrap:anywhere;box-shadow:0 4px 14px rgba(145,31,22,.055)}
+.body .info,.body .couponOk,.body .successHint,.body .freightProgress{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.body .districtHelper>strong{font-size:12px;line-height:1.5}
+.body .districtSuggestions button{font-size:12px;min-height:44px;padding:9px 12px;transition:background .12s ease,border-color .12s ease}
+.body .districtSuggestions button:focus-visible{outline:3px solid #d2a225;outline-offset:2px}
+.body .stepCaption{font-size:11px;line-height:1.4}
+.body .modeTabs small,.body .paymentTabs button,.body .sectionLabel{font-size:11px;line-height:1.4}
+.body .actions{position:relative;z-index:2;padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
+@media(max-width:640px){
+  .body{max-height:min(87dvh,880px);padding:clamp(12px,3.8vw,19px)}
+  .body :is(button,a){-webkit-tap-highlight-color:transparent}
+  .body :is(.modeTabs button,.paymentTabs button,.primary,.secondary,.yellowButton){min-height:46px}
+  .body .addressGrid{grid-template-columns:minmax(72px,.38fr) minmax(0,1fr)}
+  .body .actions{gap:10px}
+  .body .cardTitle span,.body .receiveCard span,.body .pickupCard span{font-size:11px;line-height:1.5}
+}
+@media(max-width:350px){
+  .body .actions{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)}
+  .body .paymentTabs button{padding:10px 3px}
+  .body .addressGrid{gap:6px}
+}
+@media(prefers-reduced-motion:reduce){
+  .body :is(.input,.primary,.secondary,.yellowButton,.modeTabs button,.paymentTabs button,.districtSuggestions button){transition:none}
+}
+
+/* DFL SITE R17 - CHECKOUT FEEDBACK */
+.errorFallback{
+  display:grid;
+  gap:10px;
+  min-width:0;
+}
+.errorFallback .error{
+  margin:0;
+  padding:13px 15px;
+  border:1px solid #e7b6ae;
+  border-left:4px solid #b9382c;
+  border-radius:14px;
+  background:#fff3f0;
+  color:#85271e;
+  font-size:13px;
+  font-weight:750;
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+.contingency{
+  display:grid;
+  gap:9px;
+  padding:16px;
+  border:1px solid #dfd5bf;
+  border-radius:17px;
+  background:linear-gradient(145deg,#fffefb,#faf5e9);
+  color:#252017;
+}
+.contingency>span{
+  color:#8a6517;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+.contingency strong{
+  font-size:15px;
+  line-height:1.35;
+  color:#211b11;
+}
+.contingency p{
+  margin:0;
+  font-size:12px;
+  line-height:1.6;
+  color:#625749;
+}
+.contingency button{
+  min-height:48px;
+  padding:12px 15px;
+  border:0;
+  border-radius:12px;
+  background:#171717;
+  color:#fff;
+  font-size:13px;
+  font-weight:850;
+  cursor:pointer;
+}
+.contingency small{
+  color:#776b59;
+  font-size:11px;
+  line-height:1.5;
+}
+.contingency button:focus-visible{
+  outline:3px solid #c89b26;
+  outline-offset:3px;
+}
+.uncertainOrderAction{
+  border-left:4px solid #bd881c;
+}
+.uncertainOrderAction p{
+  font-size:12px;
+  line-height:1.6;
+}
+@media(max-width:520px){
+  .contingency{padding:13px}
+  .contingency button{width:100%}
+  .errorFallback .error{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .contingency button{transition:none}
+}

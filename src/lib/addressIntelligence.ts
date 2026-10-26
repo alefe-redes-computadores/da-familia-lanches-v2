@@ -39,15 +39,44 @@ function choices(extra: string[] = []): string[] {
   });
 }
 
+/** R7: transposição (Jsoe), substituição e acentos sem chamadas de rede.
+ * Somente SUGERE; não escolhe bairro automaticamente ou altera tabela de frete.
+ */
+function districtEditDistance(a: string, b: string): number {
+  if (!a) return b.length;
+  if (!b) return a.length;
+  const grid = Array.from({length:a.length + 1}, () => Array<number>(b.length + 1).fill(0));
+  for (let i=0;i<=a.length;i++) grid[i][0]=i;
+  for (let j=0;j<=b.length;j++) grid[0][j]=j;
+  for (let i=1;i<=a.length;i++) for(let j=1;j<=b.length;j++) {
+    const cost=a[i-1]===b[j-1]?0:1;
+    grid[i][j]=Math.min(grid[i-1][j]+1,grid[i][j-1]+1,grid[i-1][j-1]+cost);
+    if (i>1 && j>1 && a[i-1]===b[j-2] && a[i-2]===b[j-1])
+      grid[i][j]=Math.min(grid[i][j],grid[i-2][j-2]+1);
+  }
+  return grid[a.length][b.length];
+}
+
 export function suggestDistricts(value: unknown, configured: string[] = [], limit = 5): string[] {
-  const key = normalizeDistrict(value);
-  if (!key) return [];
-  const found = choices(configured).map((name) => ({ name, key: normalizeDistrict(name) }))
-    .filter(({key: candidate}) => candidate !== key && (candidate.startsWith(key) ||
-      (key.length >= 4 && candidate.includes(key))))
-    .sort((a,b) => Number(b.key.startsWith(key)) - Number(a.key.startsWith(key)) ||
-      a.key.length - b.key.length || a.name.localeCompare(b.name, "pt-BR"));
-  return found.slice(0, Math.max(0, Math.min(8,limit))).map(item=>item.name);
+  const key=normalizeDistrict(value);
+  if (key.length < 3) return [];
+  const words=key.split(' ');
+  const candidates=choices(configured).map(name => {
+    const candidate=normalizeDistrict(name);
+    if (candidate===key) return {name,score:-1};
+    if (candidate.startsWith(key)) return {name,score:100 - (candidate.length-key.length)*0.1};
+    if (candidate.includes(key) && key.length>=4) return {name,score:80};
+    // Tokens de nomes compostos: "Sao Jsoe Operario" e "Sao Jose Operario".
+    const target=candidate.split(' ');
+    const full=key.length>=5?districtEditDistance(key,candidate):100;
+    const tokenSum=words.length===target.length ? words.reduce((sum,w,i)=>sum+districtEditDistance(w,target[i]),0) : 100;
+    const allowance=key.length>=13?3:key.length>=7?2:1;
+    const distance=Math.min(full,tokenSum);
+    if (distance>allowance) return {name,score:-1};
+    return {name,score:60-distance*9};
+  }).filter(x=>x.score>=0);
+  return candidates.sort((a,b)=>b.score-a.score || a.name.localeCompare(b.name,'pt-BR'))
+    .slice(0,Math.max(0,Math.min(limit,8))).map(x=>x.name);
 }
 
 export type DistrictInspection = { valid: boolean; reason: "empty" | "short" | "incomplete" | "ok"; suggestions: string[] };

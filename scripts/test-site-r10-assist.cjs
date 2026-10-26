@@ -1,0 +1,14 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const rd=p=>fs.readFileSync(p,'utf8');
+const header=rd('src/components/layout/Header.tsx'),menu=rd('src/components/layout/MobileDrawerMenu.tsx'),shell=rd('src/components/layout/AppShell.tsx'),a=rd('src/components/layout/DFLAssist.tsx'),css=rd('src/components/layout/DFLAssist.module.css');
+assert(header.includes('dfl:assist-open')&&header.includes('Abrir DFL Assist'));
+assert(menu.includes('dfl:assist-open')&&menu.includes('DFL Assist · Ajuda para comprar'));
+assert(shell.includes('<DFLAssist />')&&shell.includes('import { DFLAssist }'));
+assert(a.includes('window.addEventListener("dfl:assist-open"')&&a.includes('window.removeEventListener("dfl:assist-open"'));
+assert(a.includes('CATALOG_SEARCH_EVENT')&&a.includes('dfl:pending-catalog-search'));
+assert(a.includes('openModal("cart")')&&a.includes('businessWhatsAppUrl('));
+assert(!a.includes('createCustomerOrder')&&!a.includes('api/orders')&&!a.includes('fetch('));
+assert(a.includes('não confirma nem cria um pedido')&&a.includes('não são enviados automaticamente'));
+assert(css.includes('safe-area-inset-bottom')&&css.includes('focus-visible'));
+console.log('R10 DFL ASSIST GLOBAL — 9 contratos OK');

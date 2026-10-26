@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { readGuestIdentity, saveGuestIdentity, rememberGuestOrder } from "@/lib/guestContinuity";
 import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { ModalBase } from "./ModalBase";
+import { StreetSuggestions } from "./StreetSuggestions";
 import { useUIStore } from "@/store/ui";
 import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -202,7 +203,7 @@ export function CheckoutModal() {
   const configuredDistricts = deliveryTableCache?.list.map(item => String(item.nome ?? "")) ?? [];
   const districtInspection = inspectDistrict(bairro, configuredDistricts);
   const districtSuggestions = suggestDistricts(bairro, configuredDistricts);
-  const addressReady = isPickup || Boolean(cep.replace(/\D/g, "").length === 8 && rua.trim().length >= 4 && numero.trim() && districtInspection.valid);
+  const addressReady = isPickup || Boolean((cep.replace(/\D/g, "").length === 0 || cep.replace(/\D/g, "").length === 8) && rua.trim().length >= 4 && numero.trim() && districtInspection.valid);
   const phoneReady = phoneDigits.length === 10 || phoneDigits.length === 11;
 
   const nameReady = customerName.trim().length >= 2;
@@ -760,7 +761,7 @@ export function CheckoutModal() {
     if (!addressReady) {
       submittingRef.current=false;
       setStep(1);
-      setErrorMessage(!isPickup && !bairro.trim() ? "Falta informar o bairro da entrega. Preencha o campo Bairro." : !districtInspection.valid && !isPickup ? "Informe o nome completo do bairro para entrega." : !numero.trim() ? "Falta o número da entrega. Complete o endereço para continuar." : "Complete rua, número e CEP para entrega.");
+      setErrorMessage(!isPickup && !bairro.trim() ? "Falta informar o bairro da entrega. Preencha o campo Bairro." : !districtInspection.valid && !isPickup ? "Informe o nome completo do bairro para entrega." : !numero.trim() ? "Falta o número da entrega. Complete o endereço para continuar." : "Complete o bairro, a rua e o número. O CEP é opcional.");
       if (!isPickup && !districtInspection.valid) setManualMode(true);
       setAddressEditorOpen(true); focusCheckoutIssue(!isPickup && !districtInspection.valid ? "district" : "address");
       return;
@@ -1073,7 +1074,7 @@ export function CheckoutModal() {
         setStep(1);
         setAddressEditorOpen(true);
         setManualMode(true);
-        setErrorMessage("Não conseguimos confirmar o bairro. Confira rua, número, CEP e o nome completo do bairro.");
+        setErrorMessage("Não conseguimos confirmar o bairro. Confira o bairro, a rua e o número. Se informou CEP, confira também seus 8 dígitos.");
         focusCheckoutIssue("address");
       } else if (code === "SERVICE_BUSY") {
         setErrorMessage("O sistema de pedidos atingiu o limite temporário do banco. Seu carrinho foi preservado; aguarde alguns minutos e tente novamente.");
@@ -1147,8 +1148,14 @@ export function CheckoutModal() {
                 {(!addressReady || addressEditorOpen) && <div className={styles.addressForm}>
                   <div className={styles.newAddressIntro}><strong>{rua.trim() && numero.trim() && !bairro.trim() ? "Complete o endereço" : savedAddresses.length ? "Novo endereço" : "Seu primeiro endereço"}</strong><span>Busque pelo CEP para preencher mais rápido.</span></div>
                   {!manualMode&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepRequestRef.current+=1;cepLookupRef.current="";setCep(formatCEPBR(e.target.value));if(!submittingRef.current)setLoading(false)}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();cepLookupRef.current="";void handleSearchCep()}}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"Digite os 8 números e encontramos o endereço automaticamente."}</small></div>}
-                  <input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/>
-                  <div className={styles.addressGrid}><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/><input ref={districtInputRef} className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid)void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></div>
+                  <div className={styles.addressFirstGuide} role="note">
+                    <strong>Endereço em 3 passos</strong>
+                    <small>1. Escolha o bairro · 2. Digite a rua · 3. Informe o número. Se souber o CEP, você também pode buscá-lo acima.</small>
+                  </div>
+                  <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid)void calculateDeliveryFee(bairro);}} readOnly={!manualMode} data-readonly={!manualMode}/></label>
+                  <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}} readOnly={!manualMode} data-readonly={!manualMode} autoComplete="address-line1"/></label>
+                  {manualMode && districtInspection.valid && <StreetSuggestions street={rua} district={bairro} onSelect={name => { customerEditingRef.current=true; setRua(name); }} />}
+                  <label className={styles.addressFirstField}><span>3 · Número</span><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/></label>
                   <div className={styles.districtHelper} aria-live="polite" data-invalid={(!districtInspection.valid && Boolean(rua.trim() && numero.trim())) || (Boolean(rua.trim()) && rua.trim().length < 4)}>
                     {Boolean(rua.trim() && numero.trim() && !bairro.trim()) && <strong>Falta informar o bairro da entrega. Toque no campo Bairro para completar.</strong>}{Boolean(bairro.trim()) && !districtInspection.valid && <strong>Confira o bairro: use o nome completo, não apenas a inicial.</strong>}
                     {Boolean(rua.trim()) && rua.trim().length < 4 && <strong>Confira a rua: informe o nome completo, não apenas uma letra.</strong>}

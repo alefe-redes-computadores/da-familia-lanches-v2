@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),ts=require('typescript');
+const file='src/app/api/address/street-suggest/route.ts';
+const code=fs.readFileSync(file,'utf8');
+for(const token of ['GEOAPIFY_STREET_ENABLED','GEOAPIFY_API_KEY','process.env','STREET_SEARCH_DISABLED','type", "street','countrycode:br','Patos de Minas','AbortController','RATE_LIMITED','cache: "no-store"','suggestions','response.status === 429'])assert(code.includes(token),'R8 ausente: '+token);
+for(const token of ['adminDb','runTransaction(','collection("Pedidos"','NEXT_PUBLIC_GEOAPIFY_API_KEY','console.log(','console.error(','apiKey: key','tx.create(','tx.update('])assert(!code.includes(token),'R8 proibido: '+token);
+const out=ts.transpileModule(code,{reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}});
+assert.equal((out.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error).length,0,'TypeScript R8 sem erro de sintaxe');
+assert(/origin !== new URL\(request.url\).origin/.test(code),'R8 exige mesma origem');
+assert(/city !== "patos de minas"/.test(code),'R8 valida municipio da resposta');
+assert(/bucket.count > 12/.test(code),'R8 tem limite por instancia');
+assert(!code.includes('deliveryFee')&&!code.includes('deliveryQuote'),'R8 nao altera frete');
+console.log('DFL SITE R8 — 20 contratos de seguranca + sintaxe aprovados (sem API externa)');

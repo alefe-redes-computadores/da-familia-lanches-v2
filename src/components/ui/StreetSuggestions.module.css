@@ -1,0 +1,5 @@
+.wrap{display:grid;gap:7px;margin-block:4px 10px}
+.wrap small{font-size:12px;color:#75634c;line-height:1.45}
+.suggestions{display:grid;gap:6px;padding:10px;border:1px solid #e7d3ae;border-radius:13px;background:#fffaf1}
+.suggestions button{width:100%;min-height:44px;text-align:left;border:1px solid #e5d7bd;border-radius:10px;background:white;color:#302518;font:inherit;font-size:13px;font-weight:750;padding:10px 12px;cursor:pointer;overflow-wrap:anywhere}
+.suggestions button:focus-visible{outline:3px solid #bd8c21;outline-offset:2px}

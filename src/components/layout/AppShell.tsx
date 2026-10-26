@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import styles from "./AppShell.module.css";
 import { Header } from "@/components/layout/Header";
+import { DFLAssist } from "@/components/layout/DFLAssist";
 import { MobileDrawerMenu } from "@/components/layout/MobileDrawerMenu";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { Footer } from "@/components/layout/Footer";
@@ -111,6 +112,7 @@ export function AppShell({ children }: Props) {
       <PrivacyBanner />
       {modal}
       <CartToast />
+      <DFLAssist />
     </div>
   );
 }

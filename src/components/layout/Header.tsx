@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Menu, Search, ShoppingCart, UserRound, X } from "lucide-react";
+import { Menu, Search, ShoppingCart, UserRound, X, Bot } from "lucide-react";
 import { CATALOG_SEARCH_EVENT } from "@/lib/catalogSearch";
 import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
@@ -132,6 +132,7 @@ export function Header() {
           <button className={styles.login} type="button" onClick={() => openModal("login")} aria-label="Entrar na conta"><UserRound size={17}/><span>Entrar</span></button>
         )}
 
+        <button className={styles.iconButton} type="button" onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))} aria-label="Abrir DFL Assist" title="DFL Assist"><Bot size={20} aria-hidden="true" /></button>
         <button className={`${styles.iconButton} ${styles.desktopCart}`} type="button" onClick={() => openModal("cart")} aria-label="Abrir carrinho">
           <ShoppingCart size={19} aria-hidden="true" />
           {totalItems > 0 && <b className={styles.badge}>{totalItems > 99 ? "99+" : totalItems}</b>}

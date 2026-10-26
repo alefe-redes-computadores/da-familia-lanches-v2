@@ -1,0 +1,14 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const rd=p=>fs.readFileSync(p,'utf8');
+const o=rd('src/components/layout/DFLAssistOffers.tsx'),a=rd('src/components/layout/DFLAssist.tsx'),css=rd('src/components/layout/DFLAssist.module.css');
+assert(o.includes('const [query, setQuery] = useState("")'));
+assert(o.includes('recommendDFLProducts(products, { people, budget, onlyCombos, query }, 4)'));
+assert(o.includes('[catalogReady, validBudget, products, people, budget, onlyCombos, query]'));
+assert(o.includes('id="dfl-assist-ingredients"')&&o.includes('maxLength={100}'));
+assert(o.includes('source === "hybrid"')&&o.includes('!loading && !error'));
+assert(o.includes('onFindProduct(product.name)'));
+assert(!/createCustomerOrder|addToCart|clearCart|\.setDoc\(|\.addDoc\(|fetch\(/.test(o));
+assert(a.includes('Não é atendimento por IA generativa'));
+assert(css.includes('.offerQuery:focus-visible')&&css.includes('@media(max-width:360px)'));
+console.log('R13: contratos da conversa comercial aprovados');

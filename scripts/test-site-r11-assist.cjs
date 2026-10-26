@@ -1,0 +1,17 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),ts=require('typescript');
+const source=fs.readFileSync('src/lib/dflAssistRecommendations.ts','utf8');
+const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const moduleObj={exports:{}};new Function('module','exports',compiled)(moduleObj,moduleObj.exports);
+const {recommendDFLProducts:recommend}=moduleObj.exports;
+const p=(id,name,price,disponivel=true,extra={})=>({id,name,description:'',category:'promocoes',price,disponivel,image:'',...extra});
+const products=[p('a','Combo Familia',59.99,true,{bundleItems:[{productId:'uai',quantity:5},{productId:'kuat-2l',quantity:1}]}),p('b','Combo Pequeno',30,true,{bundleItems:[{productId:'uai',quantity:2}]}),p('c','Combo Pausado',10,false),p('d','Frango Especial',25,true,{category:'lanches',description:'File de frango'}),p('e','Produto Nao Finito',NaN,true)];
+assert.equal(recommend(products,{query:'FRÁNGO'})[0].product.id,'d');
+assert.deepEqual(recommend(products,{onlyCombos:true,budget:40}).map(x=>x.product.id),['b']);
+assert.equal(recommend(products,{onlyCombos:true,people:5})[0].product.id,'a');
+assert(!recommend(products,{}).some(x=>x.product.id==='c'||x.product.id==='e'));
+assert.equal(recommend(products,{query:'naoexiste'}).length,0);
+assert.equal(recommend(products,{budget:0}).length,0);
+assert(recommend(products,{},100).length<=8);
+assert(!/fetch\(|adminDb|runTransaction|\.addDoc\(/.test(source));
+console.log('R11: 8 contratos de busca, preco, disponibilidade, combos e isolamento OK');

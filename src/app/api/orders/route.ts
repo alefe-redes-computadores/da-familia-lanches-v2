@@ -398,7 +398,7 @@ export async function POST(request: NextRequest) {
         customerSnapshot: { id: actorId, name: text(customer.name, 120) || text(incoming.userName, 120), email: decoded?.email || "", phone, phoneE164: `+55${phone.replace(/\D/g, "")}` },
         deliverySnapshot: deliveryMode === "pickup" ? null : { cep: text(delivery.cep, 20), street: text(delivery.street, 180), number: text(delivery.number, 30), district, complement: text(delivery.complement, 180), reference: text(delivery.reference, 240) },
       };
-      if (deliveryMode === "delivery" && (text(delivery.street).length < 4 || !text(delivery.number) || !inspectDistrict(district).valid || text(delivery.cep).replace(/\D/g, "").length !== 8)) throw new Error("ADDRESS_INVALID");
+      if (deliveryMode === "delivery" && (text(delivery.street).length < 4 || !text(delivery.number) || !inspectDistrict(district).valid || ![0, 8].includes(text(delivery.cep).replace(/\D/g, "").length))) throw new Error("ADDRESS_INVALID");
       const event = buildOrderCreatedEvent({ orderId: orderRef.id, order: canonicalOrder, occurredAt });
       tx.create(orderRef, canonicalOrder);
 

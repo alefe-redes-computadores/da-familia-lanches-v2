@@ -1,1 +1,73 @@
 .host{position:fixed;z-index:12000;left:12px;right:12px;bottom:calc(82px + env(safe-area-inset-bottom));display:flex;justify-content:center;pointer-events:none}.toast{pointer-events:auto;width:min(100%,390px);display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(18,18,18,.97);color:#fff;box-shadow:0 18px 48px rgba(0,0,0,.3);backdrop-filter:blur(16px)}.icon{display:grid;place-items:center;flex:0 0 28px;height:28px;border-radius:9px;background:#ffca28;color:#171717;font-size:14px;font-weight:950}.copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.copy span{font-size:9px;line-height:1.4;color:#c9c9c9}.action{border:0;border-radius:10px;background:#ffca28;color:#171717;padding:8px 10px;font-size:9px;font-weight:950;white-space:nowrap}.close{border:0;background:transparent;color:#aaa;padding:3px 5px;font-size:18px;line-height:1}
+
+/* DFL SITE R17 - TOAST PREMIUM */
+.host{
+  left:max(12px,env(safe-area-inset-left,0px));
+  right:max(12px,env(safe-area-inset-right,0px));
+  bottom:calc(84px + env(safe-area-inset-bottom,0px));
+  z-index:12000;
+}
+.toast{
+  width:min(100%,420px);
+  min-width:0;
+  padding:13px;
+  gap:11px;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:18px;
+  background:rgba(24,23,21,.98);
+  box-shadow:0 18px 48px rgba(0,0,0,.32);
+  color:#fff;
+}
+.icon{
+  flex:0 0 34px;
+  width:34px;
+  height:34px;
+  border-radius:11px;
+  font-size:16px;
+}
+.copy{min-width:0;gap:4px}
+.copy strong{
+  font-size:13px;
+  line-height:1.35;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.copy span{
+  font-size:12px;
+  line-height:1.5;
+  color:#dedbd3;
+  overflow-wrap:anywhere;
+}
+.action{
+  flex:0 0 auto;
+  min-height:44px;
+  max-width:35%;
+  padding:9px 12px;
+  font-size:12px;
+  border-radius:11px;
+  cursor:pointer;
+  white-space:normal;
+}
+.close{
+  flex:0 0 34px;
+  display:grid;
+  place-items:center;
+  width:34px;
+  height:44px;
+  border-radius:9px;
+  font-size:23px;
+  color:#dedbd3;
+  cursor:pointer;
+}
+.close:hover{background:rgba(255,255,255,.08)}
+.action:focus-visible,.close:focus-visible{
+  outline:3px solid #ffca28;
+  outline-offset:3px;
+}
+@media(max-width:380px){
+  .toast{gap:7px;padding:10px}
+  .action{padding:8px;max-width:33%}
+}
+@media(prefers-reduced-motion:reduce){
+  .toast,.icon,.action,.close{animation:none;transition:none}
+}
