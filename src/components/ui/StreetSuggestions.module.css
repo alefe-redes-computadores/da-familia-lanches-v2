@@ -3,3 +3,12 @@
 .suggestions{display:grid;gap:6px;padding:10px;border:1px solid #e7d3ae;border-radius:13px;background:#fffaf1}
 .suggestions button{width:100%;min-height:44px;text-align:left;border:1px solid #e5d7bd;border-radius:10px;background:white;color:#302518;font:inherit;font-size:13px;font-weight:750;padding:10px 12px;cursor:pointer;overflow-wrap:anywhere}
 .suggestions button:focus-visible{outline:3px solid #bd8c21;outline-offset:2px}
+
+
+/* DFL R28 STREET AUTOCOMPLETE */
+.wrap{min-width:0;overflow-wrap:anywhere}
+.suggestions{border-radius:15px;box-shadow:0 8px 22px rgba(52,37,12,.055);gap:8px}
+.suggestions button{min-height:48px;touch-action:manipulation;transition:border-color 150ms ease,background-color 150ms ease}
+.suggestions button:active{background:#fff0ce;border-color:#bd8c21}
+@media(max-width:365px){.suggestions{padding:8px}.suggestions button{padding:11px}}
+@media(prefers-reduced-motion:reduce){.suggestions button{transition:none}}

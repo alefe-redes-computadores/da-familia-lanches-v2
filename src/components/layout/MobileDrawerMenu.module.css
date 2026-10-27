@@ -11,3 +11,22 @@
 .utility svg{width:19px;height:19px;flex-shrink:0}
 @media(min-width:400px){.utility{grid-template-columns:repeat(4,minmax(0,1fr))}.utility span{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.drawer{animation:none}}
+
+
+/* DFL R28 RESPONSIVE DRAWER */
+.root{isolation:isolate}
+.drawer{top:0;bottom:0;height:100dvh;max-height:100dvh;padding-bottom:calc(20px + env(safe-area-inset-bottom));overscroll-behavior:contain;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#584b30 transparent}
+.drawer:focus{outline:none}
+.drawer .utility button,.drawer .utility a{touch-action:manipulation}
+.drawer .utility span{overflow-wrap:anywhere;line-height:1.4}
+.drawer .actionGrid button{min-height:96px}
+.drawer .actionGrid small{line-height:1.45}
+.drawer :is(button,a):focus-visible{outline:3px solid #ffca28;outline-offset:2px}
+@media(max-width:350px){
+  .drawer{width:min(96vw,390px);padding-left:10px;padding-right:10px}
+  .actionGrid{gap:7px}
+  .drawer .actionGrid button{padding:10px;min-height:92px}
+  .utility{gap:7px}
+  .utility span{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){.drawer{scroll-behavior:auto}}

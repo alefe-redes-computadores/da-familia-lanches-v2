@@ -96,16 +96,18 @@ export default function Home() {
     window.dispatchEvent(new CustomEvent(CATALOG_SEARCH_EVENT, { detail: search }));
   }, [search]);
 
+  // R30: categorias visiveis indexadas uma unica vez por atualizacao.
+  const visibleCategoryIds = useMemo(() => new Set(categories.map((category) => category.id)), [categories]);
   const filtered = useMemo(() => {
     const term = normalize(deferredSearch);
-    const visibleCategories = new Set(categories.map((category) => category.id));
+    const visibleCategories = visibleCategoryIds;
     const base = products.filter((product) => {
       if (product.disponivel === false) return false;
       if (!visibleCategories.has(product.category)) return false;
       return activeCategory === "todos" || product.category === activeCategory;
     });
     return term ? rankCatalogProducts(base, term) : base;
-  }, [activeCategory, categories, products, deferredSearch]);
+  }, [activeCategory, visibleCategoryIds, products, deferredSearch]);
 
   useEffect(() => {
     const onSearch = (event: Event) => {
@@ -132,10 +134,10 @@ export default function Home() {
 
   const promoProducts = useMemo(
     () => products
-      .filter((product) => categories.some((category) => category.id === product.category) && product.disponivel !== false && typeof product.oldPrice === "number" && product.oldPrice > product.price && (product.promoPlacement === "home_showcase" || (product.promoPlacement == null && product.isSuggestion === true)))
+      .filter((product) => visibleCategoryIds.has(product.category) && product.disponivel !== false && typeof product.oldPrice === "number" && product.oldPrice > product.price && (product.promoPlacement === "home_showcase" || (product.promoPlacement == null && product.isSuggestion === true)))
       .sort((a, b) => (((b.oldPrice! - b.price) / b.oldPrice!) * 100) - (((a.oldPrice! - a.price) / a.oldPrice!) * 100))
       .slice(0, 6),
-    [products, categories],
+    [products, visibleCategoryIds],
   );
 
   // V87 R1: uma indexação por render, sem filtragens/ordenações repetidas por categoria.
@@ -153,13 +155,15 @@ export default function Home() {
     return groups;
   }, [activeCategory, filtered, promoProducts, search]);
 
+  // R29: favoritos e recentes consultam indice local em O(1), sem novas consultas.
+  const productById = useMemo(() => new Map(products.map(product => [product.id, product])), [products]);
   const savedProducts = useMemo(() => savedProductIds
-    .map((id) => products.find((product) => product.id === id))
-    .filter((product): product is Product => Boolean(product && product.disponivel !== false && categories.some((category) => category.id === product.category))),
-  [savedProductIds, products, categories]);
+    .map((id) => productById.get(id))
+    .filter((product): product is Product => Boolean(product && product.disponivel !== false && visibleCategoryIds.has(product.category))),
+  [savedProductIds, productById, visibleCategoryIds]);
   const recentlyViewed = useMemo(() => recentProductIds
-    .map((id) => products.find((product) => product.id === id))
-    .filter((product): product is Product => Boolean(product && product.disponivel !== false && categories.some((category) => category.id === product.category))), [recentProductIds, products, categories]);
+    .map((id) => productById.get(id))
+    .filter((product): product is Product => Boolean(product && product.disponivel !== false && visibleCategoryIds.has(product.category))), [recentProductIds, productById, visibleCategoryIds]);
   const openProduct = (product: Product) => {
     if (product.disponivel === false) return;
     rememberRecentProductId(product.id);
@@ -326,3 +330,7 @@ export default function Home() {
     </div>
   );
 }
+
+// DFL-R29-CATALOG-INDEX
+
+// DFL-R30-HOME-INDEX

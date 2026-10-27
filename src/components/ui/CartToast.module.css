@@ -71,3 +71,19 @@
 @media(prefers-reduced-motion:reduce){
   .toast,.icon,.action,.close{animation:none;transition:none}
 }
+
+
+/* DFL R28 TOAST MOBILE POLISH */
+.toast{max-width:100%;overflow-wrap:anywhere}
+.copy{min-width:0;overflow-wrap:anywhere}
+.action{touch-action:manipulation;min-width:0}
+.host{max-width:100vw;box-sizing:border-box}
+@media(max-width:350px){
+ .host{left:8px;right:8px;bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+ .toast{gap:6px;padding:9px;border-radius:15px}
+ .icon{flex-basis:28px;width:28px;height:28px}
+ .copy strong{font-size:12px}
+ .copy span{font-size:11px}
+ .action{padding:8px 7px;font-size:11px}
+ .close{flex-basis:30px;width:30px}
+}

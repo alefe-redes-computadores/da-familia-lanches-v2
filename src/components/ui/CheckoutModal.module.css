@@ -731,3 +731,10 @@
     animation:none;
   }
 }
+
+
+/* DFL R27 DISTRICT UX */
+.addressForm .districtMatchNote{display:block;padding:11px 12px;border:1px solid #e8d8b3;border-radius:12px;background:#fffaf0;color:#755323;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.addressForm .districtSuggestions button{touch-action:manipulation;overflow-wrap:anywhere}
+.addressForm .addressFirstField input{min-width:0;max-width:100%}
+@media(max-width:360px){.addressForm .districtMatchNote{padding:10px}}

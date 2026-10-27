@@ -131,3 +131,18 @@
 .saveFavorite[data-saved=true]{background:#fff2d1;border-color:#edc86b;color:#754b05}
 .saveFavorite:focus-visible{outline:3px solid #bb851d;outline-offset:3px}
 @media(max-width:760px){.saveFavorite{margin-top:8px}}
+
+/* DFL R30 PUBLIC PRODUCT MOBILE */
+/* Pagina individual: dados legiveis e CTA sem corte. */
+.primaryAction{min-width:0;touch-action:manipulation}
+.primaryAction span{min-width:0;overflow-wrap:anywhere}
+.price strong{font-variant-numeric:tabular-nums}
+.summary h1{overflow-wrap:anywhere}
+.relatedGrid{overscroll-behavior-x:contain}
+@media(max-width:380px){
+ .primaryAction{grid-template-columns:auto minmax(0,1fr);row-gap:2px}
+ .primaryAction>b{grid-column:2;text-align:left;white-space:normal}
+ .buyRow{align-items:flex-start}
+ .share{flex-shrink:0}
+ .summary{padding-inline:12px}
+}

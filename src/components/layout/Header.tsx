@@ -44,11 +44,27 @@ export function Header() {
     window.addEventListener("dfl:guest-continuity",sync); return()=>window.removeEventListener("dfl:guest-continuity",sync);
   }, []);
 
+  // R28: throttle com requestAnimationFrame; evita trabalho a cada pixel de scroll.
   useEffect(() => {
-    const onScroll = () => setCompact(window.scrollY > 120);
-    onScroll();
+    let frame = 0;
+    let lastCompact: boolean | null = null;
+    const update = () => {
+      frame = 0;
+      const next = window.scrollY > 120;
+      if (next !== lastCompact) {
+        lastCompact = next;
+        setCompact(next);
+      }
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, []);
 
   const updateCatalogSearch = (value: string) => {

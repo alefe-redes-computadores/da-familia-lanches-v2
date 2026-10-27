@@ -277,3 +277,38 @@
 .savedConfirm button:first-of-type{background:#3b2e17;color:#fff;border-color:#3b2e17}
 .savedHeadingActions button:focus-visible,.savedConfirm button:focus-visible{outline:3px solid #bd8b26;outline-offset:2px}
 @media(max-width:520px){.savedHeadingActions{flex-direction:column;align-items:flex-end;gap:4px}.savedHeadingActions button{min-height:44px}.savedConfirm button{flex:1 1 45%}}
+
+/* DFL R29 CATALOG MOBILE QUALITY */
+/* Cartoes consistentes e interacoes sem saltos em aparelhos pequenos. */
+.card{isolation:isolate;min-width:0}
+.card:focus-within{outline:3px solid #b88513;outline-offset:2px}
+.cardBody h3{overflow-wrap:anywhere}
+.media{background:#eee6db}
+.searchBox:focus-within{outline:3px solid #ffca28;outline-offset:3px}
+.categoryRail{scroll-padding-inline:16px;overscroll-behavior-inline:contain}
+.category:focus-visible,.categoryActive:focus-visible,.card button:focus-visible,.allOffersButton:focus-visible{outline:3px solid #c08e19;outline-offset:3px}
+@media(max-width:560px){
+ .card{border-radius:17px}
+ .cardBody{min-width:0}
+ .cardFooter{min-width:0;gap:6px}
+ .priceBlock{min-width:0;overflow-wrap:anywhere}
+ .searchBox{min-width:0}
+ .searchBox input{min-width:0;font-size:16px}
+ .categoryRail{scroll-snap-type:x proximity}
+ .categoryRail button{scroll-snap-align:start;touch-action:manipulation}
+}
+@media(hover:none){.card:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){.card,.categoryRail{transition:none!important;scroll-behavior:auto!important}}
+
+/* DFL R30 HOME SEARCH POLISH */
+.searchBox input{font-size:16px;min-width:0}
+.cardBody h3{line-height:1.35}
+.priceBlock strong{font-variant-numeric:tabular-nums}
+.cardFooter{min-width:0}
+.categoryRail button{min-height:44px}
+@media(max-width:370px){
+ .cardBody{padding:10px}
+ .cardDescription{line-height:1.4}
+ .priceBlock strong{font-size:clamp(13px,4vw,17px)}
+ .searchBox{gap:7px;padding-inline:11px}
+}

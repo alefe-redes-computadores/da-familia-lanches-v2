@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Home,
   ClipboardList,
@@ -44,16 +44,38 @@ export function MobileDrawerMenu() {
   const items = useCartStore((state) => state.items);
   const shopStatus = useShopStatus();
   const [shared, setShared] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
   const isOpen = activeModal === "menu";
   const itemCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const cartTotal = items.reduce((sum, item) => sum + Number(item.price) * (item.quantity || 0), 0);
   const firstName = currentUser?.displayName?.split(" ")[0] || currentUser?.email?.split("@")[0] || "Visitante";
 
+  // R28: tabulacao e Escape permanecem dentro do menu, sem scroll de fundo.
   useEffect(() => {
     if (!isOpen) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeModal(); };
+    const prior = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => drawerRef.current?.focus({ preventScroll: true }));
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); closeModal(); return; }
+      if (event.key !== "Tab") return;
+      const nodes = drawerRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href]');
+      if (!nodes?.length) return;
+      const first = nodes[0], last = nodes[nodes.length-1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === drawerRef.current)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === drawerRef.current)) {
+        event.preventDefault(); first.focus();
+      }
+    };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = overflow;
+      if (prior?.isConnected && (document.activeElement === document.body || drawerRef.current?.contains(document.activeElement))) prior.focus({ preventScroll: true });
+    };
   }, [closeModal, isOpen]);
 
   if (!isOpen) return null;
@@ -80,7 +102,7 @@ export function MobileDrawerMenu() {
   return (
     <div className={styles.root} role="dialog" aria-modal="true" aria-label="Menu rápido">
       <button className={styles.backdrop} type="button" onClick={closeModal} aria-label="Fechar menu" />
-      <aside className={styles.drawer}>
+      <aside ref={drawerRef} tabIndex={-1} className={styles.drawer}>
         <header className={styles.drawerHeader}>
           <div className={styles.brandMark}>DFL</div>
           <div className={styles.brandCopy}><span>DA FAMÍLIA LANCHES</span><strong>Seu pedido começa aqui</strong></div>

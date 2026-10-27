@@ -45,3 +45,39 @@
 @media(min-width:430px){.offerButtonLabel{display:inline}}
 @media(max-width:370px){.offerFilters{grid-template-columns:1fr}.offerList li{grid-template-columns:60px minmax(0,1fr) auto;gap:7px}.offerImage{width:60px;height:66px}.offerList button{padding:8px}}
 @media(prefers-reduced-motion:reduce){.panel *{animation:none!important;transition:none!important}}
+
+
+/* DFL R27 ASSIST MOBILE PREMIUM */
+.backdrop{padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+.panel{min-width:0;max-height:min(92dvh,930px);gap:12px;overscroll-behavior:contain;scrollbar-gutter:auto}
+.quickSearch{display:flex;gap:7px;flex-wrap:wrap;min-width:0}
+.quickSearch button{min-height:42px;padding:9px 13px;border-radius:999px;border:1px solid #e0cba6;background:#fffaf0;color:#534126;font:inherit;font-size:12px;font-weight:850;cursor:pointer;touch-action:manipulation}
+.quickSearch button[aria-pressed="true"]{border-color:#a77713;background:#322716;color:#ffcd69}
+.offerSearchRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:stretch;min-width:0}
+.offerSearchRow .offerQuery{min-width:0;min-height:49px}
+.offerSearchAction{max-width:118px;min-height:49px;border:0;border-radius:12px;background:#2d2318;color:#fff;font:inherit;font-size:12px;font-weight:850;line-height:1.25;padding:8px 10px;cursor:pointer}
+.offerSearchAction:disabled{opacity:.48;cursor:not-allowed}
+.offerIntent,.offerSafety{margin:0;padding:10px 12px;border-radius:12px;background:#f4ecd9;color:#66512f;font-size:12px;line-height:1.5}
+.offerSafety{border:1px solid #eccb8a;background:#fff5e5;color:#774c15}
+.offerCount{margin:0;color:#6a512c;font-size:11px;font-weight:850}
+.offers{gap:10px;min-width:0}
+.offerList li{min-width:0;grid-template-columns:72px minmax(0,1fr) auto}
+.offerCopy{overflow-wrap:anywhere}
+.offerCopy small{max-width:100%}
+.panel :is(button,input):focus-visible{outline:3px solid #c99516;outline-offset:2px}
+@media(max-width:390px){.panel{padding:13px;border-radius:20px}.quickSearch{gap:6px}.quickSearch button{font-size:11px;min-height:42px;padding-inline:10px}.offerList li{grid-template-columns:60px minmax(0,1fr) auto;gap:7px}.offerImage{width:60px;height:66px}}
+@media(max-width:340px){.offerSearchRow{grid-template-columns:1fr}.offerSearchAction{max-width:none}.offerList li{grid-template-columns:54px minmax(0,1fr);gap:8px}.offerImage{width:54px;height:60px}.offerList li>button{grid-column:2;max-width:none;width:100%}.offerButtonLabel{display:inline}}
+@media(min-width:650px){.backdrop{padding:16px}.panel{max-height:min(90dvh,930px)}}
+@media(prefers-reduced-motion:reduce){.quickSearch button,.offerSearchAction{transition:none;animation:none}}
+
+
+/* DFL R28 ACCESSIBLE ASSIST */
+.backdrop{overscroll-behavior:contain}
+.panel{min-width:0;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#bba47e transparent}
+.panel:focus{outline:none}
+.header{position:sticky;top:-2px;z-index:2;background:#fffaf1;padding-block:3px}
+.panel .close{flex:0 0 44px;border-radius:12px}
+.panel .close:active{background:#f1e5d1}
+.offerList li{content-visibility:auto;contain-intrinsic-size:auto 100px}
+@media(max-width:360px){.panel{max-height:calc(100dvh - 16px - env(safe-area-inset-bottom))}.offerList li{min-height:88px}}
+@media(prefers-reduced-motion:reduce){.panel{scroll-behavior:auto}}

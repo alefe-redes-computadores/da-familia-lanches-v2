@@ -10,7 +10,7 @@ import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { formatCEPBR, formatPhoneBR, saveUserAddresses, saveUserProfile, type SavedAddress } from "@/lib/userProfile";
-import { inspectDistrict, matchDeliveryRate, suggestDistricts } from "@/lib/addressIntelligence";
+import { inspectDistrict, matchDeliveryRate, normalizeDistrict } from "@/lib/addressIntelligence";
 import { recoverSavedDistrictForExactAddress } from "@/lib/addressDraftRepair";
 import { db } from "@/lib/firebase";
 import { createCustomerOrder } from "@/lib/orderRepository";
@@ -83,6 +83,7 @@ export function CheckoutModal() {
   const scheduleSectionRef = useRef<HTMLElement>(null);
   const cepLookupRef = useRef("");
   const cepRequestRef = useRef(0);
+  const deliveryFeeRequestRef = useRef(0); // R28: ignora respostas atrasadas de frete
 
   const orderAttemptStorageKey = currentUser?.uid
     ? `dfl:pending-order:${currentUser.uid}`
@@ -201,9 +202,11 @@ export function CheckoutModal() {
   }, [scheduleSlots]);
 
   const phoneDigits = userPhone.replace(/\D/g, "");
-  const configuredDistricts = deliveryTableCache?.list.map(item => String(item.nome ?? "")) ?? [];
-  const districtInspection = inspectDistrict(bairro, configuredDistricts);
-  const districtSuggestions = suggestDistricts(bairro, configuredDistricts);
+  // R27: a tabela de frete já está em cache; recompute sugestões apenas se o bairro ou a tabela mudar.
+  const configuredDistricts = useMemo(() => deliveryTableCache?.list.map(item => String(item.nome ?? "")) ?? [], [deliveryTableCache?.list]);
+  const districtInspection = useMemo(() => inspectDistrict(bairro, configuredDistricts), [bairro, configuredDistricts]);
+  const districtSuggestions = districtInspection.suggestions;
+  const districtKnownToTable = configuredDistricts.some(name => normalizeDistrict(name) === normalizeDistrict(bairro));
   const addressReady = isPickup || Boolean((cep.replace(/\D/g, "").length === 0 || cep.replace(/\D/g, "").length === 8) && rua.trim().length >= 4 && numero.trim() && districtInspection.valid);
   const phoneReady = phoneDigits.length === 10 || phoneDigits.length === 11;
 
@@ -523,6 +526,7 @@ export function CheckoutModal() {
   // DFL-R23-ADDRESS-FEEDBACK
   // DFL-R24-SAFE-WHATSAPP
   const calculateDeliveryFee = async (district: string) => {
+    const requestId = ++deliveryFeeRequestRef.current;
     if (!inspectDistrict(district).valid) {
       setDeliveryStatus("Bairro incompleto. Selecione a sugestão ou informe o nome completo.");
       return;
@@ -530,6 +534,7 @@ export function CheckoutModal() {
 
     try {
       const { list, defaultFee: configuredDefaultFee } = await getDeliveryTableCached();
+      if (requestId !== deliveryFeeRequestRef.current) return;
       if (!list.length) {
         setDeliveryFee(configuredDefaultFee);
         setDeliveryStatus("Não há bairros configurados na tabela. A taxa será validada antes de registrar o pedido.");
@@ -546,6 +551,7 @@ export function CheckoutModal() {
         setDeliveryStatus("Não encontramos esse bairro na tabela de entrega. Confira o nome ou escolha uma sugestão. O valor exibido ainda precisa de confirmação.");
       }
     } catch (error) {
+      if (requestId !== deliveryFeeRequestRef.current) return;
       console.error("Erro ao buscar taxas", error);
       setDeliveryFee(DEFAULT_DELIVERY_FEE);
       setDeliveryStatus("Não conseguimos consultar as taxas agora. Seu endereço foi preservado; tente novamente antes de confirmar.");
@@ -1155,7 +1161,7 @@ export function CheckoutModal() {
                     <strong>Endereço em 3 passos</strong>
                     <small>1. Escolha o bairro · 2. Digite a rua · 3. Informe o número. Se preferir, utilize a busca opcional por CEP.</small>
                   </div>
-                  <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value)}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid)void calculateDeliveryFee(bairro);}} /></label>
+                  <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value);deliveryFeeRequestRef.current += 1;setDeliveryStatus("")}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid&&districtSuggestions.length===0)void calculateDeliveryFee(bairro);}} /></label>
                   <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}}  autoComplete="address-line1"/></label>
                   {manualMode && districtInspection.valid && <StreetSuggestions street={rua} district={bairro} onSelect={name => { customerEditingRef.current=true; setRua(name); }} />}
                   <label className={styles.addressFirstField}><span>3 · Número</span><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/></label>
@@ -1183,6 +1189,7 @@ export function CheckoutModal() {
                   <div className={styles.districtHelper} aria-live="polite" data-invalid={(!districtInspection.valid && Boolean(rua.trim() && numero.trim())) || (Boolean(rua.trim()) && rua.trim().length < 4)}>
                     {Boolean(rua.trim() && numero.trim() && !bairro.trim()) && <strong>Falta informar o bairro da entrega. Toque no campo Bairro para completar.</strong>}{Boolean(bairro.trim()) && !districtInspection.valid && <strong>Confira o bairro: use o nome completo, não apenas a inicial.</strong>}
                     {Boolean(rua.trim()) && rua.trim().length < 4 && <strong>Confira a rua: informe o nome completo, não apenas uma letra.</strong>}
+                    {bairro.trim().length >= 4 && districtInspection.valid && configuredDistricts.length > 0 && !districtKnownToTable && districtSuggestions.length === 0 && <small className={styles.districtMatchNote}>Bairro não encontrado na tabela carregada. Confira a escrita; você pode continuar preenchendo, mas a taxa será confirmada na finalização.</small>}
                     {districtSuggestions.length > 0 && manualMode && <div className={styles.districtSuggestions} aria-label="Sugestões de bairros"><small>Você quis dizer:</small>{districtSuggestions.map(name=><button type="button" key={name} onClick={()=>{setBairro(name);setDeliveryStatus(`Bairro escolhido: ${name}. Confira rua e número.`);void calculateDeliveryFee(name);}}>{name}</button>)}</div>}
                   </div>
                   <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info} role="status" aria-live="polite">{deliveryStatus}</div>}

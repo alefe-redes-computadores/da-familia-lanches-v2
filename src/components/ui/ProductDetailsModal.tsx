@@ -13,6 +13,7 @@ import { AddonGroupsChoices } from "./AddonGroupsChoices";
 import { resolveBundleItems } from "@/lib/catalogComposition";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
+import { remainingUpsellUnits } from "@/lib/upsellEntitlement";
 import { useUIStore } from "@/store/ui";
 import { ModalBase } from "./ModalBase";
 import styles from "./ProductDetailsModal.module.css";
@@ -42,6 +43,7 @@ export function ProductDetailsModal() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const authLoading = useAuthStore((s) => s.loading);
   const addItem = useCartStore((s) => s.addItem);
+  const cartItems = useCartStore((s) => s.items);
   const { addons, products } = useCatalog();
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
@@ -67,6 +69,7 @@ export function ProductDetailsModal() {
     : undefined;
   const hasExplicitUpsell = Boolean(upsellProduct && product.upsellUnitPrice != null && product.upsellUnitPrice >= 0 && product.upsellUnitPrice < upsellProduct.price);
   const upsellSaving = hasExplicitUpsell ? upsellProduct!.price - product.upsellUnitPrice! : 0;
+  const upsellRemaining = hasExplicitUpsell && upsellProduct ? remainingUpsellUnits(cartItems, product.id, upsellProduct.id) : 0;
 
   const toggleAddon = (addon: Addon) => {
     setAddonNotice("");
@@ -84,9 +87,15 @@ export function ProductDetailsModal() {
     if (!inspectProductSelections(upsellProduct,[]).valid) {
       setAddonNotice("O item Turbine exige personalização. Abra-o separadamente no cardápio.");return;
     }
-    addItem(upsellProduct, quantity, [], "", { upsellSourceId: product.id, unitPrice: product.upsellUnitPrice });
+    if (upsellRemaining <= 0) {
+      setAddonNotice("Para usar este preço especial, adicione primeiro o produto principal ao carrinho.");
+      haptic("step");
+      return;
+    }
+    const allowedQuantity = Math.min(quantity, upsellRemaining);
+    addItem(upsellProduct, allowedQuantity, [], "", { upsellSourceId: product.id, unitPrice: product.upsellUnitPrice });
     haptic("add");
-    showCartToast({ title: `${upsellProduct.name} adicionado`, message: `Preço especial de ${money(product.upsellUnitPrice)} aplicado com ${product.name}.`, kind: "add" });
+    showCartToast({ title: `${upsellProduct.name} adicionado`, message: `${allowedQuantity} unidade(s) com preço especial de ${money(product.upsellUnitPrice)}.`, kind: "add" });
   };
 
   const handleAdd = () => {
@@ -127,10 +136,10 @@ export function ProductDetailsModal() {
           <section className={styles.comboUpsell}>
             <div className={styles.comboUpsellCopy}>
               <span>TURBINE SEU PEDIDO</span><strong>+ {upsellProduct.name} com preço especial</strong>
-              <p>Oferta exclusiva vinculada a {product.name}. Cada unidade deste item libera uma unidade promocional.</p>
+              <p>{upsellRemaining > 0 ? `${upsellRemaining} unidade(s) disponíveis com este preço especial no seu carrinho.` : `Adicione ${product.name} ao carrinho primeiro para liberar esta oferta.`}</p>
               <div><s>{money(upsellProduct.price)}</s><b>{money(product.upsellUnitPrice)}</b><em>Economize {money(upsellSaving)}</em></div>
             </div>
-            <button type="button" onClick={handleUpsell}>Adicionar +</button>
+            <button type="button" onClick={handleUpsell}>{upsellRemaining > 0 ? "Adicionar oferta +" : "Como desbloquear"}</button>
           </section>
         )}
 
@@ -164,3 +173,5 @@ export function ProductDetailsModal() {
     </ModalBase>
   );
 }
+
+// DFL-R30-UPSELL-GUARD

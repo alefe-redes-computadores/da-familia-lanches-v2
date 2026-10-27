@@ -15,7 +15,16 @@ context.window.sessionStorage={getItem(){throw Error('blocked')},setItem(){throw
 assert.equal(read().length,0,'Storage inacessivel tolerado');assert.doesNotThrow(()=>add('safe'));
 const home=fs.readFileSync('src/app/page.tsx','utf8'),product=fs.readFileSync('src/components/product/ProductPublicPage.tsx','utf8'),css=fs.readFileSync('src/app/page.module.css','utf8');
 assert.ok(home.includes('recentlyViewed.map((product)'));assert.ok(home.includes('!search.trim() && recentlyViewed.length > 0'));
-assert.ok(home.includes('category.id === product.category'));assert.ok(home.includes('product.disponivel !== false'));
+// R30 R3: pertencimento da categoria continua obrigatorio, inclusive usando Set memoizado.
+const legacyCategoryFilter = home.includes('category.id === product.category');
+const optimizedCategoryFilter =
+  home.includes('const visibleCategoryIds = useMemo(() => new Set(categories.map((category) => category.id)), [categories]);') &&
+  home.includes('const visibleCategories = visibleCategoryIds;') &&
+  (home.match(/visibleCategoryIds\.has\(product\.category\)/g) || []).length === 3;
+assert.ok(legacyCategoryFilter || optimizedCategoryFilter,
+  'V90: categoria deve ser validada em ofertas, favoritos e vistos, com indice ou comparacao direta');
+assert.ok(home.includes('product.disponivel !== false'));
+
 assert.ok(product.includes('rememberRecentProductId(product.id)'));
 assert.ok(css.includes('.recentRail'));assert.ok(!source.includes('localStorage')&&!source.includes('firebase'));
 console.log('V90 EXPERIENCIA — 18 contratos OK');

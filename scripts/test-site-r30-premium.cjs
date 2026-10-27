@@ -1,0 +1,32 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),ts=require('typescript');
+const rd=p=>fs.readFileSync(p,'utf8');
+const f='src/lib/upsellEntitlement.ts';
+const moduleObj={exports:{}};
+const js=ts.transpileModule(rd(f),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+new Function('module','exports',js)(moduleObj,moduleObj.exports);
+const left=moduleObj.exports.remainingUpsellUnits;
+assert.equal(typeof left,'function');
+const items=[{id:'combo',quantity:3},{id:'bebida',quantity:1,upsellSourceId:'combo'}];
+assert.equal(left(items,'combo','bebida'),2);
+assert.equal(left([{id:'bebida',quantity:2,upsellSourceId:'combo'}],'combo','bebida'),0);
+assert.equal(left([{id:'combo',quantity:2},{id:'bebida',quantity:2,upsellSourceId:'combo'}],'combo','bebida'),0);
+assert.equal(left([{id:'combo',quantity:2},{id:'bebida',quantity:1,upsellSourceId:'outro'}],'combo','bebida'),2);
+assert.equal(left([{id:'combo',quantity:NaN}],'combo','bebida'),0);
+assert.equal(left(items,'','bebida'),0);
+const cart=rd('src/components/ui/CartModal.tsx');
+const detail=rd('src/components/ui/ProductDetailsModal.tsx');
+const modal=rd('src/components/ui/ModalBase.tsx');
+const page=rd('src/app/page.tsx');
+for(const t of ['DFL-R30-CART-SAFETY','remainingUpsellUnits(items, item.upsellSourceId, item.id)','remainingUpsellUnits(items, suggestion.upsellSourceId, suggestion.product.id)','setTimeout(() => setClearArmed(false), 8000)','Condição sujeita à confirmação','reconciliation.originalSignature','openModal("checkout")'])assert(cart.includes(t),'Carrinho: '+t);
+for(const t of ['DFL-R30-UPSELL-GUARD','upsellRemaining <= 0','const allowedQuantity = Math.min(quantity, upsellRemaining)','addItem(upsellProduct, allowedQuantity','Adicione ${product.name} ao carrinho primeiro'])assert(detail.includes(t),'Detalhes: '+t);
+for(const t of ['DFL-R30-MODAL-FOCUS','role="dialog"','aria-labelledby={titleId}','useEffect(() => {','event.key === "Escape"','event.key === "Tab"','document.body.style.overflow = "hidden"','document.removeEventListener("keydown", onKey)'])assert(modal.includes(t),'Modal: '+t);
+for(const t of ['DFL-R30-HOME-INDEX','visibleCategoryIds = useMemo','visibleCategoryIds.has(product.category)','rankCatalogProducts','productById.get(id)'])assert(page.includes(t),'Home: '+t);
+for(const p of ['src/components/ui/CartModal.tsx','src/components/ui/ProductDetailsModal.tsx','src/components/ui/ModalBase.tsx','src/app/page.tsx']){
+ const ast=ts.createSourceFile(p,rd(p),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ assert.equal(ast.parseDiagnostics.length,0,p+' JSX invalido');
+}
+for(const [p,t] of [['src/components/ui/CartModal.module.css','DFL R30 CART CONVERSION'],['src/components/ui/ProductDetailsModal.module.css','DFL R30 DETAILS CHECKOUT UX'],['src/components/ui/ModalBase.module.css','DFL R30 FOCUS AND VIEWPORT'],['src/app/page.module.css','DFL R30 HOME SEARCH POLISH'],['src/components/product/ProductPublicPage.module.css','DFL R30 PUBLIC PRODUCT MOBILE']])assert(rd(p).includes(t),'CSS ausente: '+p);
+assert(rd('scripts/test-site-v90-experiencia.cjs').includes('optimizedCategoryFilter'),'V90 precisa validar o indice memoizado');
+assert(!/fetch\(|getDoc\(|addDoc\(|setDoc\(/.test(rd(f)),'Helper nao pode acessar banco/rede');
+console.log('R30: 22 contratos funcionais, mobile e protecao promocional OK');

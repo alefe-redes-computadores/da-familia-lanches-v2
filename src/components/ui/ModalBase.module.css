@@ -90,3 +90,28 @@
   .header{flex:0 0 auto;padding:13px 16px}
   .body{overflow-y:auto}
 }
+
+/* DFL R29 MODAL MOBILE A11Y */
+.modal{min-width:0}
+.header{gap:12px;min-height:60px}
+.title{min-width:0;line-height:1.3;overflow-wrap:anywhere}
+.close{flex:0 0 44px;width:44px;height:44px;border-radius:14px;touch-action:manipulation}
+.close:focus-visible{outline:3px solid #171717;outline-offset:2px}
+.body{min-width:0;overflow-x:hidden;overscroll-behavior:contain}
+@media(max-width:560px){
+ .root{padding-top:env(safe-area-inset-top,0px)}
+ .modal{max-height:calc(100dvh - env(safe-area-inset-top,0px));border-radius:22px 22px 0 0}
+ .header{padding:10px 16px;min-height:60px}
+ .close{flex-basis:44px}
+}
+@media(prefers-reduced-motion:reduce){.backdrop,.modal{animation:none!important;transition:none!important}}
+
+/* DFL R30 FOCUS AND VIEWPORT */
+.modal:focus{outline:none}
+.modal:focus-visible{outline:3px solid #d59d13;outline-offset:-3px}
+.modal{overscroll-behavior:contain}
+.header{flex-shrink:0}
+@media(max-width:560px){
+ .modal{max-height:calc(100dvh - env(safe-area-inset-top,0px));padding-bottom:env(safe-area-inset-bottom,0px)}
+ .body{min-height:0;-webkit-overflow-scrolling:touch}
+}

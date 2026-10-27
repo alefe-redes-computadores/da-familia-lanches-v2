@@ -38,3 +38,27 @@
 @media(hover:hover) and (pointer:fine){.header button{transition:border-color 180ms ease,background-color 180ms ease}}
 @media(max-width:640px){.header :is(.iconButton,.account,.login){min-height:44px;touch-action:manipulation}}
 @media(prefers-reduced-motion:reduce){.header button{transition:none}}
+
+
+/* DFL R28 MOBILE HEADER FIT */
+.header{min-width:0;box-sizing:border-box}
+.header .brandBlock,.header .actions{min-width:0}
+.header .iconButton{flex:0 0 auto;touch-action:manipulation}
+.header .compactSearch{flex:1 1 auto;min-width:0;background:#fff;color:#34291b;border:1px solid #e1d7c5}
+.header .compactSearch input{font-family:inherit;font-weight:650;font-size:13px}
+.header .compactSearch button{flex-shrink:0;background:#f6f0e6;cursor:pointer}
+@media(max-width:390px){
+  .header[data-compact="true"]{gap:5px;padding-inline:7px}
+  .header[data-compact="true"] .brandBlock{flex:0 0 auto}
+  .header[data-compact="true"] .logo span{display:none}
+  .header[data-compact="true"] .logo{font-size:12px}
+  .header[data-compact="true"] .compactSearch{padding-inline:7px;gap:4px}
+  .header[data-compact="true"] .iconButton{width:38px;min-height:44px}
+  .header[data-compact="true"] .actions{gap:4px}
+}
+@media(max-width:335px){
+  .header[data-compact="true"] .brandBlock{max-width:67px}
+  .header[data-compact="true"] .logo{white-space:normal;line-height:1.05;font-size:11px}
+  .header[data-compact="true"] .compactSearch input{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.header .iconButton{transition:none}}

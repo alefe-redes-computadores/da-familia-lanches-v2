@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bot, Search, ShoppingCart, MessageCircle, X } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { CATALOG_SEARCH_EVENT } from "@/lib/catalogSearch";
@@ -11,7 +11,7 @@ import { DFLAssistOffers } from "./DFLAssistOffers";
 /** Assistente de navegação v1: não é IA generativa e não registra pedidos. */
 export function DFLAssist() {
   const [visible, setVisible] = useState(false);
-  const [query, setQuery] = useState("");
+  const panelRef = useRef<HTMLElement>(null);
   const router = useRouter();
   const pathname = usePathname();
   const openModal = useUIStore((s) => s.openModal);
@@ -22,7 +22,33 @@ export function DFLAssist() {
     return () => window.removeEventListener("dfl:assist-open", show);
   }, []);
   useEffect(() => { if (activeModal) setVisible(false); }, [activeModal]);
-  useEffect(() => { if (!visible) return; const key=(event:KeyboardEvent)=>{if(event.key==="Escape")setVisible(false)}; window.addEventListener("keydown",key); return()=>window.removeEventListener("keydown",key); }, [visible]);
+  // R28: dialog acessivel sem prender o cliente fora da janela de compra.
+  useEffect(() => {
+    if (!visible) return;
+    const prior = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => panelRef.current?.focus({ preventScroll: true }));
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setVisible(false); return; }
+      if (event.key !== "Tab") return;
+      const nodes = panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),[tabindex]:not([tabindex="-1"])');
+      if (!nodes?.length) return;
+      const first = nodes[0], last = nodes[nodes.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === panelRef.current)) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", key);
+      document.body.style.overflow = overflow;
+      if (prior?.isConnected && (document.activeElement === document.body || panelRef.current?.contains(document.activeElement))) prior.focus({ preventScroll: true });
+    };
+  }, [visible]);
   const search = (value: string) => {
     const term = value.trim().slice(0,100);
     if (!term) return;
@@ -33,11 +59,10 @@ export function DFLAssist() {
   };
   if (!visible) return null;
   return <div className={styles.backdrop} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setVisible(false)}}>
-    <section className={styles.panel} role="dialog" aria-modal="true" aria-label="DFL Assist">
+    <section ref={panelRef} tabIndex={-1} className={styles.panel} role="dialog" aria-modal="true" aria-label="DFL Assist">
       <header className={styles.header}><span className={styles.avatar}><Bot size={23} aria-hidden="true"/></span><div><strong>DFL Assist</strong><small>Seu ajudante de compras</small></div><button type="button" className={styles.close} onClick={()=>setVisible(false)} aria-label="Fechar DFL Assist"><X size={20}/></button></header>
-      <p className={styles.message}>Vamos encontrar uma opção gostosa para você? Conte o que procura e eu mostro sugestões do cardápio.</p>
-      <p className={styles.assistHint}>Escolha o que gosta e receba sugestões do cardápio. Ou faça uma busca direta: Não é atendimento por IA generativa.</p>
-      <form className={styles.search} onSubmit={e=>{e.preventDefault();search(query)}}><div><input aria-label="Buscar diretamente no cardápio" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar no cardápio" maxLength={100}/><button type="submit" disabled={!query.trim()} aria-label="Pesquisar no cardápio"><Search size={19}/></button></div></form>
+      <p className={styles.message}>Seu próximo lanche começa aqui. Escolha um ingrediente ou conte o que está procurando.</p>
+      <p className={styles.assistHint}>Sugestões do cardápio real, sem criar pedidos. Não é atendimento por IA generativa.</p>
       <DFLAssistOffers onFindProduct={search} />
       <div className={styles.actions}><button type="button" onClick={()=>{setVisible(false);openModal("cart")}}><ShoppingCart size={19}/> Ver carrinho</button><button type="button" onClick={()=>search("combo")}><Search size={19}/> Ver combos</button><a href={businessWhatsAppUrl("Olá! Preciso de ajuda para escolher ou finalizar meu pedido no site da Da Família Lanches.")} target="_blank" rel="noopener noreferrer"><MessageCircle size={19}/> Falar com a equipe</a></div>
       <p className={styles.note}>O WhatsApp é atendimento, não confirma nem cria um pedido. Seus dados e carrinho não são enviados automaticamente.</p>

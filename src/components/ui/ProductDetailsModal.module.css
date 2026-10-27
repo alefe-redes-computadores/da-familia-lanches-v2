@@ -182,3 +182,20 @@
 .wrap :is(button,input,textarea):focus-visible{outline:3px solid #c99611;outline-offset:3px}
 .wrap button{touch-action:manipulation}
 @media(max-width:640px){.addon,.addonSelected{min-height:46px}.quantity button{min-width:44px;min-height:44px}.confirm{min-height:52px}}
+
+/* DFL R30 DETAILS CHECKOUT UX */
+/* Adicionais, precos e CTA legiveis em Android pequeno. */
+.comboUpsellCopy>p{font-size:12px;line-height:1.55;color:#544b3c}
+.comboUpsell>button{min-height:48px;touch-action:manipulation}
+.comboUpsellCopy b,.productPrice strong,.confirm strong{font-variant-numeric:tabular-nums}
+.bundleItem summary{min-height:48px}
+.observation textarea{font-size:16px;line-height:1.5;min-height:92px;resize:vertical}
+.confirm{gap:6px;min-width:0}
+.confirm strong{overflow-wrap:anywhere;text-align:right}
+@media(max-width:360px){
+ .bottom{grid-template-columns:minmax(0,1fr);gap:8px}
+ .quantity{width:max-content;max-width:100%}
+ .confirm{min-height:50px;width:100%}
+ .comboUpsellCopy>div{gap:5px}
+}
+@media(prefers-reduced-motion:reduce){.confirm,.comboUpsell button{animation:none;transition:none}}

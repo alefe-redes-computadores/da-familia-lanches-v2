@@ -8,6 +8,8 @@ import { useUIStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { useCatalog } from "@/hooks/useCatalog";
 import { CatalogImage } from "@/components/ui/CatalogImage";
+import { remainingUpsellUnits } from "@/lib/upsellEntitlement";
+import { Trash2 } from "lucide-react";
 import styles from "./CartModal.module.css";
 import { haptic } from "@/lib/haptics";
 import { CartPromotionInsight } from "@/components/ui/CartPromotionInsight";
@@ -27,8 +29,16 @@ export function CartModal() {
   const { products, allAddons, loading: catalogLoading, error: catalogError, source: catalogSource } = useCatalog();
   const { items, increaseQtd, decreaseQtd, removeItem, restoreItem, clearCart, replaceItems, getCartTotal } = useCartStore();
   const [clearArmed, setClearArmed] = useState(false);
+  // R30: segunda confirmacao expira; nao fica armada indefinidamente.
+  useEffect(() => {
+    if (!clearArmed) return;
+    const timer = window.setTimeout(() => setClearArmed(false), 8000);
+    return () => window.clearTimeout(timer);
+  }, [clearArmed]);
   const [catalogNotice, setCatalogNotice] = useState("");
   const [commercial, setCommercial] = useState<CommercialSettings>(DEFAULT_COMMERCIAL_SETTINGS);
+  // R29: indice local memoizado, sem novas leituras de banco.
+  const catalogIndex = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   const [loginIntentAlreadyShown, setLoginIntentAlreadyShown] = useState(false);
   useEffect(() => { setLoginIntentAlreadyShown(window.sessionStorage.getItem("dfl_login_intent_shown") === "1"); }, []);
   useEffect(() => { void getCommercialSettings().then(setCommercial).catch(() => setCommercial(DEFAULT_COMMERCIAL_SETTINGS)); }, []);
@@ -38,7 +48,7 @@ export function CartModal() {
     // Fallback em falha da API NAO pode sobrescrever preco ou disponibilidade
     // do carrinho persistido. O servidor valida novamente no fechamento.
     if (catalogLoading || !items.length || catalogError || catalogSource !== "hybrid") return null;
-    const byId = new Map(products.map((product) => [product.id, product]));
+    const byId = catalogIndex;
     const next = items.flatMap((item) => {
       const product = byId.get(item.id);
       if (!product || product.disponivel === false) return [];
@@ -85,23 +95,23 @@ export function CartModal() {
       return newQuantity < oldQuantity;
     }).map((item) => item.name))];
     return { next: compacted, removedNames, originalSignature: signature(items) };
-  }, [allAddons, catalogLoading, catalogError, catalogSource, items, products]);
+  }, [allAddons, catalogLoading, catalogError, catalogSource, items, products, catalogIndex]);
   const invalidSelections = useMemo(()=>items.flatMap(item=>{
-    const product=products.find(p=>p.id===item.id);
+    const product=catalogIndex.get(item.id);
     if(!product)return [];
     const review=inspectProductSelections(product,(item.selectedAddons??[]).map(a=>a.id));
     return !review.valid ? [{name:item.name,hint:review.reason||addonPolicyHint(product)}] : [];
-  }),[items,products]);
+  }),[items,products,catalogIndex]);
   const total = getCartTotal();
   const freeDeliveryTarget = commercial.freeDeliveryEnabled ? commercial.globalMinimum : null;
   const freeDeliveryMissing = freeDeliveryTarget === null ? 0 : Math.max(0, freeDeliveryTarget - total);
   const freeDeliveryProgress = freeDeliveryTarget && freeDeliveryTarget > 0 ? Math.min(100, (total / freeDeliveryTarget) * 100) : 100;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const productSavings = useMemo(() => items.reduce((sum, item) => {
-    const current = products.find((product) => product.id === item.id);
+    const current = catalogIndex.get(item.id);
     return current && typeof current.oldPrice === "number" && current.oldPrice > current.price
       ? sum + (current.oldPrice - current.price) * item.quantity : sum;
-  }, 0), [items, products]);
+  }, 0), [items, products, catalogIndex]);
   const suggestions = useMemo(() => selectSmartCartSuggestions(items, products, 3), [items, products]);
 
   const handleRemoveItem = (cartId: string) => {
@@ -119,9 +129,7 @@ export function CartModal() {
       haptic("step"); return;
     }
     if(item.upsellSourceId){
-      const sourceQty=items.filter(current=>current.id===item.upsellSourceId&&!current.upsellSourceId).reduce((sum,current)=>sum+current.quantity,0);
-      const usedQty=items.filter(current=>current.id===item.id&&current.upsellSourceId===item.upsellSourceId).reduce((sum,current)=>sum+current.quantity,0);
-      if(usedQty>=sourceQty){
+      if(remainingUpsellUnits(items, item.upsellSourceId, item.id)<=0){
         showCartToast({title:"Limite da oferta atingido",message:"Cada unidade do produto principal libera uma unidade neste preço especial.",kind:"restore"});
         haptic("step"); return;
       }
@@ -136,9 +144,7 @@ export function CartModal() {
         openModal("product-details",suggestion.product);
         setCatalogNotice("Este item exige escolha de adicionais. Personalize antes de incluir.");return;
       }
-      const sourceQty=items.filter(i=>i.id===suggestion.upsellSourceId&&!i.upsellSourceId).reduce((n,i)=>n+i.quantity,0);
-      const used=items.filter(i=>i.id===suggestion.product.id&&i.upsellSourceId===suggestion.upsellSourceId).reduce((n,i)=>n+i.quantity,0);
-      if(used>=sourceQty){showCartToast({title:"Oferta já aproveitada",message:"A quantidade promocional acompanha a quantidade do combo.",kind:"restore"});return;}
+      if(remainingUpsellUnits(items, suggestion.upsellSourceId, suggestion.product.id)<=0){showCartToast({title:"Oferta já aproveitada",message:"A quantidade promocional acompanha a quantidade do combo.",kind:"restore"});return;}
       useCartStore.getState().addItem(suggestion.product,1,[],"",{upsellSourceId:suggestion.upsellSourceId,unitPrice:suggestion.explicitUnitPrice});
       haptic("add"); showCartToast({title:suggestion.product.name+" adicionado",message:"Preço especial de "+money(suggestion.explicitUnitPrice)+" aplicado.",kind:"add"}); return;
     }
@@ -185,18 +191,23 @@ export function CartModal() {
           <div className={styles.empty}><span>🛒</span><strong>Seu carrinho está vazio</strong><p>Escolha seus favoritos e volte aqui para finalizar.</p><button type="button" onClick={closeModal}>Explorar cardápio</button></div>
         ) : <>
           <div className={styles.items}>{items.map((item) => <article className={styles.item} key={item.cartId}>
+            <div className={styles.itemMedia}>{item.image ? <CatalogImage src={item.image} alt="" sizes="(max-width: 420px) 64px, 76px" quality={65}/> : <span aria-hidden="true">DFL</span>}</div>
             <div className={styles.itemInfo}><strong>{item.name}</strong>{item.upsellSourceId && <span className={styles.offerBadge}>PREÇO ESPECIAL DO COMBO</span>}{item.selectedAddons?.length > 0 && <small>+ {item.selectedAddons.map((addon) => addon.name).join(", ")}</small>}{item.observation?.trim() && <small>Obs.: {item.observation.trim()}</small>}<b>{money(item.price * item.quantity)}</b>{item.quantity > 1 && <i>{money(item.price)} cada</i>}</div>
-            <div className={styles.itemActions}><div className={styles.stepper}><button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => handleDecreaseItem(item.cartId)}>−</button><span>{item.quantity}</span><button type="button" aria-label={`Aumentar ${item.name}`} disabled={item.quantity >= 30} onClick={() => handleIncreaseItem(item.cartId)}>+</button></div><button className={styles.remove} type="button" onClick={() => handleRemoveItem(item.cartId)}>Remover</button></div>
+            <div className={styles.itemActions}><div className={styles.stepper}><button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => handleDecreaseItem(item.cartId)}>−</button><span>{item.quantity}</span><button type="button" aria-label={`Aumentar ${item.name}`} disabled={item.quantity >= 30} aria-disabled={Boolean(item.upsellSourceId && remainingUpsellUnits(items, item.upsellSourceId, item.id) <= 0)} onClick={() => handleIncreaseItem(item.cartId)}>+</button></div><button className={styles.remove} type="button" aria-label={`Remover ${item.name} do carrinho`} onClick={() => handleRemoveItem(item.cartId)}><Trash2 size={16} aria-hidden="true"/><span>Remover</span></button></div>
           </article>)}</div>
 
           {!currentUser && !loginIntentAlreadyShown ? <div className={styles.loginCard}><strong>Quer agilizar os próximos pedidos?</strong><p>Entrar com Google é opcional: salva seu histórico e seus dados entre dispositivos. Você também pode continuar como convidado.</p><button type="button" onClick={() => openModal("login", { returnTo: "cart" })}>Entrar com Google</button></div> : currentUser ? <button className={styles.progress} type="button" onClick={() => openModal("rewards")}><div><strong>Seu histórico na casa</strong><span>{orderStats.loading ? "..." : `${orderStats.completed} concluído${orderStats.completed === 1 ? "" : "s"}`}</span></div><small>{orderStats.active > 0 ? `${orderStats.active} pedido${orderStats.active === 1 ? "" : "s"} em andamento. ` : ""}A fidelidade será baseada em pedidos realmente concluídos.</small></button> : null}
 
           {suggestions.length > 0 && <section className={styles.smartSuggestions} aria-label="Sugestões para o pedido"><div className={styles.smartHead}><strong>Seu pedido, um pouco mais esperto</strong><span>Sugestões baseadas no que já está no carrinho.</span></div><div className={styles.smartList}>{suggestions.map((suggestion) => <button type="button" className={styles.smartCard} key={`${suggestion.kind}-${suggestion.product.id}`} onClick={() => handleSmartSuggestion(suggestion)}><CatalogImage src={suggestion.product.image} alt="" sizes="96px" quality={68} /><span className={styles.smartCopy}><small>{suggestion.eyebrow}</small><b>{suggestion.title}</b><em>{suggestion.description}</em>{suggestion.saving && suggestion.saving > 0 ? <strong>{suggestion.kind==="upsell" ? "Você economiza " : "Economia calculada de "}{money(suggestion.saving)}</strong> : null}</span><span className={styles.smartPrice}>{suggestion.kind==="upsell"&&suggestion.explicitUnitPrice!=null?<><del>{money(suggestion.product.price)}</del>{money(suggestion.explicitUnitPrice)}</>:money(suggestion.product.price)}<i>{suggestion.kind==="upsell"?"Adicionar agora +":"Ver opção ›"}</i></span></button>)}</div></section>}
 
-          {freeDeliveryTarget !== null && <section className={styles.freeDeliveryProgress} data-earned={freeDeliveryMissing <= 0}><div className={styles.freeDeliveryCopy}><span>{freeDeliveryMissing <= 0 ? "ENTREGA GRÁTIS DESBLOQUEADA" : "CAMINHO PARA ENTREGA GRÁTIS"}</span><strong>{freeDeliveryMissing <= 0 ? "Você bateu a meta" : `Faltam ${money(freeDeliveryMissing)}`}</strong></div><div className={styles.freeDeliveryTrack}><i style={{ width: `${freeDeliveryProgress}%` }} /></div><small>{freeDeliveryMissing <= 0 ? "Benefício confirmado conforme o bairro informado no checkout." : `Complete o carrinho até ${money(freeDeliveryTarget)}.`}</small></section>}
-          {catalogSource === "hybrid" && invalidSelections.length > 0 && <div className={styles.catalogNotice} role="alert">Revise os adicionais de {invalidSelections[0].name}: {invalidSelections[0].hint}. Remova esse item e adicione novamente com as escolhas corretas. Seu carrinho foi preservado.</div>}<CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish} disabled={Boolean(reconciliation) || (catalogSource === "hybrid" && invalidSelections.length > 0)}>{reconciliation ? "Revise as mudanças acima" : "Continuar para finalizar"}</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Toque novamente para esvaziar" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
+          {freeDeliveryTarget !== null && <section className={styles.freeDeliveryProgress} data-earned={freeDeliveryMissing <= 0}><div className={styles.freeDeliveryCopy}><span>{freeDeliveryMissing <= 0 ? "ENTREGA GRÁTIS DESBLOQUEADA" : "CAMINHO PARA ENTREGA GRÁTIS"}</span><strong>{freeDeliveryMissing <= 0 ? "Você bateu a meta" : `Faltam ${money(freeDeliveryMissing)}`}</strong></div><div className={styles.freeDeliveryTrack}><i style={{ width: `${freeDeliveryProgress}%` }} /></div><small>{freeDeliveryMissing <= 0 ? "Condição sujeita à confirmação do bairro no checkout." : `Complete o carrinho até ${money(freeDeliveryTarget)}.`}</small></section>}
+          {catalogSource === "hybrid" && invalidSelections.length > 0 && <div className={styles.catalogNotice} role="alert">Revise os adicionais de {invalidSelections[0].name}: {invalidSelections[0].hint}. Remova esse item e adicione novamente com as escolhas corretas. Seu carrinho foi preservado.</div>}<CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish} disabled={Boolean(reconciliation) || (catalogSource === "hybrid" && invalidSelections.length > 0)}>{reconciliation ? "Revise as mudanças acima" : "Continuar para finalizar"}</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Confirmar esvaziamento · 8 segundos" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
         </>}
       </div>
     </ModalBase>
   );
 }
+
+// DFL-R29-CART-PREMIUM
+
+// DFL-R30-CART-SAFETY
