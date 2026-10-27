@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Activity, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { normalizarStatus } from "@/lib/orderUtils";
@@ -24,6 +24,13 @@ export function OperationHealthAdmin({ pedidos, historyHasMore }:{pedidos:AdminO
   const [checking,setChecking]=useState(false);
   const [remoteError,setRemoteError]=useState("");
 
+  // R36: contagem por etapa a partir de pedidos ja recebidos, sem consultar o banco.
+  const stageSummary=useMemo(()=>{
+    const stages=["Pendente","Em Produção","Agendado","Pronto","Saiu para Entrega"] as const;
+    const counts=new Map<string,number>(stages.map(stage=>[stage,0]));
+    for(const order of pedidos){const stage=normalizarStatus(order.status);if(counts.has(stage))counts.set(stage,(counts.get(stage)??0)+1);}
+    return stages.map(stage=>({stage,count:counts.get(stage)??0}));
+  },[pedidos]);
   const now=Date.now();
   const active=pedidos.filter(order=>["Pendente","Em Produção","Agendado","Pronto","Saiu para Entrega"].includes(normalizarStatus(order.status)));
   const attention=active.filter(order=>Boolean(operationalAttention(order,now)));
@@ -77,12 +84,17 @@ export function OperationHealthAdmin({ pedidos, historyHasMore }:{pedidos:AdminO
       ].map(([value,label])=><div key={String(label)}><b>{value}</b><small>{label}</small></div>)}
     </div>
 
+    <div className={styles.r36StagePulse} aria-label="Distribuicao por etapa dos pedidos carregados">
+      <strong>Fila por etapa <small>apenas pedidos ja carregados</small></strong>
+      <div>{stageSummary.map(item=><span key={item.stage}><b>{item.count}</b>{item.stage}</span>)}</div>
+    </div>
     <div className={styles.integration}>
       <span className={styles.integrationIcon}><ShieldCheck size={16}/></span>
       <div>
         <strong>Site ↔ integração</strong>
         <small data-error={Boolean(remoteError)}>{remoteError||remoteLabel}</small>
         {remote&&<em>Outbox: {remote.integration.outbox.pending} pend. · Mensagens enviáveis: {remote.integration.messaging.pending} · Legado/inelegível: {remote.integration.messaging.legacyOrIneligible} · Quarentena: {remote.integration.quarantine}</em>}
+        {remote&&<small className={styles.r35SnapshotAge} data-stale={Boolean(remoteError)}>Última resposta confirmada: {Number.isFinite(new Date(remote.checkedAt).getTime()) ? new Date(remote.checkedAt).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "horário não informado"}.{remoteError ? " Nova consulta falhou; dados acima são anteriores." : " Atualize manualmente para consultar outra vez."}</small>}
       </div>
       <button type="button" disabled={checking} onClick={()=>void checkIntegration()}>
         <RefreshCw size={14} className={checking?styles.spin:undefined}/>
@@ -91,3 +103,5 @@ export function OperationHealthAdmin({ pedidos, historyHasMore }:{pedidos:AdminO
     </div>
   </section>
 }
+// DFL-R35-HEALTH-RECENCY
+// DFL-R36-ADMIN-STAGES

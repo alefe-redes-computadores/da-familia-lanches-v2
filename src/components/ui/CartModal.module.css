@@ -144,3 +144,9 @@
  .smartPrice{min-width:0;white-space:normal;overflow-wrap:anywhere}
  .stepper button{min-width:38px!important}
 }
+
+/* DFL-R32-CART-RECOVERY */
+.clear[data-armed="true"]{border-width:2px!important;outline-offset:2px}
+.clear:focus-visible,.cancelClear:focus-visible{outline:3px solid #bb851d;outline-offset:3px}
+.freeDeliveryProgress>small{overflow-wrap:anywhere}
+@media(max-width:400px){.freeDeliveryCopy{gap:8px;align-items:flex-start}.freeDeliveryCopy strong{min-width:0;text-align:right;overflow-wrap:anywhere}}

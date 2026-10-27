@@ -12,3 +12,8 @@
 .suggestions button:active{background:#fff0ce;border-color:#bd8c21}
 @media(max-width:365px){.suggestions{padding:8px}.suggestions button{padding:11px}}
 @media(prefers-reduced-motion:reduce){.suggestions button{transition:none}}
+
+/* DFL-R34-STREET-CONTINGENCY */
+.streetManualHint{display:block;padding:8px 10px;border-radius:10px;border:1px solid #e8dec9;background:#fffcf4;color:#5f533f;font-size:11px;line-height:1.45}
+.wrap button{touch-action:manipulation;overflow-wrap:anywhere}
+@media(max-width:360px){.suggestions{padding:8px}.suggestions button{font-size:12px}}

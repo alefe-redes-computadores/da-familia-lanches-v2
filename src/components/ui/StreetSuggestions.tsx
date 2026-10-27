@@ -52,6 +52,7 @@ export function StreetSuggestions({ street, district, onSelect }: {
             item && typeof item.name === "string" && item.name.length > 2 &&
             item.city === "Patos de Minas" && item.state === "MG",
           ).slice(0, 5);
+          if (!filtered.length) setNotice("Nenhuma rua confirmada na busca. Você pode digitar o endereço manualmente.");
           streetMemory.set(cacheKey, { at: Date.now(), items: filtered });
           if (streetMemory.size > 32) streetMemory.delete(streetMemory.keys().next().value!);
           setSuggestions(filtered);
@@ -67,6 +68,7 @@ export function StreetSuggestions({ street, district, onSelect }: {
   if (!enabled) return null;
   return (
     <div className={styles.wrap} aria-live="polite">
+      <small className={styles.streetManualHint}>Sugestões opcionais: confira o nome da rua antes de selecionar. Você também pode digitar manualmente.</small>
       {busy && <small>Procurando ruas…</small>}
       {notice && <small>{notice}</small>}
       {suggestions.length > 0 && <div className={styles.suggestions} aria-label="Sugestões de ruas">
@@ -79,3 +81,4 @@ export function StreetSuggestions({ street, district, onSelect }: {
     </div>
   );
 }
+// DFL-R34-STREET-CONTINGENCY

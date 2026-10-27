@@ -81,3 +81,14 @@
 .offerList li{content-visibility:auto;contain-intrinsic-size:auto 100px}
 @media(max-width:360px){.panel{max-height:calc(100dvh - 16px - env(safe-area-inset-bottom))}.offerList li{min-height:88px}}
 @media(prefers-reduced-motion:reduce){.panel{scroll-behavior:auto}}
+
+/* DFL-R33-ASSIST-RECOVERY */
+.offerFilterFooter{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.offerClearFilters{min-height:44px;padding:8px 12px;border:1px solid #decda8;border-radius:12px;background:#fff;color:#65471a;font-size:12px;font-weight:850;cursor:pointer;touch-action:manipulation}
+.offerClearFilters:disabled{opacity:.38;cursor:default}
+.offerRecovery{display:grid;gap:10px;padding:12px;border:1px solid #e9d7b5;border-radius:14px;background:#fffaf1}
+.offerDiscovery{display:flex;flex-wrap:wrap;gap:7px}
+.offerDiscovery small{width:100%;font-size:11px;line-height:1.5;color:#66523a}
+.offerDiscovery button{min-height:44px;padding:9px 12px;border:1px solid #e0d0b1;border-radius:12px;background:white;color:#3a2a16;font-size:12px;font-weight:750;overflow-wrap:anywhere;cursor:pointer}
+.offerDiscovery button:focus-visible,.offerClearFilters:focus-visible{outline:3px solid #c89510;outline-offset:2px}
+@media(max-width:350px){.offerClearFilters{width:100%}.offerDiscovery button{flex:1 1 100%}}

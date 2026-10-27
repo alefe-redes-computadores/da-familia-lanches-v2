@@ -9,6 +9,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useCatalog } from "@/hooks/useCatalog";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { remainingUpsellUnits } from "@/lib/upsellEntitlement";
+import { canRestoreClearedCart } from "@/lib/cartRestoreSafety";
 import { Trash2 } from "lucide-react";
 import styles from "./CartModal.module.css";
 import { haptic } from "@/lib/haptics";
@@ -136,7 +137,30 @@ export function CartModal() {
     }
     increaseQtd(cartId); haptic("step");
   };
-  const handleClearCart = () => { if (!clearArmed) { setClearArmed(true); haptic("step"); return; } clearCart(); setClearArmed(false); haptic("remove"); showCartToast({ title: "Carrinho esvaziado", message: "Pronto para montar um novo pedido.", kind: "remove" }); };
+  const handleClearCart = () => {
+    if (!clearArmed) { setClearArmed(true); haptic("step"); return; }
+    const snapshot = useCartStore.getState().items.map((item) => ({
+      ...item, selectedAddons: (item.selectedAddons ?? []).map((addon) => ({ ...addon })),
+    }));
+    setClearArmed(false);
+    if (!snapshot.length) return;
+    clearCart(); haptic("remove");
+    showCartToast({
+      title: "Carrinho esvaziado",
+      message: "Mudou de ideia? Restaure os itens antes que o aviso desapareça.",
+      kind: "remove", actionLabel: "Desfazer",
+      onAction: () => {
+        const state = useCartStore.getState();
+        if (!canRestoreClearedCart(state.items, snapshot)) {
+          showCartToast({ title: "Seu carrinho já mudou", message: "Não restauramos a lista antiga para preservar os itens atuais.", kind: "restore" });
+          return;
+        }
+        state.replaceItems(snapshot);
+        haptic("restore");
+        showCartToast({ title: "Carrinho restaurado", message: "Confira os itens e preços antes de finalizar.", kind: "restore" });
+      },
+    });
+  };
 
   const handleSmartSuggestion = (suggestion: (typeof suggestions)[number]) => {
     if(suggestion.kind==="upsell" && suggestion.upsellSourceId && suggestion.explicitUnitPrice!=null){
@@ -200,7 +224,7 @@ export function CartModal() {
 
           {suggestions.length > 0 && <section className={styles.smartSuggestions} aria-label="Sugestões para o pedido"><div className={styles.smartHead}><strong>Seu pedido, um pouco mais esperto</strong><span>Sugestões baseadas no que já está no carrinho.</span></div><div className={styles.smartList}>{suggestions.map((suggestion) => <button type="button" className={styles.smartCard} key={`${suggestion.kind}-${suggestion.product.id}`} onClick={() => handleSmartSuggestion(suggestion)}><CatalogImage src={suggestion.product.image} alt="" sizes="96px" quality={68} /><span className={styles.smartCopy}><small>{suggestion.eyebrow}</small><b>{suggestion.title}</b><em>{suggestion.description}</em>{suggestion.saving && suggestion.saving > 0 ? <strong>{suggestion.kind==="upsell" ? "Você economiza " : "Economia calculada de "}{money(suggestion.saving)}</strong> : null}</span><span className={styles.smartPrice}>{suggestion.kind==="upsell"&&suggestion.explicitUnitPrice!=null?<><del>{money(suggestion.product.price)}</del>{money(suggestion.explicitUnitPrice)}</>:money(suggestion.product.price)}<i>{suggestion.kind==="upsell"?"Adicionar agora +":"Ver opção ›"}</i></span></button>)}</div></section>}
 
-          {freeDeliveryTarget !== null && <section className={styles.freeDeliveryProgress} data-earned={freeDeliveryMissing <= 0}><div className={styles.freeDeliveryCopy}><span>{freeDeliveryMissing <= 0 ? "ENTREGA GRÁTIS DESBLOQUEADA" : "CAMINHO PARA ENTREGA GRÁTIS"}</span><strong>{freeDeliveryMissing <= 0 ? "Você bateu a meta" : `Faltam ${money(freeDeliveryMissing)}`}</strong></div><div className={styles.freeDeliveryTrack}><i style={{ width: `${freeDeliveryProgress}%` }} /></div><small>{freeDeliveryMissing <= 0 ? "Condição sujeita à confirmação do bairro no checkout." : `Complete o carrinho até ${money(freeDeliveryTarget)}.`}</small></section>}
+          {freeDeliveryTarget !== null && <section className={styles.freeDeliveryProgress} data-earned={freeDeliveryMissing <= 0}><div className={styles.freeDeliveryCopy}><span>{freeDeliveryMissing <= 0 ? "META PARA ENTREGA GRÁTIS ALCANÇADA" : "CAMINHO PARA ENTREGA GRÁTIS"}</span><strong>{freeDeliveryMissing <= 0 ? "Você bateu a meta" : `Faltam ${money(freeDeliveryMissing)}`}</strong></div><div className={styles.freeDeliveryTrack}><i style={{ width: `${freeDeliveryProgress}%` }} /></div><small>{freeDeliveryMissing <= 0 ? "Condição sujeita à confirmação do bairro: confira o valor final no checkout." : `Complete o carrinho até ${money(freeDeliveryTarget)}.`}</small></section>}
           {catalogSource === "hybrid" && invalidSelections.length > 0 && <div className={styles.catalogNotice} role="alert">Revise os adicionais de {invalidSelections[0].name}: {invalidSelections[0].hint}. Remova esse item e adicione novamente com as escolhas corretas. Seu carrinho foi preservado.</div>}<CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish} disabled={Boolean(reconciliation) || (catalogSource === "hybrid" && invalidSelections.length > 0)}>{reconciliation ? "Revise as mudanças acima" : "Continuar para finalizar"}</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Confirmar esvaziamento · 8 segundos" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
         </>}
       </div>
@@ -211,3 +235,4 @@ export function CartModal() {
 // DFL-R29-CART-PREMIUM
 
 // DFL-R30-CART-SAFETY
+// DFL-R32-CART-UNDO

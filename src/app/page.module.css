@@ -312,3 +312,17 @@
  .priceBlock strong{font-size:clamp(13px,4vw,17px)}
  .searchBox{gap:7px;padding-inline:11px}
 }
+
+/* DFL-R32-CATALOG-RECOVERY */
+.emptyRecovery{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:12px}
+.emptyRecovery button{flex:1 1 135px;max-width:210px;min-height:44px;padding:10px 13px;border:1px solid #d7c9a6;border-radius:12px;background:#fffaf0;color:#4d3810;font-size:12px;font-weight:850;cursor:pointer;touch-action:manipulation}
+.emptyRecovery button:focus-visible{outline:3px solid #c58f15;outline-offset:3px}
+@media(max-width:360px){.emptyRecovery{flex-direction:column}.emptyRecovery button{flex-basis:auto;width:100%;max-width:none}}
+
+/* DFL-R33-CATALOG-SEARCH-RECOVERY */
+.catalogRecoverySuggestions{display:grid;gap:10px;width:min(100%,540px);margin:14px auto;padding:13px;border:1px solid #e5d4ac;border-radius:17px;background:#fffaf0;color:#493514;text-align:left}
+.catalogRecoverySuggestions small{font-size:12px;line-height:1.45;font-weight:750}
+.catalogRecoverySuggestions>div{display:flex;flex-wrap:wrap;gap:8px}
+.catalogRecoverySuggestions button{min-height:44px;max-width:100%;border:1px solid #dacba9;border-radius:999px;background:#fff;color:#493514;padding:8px 13px;font-size:12px;font-weight:850;overflow-wrap:anywhere;cursor:pointer;touch-action:manipulation}
+.catalogRecoverySuggestions button:focus-visible{outline:3px solid #c89510;outline-offset:3px}
+@media(max-width:370px){.catalogRecoverySuggestions{padding:10px}.catalogRecoverySuggestions button{width:100%;border-radius:12px}}

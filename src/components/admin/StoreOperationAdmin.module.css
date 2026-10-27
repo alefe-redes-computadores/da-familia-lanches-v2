@@ -140,3 +140,10 @@
 /* V85 R2 — agenda editada nao e estado efetivo da loja. */
 .scheduleNotice{margin:4px 0 12px;padding:10px 12px;border:1px solid rgba(255,202,40,.32);border-radius:12px;background:rgba(255,202,40,.09);color:#f5d878;font-size:12px;font-weight:750;line-height:1.45}
 .root .save:disabled{opacity:.52;cursor:default;box-shadow:none}
+
+/* DFL-R35-OPERATION-DRAFT */
+.r35DirtyNotice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid #b78537;border-radius:15px;background:#2c2418;color:#ffeed3}
+.r35DirtyNotice>div{min-width:0;display:grid;gap:4px}.r35DirtyNotice strong{font-size:12px;line-height:1.4}.r35DirtyNotice small{font-size:11px;color:#e4cba9;line-height:1.45}
+.r35DirtyNotice button{flex-shrink:0;min-height:44px;padding:8px 13px;border:1px solid #d4ac69;border-radius:10px;background:#3a3022;color:#fff3dd;font-size:11px;font-weight:850;cursor:pointer}
+.r35DirtyNotice button:disabled{opacity:.5;cursor:not-allowed}.r35DirtyNotice button:focus-visible{outline:3px solid #ffca28;outline-offset:2px}
+@media(max-width:540px){.r35DirtyNotice{flex-direction:column;align-items:stretch}.r35DirtyNotice button{width:100%}}

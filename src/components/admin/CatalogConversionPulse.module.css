@@ -1,0 +1,24 @@
+.root{display:grid;gap:12px;padding:15px;border:1px solid #313b42;border-radius:19px;background:linear-gradient(145deg,#101a20,#111519);color:#eaf0f2;min-width:0}
+.header{display:flex;align-items:start;justify-content:space-between;gap:12px}
+.header>div{min-width:0}.header span{display:block;color:#f6cb65;font-size:9px;font-weight:950;letter-spacing:.1em}
+.header strong{display:block;margin-top:5px;font-size:17px;line-height:1.25}.header small{display:block;margin-top:5px;color:#99a6af;font-size:11px;line-height:1.45}
+.header>b{flex-shrink:0;padding:7px 9px;border:1px solid #384652;border-radius:999px;color:#cad9de;font-size:9px;white-space:nowrap}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.metric{min-width:0;display:grid;align-content:start;gap:4px;padding:12px;border:1px solid #2c3740;border-radius:14px;background:#182129}
+.metric>svg{color:#f7ca64}.metric span{color:#b5c2c9;font-size:10px;line-height:1.35}.metric strong{font-size:20px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:-.04em}.metric small{font-size:9px;color:#8999a4;line-height:1.3;overflow-wrap:anywhere}
+.details{padding:10px 12px;border:1px solid #303d45;border-radius:13px;background:#151e24}
+.details summary{cursor:pointer;list-style:none;font-weight:850;font-size:11px;line-height:1.4;color:#d7e1e7;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px}
+.details summary::-webkit-details-marker{display:none}.details summary span{font-size:21px;transition:transform .15s}.details[open] summary span{transform:rotate(90deg)}
+.details ul{margin:10px 0;padding-left:17px;display:grid;gap:7px;color:#ced7dc;font-size:11px;line-height:1.45}
+.details p{margin:9px 0 0;color:#92a2ac;font-size:10px;line-height:1.5}
+.details summary:focus-visible{outline:3px solid #f7ca64;outline-offset:3px}
+@media(max-width:650px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.header{flex-wrap:wrap}.header>b{white-space:normal}.metric strong{font-size:18px}}
+@media(max-width:350px){.root{padding:11px}.metrics{gap:6px}.metric{padding:9px}}
+@media(prefers-reduced-motion:reduce){.details summary span{transition:none}}
+
+/* DFL-R36-CATALOG-COPY */
+.r36CopyRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #273c43;border-radius:12px;background:#132329}
+.r36CopyRow small{font-size:10px;line-height:1.5;color:#adbec5}
+.r36CopyRow button{flex:0 0 auto;min-height:44px;border:1px solid #b69352;border-radius:10px;background:#3a2e18;color:#ffe0a2;padding:8px 11px;font-size:11px;font-weight:850;cursor:pointer}
+.r36CopyRow button:focus-visible{outline:3px solid #ffca28;outline-offset:3px}.r36CopyResult{font-size:11px;line-height:1.4;color:#fbd789}
+@media(max-width:430px){.r36CopyRow{flex-direction:column;align-items:stretch}.r36CopyRow button{width:100%}}

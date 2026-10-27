@@ -5,6 +5,8 @@ import { readGuestIdentity, saveGuestIdentity, rememberGuestOrder } from "@/lib/
 import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { ModalBase } from "./ModalBase";
 import { StreetSuggestions } from "./StreetSuggestions";
+import { inspectCheckoutReviewSafety } from "@/lib/checkoutReviewSafety";
+import { inspectCheckoutReadiness } from "@/lib/checkoutReadiness";
 import { useUIStore } from "@/store/ui";
 import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -78,6 +80,9 @@ export function CheckoutModal() {
   const statusRefreshBusyRef = useRef(false);
   const couponCodeRef = useRef("");
   const numberInputRef = useRef<HTMLInputElement>(null);
+  const r35NameRef = useRef<HTMLInputElement>(null);
+  const r35PhoneRef = useRef<HTMLInputElement>(null);
+  const r35StreetRef = useRef<HTMLInputElement>(null);
   const districtInputRef = useRef<HTMLInputElement>(null);
   const districtManuallyEditedRef = useRef(false);
   const scheduleSectionRef = useRef<HTMLElement>(null);
@@ -212,6 +217,13 @@ export function CheckoutModal() {
 
   const nameReady = customerName.trim().length >= 2;
   const canAdvance = nameReady && phoneReady && addressReady && items.length > 0;
+  // R34: checklist informativo, sem substituir validacao nem calculo comercial.
+  const readiness = useMemo(() => inspectCheckoutReadiness({
+    pickup: isPickup, name: customerName, phone: userPhone,
+    district: bairro, districtValid: districtInspection.valid, street: rua,
+    number: numero, cep, hasItems: items.length > 0,
+    scheduleRequired: shopClosed, scheduleSelected: Boolean(scheduledFor),
+  }), [isPickup, customerName, userPhone, bairro, districtInspection.valid, rua, numero, cep, items.length, shopClosed, scheduledFor]);
 
   useEffect(() => {
     if (currentUser || !nameReady || !phoneReady) return;
@@ -725,6 +737,31 @@ export function CheckoutModal() {
     return Number.isFinite(value) ? value : null;
   }, [troco]);
 
+  // R35: acesso ao proximo campo; nao envia pedido nem ignora validacao original.
+  const focusNextCheckoutField = () => {
+    const id = readiness.next?.id;
+    if (!id) return;
+    if (id === "cart") { openModal("cart"); return; }
+    if (id === "schedule") { scheduleSectionRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
+    if (["district", "street", "number", "cep"].includes(id)) setAddressEditorOpen(true);
+    if (id === "cep") setCepExpanded(true);
+    window.requestAnimationFrame(() => {
+      const ref = id === "name" ? r35NameRef : id === "phone" ? r35PhoneRef
+        : id === "district" ? districtInputRef : id === "street" ? r35StreetRef
+        : id === "number" ? numberInputRef : null;
+      if (ref?.current) ref.current.focus();
+      else if (id === "cep") document.querySelector<HTMLInputElement>('input[autocomplete="postal-code"]')?.focus();
+    });
+  };
+
+  // R36: feedback read-only para a revisao, sem modificar o POST nem a idempotencia.
+  const finalReview = inspectCheckoutReviewSafety({
+    hasItems:items.length > 0, personalReady:nameReady && phoneReady,
+    addressReady, pickup:isPickup, scheduleRequired:shopClosed,
+    scheduleSelected:Boolean(scheduledFor), online:isOnline,
+    uncertain:orderOutcomeUncertain,
+  });
+
   const finishOrder = async () => {
     if(submittingRef.current) return;
     if(!navigator.onLine){
@@ -1122,6 +1159,14 @@ export function CheckoutModal() {
           <i data-active="true" /><i data-active={step === 2} />
         </div>
         <div className={styles.stepCaption}><strong>{step === 1 ? "Entrega" : "Pagamento"}</strong><span>{step}/2</span></div>
+         {step === 1 && <section className={styles.checkoutReadiness} aria-label="O que falta para continuar" data-ready={readiness.ready}>
+           <div className={styles.checkoutReadinessTop}><strong>{readiness.ready ? "Tudo pronto para revisar" : "Confira os dados do seu pedido"}</strong><b>{readiness.done}/{readiness.total}</b></div>
+           <div className={styles.checkoutReadinessTrack} role="progressbar" aria-label="Campos preenchidos" aria-valuemin={0} aria-valuemax={readiness.total} aria-valuenow={readiness.done}><i style={{ width: `${readiness.total ? Math.round(readiness.done / readiness.total * 100) : 100}%` }} /></div>
+           <p>{readiness.next ? readiness.next.hint : "Agora confira os dados e continue para a revisão."}</p>
+           <div className={styles.checkoutReadinessTags}>{readiness.items.map(item => <span key={item.id} data-done={item.done}>{item.done ? "✓" : "○"} {item.title}</span>)}</div>
+           {readiness.next&&<button type="button" className={styles.r35ReadinessAction} onClick={focusNextCheckoutField}>Corrigir próximo: {readiness.next.title}</button>}
+           <small className={styles.r35CheckoutReminder}>Se fechar sem confirmar, o rascunho recente poderá ser recuperado neste aparelho. Nenhuma compra é enviada automaticamente.</small>
+         </section>}
         {errorMessage && <div className={styles.errorFallback}><div className={styles.error}>{errorMessage}</div>{!orderOutcomeUncertain && fallbackWhatsAppUrl && <div className={styles.contingency}><span>FINALIZAÇÃO ALTERNATIVA</span><strong>Seu pedido continua completo</strong><p>Os itens e os dados preenchidos foram preservados. Você pode tentar novamente ou enviar o pedido já organizado para confirmação pelo WhatsApp.</p><button type="button" onClick={() => { haptic("success"); window.location.href = fallbackWhatsAppUrl; }}>Continuar no WhatsApp</button><small>O envio não é automático: confira a mensagem e toque em enviar.</small></div>}</div>}
 
         {step === 1 ? (
@@ -1131,8 +1176,8 @@ export function CheckoutModal() {
               <button type="button" data-active={deliveryMode === "pickup"} onClick={() => setDeliveryMode("pickup")}><b>Retirada</b><small>Buscar no balcão</small></button>
             </div>
             <div className={styles.profileHint} data-loaded={Boolean(profile)}><div><strong>{profile ? "Dados carregados da sua conta" : "Seus dados de entrega"}</strong><span>{profile ? "Você pode alterar aqui. Salvamos a atualização depois do pedido." : "Preencha uma vez e os próximos pedidos ficam mais rápidos."}</span></div>{profileLoading && <b>Carregando…</b>}</div>
-            <label className={styles.label}>Nome para o pedido<input className={styles.input} data-invalid={Boolean(customerName && !nameReady)} placeholder="Seu nome" value={customerName} onChange={(event) => { customerEditingRef.current = true; setCustomerName(event.target.value); }} autoComplete="name" /></label>
-            <label className={styles.label}>WhatsApp para contato e atualizações <span>(obrigatório)</span><input className={styles.input} data-invalid={Boolean(userPhone && !phoneReady)} placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => { customerEditingRef.current = true; setUserPhone(formatPhoneBR(event.target.value)); }} inputMode="tel" autoComplete="tel" /></label>
+            <label className={styles.label}>Nome para o pedido<input ref={r35NameRef} className={styles.input} data-invalid={Boolean(customerName && !nameReady)} placeholder="Seu nome" value={customerName} onChange={(event) => { customerEditingRef.current = true; setCustomerName(event.target.value); }} autoComplete="name" /></label>
+            <label className={styles.label}>WhatsApp para contato e atualizações <span>(obrigatório)</span><input ref={r35PhoneRef} className={styles.input} data-invalid={Boolean(userPhone && !phoneReady)} placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => { customerEditingRef.current = true; setUserPhone(formatPhoneBR(event.target.value)); }} inputMode="tel" autoComplete="tel" /></label>
             {deliveryMode === "delivery" ? <>
               <section className={styles.addressChoice}>
                 <div className={styles.addressHeading}>
@@ -1162,7 +1207,7 @@ export function CheckoutModal() {
                     <small>1. Escolha o bairro · 2. Digite a rua · 3. Informe o número. Se preferir, utilize a busca opcional por CEP.</small>
                   </div>
                   <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value);deliveryFeeRequestRef.current += 1;setDeliveryStatus("")}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid&&districtSuggestions.length===0)void calculateDeliveryFee(bairro);}} /></label>
-                  <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}}  autoComplete="address-line1"/></label>
+                  <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input ref={r35StreetRef} className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}}  autoComplete="address-line1"/></label>
                   {manualMode && districtInspection.valid && <StreetSuggestions street={rua} district={bairro} onSelect={name => { customerEditingRef.current=true; setRua(name); }} />}
                   <label className={styles.addressFirstField}><span>3 · Número</span><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/></label>
                   {/* DFL-R22:ADDRESS-SUMMARY */}
@@ -1193,6 +1238,11 @@ export function CheckoutModal() {
                     {districtSuggestions.length > 0 && manualMode && <div className={styles.districtSuggestions} aria-label="Sugestões de bairros"><small>Você quis dizer:</small>{districtSuggestions.map(name=><button type="button" key={name} onClick={()=>{setBairro(name);setDeliveryStatus(`Bairro escolhido: ${name}. Confira rua e número.`);void calculateDeliveryFee(name);}}>{name}</button>)}</div>}
                   </div>
                   <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info} role="status" aria-live="polite">{deliveryStatus}</div>}
+                   <div className={styles.addressHelpActions}>
+                     {bairro.trim() && districtInspection.valid && <button type="button" onClick={() => void calculateDeliveryFee(bairro)} disabled={loading} aria-label="Consultar novamente a taxa para o bairro informado">Consultar taxa deste bairro</button>}
+                     <a href={businessWhatsAppUrl("Olá! Preciso de ajuda para identificar meu bairro ou preencher o endereço no site. Esta mensagem é somente um pedido de orientação; não estou enviando nem confirmando uma compra.")} target="_blank" rel="noopener noreferrer">Não encontrou seu bairro? Pedir ajuda</a>
+                     <small>Você pode continuar preenchendo manualmente. O WhatsApp acima é só atendimento: não envia carrinho nem registra pedido.</small>
+                   </div>
                   <div className={styles.addressFormActions}><button className={styles.cepToggle} type="button" aria-expanded={cepExpanded} onClick={()=>{setCepExpanded(v=>!v);setManualMode(true);}}>{cepExpanded?"Ocultar busca pelo CEP":"Prefiro buscar pelo CEP (opcional)"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
               </section>
@@ -1285,6 +1335,11 @@ export function CheckoutModal() {
           </div>
         ) : (
           <div className={styles.stack}>
+            <section className={styles.r36ReviewCard} data-kind={finalReview.kind} role="status" aria-label="Verificacao da revisao final">
+              <div><strong>{finalReview.title}</strong><p>{finalReview.message}</p></div>
+              {!finalReview.ready && !orderOutcomeUncertain && <button type="button" onClick={() => setStep(1)}>Corrigir dados</button>}
+              {orderOutcomeUncertain && <button type="button" onClick={() => openModal("orders")}>Conferir Meus Pedidos</button>}
+            </section>
             <section className={styles.receiveCard}><div><strong>{customerName || (isPickup ? "Retirada no balcão" : "Entrega no endereço")}</strong><span>{isPickup ? "Retirada no balcão · sem taxa de entrega" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}${referencia ? ` · Ref.: ${referencia}` : ""}`}</span><small>{userPhone}</small></div><button type="button" onClick={() => setStep(1)}>Editar</button></section>
             <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" aria-label="Código do cupom ou benefício" value={couponCode} maxLength={32} autoComplete="off" autoCapitalize="characters" spellCheck={false} onChange={(event) => changeCouponCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void applyCoupon(); } }}/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || couponChecking || !couponCode.trim()}>{couponChecking ? "Verificando…" : "Aplicar"}</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
             <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>{isPickup ? "Retirada" : "Entrega"}</span><b data-free={finalFee === 0}>{isPickup ? "Sem taxa" : finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{!isPickup && finalFee === 0 && <small>{hasFreeDelivery ? `Você ganhou entrega grátis por atingir o valor mínimo${freeThreshold ? ` de ${money(freeThreshold)}` : ""}.` : deliveryFee === 0 && bairro.trim() ? `Entrega grátis configurada para ${bairro.trim()}.` : "Entrega grátis aplicada a este pedido."}</small>}</section>
@@ -1300,3 +1355,6 @@ export function CheckoutModal() {
     </ModalBase>
   );
 }
+// DFL-R34-CHECKOUT-ASSISTED
+// DFL-R35-CHECKOUT-FOCUS
+// DFL-R36-REVIEW-PREFLIGHT

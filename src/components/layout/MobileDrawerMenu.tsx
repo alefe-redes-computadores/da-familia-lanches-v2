@@ -18,6 +18,7 @@ import { useCartStore } from "@/store/cart.store";
 import { useUIStore } from "@/store/ui";
 import { useShopStatus } from "@/hooks/useShopStatus";
 import { businessWhatsAppUrl } from "@/lib/businessContact";
+import { readGuestIdentity, readGuestOrders } from "@/lib/guestContinuity";
 import styles from "./MobileDrawerMenu.module.css";
 
 type IconName = "home" | "orders" | "star" | "cart" | "user" | "share" | "chat" | "close";
@@ -43,12 +44,30 @@ export function MobileDrawerMenu() {
   const currentUser = useAuthStore((state) => state.currentUser);
   const items = useCartStore((state) => state.items);
   const shopStatus = useShopStatus();
-  const [shared, setShared] = useState(false);
+  const [shared, setShared] = useState<"copied" | "shared" | "failed" | null>(null);
+  const [guestSummary, setGuestSummary] = useState({ firstName: "", count: 0 });
   const drawerRef = useRef<HTMLElement>(null);
   const isOpen = activeModal === "menu";
   const itemCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const cartTotal = items.reduce((sum, item) => sum + Number(item.price) * (item.quantity || 0), 0);
   const firstName = currentUser?.displayName?.split(" ")[0] || currentUser?.email?.split("@")[0] || "Visitante";
+
+  // R32: convidados consultam pedidos locais sem exigir login; nao acessa dados remotos.
+  useEffect(() => {
+    if (!isOpen || currentUser) return;
+    const syncGuest = () => {
+      try {
+        const identity = readGuestIdentity();
+        setGuestSummary({
+          firstName: identity?.name?.trim().split(/\s+/)[0] || "",
+          count: readGuestOrders().length,
+        });
+      } catch { setGuestSummary({ firstName: "", count: 0 }); }
+    };
+    syncGuest();
+    window.addEventListener("dfl:guest-continuity", syncGuest);
+    return () => window.removeEventListener("dfl:guest-continuity", syncGuest);
+  }, [isOpen, currentUser]);
 
   // R28: tabulacao e Escape permanecem dentro do menu, sem scroll de fundo.
   useEffect(() => {
@@ -82,7 +101,7 @@ export function MobileDrawerMenu() {
 
   const modal = (destination: "orders" | "rewards" | "account" | "cart") => {
     closeModal();
-    openModal(destination === "cart" || currentUser ? destination : "login");
+    openModal(destination === "cart" || destination === "orders" || currentUser ? destination : "login");
   };
   const home = () => {
     closeModal();
@@ -92,11 +111,19 @@ export function MobileDrawerMenu() {
   const share = async () => {
     const data = { title: "Da Família Lanches", text: "Veja o cardápio da Da Família Lanches", url: "https://dafamilialanches.com.br" };
     try {
-      if (navigator.share) await navigator.share(data);
-      else await navigator.clipboard.writeText(data.url);
-      setShared(true);
-      window.setTimeout(() => setShared(false), 2200);
-    } catch { /* cancelamento não precisa virar erro */ }
+      if (navigator.share) {
+        await navigator.share(data);
+        setShared("shared");
+      } else {
+        if (!navigator.clipboard?.writeText) throw new Error("SHARE_UNAVAILABLE");
+        await navigator.clipboard.writeText(data.url);
+        setShared("copied");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setShared("failed");
+    }
+    window.setTimeout(() => setShared(null), 3000);
   };
 
   return (
@@ -111,15 +138,16 @@ export function MobileDrawerMenu() {
 
         <section className={styles.welcome}>
           <div className={styles.welcomeTop}>
-            <div><span>{currentUser ? `Olá, ${firstName}` : "Bem-vindo"}</span><strong>{currentUser ? "Tudo pronto para pedir de novo." : "Entre para acompanhar seus pedidos."}</strong></div>
-            <i data-open={shopStatus.isOpen}>{shopStatus.isOpen ? "ABERTO" : "FECHADO"}</i>
+            <div><span>{currentUser ? `Olá, ${firstName}` : guestSummary.firstName ? `Olá, ${guestSummary.firstName}` : "Bem-vindo"}</span><strong>{currentUser ? "Tudo pronto para pedir de novo." : guestSummary.count ? `${guestSummary.count} pedido(s) salvo(s) neste aparelho.` : "Você pode pedir sem criar conta."}</strong></div>
+            <i data-open={shopStatus.isOpen}>{shopStatus.isOpen ? "ABERTO" : shopStatus.mode === "test_open" ? "MANUTENÇÃO" : "FECHADO"}</i>
           </div>
+          {!currentUser && guestSummary.count > 0 && <small className={styles.guestLocalHint}>Histórico deste aparelho. Entre para sincronizar em outros dispositivos.</small>}
           {!currentUser && <button type="button" onClick={() => modal("account")}>Entrar com Google <b>›</b></button>}
         </section>
 
         <nav className={styles.actionGrid} aria-label="Atalhos">
           <button type="button" onClick={home}><span><Icon name="home" /></span><div><b>Cardápio</b><small>Voltar ao início</small></div></button>
-          <button type="button" onClick={() => modal("orders")}><span><Icon name="orders" /></span><div><b>Meus pedidos</b><small>Acompanhar e repetir</small></div></button>
+          <button type="button" onClick={() => modal("orders")}><span><Icon name="orders" /></span><div><b>Meus pedidos</b><small>{!currentUser && guestSummary.count ? `${guestSummary.count} salvo(s) neste aparelho` : "Acompanhar e repetir"}</small></div></button>
           <button type="button" onClick={() => modal("rewards")}><span><Icon name="star" /></span><div><b>Recompensas</b><small>Progresso e benefícios</small></div></button>
           <button className={styles.cartAction} type="button" onClick={() => modal("cart")}><span><Icon name="cart" /></span><div><b>Carrinho {itemCount > 0 ? `· ${itemCount}` : ""}</b><small>{itemCount ? cartTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "Comece seu pedido"}</small></div></button>
         </nav>
@@ -127,7 +155,7 @@ export function MobileDrawerMenu() {
         <div className={styles.utility}>
           <button type="button" onClick={() => { closeModal(); window.dispatchEvent(new Event("dfl:assist-open")); }}><Bot size={21} aria-hidden="true" /><span>DFL Assist</span></button>
           <button type="button" onClick={() => modal("account")}><Icon name="user" /><span>{currentUser ? "Minha conta" : "Entrar"}</span></button>
-          <button type="button" onClick={share}><Icon name="share" /><span>{shared ? "Link copiado" : "Compartilhar"}</span></button>
+          <button type="button" onClick={share}><Icon name="share" /><span>{shared === "copied" ? "Link copiado" : shared === "shared" ? "Compartilhado" : shared === "failed" ? "Tente novamente" : "Compartilhar"}</span></button>
           <a href={businessWhatsAppUrl("Olá! Preciso de ajuda com um pedido no site.")} target="_blank" rel="noreferrer"><Icon name="chat" /><span>Ajuda</span></a>
         </div>
 
@@ -136,3 +164,4 @@ export function MobileDrawerMenu() {
     </div>
   );
 }
+// DFL-R32-GUEST-NAVIGATION

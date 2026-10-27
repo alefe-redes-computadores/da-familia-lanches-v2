@@ -87,3 +87,10 @@
  .action{padding:8px 7px;font-size:11px}
  .close{flex-basis:30px;width:30px}
 }
+
+/* DFL-R32-TOAST-ACCESSIBLE */
+.toast{max-width:100%;overflow-wrap:anywhere}
+.copy{min-width:0}
+.action{min-height:44px;touch-action:manipulation}
+@media(max-width:340px){.toast{gap:6px;padding:9px}.action{font-size:11px;padding:8px;max-width:39%}.close{flex-basis:30px;width:30px}}
+@media(prefers-reduced-motion:reduce){.toast{scroll-behavior:auto}}

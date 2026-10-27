@@ -7,6 +7,7 @@ import { useCartStore } from "@/store/cart.store";
 import { useCatalog } from "@/hooks/useCatalog";
 import { useCustomerOrders, type CustomerOrder } from "@/hooks/useCustomerOrders";
 import { availableAddonsForProduct } from "@/lib/catalog";
+import { inspectProductSelections } from "@/lib/catalogModifierGroups";
 import { getOrderItems, normalizeText, orderDateToDate } from "@/lib/orderCompat";
 import { formatarData, normalizarStatus } from "@/lib/orderUtils";
 import { nextCustomerMessage, statusDescription, statusProgress, statusReached, statusTitle, timelineSteps } from "@/lib/orderStatus";
@@ -81,7 +82,18 @@ export function OrdersModal(){
    document.addEventListener("visibilitychange",onResume);
    return()=>{alive=false;stopPolling();window.removeEventListener("online",onResume);window.removeEventListener("offline",onResume);document.removeEventListener("visibilitychange",onResume)};
  },[currentUser]);
- const repeat=(order:CustomerOrder)=>{const old=getOrderItems(order); if(!old.length){setNotice("Esse pedido antigo não possui itens reconhecíveis para repetir.");return;} const resolved=old.flatMap(item=>{const p=products.find(x=>x.id===item.id)??products.find(x=>normalizeText(x.name)===normalizeText(item.name)); if(!p||!p.disponivel)return[]; const allowedAddons=availableAddonsForProduct(p,addons); const resolvedAddons=item.selectedAddons.flatMap(a=>{const n=allowedAddons.find(x=>x.id===a.id)??allowedAddons.find(x=>normalizeText(x.name)===normalizeText(a.name));return n?[n]:[]});return[{item,product:p,addons:resolvedAddons}]}); if(!resolved.length){setNotice("Os produtos desse pedido não estão disponíveis no cardápio atual.");setRepeatTarget(null);return;} const skipped=old.length-resolved.length;clearCart();resolved.forEach(({item,product,addons})=>addItem(product,item.quantity,addons,item.observation));setNotice(skipped?`${skipped} item(ns) indisponível(is) foram ignorados. O restante usa preços atuais.`:"");setRepeatTarget(null);closeModal();openModal("cart")};
+ // R33: indice somente em memoria para repetir pedidos, preservando o primeiro produto por nome.
+ const repeatIndex=useMemo(()=>{
+   const byId=new Map<string,(typeof products)[number]>();
+   const byName=new Map<string,(typeof products)[number]>();
+   for(const product of products){
+     byId.set(product.id,product);
+     const key=normalizeText(product.name);
+     if(!byName.has(key))byName.set(key,product);
+   }
+   return {byId,byName};
+ },[products]);
+ const repeat=(order:CustomerOrder)=>{const old=getOrderItems(order); if(!old.length){setNotice("Esse pedido antigo não possui itens reconhecíveis para repetir.");return;} const resolved=old.flatMap(item=>{const p=(item.id ? repeatIndex.byId.get(item.id) : undefined)??repeatIndex.byName.get(normalizeText(item.name)); if(!p||!p.disponivel)return[]; const allowedAddons=availableAddonsForProduct(p,addons); const resolvedAddons=item.selectedAddons.flatMap(a=>{const n=allowedAddons.find(x=>x.id===a.id)??allowedAddons.find(x=>normalizeText(x.name)===normalizeText(a.name));return n?[n]:[]});if(!inspectProductSelections(p,resolvedAddons.map(addon=>addon.id)).valid)return[];return[{item,product:p,addons:resolvedAddons}]}); if(!resolved.length){setNotice("Os produtos desse pedido não estão disponíveis no cardápio atual.");setRepeatTarget(null);return;} const skipped=old.length-resolved.length;clearCart();resolved.forEach(({item,product,addons})=>addItem(product,item.quantity,addons,item.observation));setNotice(skipped?`${skipped} item(ns) não foram incluídos por indisponibilidade ou opções obrigatórias alteradas. Confira o restante com preços atuais.`:"");setRepeatTarget(null);closeModal();openModal("cart")};
  return <ModalBase title="Meus pedidos" onClose={closeModal}><div className={styles.body}>
    {error&&<div className={styles.error}>{error}</div>}{notice&&<div className={styles.notice}>{notice}</div>}
    {loading&&<div className={styles.loading}>Conectando aos seus pedidos…</div>}
@@ -101,3 +113,5 @@ export function OrdersModal(){
    </article>})}</div>
    {tab==="history"&&hasMore&&<button className={styles.loadMore} type="button" disabled={historyLoading} onClick={()=>void loadMore()}>{historyLoading?"Carregando…":"Carregar pedidos anteriores"}</button>}
  </div></ModalBase>}
+// DFL-R33-ORDER-REPEAT-INDEX
+// DFL-R36-REPEAT-MODIFIERS

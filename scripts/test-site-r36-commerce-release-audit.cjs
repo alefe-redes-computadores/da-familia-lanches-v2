@@ -1,0 +1,35 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),ts=require('typescript');
+const read=p=>fs.readFileSync(p,'utf8');
+const unit='src/lib/checkoutReviewSafety.ts';
+const compiled=ts.transpileModule(read(unit),{fileName:unit,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},reportDiagnostics:true});
+assert.equal((compiled.diagnostics||[]).filter(x=>x.category===ts.DiagnosticCategory.Error).length,0);
+const m={exports:{}};new Function('module','exports',compiled.outputText)(m,m.exports);
+const check=m.exports.inspectCheckoutReviewSafety;
+const base={hasItems:true,personalReady:true,addressReady:true,pickup:false,scheduleRequired:false,scheduleSelected:false,online:true,uncertain:false};
+assert.equal(check(base).ready,true);
+assert.equal(check({...base,uncertain:true}).kind,'uncertain');
+assert.equal(check({...base,online:false}).kind,'offline');
+assert.equal(check({...base,hasItems:false}).ready,false);
+assert.equal(check({...base,personalReady:false}).kind,'review');
+assert.equal(check({...base,addressReady:false}).ready,false);
+assert.equal(check({...base,pickup:true,addressReady:false}).ready,true);
+assert.equal(check({...base,scheduleRequired:true}).ready,false);
+assert.equal(check({...base,scheduleRequired:true,scheduleSelected:true}).ready,true);
+const checkout=read('src/components/ui/CheckoutModal.tsx');
+const orders=read('src/components/ui/OrdersModal.tsx');
+const health=read('src/components/admin/OperationHealthAdmin.tsx');
+const pulse=read('src/components/admin/CatalogConversionPulse.tsx');
+assert(checkout.includes('inspectCheckoutReviewSafety')&&checkout.includes('finalReview.kind'));
+assert(checkout.includes('const finishOrder = async () => {')&&checkout.includes('createCustomerOrder')&&checkout.includes('orderAttemptRef'));
+assert(checkout.includes('canOfferManualOrderFallback(code)')&&checkout.includes('orderOutcomeUncertain'));
+assert(orders.includes('inspectProductSelections(p,resolvedAddons.map(addon=>addon.id))'));
+assert(orders.includes('repeatIndex.byId.get(item.id)')&&orders.includes('clearCart();resolved.forEach'));
+assert(health.includes('stageSummary=useMemo')&&health.includes('pedidos ja carregados'));
+assert(!/fetch\(|getDocs\(|onSnapshot\(/.test(health.split('// R36: contagem por etapa')[1].split('const now=Date.now();')[0]));
+assert(pulse.includes('navigator.clipboard.writeText')&&pulse.includes('sem dados de clientes'));
+for(const p of [unit,'src/components/ui/CheckoutModal.tsx','src/components/ui/OrdersModal.tsx','src/components/admin/OperationHealthAdmin.tsx','src/components/admin/CatalogConversionPulse.tsx']){
+ const ast=ts.createSourceFile(p,read(p),ts.ScriptTarget.Latest,true,p.endsWith('.tsx')?ts.ScriptKind.TSX:ts.ScriptKind.TS);
+ assert.equal(ast.parseDiagnostics.length,0,`${p}: erro de sintaxe`);
+}
+console.log('R36: preflight seguro, pedido antigo com adicionais validados, fila Admin e diagnostico editorial aprovados.');

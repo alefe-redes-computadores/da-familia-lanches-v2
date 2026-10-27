@@ -30,3 +30,10 @@
   .utility span{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){.drawer{scroll-behavior:auto}}
+
+/* DFL-R32-GUEST-DRAWER */
+.guestLocalHint{display:block;margin-top:9px;color:#c6b998;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.welcomeTop i{max-width:98px;white-space:normal;text-align:center;line-height:1.25}
+.actionGrid button,.utility button,.utility a{touch-action:manipulation}
+.utility span{overflow-wrap:anywhere}
+@media(max-width:355px){.welcomeTop{flex-wrap:wrap}.welcomeTop i{font-size:9px}.actionGrid b{font-size:11px}}

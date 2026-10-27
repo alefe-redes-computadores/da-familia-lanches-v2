@@ -63,7 +63,8 @@ export function recommendDFLProducts(products: readonly Product[], request: Assi
   const query = String(request.query ?? "").slice(0, 180);
   const intent = extractDFLIntent(query);
   const words = intent.terms;
-  const budget = Number.isFinite(request.budget) && (request.budget ?? -1) >= 0 ? Number(request.budget) : intent.budget;
+  // A frase tem prioridade real; filtros manuais sao usados somente se a frase nao limitar o valor.
+  const budget = intent.budget ?? (Number.isFinite(request.budget) && (request.budget ?? -1) >= 0 ? Number(request.budget) : null);
   const people = intent.people ?? (Number.isInteger(request.people) && Number(request.people) >= 1 && Number(request.people) <= 30 ? Number(request.people) : null);
   const combos = request.onlyCombos === true || intent.comboOnly;
   const results = products.flatMap(product => {
@@ -84,3 +85,4 @@ export function recommendDFLProducts(products: readonly Product[], request: Assi
   });
   return results.sort((a,b) => b.score - a.score || a.product.price - b.product.price || a.product.id.localeCompare(b.product.id)).slice(0, Math.max(0, Math.min(8, Math.floor(limit))));
 }
+// DFL-R33-INTENT-PRIORITY

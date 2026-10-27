@@ -738,3 +738,42 @@
 .addressForm .districtSuggestions button{touch-action:manipulation;overflow-wrap:anywhere}
 .addressForm .addressFirstField input{min-width:0;max-width:100%}
 @media(max-width:360px){.addressForm .districtMatchNote{padding:10px}}
+
+/* DFL-R34-CHECKOUT-ASSISTED */
+.checkoutReadiness{display:grid;gap:9px;padding:13px 14px;margin:6px 0 12px;border:1px solid #e5dac4;border-radius:17px;background:linear-gradient(145deg,#fffefa,#fff7e7);color:#362a18}
+.checkoutReadinessTop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.checkoutReadinessTop strong{font-size:13px;line-height:1.35;font-weight:900}
+.checkoutReadinessTop b{flex:0 0 auto;font-size:12px;font-variant-numeric:tabular-nums;color:#805a13}
+.checkoutReadinessTrack{height:6px;overflow:hidden;border-radius:999px;background:#e8e0ce}
+.checkoutReadinessTrack i{display:block;height:100%;border-radius:999px;background:#a77c13;transition:width .16s ease}
+.checkoutReadiness p{margin:0;color:#67573b;font-size:12px;line-height:1.5}
+.checkoutReadinessTags{display:flex;flex-wrap:wrap;gap:6px}
+.checkoutReadinessTags span{display:inline-flex;align-items:center;min-height:29px;padding:5px 9px;border:1px solid #dfd2b8;border-radius:999px;background:#fff;color:#725c39;font-size:10px;font-weight:850}
+.checkoutReadinessTags span[data-done="true"]{color:#246838;border-color:#cce8d2;background:#f0faf1}
+.checkoutReadiness[data-ready="true"]{border-color:#c8e6d1;background:#f4fbf5}
+.checkoutReadiness[data-ready="true"] .checkoutReadinessTrack i{background:#2c8e51}
+.addressHelpActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 7px;padding:11px;border:1px solid #e9ddc5;border-radius:14px;background:#faf7f0}
+.addressHelpActions button,.addressHelpActions a{display:flex;justify-content:center;align-items:center;min-height:44px;padding:9px 11px;border:1px solid #d9c9a9;border-radius:12px;background:#fff;color:#4c3616;text-align:center;text-decoration:none;font-size:11px;line-height:1.4;font-weight:850;cursor:pointer;touch-action:manipulation}
+.addressHelpActions button:disabled{opacity:.45;cursor:not-allowed}
+.addressHelpActions a{border-color:#e0d0b4;background:#fff6e2}
+.addressHelpActions small{grid-column:1/-1;color:#786a55;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.addressHelpActions :is(button,a):focus-visible{outline:3px solid #c89510;outline-offset:2px}
+@media(max-width:400px){.addressHelpActions{grid-template-columns:1fr;padding:9px}.addressHelpActions button,.addressHelpActions a{width:100%;font-size:12px}.checkoutReadiness{padding:11px}.checkoutReadinessTags span{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.checkoutReadinessTrack i{transition:none}}
+
+/* DFL-R35-CHECKOUT-FOCUS */
+.r35ReadinessAction{min-height:44px;width:100%;padding:10px 12px;border:1px solid #b78b33;border-radius:12px;background:#231b11;color:#fff4d5;font-size:12px;font-weight:900;line-height:1.4;text-align:center;cursor:pointer;touch-action:manipulation}
+.r35ReadinessAction:active{transform:scale(.99)}.r35ReadinessAction:focus-visible{outline:3px solid #b8891e;outline-offset:3px}
+.r35CheckoutReminder{display:block;color:#74654b;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+@media(max-width:400px){.r35ReadinessAction{font-size:12px;padding:10px}}
+@media(prefers-reduced-motion:reduce){.r35ReadinessAction:active{transform:none}}
+
+/* DFL-R36-REVIEW-PREFLIGHT */
+.r36ReviewCard{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #d9e4da;border-radius:15px;background:#f4faf5;color:#1d4d2e;min-width:0}
+.r36ReviewCard>div{min-width:0}.r36ReviewCard strong{display:block;font-size:12px;line-height:1.4}.r36ReviewCard p{margin:4px 0 0;font-size:11px;line-height:1.55;color:#446b4e;overflow-wrap:anywhere}
+.r36ReviewCard[data-kind="review"],.r36ReviewCard[data-kind="offline"]{border-color:#ebd3a3;background:#fff8e9;color:#634111}
+.r36ReviewCard[data-kind="uncertain"]{border-color:#e4aeaa;background:#fff4f3;color:#872d28}
+.r36ReviewCard[data-kind="review"] p,.r36ReviewCard[data-kind="offline"] p{color:#7a602d}.r36ReviewCard[data-kind="uncertain"] p{color:#853c37}
+.r36ReviewCard button{flex:0 0 auto;min-height:44px;padding:8px 10px;border:1px solid currentColor;border-radius:11px;background:transparent;color:inherit;font-size:11px;font-weight:900;cursor:pointer}
+.r36ReviewCard button:focus-visible{outline:3px solid #d5a130;outline-offset:3px}
+@media(max-width:450px){.r36ReviewCard{align-items:stretch;flex-direction:column}.r36ReviewCard button{width:100%}}

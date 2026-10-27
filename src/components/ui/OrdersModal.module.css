@@ -20,3 +20,16 @@
   .tabs button,.repeat,.loadMore{min-height:44px}
   .statusDesc{line-height:1.5}
 }
+
+/* DFL-R33-ORDER-UX */
+.guestIntro{gap:6px}
+.guestIntro span{font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.guestStatusMeta{font-size:10px;line-height:1.5}
+.card .details summary{min-height:44px;display:flex;align-items:center;overflow-wrap:anywhere;touch-action:manipulation}
+.repeat,.repeatConfirm button,.scheduleActions button,.reschedule button{touch-action:manipulation}
+@media(max-width:360px){.card{padding:12px}.guestIntro{padding:11px}}
+
+/* DFL-R36-REPEAT-MODIFIERS */
+/* Pedidos antigos com escolhas alteradas nunca sao repetidos silenciosamente. */
+.notice{overflow-wrap:anywhere;line-height:1.55}
+@media(max-width:420px){.repeatConfirm{padding:13px}.repeatConfirm strong,.repeatConfirm>span{line-height:1.5}}

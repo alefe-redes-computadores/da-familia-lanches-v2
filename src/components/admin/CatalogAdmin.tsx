@@ -17,6 +17,7 @@ import { CATALOG_CATEGORIES_COLLECTION, type CatalogCategory } from "@/lib/catal
 import styles from "./CatalogAdmin.module.css";
 import { CatalogOrganizerAdmin } from "./CatalogOrganizerAdmin";
 import { CatalogQualityPanel } from "./CatalogQualityPanel";
+import { CatalogConversionPulse } from "./CatalogConversionPulse";
 import { CatalogBulkOperations } from "./CatalogBulkOperations";
 import { CatalogLaunchCenter } from "./CatalogLaunchCenter";
 import { productPublicSection, productPublicSlug } from "@/lib/productRoutes";
@@ -625,6 +626,7 @@ export function CatalogAdmin() {
 
     {message && <div className={styles.message} data-tone={/falha|erro|inválid|não foi|obrigatóri|informe|precisa|não pode/i.test(message) ? "error" : "success"} role="status" aria-live="polite"><span>{message}</span><button type="button" aria-label="Fechar aviso" onClick={() => setMessage("")}>×</button></div>}
 
+    <CatalogConversionPulse products={products} categories={categories} source={source} />
     <CatalogQualityPanel products={products} categories={categories} />
     <CatalogBulkOperations products={products} categories={categories} source={source} />
     <CatalogLaunchCenter products={products} addons={allAddons} categories={categories} source={source} onEdit={openEditProduct} />
@@ -846,3 +848,4 @@ export function CatalogAdmin() {
     </div>}
   </div>;
 }
+// DFL-R35-ADMIN-CONVERSION

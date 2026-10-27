@@ -4,6 +4,7 @@ import { Minus, Plus } from "lucide-react";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useCatalog } from "@/hooks/useCatalog";
 import { extractDFLIntent, recommendDFLProducts } from "@/lib/dflAssistRecommendations";
+import { suggestCatalogQueries } from "@/lib/catalogSearchRecovery";
 import styles from "./DFLAssist.module.css";
 
 type Props = { onFindProduct: (name: string) => void };
@@ -24,6 +25,10 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
   const offers = useMemo(() => catalogReady && validBudget
     ? recommendDFLProducts(products, { people, budget, onlyCombos, query }, 4)
     : [], [catalogReady, validBudget, products, people, budget, onlyCombos, query]);
+  const discoveryHints = useMemo(() => catalogReady && validBudget && !offers.length && query.trim()
+    ? suggestCatalogQueries(products, query, 3)
+    : [], [catalogReady, validBudget, offers.length, products, query]);
+  const clearFilters = () => { setQuery(""); setPeople(2); setBudgetInput(""); setOnlyCombos(false); };
   return <section className={styles.offers} aria-label="Sugestões do DFL Assist">
     <h3 className={styles.offerTitle}>Encontre seu lanche</h3>
     <div className={styles.quickSearch} role="group" aria-label="Buscas rápidas">
@@ -59,7 +64,10 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
           placeholder="Sem limite" aria-label="Orçamento em reais, opcional" autoComplete="off" />
       </label>
     </div>
-    <label className={styles.offerToggle}><input type="checkbox" checked={onlyCombos} onChange={e=>setOnlyCombos(e.target.checked)}/> Mostrar somente combos</label>
+    <div className={styles.offerFilterFooter}>
+      <label className={styles.offerToggle}><input type="checkbox" checked={onlyCombos} onChange={e=>setOnlyCombos(e.target.checked)}/> Mostrar somente combos</label>
+      <button type="button" className={styles.offerClearFilters} onClick={clearFilters} disabled={!query && !budgetInput && !onlyCombos && people === 2}>Limpar filtros</button>
+    </div>
     {!validBudget ? <p className={styles.offerNotice}>Confira o orçamento informado.</p> :
      loading ? <p className={styles.offerNotice} role="status">Carregando sugestões do cardápio…</p> :
      !catalogReady ? <p className={styles.offerNotice} role="status">Cardápio online indisponível. Você ainda pode pesquisar ou falar com a equipe; não vou apresentar preços sem confirmação.</p> :
@@ -68,8 +76,15 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
         <div className={styles.offerCopy}><strong>{product.name}</strong><b className={styles.offerPrice}>{currency(product.price)}</b><small>{product.bundleItems?.length ? "Confira os itens e a composição do combo" : reason}</small></div>
         <button type="button" onClick={()=>onFindProduct(product.name)} aria-label={`Encontrar ${product.name} no cardápio`}>Ver <span className={styles.offerButtonLabel}>produto</span></button>
       </li>)}</ul> :
-     <p className={styles.offerNotice}>Não encontrei opções confirmadas para esses filtros. Experimente outra busca, aumente o orçamento ou desmarque combos.</p>}
+     <div className={styles.offerRecovery}>
+       <p className={styles.offerNotice}>Não encontrei opções confirmadas para esses filtros. Experimente outra busca, aumente o orçamento ou desmarque combos.</p>
+       {discoveryHints.length > 0 && <div className={styles.offerDiscovery} aria-label="Alternativas para explorar no cardápio">
+         <small>Produtos com nomes parecidos — confira preço e filtros:</small>
+         {discoveryHints.map(name => <button type="button" key={name} onClick={() => onFindProduct(name)}>{name}</button>)}
+       </div>}
+     </div>}
     {catalogReady && validBudget && <p className={styles.offerCount} role="status">{offers.length} {offers.length===1 ? "sugestão" : "sugestões"} do catálogo confirmado</p>}
     <p className={styles.offerNotice}>Sugestões não reservam itens. Confira os ingredientes, o preço e a disponibilidade na finalização.</p>
   </section>;
 }
+// DFL-R33-ASSIST-RECOVERY

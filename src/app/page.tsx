@@ -15,6 +15,7 @@ import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
 import { CustomerExperiencePrompt } from "@/components/home/CustomerExperiencePrompt";
 import { CATALOG_SEARCH_EVENT, rankCatalogProducts } from "@/lib/catalogSearch";
+import { suggestCatalogQueries } from "@/lib/catalogSearchRecovery";
 import { readRecentProductIds, rememberRecentProductId } from "@/lib/recentProductViews";
 import { clearSavedProductIds, readSavedProductIds } from "@/lib/savedProductIds";
 
@@ -108,6 +109,13 @@ export default function Home() {
     });
     return term ? rankCatalogProducts(base, term) : base;
   }, [activeCategory, visibleCategoryIds, products, deferredSearch]);
+
+  // R33: alternativas reais somente quando a busca nao retornou produtos.
+  const catalogRecovery = useMemo(() => {
+    if (catalogLoading || filtered.length || !deferredSearch.trim() || search.trim() !== deferredSearch.trim()) return [];
+    const available = products.filter(candidate => candidate.disponivel !== false && visibleCategoryIds.has(candidate.category));
+    return suggestCatalogQueries(available, deferredSearch, 4);
+  }, [catalogLoading, filtered.length, products, visibleCategoryIds, deferredSearch, search]);
 
   useEffect(() => {
     const onSearch = (event: Event) => {
@@ -322,7 +330,15 @@ export default function Home() {
         {!catalogLoading && filtered.length === 0 && (
           <div className={styles.empty}>
             <strong>Nenhum item encontrado.</strong>
-            <span>Tente outro nome ou volte ao cardápio completo.</span>
+            <span>{search.trim() ? "Tente outro nome, confira a escrita ou procure uma sugestão." : "Tente outra categoria ou volte ao cardápio completo."}</span>
+            {catalogRecovery.length > 0 && <div className={styles.catalogRecoverySuggestions} aria-label="Buscas alternativas do cardápio">
+              <small>Produtos parecidos no cardápio. Toque para procurar:</small>
+              <div>{catalogRecovery.map(name => <button type="button" key={name} onClick={() => { setSearch(name); setActiveCategory("todos"); }}>{name}</button>)}</div>
+            </div>}
+            {Boolean(search.trim()) && <div className={styles.emptyRecovery}>
+              <button type="button" onClick={() => { setSearch("combo"); setActiveCategory("todos"); }}>Buscar combos</button>
+              <button type="button" onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}>Usar DFL Assist</button>
+            </div>}
             <button type="button" onClick={() => { setSearch(""); setActiveCategory("todos"); }}>Ver cardápio completo</button>
           </div>
         )}
@@ -334,3 +350,5 @@ export default function Home() {
 // DFL-R29-CATALOG-INDEX
 
 // DFL-R30-HOME-INDEX
+// DFL-R32-EMPTY-RECOVERY
+// DFL-R33-CATALOG-SEARCH-RECOVERY
