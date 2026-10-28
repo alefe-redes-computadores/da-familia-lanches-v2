@@ -18,3 +18,16 @@
 .r36StagePulse>div span{min-width:0;display:flex;flex-direction:column;gap:3px;padding:8px;border:1px solid #293943;border-radius:10px;background:#1b2730;color:#b9cad1;font-size:9px;line-height:1.4;overflow-wrap:anywhere}
 .r36StagePulse>div b{color:#f7cf6d;font-size:18px;font-variant-numeric:tabular-nums}
 @media(max-width:580px){.r36StagePulse>div{grid-template-columns:repeat(2,minmax(0,1fr))}.r36StagePulse>div span:last-child{grid-column:1/-1}}
+
+
+/* DFL-R39-PREOPEN: read-only, compact cards for real shift preparation. */
+.r39Preopen{display:grid;gap:9px;margin-top:10px;padding:12px;border:1px solid #304147;border-radius:14px;background:#131d24;min-width:0}
+.r39Preopen header{display:flex;justify-content:space-between;align-items:center;gap:10px;min-width:0}
+.r39Preopen header>div{min-width:0}.r39Preopen header strong{display:block;font-size:12px;color:#e6ecec}.r39Preopen header small{display:block;margin-top:4px;color:#8ea1a9;font-size:10px;line-height:1.5}
+.r39Preopen header b{flex:0 0 auto;padding:6px 8px;border-radius:9px;background:#1d2e33;color:#f0c67a;font-size:10px}
+.r39PreopenChecks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-width:0}
+.r39PreopenChecks article{min-width:0;padding:10px;border-radius:11px;border:1px solid #334047;background:#1c2931;display:grid;align-content:start;gap:4px}
+.r39PreopenChecks article[data-level="ok"]{border-color:#2c5948}.r39PreopenChecks article[data-level="review"]{border-color:#765d38}.r39PreopenChecks article[data-level="unknown"]{border-color:#50606b}
+.r39PreopenChecks article strong{color:#ebeced;font-size:11px}.r39PreopenChecks article small{color:#a0b0ba;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.r39Preopen>small{font-size:9px;line-height:1.5;color:#91a0a8}
+@media(max-width:450px){.r39Preopen{padding:10px}.r39Preopen header{align-items:start;flex-direction:column}.r39PreopenChecks{grid-template-columns:1fr}}

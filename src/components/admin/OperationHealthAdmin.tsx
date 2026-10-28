@@ -5,6 +5,7 @@ import { Activity, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { operationalAttention, type AdminOrder } from "@/lib/adminOrders";
+import { inspectPreopenChecklist } from "@/lib/operationPreopenChecklist";
 import { haptic } from "@/lib/haptics";
 import styles from "./OperationHealthAdmin.module.css";
 
@@ -62,6 +63,14 @@ export function OperationHealthAdmin({ pedidos, historyHasMore }:{pedidos:AdminO
     }finally{setChecking(false)}
   };
 
+  // DFL-R39-PREOPEN: somente o snapshot já carregado, sem polling ou escrita.
+  const preopen=useMemo(()=>inspectPreopenChecklist({
+    activeOrders:active.length, attentionOrders:attention.length,
+    outboxBacklog:remote?.integration.backlog??null,
+    quarantined:remote?.integration.quarantine??null,
+    remoteError:Boolean(remoteError),remoteState:remote?.integration.state??null,
+  }),[active.length,attention.length,remote,remoteError]);
+  const preopenNeedsReview=preopen.filter(item=>item.level!=="ok").length;
   const remoteLabel=!remote?"não consultada":remote.integration.state==="healthy"?"integração limpa":remote.integration.backlog>0?`${remote.integration.backlog} pendência${remote.integration.backlog===1?"":"s"}`:`${remote.integration.quarantine} em quarentena`;
 
   return <section className={styles.root} data-attention={attention.length>0}>
@@ -88,6 +97,13 @@ export function OperationHealthAdmin({ pedidos, historyHasMore }:{pedidos:AdminO
       <strong>Fila por etapa <small>apenas pedidos ja carregados</small></strong>
       <div>{stageSummary.map(item=><span key={item.stage}><b>{item.count}</b>{item.stage}</span>)}</div>
     </div>
+    <section className={styles.r39Preopen} aria-label="Conferência operacional pré-abertura">
+      <header><div><strong>Checklist pré-abertura</strong><small>Conferência de fila e integração. Dados de clientes não são exibidos.</small></div><b>{preopenNeedsReview===0?"Sem alertas consultados":`${preopenNeedsReview} ponto(s) para conferir`}</b></header>
+      <div className={styles.r39PreopenChecks}>{preopen.map(item=><article key={item.id} data-level={item.level}>
+        <strong>{item.level==="ok"?"✓":item.level==="review"?"!":"?"} {item.title}</strong><small>{item.detail}</small>
+      </article>)}</div>
+      <small>Esse resumo não substitui a conferência do catálogo, do caixa, dos horários e do recebimento de um pedido de teste.</small>
+    </section>
     <div className={styles.integration}>
       <span className={styles.integrationIcon}><ShieldCheck size={16}/></span>
       <div>

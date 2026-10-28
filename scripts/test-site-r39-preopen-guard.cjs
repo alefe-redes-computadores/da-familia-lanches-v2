@@ -1,0 +1,34 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),ts=require('typescript');
+const read=p=>fs.readFileSync(p,'utf8');let n=0;const check=(x,msg)=>{assert.ok(x,msg);n++;};
+const core='src/lib/operationPreopenChecklist.ts';const compiled=ts.transpileModule(read(core),{fileName:core,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS},reportDiagnostics:true});
+check(!(compiled.diagnostics||[]).some(x=>x.category===ts.DiagnosticCategory.Error),'motor de triagem valido');
+const mod={exports:{}};new Function('module','exports',compiled.outputText)(mod,mod.exports);
+const base={activeOrders:0,attentionOrders:0,outboxBacklog:null,quarantined:null,remoteError:false,remoteState:null};
+const inspect=mod.exports.inspectPreopenChecklist;
+const initial=inspect(base);
+check(initial.length===4,'quatro eixos');
+check(initial.find(x=>x.id==='integration').level==='unknown','sem consultar nao marca saudavel');
+check(initial.find(x=>x.id==='outbox').level==='unknown','sem consultar nao marca fila limpa');
+check(inspect({...base,activeOrders:2}).find(x=>x.id==='queue').level==='review','fila pendente sinalizada');
+check(inspect({...base,attentionOrders:1}).find(x=>x.id==='attention').level==='review','alertas locais sinalizados');
+check(inspect({...base,remoteState:'healthy',outboxBacklog:0,quarantined:0}).every(x=>x.level==='ok'),'snapshot limpo classifica ok');
+check(inspect({...base,remoteState:'attention',outboxBacklog:1,quarantined:0}).filter(x=>x.level==='review').length===2,'pendencias exibidas');
+check(inspect({...base,remoteState:'quarantine',outboxBacklog:0,quarantined:1}).filter(x=>x.level==='review').length===2,'quarentena exibida');
+check(inspect({...base,remoteState:'healthy',outboxBacklog:0,quarantined:0,remoteError:true}).filter(x=>x.level==='unknown').length===2,'consulta falha nunca indica normalidade');
+const admin=read('src/components/admin/OperationHealthAdmin.tsx'),css=read('src/components/admin/OperationHealthAdmin.module.css');
+for(const tok of ['inspectPreopenChecklist','DFL-R39-PREOPEN','preopen.map(item','remoteError:Boolean(remoteError)','remote?.integration.backlog??null','Fila operacional','checkIntegration','histórico carregado'])check(admin.includes(tok),'admin: '+tok);
+check(css.includes('.r39PreopenChecks')&&css.includes('@media(max-width:450px)'),'mobile administrativo');
+check(!/firebase|fetch\(|getDoc|setDoc\(|addDoc\(|createCustomerOrder/.test(read(core)),'motor de triagem sem IO');
+for(const p of [core,'src/components/admin/OperationHealthAdmin.tsx']){
+ const ast=ts.createSourceFile(p,read(p),ts.ScriptTarget.Latest,true,p.endsWith('tsx')?ts.ScriptKind.TSX:ts.ScriptKind.TS);
+ check(ast.parseDiagnostics.length===0,'sintaxe: '+p);
+}
+const order=read('src/lib/orderRepository.ts'),guest=read('src/app/api/orders/route.ts'),checkout=read('src/components/ui/CheckoutModal.tsx');
+check(order.includes('runTransaction(')&&order.includes('ensureIntegrationEventInTransaction('),'integracao autenticada em transaction');
+check(guest.includes('runTransaction(')&&guest.includes('buildOutboxRecord('),'integracao convidado atomica');
+check(guest.includes('sourceSystem: "dfl_site"'),'origem de pedido identificada');
+check(guest.includes('drainIntegrationOutboxEvent('),'reconciliacao outbox preservada');
+check(checkout.includes('orderOutcomeUncertain')&&checkout.includes('canOfferManualOrderFallback(code)'),'sem duplicar pedidos incertos');
+check(checkout.includes('fallbackWhatsAppUrl')&&checkout.includes('!orderOutcomeUncertain'),'WhatsApp so quando permitido');
+console.log(`R39 PRE-ABERTURA + INTEGRACAO: ${n} contratos aprovados`);

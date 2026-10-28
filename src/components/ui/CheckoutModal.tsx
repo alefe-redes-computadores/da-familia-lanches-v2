@@ -5,6 +5,9 @@ import { readGuestIdentity, saveGuestIdentity, rememberGuestOrder } from "@/lib/
 import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { ModalBase } from "./ModalBase";
 import { StreetSuggestions } from "./StreetSuggestions";
+import { DistrictQuickPicker } from "./DistrictQuickPicker";
+import { AddressMapPreview } from "./AddressMapPreview";
+import { buildDistrictSupportMessage } from "@/lib/addressSupportMessage";
 import { inspectCheckoutReviewSafety } from "@/lib/checkoutReviewSafety";
 import { inspectCheckoutReadiness } from "@/lib/checkoutReadiness";
 import { useUIStore } from "@/store/ui";
@@ -143,6 +146,7 @@ export function CheckoutModal() {
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(DEFAULT_DELIVERY_FEE);
   const [deliveryStatus, setDeliveryStatus] = useState("");
+  const [configuredDistricts, setConfiguredDistricts] = useState<string[]>(() => deliveryTableCache?.list.map(item => String(item.nome ?? "")) ?? []); // DFL-R38-REACTIVE-DISTRICTS
   const [method, setMethod] = useState<PaymentMethod>("pix");
   const [troco, setTroco] = useState("");
   const [orderObservation, setOrderObservation] = useState("");
@@ -208,10 +212,17 @@ export function CheckoutModal() {
 
   const phoneDigits = userPhone.replace(/\D/g, "");
   // R27: a tabela de frete já está em cache; recompute sugestões apenas se o bairro ou a tabela mudar.
-  const configuredDistricts = useMemo(() => deliveryTableCache?.list.map(item => String(item.nome ?? "")) ?? [], [deliveryTableCache?.list]);
   const districtInspection = useMemo(() => inspectDistrict(bairro, configuredDistricts), [bairro, configuredDistricts]);
   const districtSuggestions = districtInspection.suggestions;
   const districtKnownToTable = configuredDistricts.some(name => normalizeDistrict(name) === normalizeDistrict(bairro));
+  // R38: busca a tabela em cache somente quando o cliente abre a lista.
+  // Se a consulta falhar, o preenchimento manual e a lista referencial continuam disponiveis.
+  const openDistrictCatalog = () => {
+    if (isPickup) return;
+    void getDeliveryTableCached().then(({ list }) => {
+      setConfiguredDistricts(list.map(item => String(item.nome ?? "")).filter(Boolean));
+    }).catch(() => { /* nenhum bloqueio ou taxa inventada */ });
+  };
   const addressReady = isPickup || Boolean((cep.replace(/\D/g, "").length === 0 || cep.replace(/\D/g, "").length === 8) && rua.trim().length >= 4 && numero.trim() && districtInspection.valid);
   const phoneReady = phoneDigits.length === 10 || phoneDigits.length === 11;
 
@@ -547,6 +558,7 @@ export function CheckoutModal() {
     try {
       const { list, defaultFee: configuredDefaultFee } = await getDeliveryTableCached();
       if (requestId !== deliveryFeeRequestRef.current) return;
+      setConfiguredDistricts(list.map(item => String(item.nome ?? "")).filter(Boolean));
       if (!list.length) {
         setDeliveryFee(configuredDefaultFee);
         setDeliveryStatus("Não há bairros configurados na tabela. A taxa será validada antes de registrar o pedido.");
@@ -1207,7 +1219,17 @@ export function CheckoutModal() {
                     <small>1. Escolha o bairro · 2. Digite a rua · 3. Informe o número. Se preferir, utilize a busca opcional por CEP.</small>
                   </div>
                   <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value);deliveryFeeRequestRef.current += 1;setDeliveryStatus("")}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid&&districtSuggestions.length===0)void calculateDeliveryFee(bairro);}} /></label>
-                  <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input ref={r35StreetRef} className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}}  autoComplete="address-line1"/></label>
+                   {/* DFL-R38-ADDRESS-CATALOG: fonte cadastrada quando disponivel, sem alterar calculo de frete */}
+                   <DistrictQuickPicker query={bairro} configured={configuredDistricts} onOpen={openDistrictCatalog} onSelect={name => {
+                     customerEditingRef.current = true;
+                     districtManuallyEditedRef.current = true;
+                     setBairro(name);
+                     deliveryFeeRequestRef.current += 1;
+                     setDeliveryStatus(`Bairro selecionado: ${name}. Confira a taxa e complete o endereço.`);
+                     void calculateDeliveryFee(name);
+                     window.requestAnimationFrame(() => r35StreetRef.current?.focus());
+                   }} />
+                   <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input ref={r35StreetRef} className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}}  autoComplete="address-line1"/></label>
                   {manualMode && districtInspection.valid && <StreetSuggestions street={rua} district={bairro} onSelect={name => { customerEditingRef.current=true; setRua(name); }} />}
                   <label className={styles.addressFirstField}><span>3 · Número</span><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/></label>
                   {/* DFL-R22:ADDRESS-SUMMARY */}
@@ -1240,10 +1262,13 @@ export function CheckoutModal() {
                   <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info} role="status" aria-live="polite">{deliveryStatus}</div>}
                    <div className={styles.addressHelpActions}>
                      {bairro.trim() && districtInspection.valid && <button type="button" onClick={() => void calculateDeliveryFee(bairro)} disabled={loading} aria-label="Consultar novamente a taxa para o bairro informado">Consultar taxa deste bairro</button>}
-                     <a href={businessWhatsAppUrl("Olá! Preciso de ajuda para identificar meu bairro ou preencher o endereço no site. Esta mensagem é somente um pedido de orientação; não estou enviando nem confirmando uma compra.")} target="_blank" rel="noopener noreferrer">Não encontrou seu bairro? Pedir ajuda</a>
+                      {!bairro.trim() && <a href={businessWhatsAppUrl("Olá! Preciso de ajuda para identificar meu bairro ou preencher o endereço no site. Esta mensagem é somente um pedido de orientação; não estou enviando nem confirmando uma compra.")} target="_blank" rel="noopener noreferrer">Não encontrou seu bairro? Pedir ajuda</a>}
+                      {bairro.trim() && <a href={businessWhatsAppUrl(buildDistrictSupportMessage(bairro))} target="_blank" rel="noopener noreferrer">Conferir este bairro com atendimento</a>}
                      <small>Você pode continuar preenchendo manualmente. O WhatsApp acima é só atendimento: não envia carrinho nem registra pedido.</small>
                    </div>
-                  <div className={styles.addressFormActions}><button className={styles.cepToggle} type="button" aria-expanded={cepExpanded} onClick={()=>{setCepExpanded(v=>!v);setManualMode(true);}}>{cepExpanded?"Ocultar busca pelo CEP":"Prefiro buscar pelo CEP (opcional)"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
+                   {/* DFL-R39-GEOAPIFY-ON-DEMAND: nunca substitui a tabela de frete ou o envio da compra. */}
+                   <AddressMapPreview district={bairro} street={rua} number={numero} />
+                   <div className={styles.addressFormActions}><button className={styles.cepToggle} type="button" aria-expanded={cepExpanded} onClick={()=>{setCepExpanded(v=>!v);setManualMode(true);}}>{cepExpanded?"Ocultar busca pelo CEP":"Prefiro buscar pelo CEP (opcional)"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
               </section>
               {!isPickup && freeThreshold !== null && !hasFreeDelivery && <div className={styles.freightProgress}>Faltam <strong>{money(missingForFreeDelivery)}</strong> para ganhar entrega grátis.</div>}{hasFreeDelivery && <div className={styles.successHint}>Entrega grátis conquistada para este pedido.</div>}

@@ -1,0 +1,18 @@
+/* DFL SITE R38 — seletor compacto, mobile-first e sem frete simulado. */
+.picker{display:grid;gap:8px;min-width:0;margin:0 0 10px}
+.toggle{display:flex;gap:12px;align-items:center;justify-content:space-between;width:100%;min-height:48px;padding:10px 13px;border-radius:13px;border:1px solid #cbb78b;background:#fffaf0;color:#4c381d;text-align:left;cursor:pointer;touch-action:manipulation}
+.toggle>span:first-child{display:grid;gap:3px;min-width:0}
+.toggle strong{font-size:12px;line-height:1.4;font-weight:900}
+.toggle small{font-size:10px;line-height:1.4;opacity:.78}
+.chevron{flex:0 0 auto;display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#f1e5ca;font-size:19px;font-weight:900}
+.results{min-width:0;display:grid;gap:10px;padding:12px;border:1px solid #d8c8aa;border-radius:13px;background:#fffdf8}
+.notice{margin:0;color:#625537;font-size:11px;line-height:1.55}
+.counter{display:block;font-size:10px;font-weight:800;color:#61543d}
+.list{display:grid;gap:6px;max-height:244px;overflow-y:auto;overscroll-behavior:contain}
+.list button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;min-height:44px;padding:9px 12px;border:1px solid #e4d7bf;background:#fff;border-radius:10px;color:#3b3326;font-size:12px;font-weight:700;text-align:left;cursor:pointer;touch-action:manipulation;overflow-wrap:anywhere}
+.list button span{font-size:20px;color:#997333}
+.list button[data-selected="true"]{border-color:#b18b4c;background:#fff4d7}
+.empty{margin:0;color:#725a33;font-size:11px;line-height:1.6}
+.more{min-height:43px;padding:9px 12px;border-radius:10px;border:1px solid #bda376;color:#5d411a;background:#fdf4e1;font-weight:800;font-size:12px;cursor:pointer}
+.toggle:focus-visible,.list button:focus-visible,.more:focus-visible{outline:3px solid #c2913c;outline-offset:2px}
+@media(max-width:390px){.toggle{padding:10px}.results{padding:10px}.list button{font-size:11px}}

@@ -1,0 +1,10 @@
+/* DFL R39 — consulta opcional, com contraste e alvos mobile. */
+.root{display:grid;gap:7px;padding:11px 12px;margin:4px 0 12px;border:1px solid #dacbac;border-radius:13px;background:#fff9ee;color:#55422b;min-width:0}
+.root>button{width:100%;min-height:44px;padding:10px 12px;background:#33281d;color:#fff7e7;border:0;border-radius:11px;font-size:12px;font-weight:800;text-align:center;cursor:pointer;touch-action:manipulation}
+.root>button:disabled{opacity:.48;cursor:default}.root>button:focus-visible{outline:3px solid #cb9740;outline-offset:3px}
+.root>small{font-size:10px;line-height:1.5;color:#6f6350;overflow-wrap:anywhere}
+.result{padding:10px;border:1px solid #d2bf9b;border-radius:10px;background:#fffdfa;min-width:0}
+.result[data-status="confirmed"]{border-color:#9fc9a4;background:#f2fbf2}
+.result[data-status="review"],.result[data-status="not_found"]{border-color:#e2b785;background:#fff6e7}
+.result strong{font-size:12px;line-height:1.4}.result p{margin:3px 0 0;font-size:11px;line-height:1.55;overflow-wrap:anywhere}.result small{display:block;margin-top:6px;font-size:10px;line-height:1.5}
+@media(max-width:370px){.root{padding:9px}.root>button{font-size:11px}}
