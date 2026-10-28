@@ -12,6 +12,8 @@ export function DistrictQuickPicker({ query, configured, onSelect, onOpen }: {
   onOpen: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // DFL-R43-AUTOCOMPLETE: exibe sugestoes ao digitar sem exigir abrir a lista.
+  const [dismissedQuery, setDismissedQuery] = useState("");
   const [limit, setLimit] = useState(8);
   const catalog = useMemo(
     () => searchDistrictCatalog(query, configured, limit),
@@ -21,15 +23,25 @@ export function DistrictQuickPicker({ query, configured, onSelect, onOpen }: {
     name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim() ===
     query.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim(),
   );
+  const typed = query.trim();
+  const automatic = typed.length >= 2 && typed !== dismissedQuery && !expanded && !selectedInConfigured;
+  const showResults = expanded || automatic;
   return (
     <section className={styles.picker} data-source={catalog.source} aria-label="Escolher bairro da entrega">
+      {/* DFL-R44-DISTRICT-CLARITY: evidencia quando o texto bate com bairro configurado. */}
+      {selectedInConfigured && query.trim().length > 1 && <p role="status" style={{margin:"0 0 8px",padding:"8px 11px",borderRadius:10,background:"#effaf1",color:"#256b36",fontSize:12,fontWeight:800}}>
+        ✓ Bairro encontrado na lista da loja. O frete sera confirmado no checkout.
+      </p>}
+      {automatic && !selectedInConfigured && <p role="status" style={{fontSize:12,margin:"0 0 8px",fontWeight:750,color:"#5f503a"}}>
+        {catalog.total ? `${catalog.total} bairro(s) encontrado(s). Toque para selecionar.` : "Nenhum bairro correspondente. Confira o nome ou abra a lista."}
+      </p>}
       <button type="button" className={styles.toggle} aria-expanded={expanded} aria-controls="dfl-r38-district-results"
-        onClick={() => { if (!expanded) onOpen(); setExpanded(value => !value); setLimit(8); }}>
-        <span><strong>{expanded ? "Ocultar lista de bairros" : "Prefiro escolher o bairro na lista"}</strong>
+        onClick={() => { if (!expanded) onOpen(); setDismissedQuery(query.trim()); setExpanded(value => !value); setLimit(8); }}>
+        <span><strong>{expanded ? "Ocultar lista de bairros" : "Ver todos os bairros"}</strong>
           <small>{catalog.source === "configured" ? "Bairros cadastrados pela loja" : "Lista de referência — confirmar disponibilidade"}</small></span>
         <span className={styles.chevron} aria-hidden="true">{expanded ? "−" : "+"}</span>
       </button>
-      {expanded && <div className={styles.results} id="dfl-r38-district-results">
+      {showResults && <div className={styles.results} id="dfl-r38-district-results">
         <p className={styles.notice}>
           {catalog.source === "configured"
             ? "Escolha um bairro cadastrado. O frete será consultado na tabela da loja."
@@ -40,6 +52,7 @@ export function DistrictQuickPicker({ query, configured, onSelect, onOpen }: {
           {catalog.results.map(name => <button type="button" key={name} data-selected={selectedInConfigured && name === query} onClick={() => {
             onSelect(name);
             setExpanded(false);
+            setDismissedQuery(name);
             setLimit(8);
           }}>{name}<span aria-hidden="true">›</span></button>)}
         </div> : <p className={styles.empty}>Nenhuma correspondência. Confira a escrita ou peça ajuda pelo WhatsApp. Você pode informar o bairro manualmente.</p>}

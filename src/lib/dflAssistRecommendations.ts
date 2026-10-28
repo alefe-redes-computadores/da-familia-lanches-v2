@@ -1,4 +1,5 @@
 import type { Product } from "@/data/products";
+import { suggestCatalogQueries } from "@/lib/catalogSearchRecovery";
 
 export type AssistRequest = {
   query?: string;
@@ -83,6 +84,19 @@ export function recommendDFLProducts(products: readonly Product[], request: Assi
     const reason = hits.length ? `Encontrado por: ${hits.join(", ")}` : "Opção do cardápio";
     return [{product, reason, score, estimatedServings: portions}];
   });
+  // DFL-R46-SEARCH-RECOVERY: alternativas somente sem resultados diretos.
+  // A disponibilidade, o orcamento e o filtro de combos permanecem obrigatorios.
+  if (!results.length && words.length && query.trim()) {
+    const names = new Set(suggestCatalogQueries(products, query, 5).map(normalize));
+    for (const product of products) {
+      if (!names.has(normalize(product.name)) || product.disponivel === false ||
+          !Number.isFinite(product.price) || product.price < 0 ||
+          !product.id || !product.name ||
+          (budget !== null && product.price > budget) ||
+          (combos && !isCombo(product))) continue;
+      results.push({product, reason: "Nome parecido com sua busca — confira a composicao", score: -20, estimatedServings: servings(product)});
+    }
+  }
   return results.sort((a,b) => b.score - a.score || a.product.price - b.product.price || a.product.id.localeCompare(b.product.id)).slice(0, Math.max(0, Math.min(8, Math.floor(limit))));
 }
 // DFL-R33-INTENT-PRIORITY

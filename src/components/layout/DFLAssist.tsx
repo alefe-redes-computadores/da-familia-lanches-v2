@@ -61,8 +61,8 @@ export function DFLAssist() {
   return <div className={styles.backdrop} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setVisible(false)}}>
     <section ref={panelRef} tabIndex={-1} className={styles.panel} role="dialog" aria-modal="true" aria-label="DFL Assist">
       <header className={styles.header}><span className={styles.avatar}><Bot size={23} aria-hidden="true"/></span><div><strong>DFL Assist</strong><small>Seu ajudante de compras</small></div><button type="button" className={styles.close} onClick={()=>setVisible(false)} aria-label="Fechar DFL Assist"><X size={20}/></button></header>
-      <p className={styles.message}>Seu próximo lanche começa aqui. Escolha um ingrediente ou conte o que está procurando.</p>
-      <p className={styles.assistHint}>Sugestões do cardápio real, sem criar pedidos. Não é atendimento por IA generativa.</p>
+      <p className={styles.message}>Encontre seu lanche por ingrediente, preço ou quantidade de pessoas.</p>
+      <p className={styles.assistHint}>Busca no cardápio real. Não cria pedidos. {/* DFL-R43-ASSIST */}</p>
       <DFLAssistOffers onFindProduct={search} />
       <div className={styles.actions}><button type="button" onClick={()=>{setVisible(false);openModal("cart")}}><ShoppingCart size={19}/> Ver carrinho</button><button type="button" onClick={()=>search("combo")}><Search size={19}/> Ver combos</button><a href={businessWhatsAppUrl("Olá! Preciso de ajuda para escolher ou finalizar meu pedido no site da Da Família Lanches.")} target="_blank" rel="noopener noreferrer"><MessageCircle size={19}/> Falar com a equipe</a></div>
       <p className={styles.note}>O WhatsApp é atendimento, não confirma nem cria um pedido. Seus dados e carrinho não são enviados automaticamente.</p>

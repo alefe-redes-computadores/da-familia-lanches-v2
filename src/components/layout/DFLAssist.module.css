@@ -92,3 +92,14 @@
 .offerDiscovery button{min-height:44px;padding:9px 12px;border:1px solid #e0d0b1;border-radius:12px;background:white;color:#3a2a16;font-size:12px;font-weight:750;overflow-wrap:anywhere;cursor:pointer}
 .offerDiscovery button:focus-visible,.offerClearFilters:focus-visible{outline:3px solid #c89510;outline-offset:2px}
 @media(max-width:350px){.offerClearFilters{width:100%}.offerDiscovery button{flex:1 1 100%}}
+
+/* DFL-R44-ASSIST-MOBILE: janela respiravel em telas pequenas e teclado aberto. */
+@media(max-width:530px){
+  .panel{max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+  .header{position:relative}
+  .message{line-height:1.4}
+  .assistHint{line-height:1.4}
+  .actions button,.actions a{min-height:44px}
+}
+@media(max-height:660px){.panel{max-height:calc(100dvh - 12px)}}
+@media(prefers-reduced-motion:reduce){.panel{scroll-behavior:auto}}

@@ -16,6 +16,8 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
   const [query, setQuery] = useState("");
   const [budgetInput, setBudgetInput] = useState("");
   const [onlyCombos, setOnlyCombos] = useState(false);
+  // DFL-R45-ASSIST: exibicao progressiva, sem remover resultados.
+  const [showAllOffers, setShowAllOffers] = useState(false);
   // Centavos inteiros: formato previsível no teclado Android, sem input numérico nativo.
   const budget = budgetInput ? Number(budgetInput) / 100 : undefined;
   const formatBudget = (cents: string) => cents ? currency(Number(cents) / 100) : "";
@@ -28,7 +30,8 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
   const discoveryHints = useMemo(() => catalogReady && validBudget && !offers.length && query.trim()
     ? suggestCatalogQueries(products, query, 3)
     : [], [catalogReady, validBudget, offers.length, products, query]);
-  const clearFilters = () => { setQuery(""); setPeople(2); setBudgetInput(""); setOnlyCombos(false); };
+  const clearFilters = () => { setQuery(""); setPeople(2); setBudgetInput(""); setOnlyCombos(false); setShowAllOffers(false); };
+  const visibleOffers = showAllOffers ? offers : offers.slice(0, 2);
   return <section className={styles.offers} aria-label="Sugestões do DFL Assist">
     <h3 className={styles.offerTitle}>Encontre seu lanche</h3>
     <div className={styles.quickSearch} role="group" aria-label="Buscas rápidas">
@@ -71,11 +74,15 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
     {!validBudget ? <p className={styles.offerNotice}>Confira o orçamento informado.</p> :
      loading ? <p className={styles.offerNotice} role="status">Carregando sugestões do cardápio…</p> :
      !catalogReady ? <p className={styles.offerNotice} role="status">Cardápio online indisponível. Você ainda pode pesquisar ou falar com a equipe; não vou apresentar preços sem confirmação.</p> :
-     offers.length ? <ul className={styles.offerList}>{offers.map(({product,reason})=><li key={product.id}>
+     offers.length ? <><ul className={styles.offerList}>{visibleOffers.map(({product,reason})=><li key={product.id}>
         <div className={styles.offerImage}>{product.image ? <CatalogImage src={product.image} alt={product.name} sizes="72px" /> : <span aria-hidden="true">DFL</span>}</div>
         <div className={styles.offerCopy}><strong>{product.name}</strong><b className={styles.offerPrice}>{currency(product.price)}</b><small>{product.bundleItems?.length ? "Confira os itens e a composição do combo" : reason}</small></div>
         <button type="button" onClick={()=>onFindProduct(product.name)} aria-label={`Encontrar ${product.name} no cardápio`}>Ver <span className={styles.offerButtonLabel}>produto</span></button>
-      </li>)}</ul> :
+      </li>)}</ul>{offers.length > 2 && <button type="button" aria-expanded={showAllOffers}
+        onClick={()=>setShowAllOffers(value=>!value)}
+        style={{width:"100%",minHeight:44,marginTop:8,border:"1px solid #ddcba9",borderRadius:12,background:"#fffaf0",color:"#45331c",fontSize:13,fontWeight:850,cursor:"pointer"}}>
+        {showAllOffers ? "Mostrar menos sugestões" : `Ver mais ${offers.length-2} sugestões`}
+      </button>}</> :
      <div className={styles.offerRecovery}>
        <p className={styles.offerNotice}>Não encontrei opções confirmadas para esses filtros. Experimente outra busca, aumente o orçamento ou desmarque combos.</p>
        {discoveryHints.length > 0 && <div className={styles.offerDiscovery} aria-label="Alternativas para explorar no cardápio">

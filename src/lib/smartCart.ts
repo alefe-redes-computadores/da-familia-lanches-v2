@@ -17,6 +17,8 @@ const norm = (value: unknown) => String(value ?? "").normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
 const isDrink = (product: Product) => {
+  // DFL-R45-DRINK: combos com refrigerante nao sao bebidas avulsas.
+  if (product.bundleItems?.length) return false;
   const text = norm(`${product.category} ${product.name} ${product.description ?? ""}`);
   return /\b(bebida|bebidas|refrigerante|refri|kuat|coca|guarana|suco|agua|fanta|2l|2 l|1l|1 l|600ml|600 ml|lata)\b/.test(text);
 };
