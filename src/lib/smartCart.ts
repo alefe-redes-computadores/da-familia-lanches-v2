@@ -94,6 +94,9 @@ export function selectSmartCartSuggestions(
 ): SmartCartSuggestion[] {
   if (!items.length) return [];
 
+  // DFL-R58-CONTEXTUAL-CART: complemento proporcional ao pedido, sem inventar descontos.
+  const cartSubtotal = items.reduce((sum, item) => sum + Math.max(0, Number(item.price) || 0) * Math.max(0, Number(item.quantity) || 0), 0);
+  const complementaryCeiling = Math.max(12, cartSubtotal * 0.65);
   const included = includedProductIds(items, products);
   const available = products.filter((product) =>
     product.disponivel !== false &&
@@ -158,7 +161,7 @@ export function selectSmartCartSuggestions(
   // 3. Bebida somente se nem o carrinho nem o conteúdo dos combos já tiver bebida.
   if (!hasDrink(items, products)) {
     const drink = available
-      .filter(isDrink)
+      .filter(product => isDrink(product) && Number.isFinite(product.price) && product.price > 0 && product.price <= Math.max(16, cartSubtotal * 0.8))
       .sort((a, b) =>
         Number(Boolean(b.isSuggestion)) - Number(Boolean(a.isSuggestion)) ||
         Number(Boolean(b.oldPrice && b.oldPrice > b.price)) -
@@ -189,6 +192,8 @@ export function selectSmartCartSuggestions(
     const complements = available
       .filter((product) =>
         product.isSuggestion &&
+        Number.isFinite(product.price) && product.price > 0 &&
+        product.price <= complementaryCeiling &&
         !isCombo(product) &&
         !isDrink(product) &&
         !result.some((entry) => entry.product.id === product.id)

@@ -192,3 +192,16 @@
   .visuals img,.visuals span{width:43px;height:43px}
   .actions{grid-template-columns:1fr}
 }
+
+/* DFL-R56-REPEAT-DIALOG */
+.repeatBackdrop{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:16px;background:rgba(6,9,14,.76);backdrop-filter:blur(7px)}
+.repeatDialog{width:min(100%,420px);box-sizing:border-box;padding:22px;border:1px solid #505058;border-radius:22px;background:#191a1f;color:#f7f5ef;box-shadow:0 25px 75px #0008}
+.repeatEyebrow{font-size:10px;font-weight:850;letter-spacing:.12em;color:#ffcd44}
+.repeatDialog h2{margin:9px 0 7px;font-size:21px;line-height:1.2}
+.repeatDialog p{margin:0 0 20px;font-size:14px;line-height:1.55;color:#d1d0d3}
+.repeatActions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.repeatActions button{min-height:47px;border-radius:12px;padding:10px;font-size:12px;font-weight:800;cursor:pointer}
+.repeatCancel{background:#303038;border:1px solid #65656f;color:white}
+.repeatApprove{background:#ffca28;border:0;color:#161616}
+.repeatActions button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media(max-width:350px){.repeatActions{grid-template-columns:1fr}}

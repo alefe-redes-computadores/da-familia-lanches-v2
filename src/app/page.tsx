@@ -194,6 +194,13 @@ export default function Home() {
         </div>
       </section>
 
+      {/* DFL-R58-ASSIST-VISIBLE: entrada editorial discreta; nao ocupa barra fixa. */}
+      <button type="button" onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}
+        aria-label="Abrir DFL Assist para encontrar lanches e combos"
+        style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,width:"100%",maxWidth:1100,margin:"10px auto 12px",padding:"12px 15px",border:"1px solid #5b4b23",borderRadius:15,background:"linear-gradient(105deg,#1d1d21,#302714)",color:"#fff",textAlign:"left",cursor:"pointer"}}>
+        <span style={{display:"grid",gap:3,minWidth:0}}><strong style={{fontSize:13}}>Não sabe o que pedir? O DFL Assist te ajuda.</strong><small style={{fontSize:11,color:"#e8d4a5"}}>Encontre opções por preço, fome ou quantidade de pessoas</small></span>
+        <span aria-hidden="true" style={{flexShrink:0,color:"#ffca28",fontSize:22}}>›</span>
+      </button>
       <div className={styles.categoryRailWrap}>
         <nav className={styles.categoryRail} aria-label="Categorias do cardápio">
           <button type="button" className={activeCategory === "todos" ? styles.categoryActive : styles.category} onClick={() => setActiveCategory("todos")}>Todos</button>

@@ -164,6 +164,7 @@ export function CheckoutModal() {
   const [shopClosed, setShopClosed] = useState(false);
   const [scheduleSlots, setScheduleSlots] = useState<OrderScheduleSlot[]>([]);
   const [scheduledFor, setScheduledFor] = useState("");
+  const [wantsSchedule, setWantsSchedule] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [scheduleError, setScheduleError] = useState("");
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
@@ -233,8 +234,8 @@ export function CheckoutModal() {
     pickup: isPickup, name: customerName, phone: userPhone,
     district: bairro, districtValid: districtInspection.valid, street: rua,
     number: numero, cep, hasItems: items.length > 0,
-    scheduleRequired: shopClosed, scheduleSelected: Boolean(scheduledFor),
-  }), [isPickup, customerName, userPhone, bairro, districtInspection.valid, rua, numero, cep, items.length, shopClosed, scheduledFor]);
+    scheduleRequired: shopClosed || wantsSchedule, scheduleSelected: Boolean(scheduledFor),
+  }), [isPickup, customerName, userPhone, bairro, districtInspection.valid, rua, numero, cep, items.length, shopClosed, wantsSchedule, scheduledFor]);
 
   useEffect(() => {
     if (currentUser || !nameReady || !phoneReady) return;
@@ -486,9 +487,21 @@ export function CheckoutModal() {
 
   const selectSavedAddress=(a:SavedAddress)=>{customerEditingRef.current=true;setSelectedAddressId(a.id);setCep(a.cep);setRua(a.street);setNumero(a.number);setBairro(a.district);setComplemento(a.complement);setReferencia(a.reference);setManualMode(true);setAddressPickerOpen(false);setAddressEditorOpen(!inspectDistrict(a.district).valid);if(a.district && inspectDistrict(a.district).valid)void calculateDeliveryFee(a.district);};
   const startNewCheckoutAddress=()=>{customerEditingRef.current=true;setSelectedAddressId("");setCep("");setRua("");setNumero("");setBairro("");setComplemento("");setReferencia("");setManualMode(true);setCepExpanded(false);setAddressPickerOpen(false);setAddressEditorOpen(true);setDeliveryStatus("");};
+  // R54: somente apresentacao. Identificadores e tabela comercial nao mudam.
+  const displayDistrict = (value: string) => value.trim().toLocaleLowerCase("pt-BR")
+    .replace(/(^|[\s-])([a-zà-ÿ])/g, (_whole, separator: string, letter: string) => separator + letter.toLocaleUpperCase("pt-BR"));
+  const addressKey = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR").replace(/\b(?:rua|r\.|avenida|av\.)\s+/g, "")
+    .replace(/[^a-z0-9]/g, "");
   const savedAddresses = profile?.addresses || [];
   const selectedSavedAddress = savedAddresses.find((address) => address.id === selectedAddressId);
   const addressLimitReached = savedAddresses.length >= 3;
+  const matchingSavedAddress = !isPickup && rua.trim() && numero.trim() && bairro.trim()
+    ? savedAddresses.find(a => addressKey(a.district) === addressKey(bairro)
+        && addressKey(a.street) === addressKey(rua)
+        && addressKey(a.number) === addressKey(numero)
+        && addressKey(a.complement || "") === addressKey(complemento || ""))
+    : undefined;
 
   // V60.3: checagem leve, apenas com o checkout visível; sem listener Firestore.
   // O cache de 20 segundos do shopStatus limita leituras entre verificações.
@@ -502,16 +515,19 @@ export function CheckoutModal() {
         if (!alive) return;
         const closed = !status.isOpen && !testAccess;
         setShopClosed(closed);
-        if (closed) {
+        // O agendamento permanece disponivel mesmo com a loja aberta.
+        // Uma falha na consulta de vagas nao bloqueia o pedido imediato.
+        try {
           const slots = await getOrderScheduleSlots();
           if (!alive) return;
           setScheduleSlots(slots);
           setScheduledFor(previous => slots.some(slot => slot.value === previous && !slot.disabled) ? previous : "");
           setScheduleError("");
-        } else {
-          setScheduleSlots([]);
-          setScheduledFor("");
-          setScheduleError("");
+        } catch {
+          if (alive) {
+            setScheduleSlots([]);
+            setScheduleError("Nao foi possivel consultar horarios agora. Pedidos imediatos continuam disponiveis se a loja estiver aberta.");
+          }
         }
       } catch {
         // Falha de consulta não equivale a loja aberta.
@@ -569,7 +585,7 @@ export function CheckoutModal() {
       const rate = Number(found?.taxa);
       if (found && Number.isFinite(rate) && rate >= 0) {
         setDeliveryFee(rate);
-        setDeliveryStatus(`Taxa para ${found.nome || district}: ${money(rate)}`);
+        setDeliveryStatus(`Taxa de referência para ${displayDistrict(found.nome || district)}: ${money(rate)}. Isenções e descontos são calculados no resumo do pedido.`);
       } else {
         setDeliveryFee(configuredDefaultFee);
         setDeliveryStatus("Não encontramos esse bairro na tabela de entrega. Confira o nome ou escolha uma sugestão. O valor exibido ainda precisa de confirmação.");
@@ -769,7 +785,7 @@ export function CheckoutModal() {
   // R36: feedback read-only para a revisao, sem modificar o POST nem a idempotencia.
   const finalReview = inspectCheckoutReviewSafety({
     hasItems:items.length > 0, personalReady:nameReady && phoneReady,
-    addressReady, pickup:isPickup, scheduleRequired:shopClosed,
+    addressReady, pickup:isPickup, scheduleRequired:shopClosed || wantsSchedule,
     scheduleSelected:Boolean(scheduledFor), online:isOnline,
     uncertain:orderOutcomeUncertain,
   });
@@ -838,8 +854,9 @@ export function CheckoutModal() {
       const { status: shopStatus, testAccess } = await getCheckoutStoreAccess(currentUser?.email, true);
       const isClosed = !shopStatus.isOpen && !testAccess;
       setShopClosed(isClosed);
-      const selectedSchedule = isClosed ? scheduledFor : "";
-      if (isClosed && selectedSchedule) {
+      const selectedSchedule = isClosed || wantsSchedule ? scheduledFor : "";
+      const isScheduledOrder = isClosed || wantsSchedule;
+      if (isScheduledOrder && selectedSchedule) {
         let latestSlots: OrderScheduleSlot[];
         try {
           latestSlots = await getOrderScheduleSlots();
@@ -857,7 +874,7 @@ export function CheckoutModal() {
           return;
         }
       }
-      if (isClosed && !selectedSchedule) { setStep(1); setErrorMessage("Escolha o dia e o horário do seu pedido."); focusCheckoutIssue("schedule"); submittingRef.current=false; setLoading(false); return; }
+      if (isScheduledOrder && !selectedSchedule) { setStep(1); setErrorMessage("Escolha o dia e o horário do seu pedido."); focusCheckoutIssue("schedule"); submittingRef.current=false; setLoading(false); return; }
       const finalAddress = isPickup
         ? "RETIRADA NO LOCAL"
         : `${rua.trim()}, ${numero.trim()} - ${bairro.trim()}${complemento.trim() ? ` (${complemento.trim()})` : ""}${referencia.trim() ? ` · Ref.: ${referencia.trim()}` : ""}`;
@@ -868,8 +885,8 @@ export function CheckoutModal() {
           clientRequestId: orderAttemptRef.current, userId: null, userName: customerName.trim() || "Cliente", userEmail: "", userPhone: userPhone.trim(),
           itens: items, subtotal, taxaEntrega: finalFee, desconto: safeDiscount, cupom: safeDiscount > 0 && appliedCouponCode ? appliedCouponCode : null, rewardId: null, total,
           metodoPagamento: method, trocoPara: method === "dinheiro" ? (troco.trim() || null) : null, observacao: orderObservation.trim() || null,
-          endereco: finalAddress, tipoEntrega: deliveryMode, status: isClosed ? "Agendado" : "Pendente", isAgendamento: isClosed,
-          scheduledFor: isClosed ? selectedSchedule : null, scheduledLabel: isClosed ? scheduleHumanLabel(selectedSchedule) : null, scheduleWindowMinutes: isClosed ? 30 : null,
+          endereco: finalAddress, tipoEntrega: deliveryMode, status: isScheduledOrder ? "Agendado" : "Pendente", isAgendamento: isScheduledOrder,
+          scheduledFor: isScheduledOrder ? selectedSchedule : null, scheduledLabel: isScheduledOrder ? scheduleHumanLabel(selectedSchedule) : null, scheduleWindowMinutes: isScheduledOrder ? 30 : null,
           sourceSystem: "dfl_site", orderSchemaVersion: 3, customerMode: "guest", checkoutChannel: "site", handoffChannel: "whatsapp", recoveredCheckout: draftRecovered,
           customerSnapshot: { id: "", name: customerName.trim() || "Cliente", email: "", phone: userPhone.trim(), phoneE164: `+55${phoneDigits}` },
           deliverySnapshot: isPickup ? null : { cep: cep.trim(), street: rua.trim(), number: numero.trim(), district: bairro.trim(), complement: complemento.trim(), reference: referencia.trim() },
@@ -879,9 +896,9 @@ export function CheckoutModal() {
         const guestMessage=buildOrderWhatsAppMessage({registered:true,orderId:created.id,customerName:customerName.trim()||"Cliente",phone:userPhone.trim(),items:items.map((item)=>({quantity:item.quantity,name:item.name,price:item.price,addons:item.selectedAddons?.map((addon)=>addon.name)??[],observation:item.observation})),deliveryMode,address:isPickup?"Retirada no balcão":finalAddress,district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim(),subtotal,deliveryFee:finalFee,discount:safeDiscount,couponCode:appliedCouponCode,total,paymentMethod:method,changeFor:troco,orderObservation,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):undefined});
         const whatsappUrl=businessWhatsAppUrl(guestMessage);
         saveGuestIdentity({name:customerName.trim()||"Cliente",phone:userPhone.trim(),lastDeliveryMode:deliveryMode,paymentPreference:method,...(isPickup?{}:{cep:cep.trim(),street:rua.trim(),number:numero.trim(),district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim()})});
-        rememberGuestOrder({id:created.id,trackingKey:orderAttemptRef.current,status:isClosed?"Agendado":"Pendente",total,deliveryMode,scheduledFor:isClosed?selectedSchedule:null,scheduledLabel:isClosed?scheduleHumanLabel(selectedSchedule):null,createdAt:Date.now(),customerName:customerName.trim()||"Cliente",items:items.map(item=>({name:item.name,quantity:item.quantity}))});
+        rememberGuestOrder({id:created.id,trackingKey:orderAttemptRef.current,status:isScheduledOrder?"Agendado":"Pendente",total,deliveryMode,scheduledFor:isScheduledOrder?selectedSchedule:null,scheduledLabel:isScheduledOrder?scheduleHumanLabel(selectedSchedule):null,createdAt:Date.now(),customerName:customerName.trim()||"Cliente",items:items.map(item=>({name:item.name,quantity:item.quantity}))});
         const cartCleared = clearConfirmedCart(); clearOrderAttempt(); clearCheckoutDraft(null);
-        openModal("order-success",{orderId:created.id,isScheduled:isClosed,deliveryMode,total,whatsappUrl,paymentMethod:method,pixKey:method==="pix"?BUSINESS_CONTACT.pixKey:undefined,cartPreserved:!cartCleared,rescueMessage:guestMessage});
+        openModal("order-success",{orderId:created.id,isScheduled:isScheduledOrder,deliveryMode,total,whatsappUrl,paymentMethod:method,pixKey:method==="pix"?BUSINESS_CONTACT.pixKey:undefined,cartPreserved:!cartCleared,rescueMessage:guestMessage});
         submittingRef.current=false; setLoading(false); return;
       }
 
@@ -915,11 +932,11 @@ export function CheckoutModal() {
         endereco: finalAddress,
         tipoEntrega: deliveryMode,
         data: serverTimestamp(),
-        status: isClosed ? "Agendado" : "Pendente",
-        isAgendamento: isClosed,
-        scheduledFor: isClosed ? selectedSchedule : null,
-        scheduledLabel: isClosed ? scheduleHumanLabel(selectedSchedule) : null,
-        scheduleWindowMinutes: isClosed ? 30 : null,
+        status: isScheduledOrder ? "Agendado" : "Pendente",
+        isAgendamento: isScheduledOrder,
+        scheduledFor: isScheduledOrder ? selectedSchedule : null,
+        scheduledLabel: isScheduledOrder ? scheduleHumanLabel(selectedSchedule) : null,
+        scheduleWindowMinutes: isScheduledOrder ? 30 : null,
         sourceSystem: "dfl_site",
         orderSchemaVersion: 3,
         customerMode: "google",
@@ -962,7 +979,13 @@ export function CheckoutModal() {
         if (!isPickup) {
           const list=profile?.addresses||[]; const i=list.findIndex(a=>a.id===selectedAddressId); const old=i>=0?list[i]:null;
           const next:SavedAddress={id:selectedAddressId||`address-${Date.now()}`,label:old?.label||(list.length?"Outro":"Casa"),cep:cep.trim(),street:rua.trim(),number:numero.trim(),district:bairro.trim(),complement:complemento.trim(),reference:referencia.trim(),isDefault:old?.isDefault??list.length===0};
-          await saveUserAddresses(currentUser,i>=0?list.map((a,n)=>n===i?next:a):(list.length<3?[...list,next]:list));
+          const existing = list.find(a => a.id !== selectedAddressId
+             && addressKey(a.district) === addressKey(next.district)
+             && addressKey(a.street) === addressKey(next.street)
+             && addressKey(a.number) === addressKey(next.number)
+             && addressKey(a.complement || "") === addressKey(next.complement || ""));
+           if (existing) { setSelectedAddressId(existing.id); }
+           else await saveUserAddresses(currentUser,i>=0?list.map((a,n)=>n===i?next:a):(list.length<3?[...list,next]:list));
         }
 
       } catch (profileError) {
@@ -995,7 +1018,7 @@ export function CheckoutModal() {
         paymentMethod: method,
         changeFor: troco,
         orderObservation,
-        scheduledLabel: isClosed ? scheduleHumanLabel(selectedSchedule) : undefined,
+        scheduledLabel: isScheduledOrder ? scheduleHumanLabel(selectedSchedule) : undefined,
       });
 
       const whatsappUrl = businessWhatsAppUrl(whatsappMessage);
@@ -1030,7 +1053,7 @@ export function CheckoutModal() {
         try {
           openModal("order-success", {
             orderId: confirmedOrderId,
-            isScheduled: shopClosed && Boolean(scheduledFor),
+            isScheduled: (shopClosed || wantsSchedule) && Boolean(scheduledFor),
             deliveryMode,
             total,
             whatsappUrl: "",
@@ -1055,7 +1078,7 @@ export function CheckoutModal() {
           try { clearOrderAttempt(); clearCheckoutDraft(currentUser?.uid ?? null); } catch {}
           openModal("order-success", {
             orderId: resolved.orderId,
-            isScheduled: shopClosed && Boolean(scheduledFor),
+            isScheduled: (shopClosed || wantsSchedule) && Boolean(scheduledFor),
             deliveryMode,
             total,
             whatsappUrl: "",
@@ -1094,7 +1117,7 @@ export function CheckoutModal() {
         paymentMethod: method,
         changeFor: troco,
         orderObservation,
-        scheduledLabel: shopClosed && scheduledFor ? scheduleHumanLabel(scheduledFor) : undefined,
+        scheduledLabel: (shopClosed || wantsSchedule) && scheduledFor ? scheduleHumanLabel(scheduledFor) : undefined,
       });
       // Resposta incerta pode significar pedido já registrado: proibir duplicidade por WhatsApp.
       // V86 R4 e V88: regras de adicionais jamais abrem pedido manual paralelo.
@@ -1241,7 +1264,7 @@ export function CheckoutModal() {
                       <span>{districtInspection.valid && rua.trim().length >= 4 && numero.trim() ? "Confira os dados" : "Preencha os 3 passos"}</span>
                     </div>
                     <div className={styles.addressLiveCopy}>
-                      <strong>{bairro.trim() || "Bairro ainda não informado"}</strong>
+                      <strong>{displayDistrict(bairro) || "Bairro ainda não informado"}</strong>
                       <span>{rua.trim() || "Rua ou avenida"}{numero.trim() ? `, ${numero.trim()}` : " · número pendente"}</span>
                       <small>Patos de Minas · MG</small>
                     </div>
@@ -1259,7 +1282,7 @@ export function CheckoutModal() {
                     {bairro.trim().length >= 4 && districtInspection.valid && configuredDistricts.length > 0 && !districtKnownToTable && districtSuggestions.length === 0 && <small className={styles.districtMatchNote}>Bairro não encontrado na tabela carregada. Confira a escrita; você pode continuar preenchendo, mas a taxa será confirmada na finalização.</small>}
                     {districtSuggestions.length > 0 && manualMode && <div className={styles.districtSuggestions} aria-label="Sugestões de bairros"><small>Você quis dizer:</small>{districtSuggestions.map(name=><button type="button" key={name} onClick={()=>{setBairro(name);setDeliveryStatus(`Bairro escolhido: ${name}. Confira rua e número.`);void calculateDeliveryFee(name);}}>{name}</button>)}</div>}
                   </div>
-                  <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{deliveryStatus&&<div className={styles.info} role="status" aria-live="polite">{deliveryStatus}</div>}
+                  <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{matchingSavedAddress && addressEditorOpen && <div className={styles.info} role="status">Esse endereço já está salvo. Ao finalizar, usaremos o cadastro existente em vez de duplicá-lo. <button type="button" onClick={() => selectSavedAddress(matchingSavedAddress)}>Usar endereço salvo</button></div>}{deliveryStatus&&<div className={styles.info} role="status" aria-live="polite">{deliveryStatus}</div>}
                    <div className={styles.addressHelpActions}>
                      {bairro.trim() && districtInspection.valid && <button type="button" onClick={() => void calculateDeliveryFee(bairro)} disabled={loading} aria-label="Consultar novamente a taxa para o bairro informado">Consultar taxa deste bairro</button>}
                       {!bairro.trim() && <a href={businessWhatsAppUrl("Olá! Preciso de ajuda para identificar meu bairro ou preencher o endereço no site. Esta mensagem é somente um pedido de orientação; não estou enviando nem confirmando uma compra.")} target="_blank" rel="noopener noreferrer">Não encontrou seu bairro? Pedir ajuda</a>}
@@ -1271,12 +1294,18 @@ export function CheckoutModal() {
                    <div className={styles.addressFormActions}><button className={styles.cepToggle} type="button" aria-expanded={cepExpanded} onClick={()=>{setCepExpanded(v=>!v);setManualMode(true);}}>{cepExpanded?"Ocultar busca pelo CEP":"Prefiro buscar pelo CEP (opcional)"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
               </section>
-              {!isPickup && freeThreshold !== null && !hasFreeDelivery && <div className={styles.freightProgress}>Faltam <strong>{money(missingForFreeDelivery)}</strong> para ganhar entrega grátis.</div>}{hasFreeDelivery && <div className={styles.successHint}>Entrega grátis conquistada para este pedido.</div>}
+              {!isPickup && freeThreshold !== null && !hasFreeDelivery && <div className={styles.freightProgress}>Faltam <strong>{money(missingForFreeDelivery)}</strong> para ganhar entrega grátis.</div>}{hasFreeDelivery && <div className={styles.successHint}>Entrega grátis aplicada neste pedido. Taxa de referência {money(deliveryFee)}; taxa cobrada {money(0)}. Benefício conforme as regras comerciais para seu bairro e valor do carrinho.</div>}
             </> : <div className={styles.pickupCard}><strong>Retirada no balcão</strong><span>Sem taxa de entrega. O pedido ficará identificado pelo seu nome e referência.</span></div>}
-            {shopClosed && (
+            {!shopClosed && (
+                <button className={styles.cepToggle} type="button" aria-expanded={wantsSchedule}
+                  onClick={() => { setWantsSchedule(previous => { if (previous) setScheduledFor(""); return !previous; }); }}>
+                  {wantsSchedule ? "Pedir agora (sem agendamento)" : "Prefiro agendar para mais tarde"}
+                </button>
+            )}
+            {(shopClosed || wantsSchedule) && (
               <section ref={scheduleSectionRef} className={styles.scheduleCard}>
                 <div>
-                  <span>LOJA FECHADA AGORA</span>
+                  <span>{shopClosed ? "LOJA FECHADA AGORA" : "AGENDAMENTO OPCIONAL"}</span>
                   <strong>Escolha quando quer receber</strong>
                   <small>
                     O próximo horário é apenas uma sugestão. Seu pedido só será agendado depois que você escolher.
@@ -1356,7 +1385,7 @@ export function CheckoutModal() {
                 )}
               </section>
             )}
-            <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance && (!shopClosed || Boolean(scheduledFor))) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : !addressReady ? (!isPickup && !bairro.trim() ? "Falta informar o bairro da entrega. Preencha o campo Bairro." : !districtInspection.valid && !isPickup ? "Informe o nome completo do bairro e confira o endereço." : "Complete o endereço para continuar.") : "Escolha um horário disponível para o agendamento."); if (!isPickup && !addressReady && !districtInspection.valid) { setManualMode(true); setAddressEditorOpen(true); focusCheckoutIssue("district"); } }}>Continuar</button>
+            <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance && (!(shopClosed || wantsSchedule) || Boolean(scheduledFor))) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : !addressReady ? (!isPickup && !bairro.trim() ? "Falta informar o bairro da entrega. Preencha o campo Bairro." : !districtInspection.valid && !isPickup ? "Informe o nome completo do bairro e confira o endereço." : "Complete o endereço para continuar.") : "Escolha um horário disponível para o agendamento."); if (!isPickup && !addressReady && !districtInspection.valid) { setManualMode(true); setAddressEditorOpen(true); focusCheckoutIssue("district"); } }}>Continuar</button>
           </div>
         ) : (
           <div className={styles.stack}>

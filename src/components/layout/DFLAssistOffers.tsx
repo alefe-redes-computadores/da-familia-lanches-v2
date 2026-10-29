@@ -3,14 +3,16 @@ import { useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useCatalog } from "@/hooks/useCatalog";
+import type { Product } from "@/data/products";
 import { extractDFLIntent, recommendDFLProducts } from "@/lib/dflAssistRecommendations";
 import { suggestCatalogQueries } from "@/lib/catalogSearchRecovery";
 import styles from "./DFLAssist.module.css";
 
-type Props = { onFindProduct: (name: string) => void };
+type Props = { onFindProduct: (name: string) => void; onOpenProduct: (product: Product) => void };
 const currency = (value: number) => value.toLocaleString("pt-BR", {style:"currency", currency:"BRL"});
 /** Recomenda apenas itens do catalogo atual; nunca cria ou altera pedido. */
-export function DFLAssistOffers({ onFindProduct }: Props) {
+export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
+  // DFL-R64-DIRECT-PRODUCT: nunca cria pedido ou muda precos.
   const { products, loading, error, source } = useCatalog();
   const [people, setPeople] = useState(2);
   const [query, setQuery] = useState("");
@@ -32,25 +34,47 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
     : [], [catalogReady, validBudget, offers.length, products, query]);
   const clearFilters = () => { setQuery(""); setPeople(2); setBudgetInput(""); setOnlyCombos(false); setShowAllOffers(false); };
   const visibleOffers = showAllOffers ? offers : offers.slice(0, 2);
+  // DFL-R61-ASSIST-NAVIGATION: texto conversacional nunca vira busca literal por frase inteira.
+  // Prioriza produto realmente recomendado, respeitando orcamento e disponibilidade do catalogo.
+  const findFromIntent = () => {
+    if (offers.length > 0) {
+      onFindProduct(offers[0].product.name);
+      return;
+    }
+    if (discoveryHints.length > 0) {
+      onFindProduct(discoveryHints[0]);
+      return;
+    }
+    // Sem resultado valido: manter o usuario no assistente para ajustar os filtros.
+  };
+  const canFindFromIntent = catalogReady && validBudget && (offers.length > 0 || discoveryHints.length > 0);
+
   return <section className={styles.offers} aria-label="Sugestões do DFL Assist">
     <h3 className={styles.offerTitle}>Encontre seu lanche</h3>
     <div className={styles.quickSearch} role="group" aria-label="Buscas rápidas">
       <button type="button" aria-pressed={query === "frango"} onClick={()=>{setQuery("frango");setOnlyCombos(false);}}>Frango</button>
       <button type="button" aria-pressed={query === "bacon"} onClick={()=>{setQuery("bacon");setOnlyCombos(false);}}>Bacon</button>
       <button type="button" aria-pressed={onlyCombos} onClick={()=>{setQuery("combo");setOnlyCombos(true);}}>Combos</button>
-      <button type="button" aria-pressed={budgetInput === "5000"} onClick={()=>{setQuery("");setBudgetInput("5000");setOnlyCombos(false);}}>Até R$ 50</button>
+      <button type="button" aria-pressed={budgetInput === "3000" && !query} onClick={()=>{setQuery("");setBudgetInput("3000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 30</button>
+      <button type="button" aria-pressed={budgetInput === "5000" && !query} onClick={()=>{setQuery("");setBudgetInput("5000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 50</button>
+      <button type="button" aria-pressed={people === 2 && !query && !budgetInput && !onlyCombos} onClick={()=>{setPeople(2);setQuery("");setBudgetInput("");setOnlyCombos(false);setShowAllOffers(false);}}>Para 2 pessoas</button>
     </div>
     <label className={styles.offerQueryLabel} htmlFor="dfl-assist-ingredients">Descreva seu pedido ou procure um ingrediente</label>
     <div className={styles.offerSearchRow}>
       <input id="dfl-assist-ingredients" className={styles.offerQuery} type="search" autoComplete="off" maxLength={100}
         placeholder="Ex.: combo com frango até R$ 50" value={query}
-        onChange={e=>setQuery(e.target.value)}
-        onKeyDown={e=>{if(e.key==="Enter" && query.trim()){e.preventDefault();onFindProduct(query);}}}/>
-      <button type="button" className={styles.offerSearchAction} disabled={!query.trim()} onClick={()=>onFindProduct(query)}>Ver no cardápio</button>
+        onChange={e=>{setQuery(e.target.value);setShowAllOffers(false);}}
+        onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();findFromIntent();}}}/>
+      <button type="button" className={styles.offerSearchAction} disabled={!canFindFromIntent} onClick={findFromIntent}>{offers.length ? "Ver sugestão" : discoveryHints.length ? "Ver alternativa" : "Sem resultado"}</button>
     </div>
     {(intent.budget !== null || intent.people !== null) && <p className={styles.offerIntent} role="status">
       Entendi na frase: {intent.people !== null ? `${intent.people} pessoa(s)` : ""}{intent.people !== null && intent.budget !== null ? " · " : ""}{intent.budget !== null ? `até ${currency(intent.budget)}` : ""}. A frase tem prioridade sobre esses filtros.
     </p>}
+    {/* DFL-R60-ASSIST-UX: transparencia sobre filtros reais, nunca promessa de porcao ou ingrediente */}
+    {catalogReady && (query.trim() || budgetInput || onlyCombos) && <div className={styles.activeAssistFilters} role="status" aria-live="polite">
+      <strong>Busca personalizada</strong>
+      <span>{intent.people ?? people} { (intent.people ?? people) === 1 ? "pessoa" : "pessoas"}{(intent.budget ?? budget) != null ? ` · até ${currency((intent.budget ?? budget)!)}` : " · sem limite de preço"}{(onlyCombos || intent.comboOnly) ? " · somente combos" : ""}</span>
+    </div>}
     {intent.hasExclusion && <p className={styles.offerSafety}>Restrições ou ingredientes que deseja evitar: confira a composição com a equipe antes de pedir. A busca não comprova ausência de ingredientes.</p>}
     <div className={styles.offerFilters}>
       <div className={styles.peopleFilter} role="group" aria-label="Quantidade de pessoas">
@@ -77,7 +101,7 @@ export function DFLAssistOffers({ onFindProduct }: Props) {
      offers.length ? <><ul className={styles.offerList}>{visibleOffers.map(({product,reason})=><li key={product.id}>
         <div className={styles.offerImage}>{product.image ? <CatalogImage src={product.image} alt={product.name} sizes="72px" /> : <span aria-hidden="true">DFL</span>}</div>
         <div className={styles.offerCopy}><strong>{product.name}</strong><b className={styles.offerPrice}>{currency(product.price)}</b><small>{product.bundleItems?.length ? "Confira os itens e a composição do combo" : reason}</small></div>
-        <button type="button" onClick={()=>onFindProduct(product.name)} aria-label={`Encontrar ${product.name} no cardápio`}>Ver <span className={styles.offerButtonLabel}>produto</span></button>
+        <button type="button" onClick={()=>onOpenProduct(product)} aria-label={`Abrir detalhes de ${product.name}`}>Ver <span className={styles.offerButtonLabel}>produto</span></button>
       </li>)}</ul>{offers.length > 2 && <button type="button" aria-expanded={showAllOffers}
         onClick={()=>setShowAllOffers(value=>!value)}
         style={{width:"100%",minHeight:44,marginTop:8,border:"1px solid #ddcba9",borderRadius:12,background:"#fffaf0",color:"#45331c",fontSize:13,fontWeight:850,cursor:"pointer"}}>

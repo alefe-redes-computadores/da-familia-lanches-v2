@@ -7,6 +7,7 @@ import { useUIStore } from "@/store/ui";
 import { businessWhatsAppUrl } from "@/lib/businessContact";
 import styles from "./DFLAssist.module.css";
 import { DFLAssistOffers } from "./DFLAssistOffers";
+import type { Product } from "@/data/products";
 
 /** Assistente de navegação v1: não é IA generativa e não registra pedidos. */
 export function DFLAssist() {
@@ -63,7 +64,11 @@ export function DFLAssist() {
       <header className={styles.header}><span className={styles.avatar}><Bot size={23} aria-hidden="true"/></span><div><strong>DFL Assist</strong><small>Seu ajudante de compras</small></div><button type="button" className={styles.close} onClick={()=>setVisible(false)} aria-label="Fechar DFL Assist"><X size={20}/></button></header>
       <p className={styles.message}>Encontre seu lanche por ingrediente, preço ou quantidade de pessoas.</p>
       <p className={styles.assistHint}>Busca no cardápio real. Não cria pedidos. {/* DFL-R43-ASSIST */}</p>
-      <DFLAssistOffers onFindProduct={search} />
+      <DFLAssistOffers onFindProduct={search} onOpenProduct={(product: Product) => {
+        // DFL-R64-DIRECT-PRODUCT: o produto vem do catalogo real confirmado.
+        setVisible(false);
+        openModal("product-details", product);
+      }} />
       <div className={styles.actions}><button type="button" onClick={()=>{setVisible(false);openModal("cart")}}><ShoppingCart size={19}/> Ver carrinho</button><button type="button" onClick={()=>search("combo")}><Search size={19}/> Ver combos</button><a href={businessWhatsAppUrl("Olá! Preciso de ajuda para escolher ou finalizar meu pedido no site da Da Família Lanches.")} target="_blank" rel="noopener noreferrer"><MessageCircle size={19}/> Falar com a equipe</a></div>
       <p className={styles.note}>O WhatsApp é atendimento, não confirma nem cria um pedido. Seus dados e carrinho não são enviados automaticamente.</p>
     </section>

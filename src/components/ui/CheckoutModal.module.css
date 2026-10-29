@@ -777,3 +777,35 @@
 .r36ReviewCard button{flex:0 0 auto;min-height:44px;padding:8px 10px;border:1px solid currentColor;border-radius:11px;background:transparent;color:inherit;font-size:11px;font-weight:900;cursor:pointer}
 .r36ReviewCard button:focus-visible{outline:3px solid #d5a130;outline-offset:3px}
 @media(max-width:450px){.r36ReviewCard{align-items:stretch;flex-direction:column}.r36ReviewCard button{width:100%}}
+
+/* DFL-R63-CHECKOUT-COMPACT: checklist compacto no celular, sem ocultar pendencias ou acoes. */
+@media(max-width:540px){
+ .checkoutReadiness{gap:6px;padding:10px 12px;margin:4px 0 8px;border-radius:14px}
+ .checkoutReadinessTop strong{font-size:12px}
+ .checkoutReadinessTrack{height:5px}
+ .checkoutReadiness p{font-size:11px;line-height:1.35}
+ .checkoutReadinessTags{gap:4px;max-height:35px;overflow:hidden}
+ .checkoutReadinessTags span{min-height:24px;padding:3px 7px;font-size:9px;white-space:nowrap}
+ .checkoutReadiness[data-ready="true"] .checkoutReadinessTags{display:none}
+ .r35ReadinessAction{min-height:44px;padding:8px 11px}
+}
+
+/* DFL-R65-MOBILE-FINISH: compactacao visual apenas, sem alterar validacoes */
+@media(max-width:450px){
+  .checkoutReadiness{gap:7px;padding:10px 12px;margin:3px 0 9px;border-radius:14px}
+  .checkoutReadinessTop strong{font-size:12px}
+  .checkoutReadinessTrack{height:4px}
+  .checkoutReadiness p{font-size:11px;line-height:1.35}
+  .checkoutReadinessTags{gap:4px;max-height:74px;overflow:auto}
+  .checkoutReadinessTags span{min-height:23px;padding:3px 7px;font-size:10px}
+  .checkoutReadiness[data-ready="true"] .checkoutReadinessTags{display:none}
+  .r35ReadinessAction{min-height:44px;padding:9px 12px;border-radius:11px}
+  .r36ReviewCard{gap:7px;padding:10px 12px;border-radius:13px}
+  .r36ReviewCard p{margin-top:2px;line-height:1.4}
+  .addressLiveSummary{min-width:0}
+  .addressLiveCopy{min-width:0;overflow-wrap:anywhere}
+}
+@media(max-width:350px){
+  .checkoutReadinessTags{max-height:58px}
+  .checkoutReadiness{padding:9px 10px}
+}

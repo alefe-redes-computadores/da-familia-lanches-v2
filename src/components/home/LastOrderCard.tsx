@@ -32,6 +32,7 @@ export function LastOrderCard() {
   const { addItem, clearCart } = useCartStore();
   const cartItems = useCartStore((state) => state.items);
   const [repeatError, setRepeatError] = useState("");
+  const [repeatConfirmation, setRepeatConfirmation] = useState<{ message: string; proceed: () => void } | null>(null); // DFL-R56-REPEAT-DIALOG
 
   const {
     activeOrders,
@@ -172,17 +173,23 @@ export function LastOrderCard() {
           : "",
         cartItems.length > 0 ? `seu carrinho atual contém ${cartItems.length} item(ns)` : "",
       ].filter(Boolean);
-      const approved = window.confirm(
-        `Antes de repetir o pedido: ${parts.join(" e ")}.\n\n` +
-        "Deseja substituir o carrinho atual somente pelos itens disponíveis? " +
-        "Você poderá revisar tudo antes de finalizar.",
-      );
-      if (!approved) {
-        setRepeatError(
-          "Pedido anterior preservado. Seu carrinho não foi alterado.",
-        );
-        return;
-      }
+      setRepeatConfirmation({
+        message: `Antes de repetir: ${parts.join(" e ")}. Vamos usar somente itens disponíveis. Você poderá revisar antes de finalizar.`,
+        proceed: () => {
+          const latest = useCartStore.getState().items;
+          if (latest.length !== cartItems.length || latest.some((entry,index) => entry.cartId !== cartItems[index]?.cartId)) {
+            setRepeatError("O carrinho mudou enquanto você conferia. Toque em Pedir novamente para revisar.");
+            setRepeatConfirmation(null);
+            return;
+          }
+          clearCart();
+          resolved.forEach(({item, product, selected}) => addItem(product,item.quantity,selected,item.observation));
+          setRepeatConfirmation(null);
+          haptic("restore");
+          openModal("cart");
+        },
+      });
+      return;
     }
 
     clearCart();
@@ -255,6 +262,19 @@ export function LastOrderCard() {
           Ver detalhes
         </button>
       </div>
+      {repeatConfirmation && (
+        <div className={styles.repeatBackdrop} onClick={() => setRepeatConfirmation(null)}>
+          <div className={styles.repeatDialog} role="dialog" aria-modal="true" aria-labelledby="dfl-repeat-title" aria-describedby="dfl-repeat-description" onClick={event => event.stopPropagation()}>
+            <span className={styles.repeatEyebrow}>CONFIRMAÇÃO DO PEDIDO</span>
+            <h2 id="dfl-repeat-title">Repetir pedido anterior?</h2>
+            <p id="dfl-repeat-description">{repeatConfirmation.message}</p>
+            <div className={styles.repeatActions}>
+              <button type="button" className={styles.repeatCancel} onClick={() => {setRepeatConfirmation(null);setRepeatError("Seu carrinho foi preservado.");}}>Manter meu carrinho</button>
+              <button type="button" className={styles.repeatApprove} onClick={repeatConfirmation.proceed}>Sim, revisar pedido</button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

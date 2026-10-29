@@ -26,6 +26,6 @@ ok(api.includes('matchDeliveryRate(district, rates)')&&!api.includes('name.inclu
 ok(api.includes('inspectDistrict(district, rates.map')&&api.includes('ADDRESS_INVALID'),'servidor nao aceita bairro incompleto');
 ok(api.includes('text(delivery.street).length < 4')&&api.includes('text(delivery.cep).replace'),'servidor rejeita rua e CEP incompletos');
 ok(ad.includes('Bairro ausente ou incompleto'),'pedido legado sinalizado no Admin');
-ok(last.includes('cartItems.length > 0')&&last.includes('window.confirm'),'recompra nao apaga carrinho sem consentimento');
-ok(home.includes('menuCategories.map')&&home.includes('heroIds'),'home sem categorias vazias ou ofertas duplicadas');
+ok(last.includes('cartItems.length > 0')&&last.includes('DFL-R56-REPEAT-DIALOG') && last.includes('setRepeatConfirmation'),'recompra nao apaga carrinho sem consentimento');
+ok(home.includes('menuCategories.map') && home.includes('availableCategoryIds.has(category.id)') && home.includes('promoProducts') && home.includes('groupedProducts') && home.includes('excludePromos'),'home filtra categorias vazias e evita ofertas duplicadas');
 console.log('DFL SITE V86 R1 — 18 CONTRATOS OK');

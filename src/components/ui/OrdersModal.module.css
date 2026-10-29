@@ -33,3 +33,17 @@
 /* Pedidos antigos com escolhas alteradas nunca sao repetidos silenciosamente. */
 .notice{overflow-wrap:anywhere;line-height:1.55}
 @media(max-width:420px){.repeatConfirm{padding:13px}.repeatConfirm strong,.repeatConfirm>span{line-height:1.5}}
+
+/* DFL-R57-CANCEL-DIALOG */
+.cancelBackdrop{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.75);backdrop-filter:blur(5px)}
+.cancelPanel{box-sizing:border-box;width:min(100%,410px);border:1px solid #494950;border-radius:20px;padding:22px;background:#19191f;color:#f6f6f6;box-shadow:0 24px 65px #0009}
+.cancelPanel>span{font-size:10px;color:#ffcb40;font-weight:850;letter-spacing:.1em}
+.cancelPanel h2{font-size:21px;margin:10px 0}
+.cancelPanel p{font-size:13px;line-height:1.55;color:#d6d6dc}
+.cancelActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.cancelActions button{min-height:46px;padding:9px;border-radius:12px;font-size:12px;font-weight:850;cursor:pointer}
+.cancelActions button:first-child{border:1px solid #60606a;background:#303039;color:#fff}
+.cancelActions button:last-child{border:0;background:#ffca28;color:#191919}
+.cancelActions button:disabled{opacity:.55;cursor:wait}
+.cancelActions button:focus-visible{outline:3px solid white;outline-offset:3px}
+@media(max-width:360px){.cancelActions{grid-template-columns:1fr}}

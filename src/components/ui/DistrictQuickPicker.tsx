@@ -26,6 +26,13 @@ export function DistrictQuickPicker({ query, configured, onSelect, onOpen }: {
   const typed = query.trim();
   const automatic = typed.length >= 2 && typed !== dismissedQuery && !expanded && !selectedInConfigured;
   const showResults = expanded || automatic;
+  const normalized = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+  const isDirectMatch = (name: string) => {
+    const candidate = normalized(name);
+    const search = normalized(query);
+    return candidate.startsWith(search) || (search.length >= 3 && (candidate.includes(search) || candidate.split(" ").some(word => word.startsWith(search))));
+  };
+  const titleCase = (name: string) => name.toLocaleLowerCase("pt-BR").replace(/(^|[\s-])([\p{L}])/gu, (_all, before: string, letter: string) => before + letter.toLocaleUpperCase("pt-BR"));
   return (
     <section className={styles.picker} data-source={catalog.source} aria-label="Escolher bairro da entrega">
       {/* DFL-R44-DISTRICT-CLARITY: evidencia quando o texto bate com bairro configurado. */}
@@ -33,7 +40,7 @@ export function DistrictQuickPicker({ query, configured, onSelect, onOpen }: {
         ✓ Bairro encontrado na lista da loja. O frete sera confirmado no checkout.
       </p>}
       {automatic && !selectedInConfigured && <p role="status" style={{fontSize:12,margin:"0 0 8px",fontWeight:750,color:"#5f503a"}}>
-        {catalog.total ? `${catalog.total} bairro(s) encontrado(s). Toque para selecionar.` : "Nenhum bairro correspondente. Confira o nome ou abra a lista."}
+        {catalog.total ? `Escolha uma sugestão abaixo (${catalog.total} resultado${catalog.total === 1 ? "" : "s"}).` : "Nenhum bairro correspondente. Tente outra escrita ou abra a lista."}
       </p>}
       <button type="button" className={styles.toggle} aria-expanded={expanded} aria-controls="dfl-r38-district-results"
         onClick={() => { if (!expanded) onOpen(); setDismissedQuery(query.trim()); setExpanded(value => !value); setLimit(8); }}>
@@ -49,13 +56,13 @@ export function DistrictQuickPicker({ query, configured, onSelect, onOpen }: {
         </p>
         <small className={styles.counter}>{query.trim() ? "Resultados para o que você digitou" : "Escolha um bairro ou digite para filtrar"} · {catalog.total} encontrado(s)</small>
         {catalog.results.length > 0 ? <div className={styles.list} aria-label="Bairros sugeridos">
-          {catalog.results.map(name => <button type="button" key={name} data-selected={selectedInConfigured && name === query} onClick={() => {
+          {catalog.results.map(name => <button type="button" key={name} data-selected={selectedInConfigured && normalized(name) === normalized(query)} onClick={() => {
             onSelect(name);
             setExpanded(false);
             setDismissedQuery(name);
             setLimit(8);
-          }}>{name}<span aria-hidden="true">›</span></button>)}
-        </div> : <p className={styles.empty}>Nenhuma correspondência. Confira a escrita ou peça ajuda pelo WhatsApp. Você pode informar o bairro manualmente.</p>}
+          }} aria-label={`Selecionar bairro ${titleCase(name)}`}><span>{titleCase(name)}{typed.length >= 4 && !isDirectMatch(name) && <small style={{display:"block",fontWeight:600,opacity:.75}}>Você quis dizer este bairro?</small>}</span><span aria-hidden="true">›</span></button>)}
+        </div> : <p className={styles.empty}>Não encontramos um bairro parecido. Tente apenas parte do nome, confira a escrita ou peça ajuda pelo WhatsApp.</p>}
         {catalog.total > catalog.results.length && <button type="button" className={styles.more}
           onClick={() => setLimit(value => Math.min(80, value + 12))}>Mostrar mais bairros ({catalog.total - catalog.results.length})</button>}
         {catalog.total > 80 && catalog.results.length === 80 && <small>Digite parte do bairro para filtrar a lista completa.</small>}

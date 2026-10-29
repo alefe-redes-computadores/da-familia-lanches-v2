@@ -22,6 +22,7 @@ const ignored = new Set([
   "eu", "gostaria", "preciso", "me", "mostre", "mostrar", "algum", "alguma", "sugestao", "sugestoes",
   "comer", "lanche", "lanches", "sanduiche", "sanduiches", "opcao", "opcoes", "reais", "pedido",
   "combo", "combos", "promocao", "promocoes", "pessoas", "pessoa", "r", "ate", "menos", "abaixo",
+  "somos", "pra", "tenho", "gastar", "reais", "real", "orcamento", "amigos", "adultos",
 ]);
 const tokenize = (value: string) => normalize(value).split(" ").filter(word => word.length >= 3 && !ignored.has(word));
 /** R27: interpretação local, sem IA remota, sem consulta de preços e sem gravar dados. */
@@ -30,8 +31,11 @@ export function extractDFLIntent(query: string): {
   comboOnly: boolean; hasExclusion: boolean;
 } {
   const raw = String(query ?? "").slice(0, 180);
-  const peopleMatch = raw.match(/\b([1-8])\s*(?:pessoas?|amigos?)\b/i);
-  const budgetMatch = raw.match(/(?:até|ate|no máximo|no maximo|menos de|abaixo de)\s*(?:R\$\s*)?(\d{1,4}(?:[.,]\d{1,2})?)/i);
+  // DFL-R59-ASSIST-INTENTS: interpreta frases coloquiais sem alterar preços.
+  const peopleMatch = raw.match(/\b(?:somos|para|pra)\s+([1-8])(?:\s+(?:pessoas?|amigos?))?\b/i)
+    ?? raw.match(/\b([1-8])\s*(?:pessoas?|amigos?|adultos?)\b/i);
+  const budgetMatch = raw.match(/(?:até|ate|no máximo|no maximo|menos de|abaixo de|tenho|gastar|orçamento de|orcamento de)\s*(?:R\$\s*)?(\d{1,4}(?:[.,]\d{1,2})?)/i)
+    ?? raw.match(/\bR\$\s*(\d{1,4}(?:[.,]\d{1,2})?)/i);
   const people = peopleMatch ? Number(peopleMatch[1]) : null;
   const parsedBudget = budgetMatch ? Number(budgetMatch[1].replace(",", ".")) : NaN;
   const budget = Number.isFinite(parsedBudget) && parsedBudget >= 0 ? parsedBudget : null;
@@ -41,8 +45,9 @@ export function extractDFLIntent(query: string): {
     .replace(budgetMatch?.[0] ?? "\u0000", " ")
     .replace(/\bsem\s+\S+/gi, " ");
   const aliases: Record<string, string> = {
-    franguinho: "frango", frangos: "frango", hamburgueres: "hamburguer",
-    burgers: "burger", bacons: "bacon", queijos: "queijo",
+    franguinho: "frango", frangos: "frango", frnago: "frango", hamburgueres: "hamburguer",
+    hambuguer: "hamburguer", burgers: "burger", bacons: "bacon", queijos: "queijo",
+    refrigente: "refrigerante", refri: "refrigerante",
   };
   const terms = [...new Set(tokenize(words).map(token => aliases[token] ?? token))];
   return { terms, people, budget, comboOnly, hasExclusion };
