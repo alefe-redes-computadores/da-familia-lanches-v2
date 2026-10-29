@@ -7,5 +7,5 @@ ok(f.includes("DFL_MESSAGING_INGEST_URL")&&f.includes("DFL_MESSAGING_INGEST_TOKE
 ok(f.includes("settleMessagingProjections"),"settle ausente");
 ok(l.includes("drainMessagingIntentFastLane"),"relay sem fast-lane");
 ok(v.includes("messaging_intent_doc_id")&&v.includes("drainMessagingIntentFastLane"),"reverse sem fast-lane");
-ok(v.includes('event.event_type === "delivery.out_for_delivery" ? "delivery_started"'),"out_for_delivery alterado");
+ok((v.includes('event.event_type === "delivery.out_for_delivery"') && v.includes('event.payload.nextStop === true ? "delivery_next_stop" : "delivery_started"')),"out_for_delivery alterado");
 console.log("V15 contratos de fast-lane: OK");

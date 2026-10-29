@@ -10,6 +10,7 @@ type ReverseEventType =
   | "delivery.out_for_delivery"
   | "delivery.position_changed"
   | "delivery.next_stop"
+  | "delivery.pickup_ready"
   | "delivery.completed"
   | "delivery.failed"
   | "route.started"
@@ -43,6 +44,7 @@ const SUPPORTED = new Set<ReverseEventType>([
   "delivery.out_for_delivery",
   "delivery.position_changed",
   "delivery.next_stop",
+  "delivery.pickup_ready",
   "delivery.completed",
   "delivery.failed",
   "route.started",
@@ -66,12 +68,24 @@ function projectionDecision(
 ) {
   if (
     !target ||
-    pickup ||
     before === "Cancelado" ||
     before === "Finalizado" ||
     target === before
   ) {
     return { apply: false, deferred: false, reason: "not_applicable" as const };
+  }
+
+  // V85: retirada não percorre a etapa "Saiu para Entrega".
+  // A baixa operacional pode encerrar o pedido diretamente, sem gerar
+  // etapas comerciais intermediárias ou mensagens de "Pronto" retroativas.
+  if (pickup) {
+    if (target === "Pronto" && (before === "Pendente" || before === "Agendado" || before === "Em Produção")) {
+      return { apply: true, deferred: false, reason: "pickup_ready" as const };
+    }
+    if (target === "Finalizado") {
+      return { apply: true, deferred: false, reason: "pickup_completed" as const };
+    }
+    return { apply: false, deferred: false, reason: "pickup_ignores_delivery_tracking" as const };
   }
 
   // Os valores recebidos aqui já foram convertidos para CommercialStatus.
@@ -135,6 +149,7 @@ function projectedStatus(type: ReverseEventType): CommercialStatus | null {
   // atualizam tracking, mas NÃO significam que este pedido saiu para entrega.
   // Somente o evento explícito da própria entrega cruza essa fronteira.
   if (type === "delivery.out_for_delivery") return "Saiu para Entrega";
+  if (type === "delivery.pickup_ready") return "Pronto";
   if (type === "delivery.completed") return "Finalizado";
   return null;
 }
@@ -286,7 +301,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
           statusUpdatedAt: Timestamp.fromMillis(incoming.time),
           statusHistory: [
             ...(Array.isArray(order.statusHistory) ? order.statusHistory : []),
-            ...(targetStatus === "Finalizado"
+            ...(targetStatus === "Finalizado" && !pickup
               ? (() => {
                   const recovered: CommercialStatus[] = [];
 
@@ -352,7 +367,8 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       const intentType = event.event_type === "delivery.out_for_delivery"
         ? (event.payload.nextStop === true ? "delivery_next_stop" : "delivery_started")
         : event.event_type === "delivery.next_stop" ? "delivery_next_stop"
-        : event.event_type === "delivery.completed" ? "delivery_completed"
+        : event.event_type === "delivery.pickup_ready" && pickup && statusChanged ? "pickup_ready"
+        : event.event_type === "delivery.completed" && !pickup ? "delivery_completed"
         : event.event_type === "delivery.failed" ? "delivery_failed"
         : null;
       if (intentType && event.payload.recoveryReplay !== true) {
@@ -361,6 +377,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
         tx.set(adminDb.collection("integration_notification_intents").doc(intentId), {
           intent_id: `intent-v1__${event.event_id}`,
           intent_type: intentType,
+          ...(intentType === "pickup_ready" ? { messaging_event_type: "order.ready" } : {}),
           source_event_id: event.event_id,
           source_event_type: event.event_type,
           order_id: event.payload.externalOrderId,

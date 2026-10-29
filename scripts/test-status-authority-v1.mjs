@@ -32,7 +32,7 @@ ok(
 );
 
 ok(
-  admin.includes('message.startsWith("ORDER_STATUS_CONFLICT:")'),
+  (/message\.startsWith\s*\(\s*["\']ORDER_STATUS_CONFLICT:/.test(admin)),
   "admin entende conflito estruturado",
 );
 

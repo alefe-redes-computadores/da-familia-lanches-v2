@@ -41,7 +41,6 @@ tests.push([
   "Loja: importação direta protegida pelo boundary (V85.1 R13)",
 ]);
 
-
 tests.push([
   admin.includes('from "next/dynamic"') ||
   admin.includes("from 'next/dynamic'"),
@@ -56,6 +55,13 @@ for(const name of heavy){
     `${name} lazy`,
   ]);
 }
+
+tests.push([
+  admin.includes('import { StoreOperationAdmin } from "@/components/admin/StoreOperationAdmin";') &&
+  !/const\s+StoreOperationAdmin\s*=\s*dynamic\s*\(/.test(admin) &&
+  admin.includes("AdminSectionBoundary"),
+  "StoreOperationAdmin direto e Gestao isolada (V85.1)",
+]);
 
 tests.push([
   smart.includes("getRotationSeed") &&

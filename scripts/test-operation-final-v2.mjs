@@ -16,7 +16,7 @@ ok(msg.includes("MAX_MESSAGING_ATTEMPTS = 6"), "mensageria possui limite de retr
 ok(msg.includes("colocado em quarentena"), "poison intent sai do loop infinito");
 ok(msg.includes('status:"failed"') && msg.includes("messaging_eligible:false"), "quarentena sai do polling");
 ok(route.includes(".count()"), "saúde usa agregações");
-ok(!health.includes("setInterval("), "saúde não cria polling");
+ok((health.match(/(?:window\.)?setInterval\s*\(/g) || []).length === 1 && /window\.setInterval\s*\(\s*\(\s*\)\s*=>\s*setClockMs\(Date\.now\(\)\)\s*,\s*60_000\s*\)/.test(health), "saúde não cria polling remoto; apenas relógio local");
 ok(health.includes('fetch("/api/admin/operation-health"'), "integração é consultada sob demanda");
 ok(health.includes("getIdToken"), "diagnóstico administrativo autenticado");
 ok(reverse.includes('type === "delivery.out_for_delivery"'), "Status Authority preservada");
