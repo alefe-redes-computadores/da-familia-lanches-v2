@@ -2,6 +2,8 @@
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { catalogProductMatchesSearch } from "@/lib/catalogAdminSearch";
+import { auditCatalogBundles } from "@/lib/catalogIntegrityAudit"; // DFL-R90-COMBO-AUDIT
+import { auditCommercialCatalog, countValidPromotions } from "@/lib/catalogCommercialAudit"; // DFL-R91-GESTAO-COMERCIAL
 import { Plus, Search, ChevronDown, X, Pencil, Pause, Play } from "lucide-react";
 import { useAdminConfirm } from "@/components/admin/ui/AdminExperienceProvider";
 import { CatalogImage } from "@/components/ui/CatalogImage";
@@ -182,6 +184,7 @@ export function CatalogAdmin() {
   const [productStep, setProductStep] = useState<ProductEditorStep>("essencial");
   const saveProductBusy = useRef(false);
   const productBaseline = useRef("");
+  const addonBaseline = useRef(""); // DFL-R91-GESTAO-COMERCIAL
   const confirmProductClose = useAdminConfirm();
   useEffect(() => {
     if (!message) return;
@@ -210,6 +213,15 @@ export function CatalogAdmin() {
   }, []);
   const [categoryFilter, setCategoryFilter] = useState<"all" | ProductCategory>("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "active" | "paused">("all");
+  // DFL-R91-GESTAO-COMERCIAL: ferramentas de listagem de adicionais, sem consultas extras.
+  const [addonSearch, setAddonSearch] = useState("");
+  const deferredAddonSearch = useDeferredValue(addonSearch);
+  const [addonFilter, setAddonFilter] = useState<"all" | "active" | "paused">("all");
+  const [addonSort, setAddonSort] = useState<"manual" | "name" | "priceAsc" | "priceDesc">("manual");
+  // DFL-R89-ADMIN-MACRO: filtros de auditoria e ordenacao 100% locais.
+  const [reviewFilter, setReviewFilter] = useState<"all" | "photo" | "description" | "bundle" | "commercial">("all");
+  const [listSort, setListSort] = useState<"manual" | "name" | "priceAsc" | "priceDesc">("manual");
+  const [openAllGroups, setOpenAllGroups] = useState(false);
   const [categoryDraft, setCategoryDraft] = useState<{ id: string; label: string; mode: "create" | "edit" } | null>(null);
   const [categoryDeleteConfirm, setCategoryDeleteConfirm] = useState<string | null>(null);
   const [view, setView] = useState<CatalogView>("produtos");
@@ -217,19 +229,36 @@ export function CatalogAdmin() {
   const [catalogBackupId, setCatalogBackupId] = useState("");
   const [restoreConfirm, setRestoreConfirm] = useState(false);
 
+  const bundleAudit = useMemo(() => auditCatalogBundles(products), [products]);
+  const productsWithBundleIssues = useMemo(() => new Set(bundleAudit.map((issue) => issue.productId)), [bundleAudit]);
+  // DFL-R91-GESTAO-COMERCIAL: consulta apenas a lista de produtos ja carregada.
+  const commercialAudit = useMemo(() => auditCommercialCatalog(products), [products]);
+  const commercialIssueIds = useMemo(() => new Set(commercialAudit.map((issue) => issue.productId)), [commercialAudit]);
+  const commercialOfferCount = useMemo(() => countValidPromotions(products), [products]);
+
   const filteredProducts = useMemo(() => {
     const term = deferredSearch.trim();
     return products.filter((product) => {
       if (categoryFilter !== "all" && product.category !== categoryFilter) return false;
       if (availabilityFilter === "active" && product.disponivel === false) return false;
       if (availabilityFilter === "paused" && product.disponivel !== false) return false;
+      if (reviewFilter === "photo" && Boolean(product.image?.trim())) return false;
+      if (reviewFilter === "description" && Boolean(product.description?.trim())) return false;
+      if (reviewFilter === "bundle" && !productsWithBundleIssues.has(product.id)) return false;
+      if (reviewFilter === "commercial" && !commercialIssueIds.has(product.id)) return false;
       if (!term) return true;
       return catalogProductMatchesSearch(product, term);
     }).sort((a, b) => {
+      if (listSort === "name") return a.name.localeCompare(b.name, "pt-BR");
+      if (listSort === "priceAsc" || listSort === "priceDesc") {
+        const aPrice = Number.isFinite(a.price) ? a.price : Number.MAX_SAFE_INTEGER;
+        const bPrice = Number.isFinite(b.price) ? b.price : Number.MAX_SAFE_INTEGER;
+        return (listSort === "priceAsc" ? aPrice - bPrice : bPrice - aPrice) || a.name.localeCompare(b.name, "pt-BR");
+      }
       if (availabilityFilter === "all" && (a.disponivel === false) !== (b.disponivel === false)) return a.disponivel === false ? 1 : -1;
       return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER);
     });
-  }, [products, deferredSearch, categoryFilter, availabilityFilter]);
+  }, [products, deferredSearch, categoryFilter, availabilityFilter, reviewFilter, listSort, productsWithBundleIssues, commercialIssueIds]);
 
   const groupedProducts = useMemo(() => {
     const order = new Map(categories.map((category, index) => [category.id, index]));
@@ -247,7 +276,33 @@ export function CatalogAdmin() {
 
   const activeProducts = products.filter((product) => product.disponivel !== false).length;
   const pausedProducts = products.length - activeProducts;
+  const missingPhotos = products.filter((product) => !product.image?.trim()).length;
+  const missingDescriptions = products.filter((product) => !product.description?.trim()).length;
   const activeAddons = allAddons.filter((addon) => addon.disponivel !== false).length;
+  const filteredAddons = useMemo(() => {
+    const term = deferredAddonSearch.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    return allAddons.filter((addon) => {
+      if (addonFilter === "active" && addon.disponivel === false) return false;
+      if (addonFilter === "paused" && addon.disponivel !== false) return false;
+      if (!term) return true;
+      const haystack = `${addon.name} ${addon.id}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      return haystack.includes(term);
+    }).sort((a,b) => {
+      if (addonSort === "name") return a.name.localeCompare(b.name, "pt-BR");
+      if (addonSort === "priceAsc") return a.price - b.price || a.name.localeCompare(b.name, "pt-BR");
+      if (addonSort === "priceDesc") return b.price - a.price || a.name.localeCompare(b.name, "pt-BR");
+      return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER);
+    });
+  }, [allAddons, deferredAddonSearch, addonFilter, addonSort]);
+  const jumpToCatalog = (target: CatalogView, mode: "all" | "paused" = "all") => {
+    setView(target);
+    setSearch("");
+    setCategoryFilter("all");
+    setReviewFilter("all");
+    setAvailabilityFilter(mode === "paused" ? "paused" : "all");
+    setOpenAllGroups(mode === "paused");
+    window.requestAnimationFrame(() => document.getElementById("dfl-r89-catalog-workspace")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  };
 
   const categoryOptions = categories.map((category) => ({ value: category.id, label: `${category.label}${category.active ? "" : " (oculta)"}` }));
   const categoryLabel = (id: string) => categories.find((category) => category.id === id)?.label ?? id;
@@ -289,6 +344,25 @@ export function CatalogAdmin() {
     setShowAddonChoices(false);
     setProductStep("essencial");
     const draft: ProductDraft = { id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, minAddonSelections: "0", maxAddonSelections: "20", addonGroups: [], detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "", upsellProductId: "", upsellUnitPrice: "" };
+    productBaseline.current = JSON.stringify(draft);
+    setProductDraft(draft);
+    setMessage("");
+  };
+
+  // DFL-R89-ADMIN-MACRO: usa apenas texto, categoria e regras de adicionais como ponto de partida.
+  // Nao replica identificador, foto, preco, promocao ou vinculos de combo.
+  const openSimilarProduct = (product: Product) => {
+    const base = draftFromProduct(product);
+    const draft: ProductDraft = {
+      ...base, id: "", name: "", price: "", oldPrice: "", image: "", sortOrder: "",
+      disponivel: false, isSuggestion: false, showInOffers: false,
+      bundleItems: [], detailsTitle: "", publicSlug: "", publicSection: "",
+      upsellProductId: "", upsellUnitPrice: "",
+    };
+    setProductMode("create");
+    setAdvancedProduct(false);
+    setShowAddonChoices(false);
+    setProductStep("essencial");
     productBaseline.current = JSON.stringify(draft);
     setProductDraft(draft);
     setMessage("");
@@ -540,14 +614,33 @@ export function CatalogAdmin() {
 
   const openCreateAddon = () => {
     setAddonMode("create");
-    setAddonDraft({ id: "", name: "", price: "", disponivel: true, sortOrder: "" });
+    const draft: AddonDraft = { id: "", name: "", price: "", disponivel: true, sortOrder: "" };
+    addonBaseline.current = JSON.stringify(draft);
+    setAddonDraft(draft);
     setMessage("");
   };
 
   const openEditAddon = (addon: Addon) => {
     setAddonMode("edit");
-    setAddonDraft(draftFromAddon(addon));
+    const draft = draftFromAddon(addon);
+    addonBaseline.current = JSON.stringify(draft);
+    setAddonDraft(draft);
     setMessage("");
+  };
+
+  const closeAddonEditor = async () => {
+    if (busy.startsWith("addon-")) return;
+    if (addonDraft && JSON.stringify(addonDraft) !== addonBaseline.current) {
+      const approved = await confirmProductClose({
+        title: "Descartar alterações do adicional?",
+        message: "Nome, preço e disponibilidade ainda não foram salvos.",
+        tone: "warning", confirmLabel: "Descartar alterações", cancelLabel: "Continuar editando",
+      });
+      if (!approved) return;
+    }
+    addonBaseline.current = "";
+    setAddonDraft(null);
+    setAddonMode(null);
   };
 
   const saveAddon = async () => {
@@ -570,6 +663,7 @@ export function CatalogAdmin() {
         sortOrder: sortOrder !== null && Number.isFinite(sortOrder) ? sortOrder : null,
         updatedAt: new Date().toISOString(),
       } });
+      addonBaseline.current = "";
       setAddonDraft(null);
       setAddonMode(null);
       setMessage(addonMode === "create" ? `Adicional criado com ID ${id}.` : "Adicional atualizado.");
@@ -626,10 +720,50 @@ export function CatalogAdmin() {
 
     {message && <div className={styles.message} data-tone={/falha|erro|inválid|não foi|obrigatóri|informe|precisa|não pode/i.test(message) ? "error" : "success"} role="status" aria-live="polite"><span>{message}</span><button type="button" aria-label="Fechar aviso" onClick={() => setMessage("")}>×</button></div>}
 
+    {/* DFL-R89-ADMIN-MACRO: atalhos sempre visiveis antes dos paineis de auditoria. */}
+    <nav className={styles.r89CommandBar} aria-label="Ações rápidas do catálogo">
+      <div className={styles.r89CommandIntro}><strong>Atalhos de operação</strong><small>Ir direto ao trabalho, sem percorrer relatórios.</small></div>
+      <div className={styles.r89CommandActions}>
+        <button type="button" onClick={() => jumpToCatalog("produtos")}>Produtos <b>{products.length}</b></button>
+        <button type="button" onClick={() => jumpToCatalog("produtos", "paused")}>Pausados <b>{pausedProducts}</b></button>
+        <button type="button" onClick={openCreateProduct}>+ Novo produto</button>
+        <button type="button" onClick={() => jumpToCatalog("adicionais")}>Adicionais</button>
+        <button type="button" onClick={() => jumpToCatalog("categorias")}>Categorias</button>
+      </div>
+    </nav>
+    {/* DFL-R90-COMBO-AUDIT: alertas locais de vinculos; nenhuma correcao automatica. */}
+    {bundleAudit.length > 0 && <section className={styles.r90BundleAudit} aria-label="Revisão dos vínculos dos combos">
+      <div className={styles.r90BundleAuditHeader}>
+        <div><strong>Conferir composição dos combos</strong><small>{productsWithBundleIssues.size} produto(s) com {bundleAudit.length} ponto(s) para revisar. Avisos não alteram o cardápio.</small></div>
+        <button type="button" onClick={() => { jumpToCatalog("produtos"); setReviewFilter("bundle"); setOpenAllGroups(true); }}>Ver todos</button>
+      </div>
+      <div className={styles.r90BundleAuditList}>
+        {bundleAudit.slice(0, 5).map((issue, index) => <button type="button" key={`${issue.productId}-${issue.kind}-${index}`} onClick={() => {
+          const product = products.find((item) => item.id === issue.productId);
+          if (product) openEditProduct(product);
+        }}>
+          <strong>{issue.productName}</strong><span>{issue.detail}</span><b>Conferir</b>
+        </button>)}
+      </div>
+    </section>}
+    {/* DFL-R91-GESTAO-COMERCIAL: orientacoes comerciais sem alteracao automatica. */}
+    <section className={styles.r91CommercialPanel} aria-label="Saúde comercial do catálogo">
+      <div className={styles.r91CommercialHeader}>
+        <div><span>REVISÃO COMERCIAL</span><strong>{commercialOfferCount} produto(s) com desconto válido</strong><small>{commercialIssueIds.size ? `${commercialIssueIds.size} produto(s) merecem conferência` : "Nenhuma inconsistência comercial detectada pelos critérios básicos."}</small></div>
+        {commercialIssueIds.size > 0 && <button type="button" onClick={() => { jumpToCatalog("produtos"); setReviewFilter("commercial"); setOpenAllGroups(true); }}>Conferir produtos</button>}
+      </div>
+      {commercialAudit.length > 0 && <div className={styles.r91CommercialIssues}>
+        {commercialAudit.slice(0,4).map((item,index) => <button type="button" key={`${item.productId}-${item.kind}-${index}`} onClick={() => { const found=products.find((product)=>product.id===item.productId); if(found) openEditProduct(found); }}>
+          <strong>{item.productName}</strong><span>{item.detail}</span><b>Editar</b>
+        </button>)}
+      </div>}
+      <small>Diagnóstico informativo. A precificação continua validada no cadastro e no servidor.</small>
+    </section>
     <CatalogConversionPulse products={products} categories={categories} source={source} />
     <CatalogQualityPanel products={products} categories={categories} />
     <CatalogBulkOperations products={products} categories={categories} source={source} />
     <CatalogLaunchCenter products={products} addons={allAddons} categories={categories} source={source} onEdit={openEditProduct} />
+    <div id="dfl-r89-catalog-workspace" className={styles.r89WorkspaceAnchor} />
     <nav className={styles.viewTabs} aria-label="Seções do cardápio">
       {([["produtos", "Produtos", products.length], ["categorias", "Categorias", categories.length], ["adicionais", "Adicionais", allAddons.length], ["ordem", "Ordem", null]] as Array<[CatalogView, string, number | null]>).map(([key, label, count]) => (
         <button key={key} type="button" data-active={view === key} onClick={() => setView(key)}><span>{label}</span>{count !== null && <b>{count}</b>}</button>
@@ -649,6 +783,26 @@ export function CatalogAdmin() {
       ]} />
     </section>
 
+    <section className={styles.r89ReviewBar} aria-label="Revisão e ordenação de produtos">
+      <div className={styles.r89ReviewTitle}><strong>Revisão rápida</strong><span>{filteredProducts.length} exibidos de {products.length}</span></div>
+      <div className={styles.r89ReviewChips} role="group" aria-label="Filtrar pendências do produto">
+        <button type="button" data-active={reviewFilter === "all"} aria-pressed={reviewFilter === "all"} onClick={() => setReviewFilter("all")}>Todos</button>
+        <button type="button" data-active={reviewFilter === "photo"} aria-pressed={reviewFilter === "photo"} onClick={() => { setReviewFilter("photo"); setOpenAllGroups(true); }}>Sem foto <b>{missingPhotos}</b></button>
+        <button type="button" data-active={reviewFilter === "description"} aria-pressed={reviewFilter === "description"} onClick={() => { setReviewFilter("description"); setOpenAllGroups(true); }}>Sem descrição <b>{missingDescriptions}</b></button>
+        <button type="button" data-active={reviewFilter === "bundle"} aria-pressed={reviewFilter === "bundle"} onClick={() => { setReviewFilter("bundle"); setOpenAllGroups(true); setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); }}>Composição a revisar <b>{productsWithBundleIssues.size}</b></button>
+        <button type="button" data-active={reviewFilter === "commercial"} aria-pressed={reviewFilter === "commercial"} onClick={() => { setReviewFilter("commercial"); setOpenAllGroups(true); setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); }}>Revisão comercial <b>{commercialIssueIds.size}</b></button>
+      </div>
+      <label className={styles.r89Sort}>Ordenar produtos
+        <select value={listSort} onChange={(event) => setListSort(event.target.value as typeof listSort)}>
+          <option value="manual">Ordem do cardápio</option>
+          <option value="name">Nome (A–Z)</option>
+          <option value="priceAsc">Menor preço</option>
+          <option value="priceDesc">Maior preço</option>
+        </select>
+      </label>
+      <button className={styles.r89Expand} type="button" onClick={() => setOpenAllGroups((value) => !value)} aria-pressed={openAllGroups}>{openAllGroups ? "Recolher categorias" : "Expandir categorias"}</button>
+    </section>
+
     {pauseReview.length > 0 && (
       <section className={styles.sectionBar} aria-label="Produtos para revisar após cancelamento">
         <div><span>REVISÃO APÓS CANCELAMENTO</span><strong>{pauseReview.length} produto(s) selecionado(s)</strong><small>Confira cada item abaixo. Nenhum produto foi pausado automaticamente.</small>
@@ -659,11 +813,11 @@ export function CatalogAdmin() {
     )}
     <div className={styles.sectionBar}>
       <div><span>PRODUTOS</span><strong>Gerenciar cardápio</strong><small className={styles.sectionHint}>{filteredProducts.length} exibidos</small></div>
-      {(search || categoryFilter !== "all" || availabilityFilter !== "all") && <button onClick={() => { setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); }}>Limpar filtros</button>}
+      {(search || categoryFilter !== "all" || availabilityFilter !== "all" || reviewFilter !== "all") && <button onClick={() => { setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); setReviewFilter("all"); }}>Limpar filtros</button>}
     </div>
 
     <div className={styles.productGroups}>
-      {groupedProducts.map((group) => <details className={styles.productGroup} key={group.categoryId} open={Boolean(search || categoryFilter !== "all" || availabilityFilter !== "all")}>
+      {groupedProducts.map((group) => <details className={styles.productGroup} key={group.categoryId} open={Boolean(search || categoryFilter !== "all" || availabilityFilter !== "all" || reviewFilter !== "all" || openAllGroups)}>
         <summary><div><span>CATEGORIA</span><strong>{group.label}</strong></div><b>{group.items.length} produto{group.items.length===1?"":"s"}</b><ChevronDown size={16}/></summary>
         <div className={styles.products}>
           {group.items.map((product) => <article className={styles.product} key={product.id} data-off={product.disponivel === false}>
@@ -675,6 +829,7 @@ export function CatalogAdmin() {
             </div>
             <div className={styles.actions}>
               <button onClick={() => toggleProduct(product)} disabled={busy === `toggle-${product.id}`}>{product.disponivel ? <><Pause size={14}/>Pausar</> : <><Play size={14}/>Reativar</>}</button>
+              <button type="button" className={styles.r89SimilarAction} onClick={() => openSimilarProduct(product)} title="Criar rascunho semelhante, sem copiar preco ou promocao">Usar como base</button>
               <button className={styles.primary} onClick={() => openEditProduct(product)}><Pencil size={14}/>Editar</button>
             </div>
           </article>)}
@@ -694,12 +849,32 @@ export function CatalogAdmin() {
     {view === "adicionais" && <>
     <section className={styles.addonsPanel}>
       <div className={styles.sectionBar}><div><span>ADICIONAIS</span><strong>{allAddons.length} cadastrados</strong></div><button onClick={openCreateAddon}>+ Novo adicional</button></div>
+      <div className={styles.r91AddonTools} aria-label="Filtrar adicionais">
+        <label className={styles.r91AddonSearch}>Buscar adicional
+          <input type="search" value={addonSearch} onChange={(event) => setAddonSearch(event.target.value)} placeholder="Nome ou ID" autoComplete="off" />
+        </label>
+        <label>Disponibilidade
+          <select value={addonFilter} onChange={(event) => setAddonFilter(event.target.value as typeof addonFilter)}>
+            <option value="all">Todos</option><option value="active">Disponíveis</option><option value="paused">Pausados</option>
+          </select>
+        </label>
+        <label>Organizar
+          <select value={addonSort} onChange={(event) => setAddonSort(event.target.value as typeof addonSort)}>
+            <option value="manual">Ordem do catálogo</option><option value="name">Nome (A–Z)</option>
+            <option value="priceAsc">Menor preço</option><option value="priceDesc">Maior preço</option>
+          </select>
+        </label>
+        <div className={styles.r91AddonToolbarFooter}><span>{filteredAddons.length} de {allAddons.length} adicionais</span>
+          {(addonSearch || addonFilter !== "all" || addonSort !== "manual") && <button type="button" onClick={() => { setAddonSearch(""); setAddonFilter("all"); setAddonSort("manual"); }}>Limpar filtros</button>}
+        </div>
+      </div>
       <div className={styles.addonGrid}>
-        {allAddons.map((addon) => <article key={addon.id} className={styles.addonCard} data-off={addon.disponivel === false}>
+        {filteredAddons.map((addon) => <article key={addon.id} className={styles.addonCard} data-off={addon.disponivel === false}>
           <button className={styles.addonEdit} onClick={() => openEditAddon(addon)}><div><span>{addon.name}</span><small>{addon.id}</small></div><b>{money(addon.price)}</b></button>
           <button className={styles.addonToggle} onClick={() => toggleAddon(addon)} disabled={busy === `addon-toggle-${addon.id}`}>{addon.disponivel === false ? "Reativar" : "Pausar"}</button>
         </article>)}
       </div>
+      {!filteredAddons.length && <div className={styles.r91AddonEmpty}>Nenhum adicional corresponde aos filtros. <button type="button" onClick={() => { setAddonSearch(""); setAddonFilter("all"); setAddonSort("manual"); }}>Mostrar todos</button></div>}
     </section>
 
     </>}
@@ -749,6 +924,28 @@ export function CatalogAdmin() {
             </div>
           </div>
         </div>
+        {/* DFL-R88-CATALOG-CHECK: apenas conferência local; API mantém validações. */}
+        <section className={styles.r88Readiness} aria-label="Conferência antes de salvar">
+          <div className={styles.r88ReadinessHead}><strong>Conferência do cadastro</strong><span>{[
+            Boolean(productDraft.name.trim()), Boolean(productDraft.description.trim()),
+            Boolean(productDraft.image.trim()),
+            parseMoneyInput(productDraft.price) !== null && (parseMoneyInput(productDraft.price) ?? -1) >= 0,
+          ].filter(Boolean).length}/4 essenciais</span></div>
+          <div className={styles.r88ReadinessItems}>
+            {([
+              ["Nome", Boolean(productDraft.name.trim()), "essencial"],
+              ["Descrição", Boolean(productDraft.description.trim()), "essencial"],
+              ["Foto", Boolean(productDraft.image.trim()), "essencial"],
+              ["Preço", parseMoneyInput(productDraft.price) !== null && (parseMoneyInput(productDraft.price) ?? -1) >= 0, "venda"],
+            ] as Array<[string, boolean, ProductEditorStep]>).map(([label, done, step]) => (
+              <button type="button" key={label} data-ready={done} onClick={() => { haptic("step"); setProductStep(step); }}
+                aria-label={`${label}: ${done ? "preenchido" : "pendente"}. Ir para etapa ${step}`}>
+                <span aria-hidden="true">{done ? "✓" : "○"}</span>{label}
+              </button>
+            ))}
+          </div>
+          <small>Confira também as opções e a composição. O servidor valida tudo antes de salvar.</small>
+        </section>
         <div className={styles.editorScroll}>
         <div className={styles.editorIntro} data-editor-step="essencial">Preencha o essencial primeiro. Ingredientes descrevem o lanche; componentes vinculados são os produtos entregues no combo.</div>
         {productMode === "edit" && advancedProduct && <div className={styles.idBox} data-editor-step="opcoes"><span>ID permanente</span><strong>{productDraft.id}</strong></div>}
@@ -767,7 +964,22 @@ export function CatalogAdmin() {
             <p className={styles.promoHint}>dafamilialanches.com.br/{productDraft.publicSection || (productDraft.showInOffers ? "ofertas-da-familia" : productDraft.category)}/{productDraft.publicSlug || slugify(productDraft.name) || "produto"}</p>
           </div>}
           <div className={`${styles.full} ${styles.bundleEditor}`} data-editor-step="conteudo">
-            <div className={styles.bundleEditorHead}><div><strong>Produtos incluídos no combo</strong><small>Fonte operacional do pedido: adicione somente produtos completos: por exemplo, 5 × Uai e 1 × refrigerante. Pão, bacon e outros ingredientes ficam no campo Ingredientes acima.</small></div><button type="button" onClick={() => { const candidate=products.find((item)=>item.id!==productDraft.id); if(candidate)setProductDraft({...productDraft,bundleItems:[...productDraft.bundleItems,{productId:candidate.id,quantity:1,note:""}]}); }}>+ Adicionar componente</button></div>
+            <div className={styles.bundleEditorHead}><div><strong>Produtos incluídos no combo</strong><small>Fonte operacional do pedido: adicione somente produtos completos: por exemplo, 5 × Uai e 1 × refrigerante. Pão, bacon e outros ingredientes ficam no campo Ingredientes acima.</small></div><button type="button" onClick={() => { const existing=new Set(productDraft.bundleItems.map((item)=>item.productId)); const candidate=products.find((item)=>item.id!==productDraft.id && !existing.has(item.id) && item.disponivel!==false); if(candidate)setProductDraft({...productDraft,bundleItems:[...productDraft.bundleItems,{productId:candidate.id,quantity:1,note:""}]}); else setMessage("Não há outro produto disponível para vincular. Confira os componentes já adicionados."); }}>+ Adicionar componente</button></div>
+            {/* DFL-R90-COMBO-AUDIT: espelho dos componentes operacionais realmente vinculados. */}
+            <div className={styles.r90BundlePreview} aria-label="Composição operacional em conferência">
+              <strong>Resumo do que será vinculado</strong>
+              {productDraft.bundleItems.length ? productDraft.bundleItems.map((component, index) => {
+                const linked = products.find((product) => product.id === component.productId);
+                const qtyOk = Number.isInteger(component.quantity) && component.quantity > 0;
+                const ready = Boolean(linked && linked.disponivel !== false && qtyOk && linked.id !== productDraft.id);
+                return <div key={`${component.productId}-${index}`} data-ready={ready}>
+                  <b>{qtyOk ? `${component.quantity}×` : "Qtd.?"}</b>
+                  <span>{linked?.name ?? "Produto não encontrado"}</span>
+                  <small>{!qtyOk ? "Quantidade inválida" : !linked ? "Vínculo ausente" : linked.id === productDraft.id ? "Não pode incluir ele mesmo" : linked.disponivel === false ? "Item pausado" : "Vínculo identificado"}</small>
+                </div>;
+              }) : <small>Não há produtos completos vinculados. Isso pode ser normal para um item avulso.</small>}
+              <small>Ingredientes são descrições. Os itens vinculados representam produtos completos na composição do pedido.</small>
+            </div>
             {productDraft.bundleItems.length ? <div className={styles.bundleRows}>{productDraft.bundleItems.map((item,index)=><div className={styles.bundleRow} key={`${item.productId}-${index}`}>
               <select value={item.productId} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],productId:e.target.value};setProductDraft({...productDraft,bundleItems:next});}}>{categories.map((category)=>{const options=products.filter((candidate)=>candidate.id!==productDraft.id&&candidate.category===category.id);return options.length?<optgroup key={category.id} label={category.label}>{options.map((candidate)=><option key={candidate.id} value={candidate.id}>{candidate.name}{candidate.disponivel===false?" · pausado":""}</option>)}</optgroup>:null;})}</select>
               <input aria-label="Qtd. inclusa" type="number" min="1" value={item.quantity} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],quantity:Math.max(1,Number(e.target.value)||1)};setProductDraft({...productDraft,bundleItems:next});}} />
@@ -835,15 +1047,15 @@ export function CatalogAdmin() {
       </section>
     </div>}
 
-    {addonDraft && addonMode && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) { setAddonDraft(null); setAddonMode(null); } }}>
+    {addonDraft && addonMode && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) void closeAddonEditor(); }}>
       <section className={styles.smallEditor}>
-        <div className={styles.editorHead}><div><span>{addonMode === "create" ? "NOVO ADICIONAL" : "EDITAR ADICIONAL"}</span><h3>{addonMode === "create" ? "Cadastrar adicional" : addonDraft.name}</h3></div><button onClick={() => { setAddonDraft(null); setAddonMode(null); }}>×</button></div>
+        <div className={styles.editorHead}><div><span>{addonMode === "create" ? "NOVO ADICIONAL" : "EDITAR ADICIONAL"}</span><h3>{addonMode === "create" ? "Cadastrar adicional" : addonDraft.name}</h3></div><button type="button" aria-label="Fechar editor do adicional" onClick={() => { void closeAddonEditor(); }}>×</button>{JSON.stringify(addonDraft) !== addonBaseline.current && <small className={styles.r91UnsavedAddon}>Alterações não salvas</small>}</div>
         {addonMode === "edit" && <div className={styles.idBox}><span>ID permanente</span><strong>{addonDraft.id}</strong></div>}
         <label>Nome<input value={addonDraft.name} onChange={(e) => setAddonDraft({ ...addonDraft, name: e.target.value })} /></label>
         <label>Preço<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={addonDraft.price} onChange={(e) => setAddonDraft({ ...addonDraft, price: moneyTyping(e.target.value) })} onBlur={(e) => setAddonDraft({ ...addonDraft, price: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
         <label>Ordem<input inputMode="numeric" value={addonDraft.sortOrder} onChange={(e) => setAddonDraft({ ...addonDraft, sortOrder: e.target.value })} placeholder="Opcional" /></label>
         <button className={styles.availability} data-on={addonDraft.disponivel} onClick={() => setAddonDraft({ ...addonDraft, disponivel: !addonDraft.disponivel })}><i />{addonDraft.disponivel ? "Disponível" : "Pausado"}</button>
-        <div className={styles.editorActions}><button onClick={() => { setAddonDraft(null); setAddonMode(null); }}>Cancelar</button><button className={styles.save} onClick={saveAddon} disabled={busy.startsWith("addon-")}>{busy.startsWith("addon-") ? "Salvando..." : addonMode === "create" ? "Criar adicional" : "Salvar alterações"}</button></div>
+        <div className={styles.editorActions}><button type="button" onClick={() => { void closeAddonEditor(); }}>Cancelar</button><button className={styles.save} onClick={saveAddon} disabled={busy.startsWith("addon-")}>{busy.startsWith("addon-") ? "Salvando..." : addonMode === "create" ? "Criar adicional" : "Salvar alterações"}</button></div>
       </section>
     </div>}
   </div>;

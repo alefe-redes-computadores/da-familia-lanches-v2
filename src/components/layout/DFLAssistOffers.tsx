@@ -20,6 +20,8 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
   const [onlyCombos, setOnlyCombos] = useState(false);
   // DFL-R45-ASSIST: exibicao progressiva, sem remover resultados.
   const [showAllOffers, setShowAllOffers] = useState(false);
+  // DFL-R89-ADMIN-MACRO: ordenacao apenas visual; resultado sempre vem do catalogo confirmado.
+  const [offerSort, setOfferSort] = useState<"relevance" | "cheapest" | "expensive">("relevance");
   // Centavos inteiros: formato previsível no teclado Android, sem input numérico nativo.
   const budget = budgetInput ? Number(budgetInput) / 100 : undefined;
   const formatBudget = (cents: string) => cents ? currency(Number(cents) / 100) : "";
@@ -32,14 +34,21 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
   const discoveryHints = useMemo(() => catalogReady && validBudget && !offers.length && query.trim()
     ? suggestCatalogQueries(products, query, 3)
     : [], [catalogReady, validBudget, offers.length, products, query]);
-  const clearFilters = () => { setQuery(""); setPeople(2); setBudgetInput(""); setOnlyCombos(false); setShowAllOffers(false); };
-  const visibleOffers = showAllOffers ? offers : offers.slice(0, 2);
+  const clearFilters = () => { setQuery(""); setPeople(2); setBudgetInput(""); setOnlyCombos(false); setShowAllOffers(false); setOfferSort("relevance"); };
+  const orderedOffers = useMemo(() => {
+    if (offerSort === "relevance") return offers;
+    return [...offers].sort((a, b) => offerSort === "cheapest"
+      ? a.product.price - b.product.price || b.score - a.score
+      : b.product.price - a.product.price || b.score - a.score);
+  }, [offers, offerSort]);
+  const visibleOffers = showAllOffers ? orderedOffers : orderedOffers.slice(0, 2);
+  const effectiveBudget = intent.budget ?? budget;
   // DFL-R61-ASSIST-NAVIGATION: texto conversacional nunca vira busca literal por frase inteira.
   // Prioriza produto realmente recomendado, respeitando orcamento e disponibilidade do catalogo.
   const findFromIntent = () => {
-    if (offers.length > 0) {
+    if (orderedOffers.length > 0) {
       // DFL-R74-ASSIST-PURCHASE: produto confirmado, sem pesquisa intermediaria.
-      onOpenProduct(offers[0].product);
+      onOpenProduct(orderedOffers[0].product);
       return;
     }
     if (discoveryHints.length > 0) {
@@ -58,10 +67,14 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
       <button type="button" aria-pressed={query === "bacon"} onClick={()=>{setQuery("bacon");setOnlyCombos(false);}}>Bacon</button>
       <button type="button" aria-pressed={onlyCombos} onClick={()=>{setQuery("combo");setOnlyCombos(true);}}>Combos</button>
       <button type="button" aria-pressed={budgetInput === "3000" && !query} onClick={()=>{setQuery("");setBudgetInput("3000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 30</button>
+      {/* DFL-R88-CATALOG-CHECK: atalho de orçamento intermediário. */}
+      <button type="button" aria-pressed={budgetInput === "4000" && !query} onClick={()=>{setQuery("");setBudgetInput("4000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 40</button>
       <button type="button" aria-pressed={budgetInput === "5000" && !query} onClick={()=>{setQuery("");setBudgetInput("5000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 50</button>
       <button type="button" aria-pressed={people === 2 && !query && !budgetInput && !onlyCombos} onClick={()=>{setPeople(2);setQuery("");setBudgetInput("");setOnlyCombos(false);setShowAllOffers(false);}}>Para 2 pessoas</button>
     </div>
     <label className={styles.offerQueryLabel} htmlFor="dfl-assist-ingredients">Descreva seu pedido ou procure um ingrediente</label>
+    {/* DFL-R88-CATALOG-CHECK: orientação de uso sem inventar produtos. */}
+    {!query && !budgetInput && <p className={styles.r88AssistHint}>Experimente “frango”, “sem bacon” ou um orçamento rápido. Sugestões vêm do cardápio disponível.</p>}
     <div className={styles.offerSearchRow}>
       <input id="dfl-assist-ingredients" className={styles.offerQuery} type="search" autoComplete="off" maxLength={100}
         placeholder="Ex.: combo com frango até R$ 50" value={query}
@@ -97,12 +110,29 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
       <label className={styles.offerToggle}><input type="checkbox" checked={onlyCombos} onChange={e=>setOnlyCombos(e.target.checked)}/> Mostrar somente combos</label>
       <button type="button" className={styles.offerClearFilters} onClick={clearFilters} disabled={!query && !budgetInput && !onlyCombos && people === 2}>Limpar filtros</button>
     </div>
+    {catalogReady && offers.length > 1 && <div className={styles.r89OfferSort} role="group" aria-label="Ordenar sugestões">
+      <span>Comparar sugestões</span>
+      <div>
+        <button type="button" aria-pressed={offerSort === "relevance"} data-active={offerSort === "relevance"} onClick={() => setOfferSort("relevance")}>Recomendadas</button>
+        <button type="button" aria-pressed={offerSort === "cheapest"} data-active={offerSort === "cheapest"} onClick={() => setOfferSort("cheapest")}>Mais baratas</button>
+        <button type="button" aria-pressed={offerSort === "expensive"} data-active={offerSort === "expensive"} onClick={() => setOfferSort("expensive")}>Maior valor</button>
+      </div>
+    </div>}
     {!validBudget ? <p className={styles.offerNotice}>Confira o orçamento informado.</p> :
      loading ? <p className={styles.offerNotice} role="status">Carregando sugestões do cardápio…</p> :
      !catalogReady ? <p className={styles.offerNotice} role="status">Cardápio online indisponível. Você ainda pode pesquisar ou falar com a equipe; não vou apresentar preços sem confirmação.</p> :
      offers.length ? <><ul className={styles.offerList}>{visibleOffers.map(({product,reason})=><li key={product.id}>
         <div className={styles.offerImage}>{product.image ? <CatalogImage src={product.image} alt={product.name} sizes="72px" /> : <span aria-hidden="true">DFL</span>}</div>
-        <div className={styles.offerCopy}><strong>{product.name}</strong><b className={styles.offerPrice}>{currency(product.price)}</b><small>{product.bundleItems?.length ? "Confira os itens e a composição do combo" : reason}</small></div>
+        <div className={styles.offerCopy}><strong>{product.name}</strong><b className={styles.offerPrice}>{currency(product.price)}</b><small>{product.bundleItems?.length ? "Confira os itens e a composição do combo" : reason}</small>
+          {effectiveBudget != null && Number.isFinite(effectiveBudget) && effectiveBudget >= product.price && <small className={styles.r89BudgetRemaining}>Dentro do limite · sobra {currency(Math.max(0, effectiveBudget - product.price))}</small>}
+          {/* DFL-R91-GESTAO-COMERCIAL: desconto apenas quando preco anterior valido. */}
+          {typeof product.oldPrice === "number" && Number.isFinite(product.oldPrice) && product.oldPrice > product.price &&
+            <small className={styles.r91AssistDiscount}>De {currency(product.oldPrice)} · economia de {currency(product.oldPrice - product.price)}</small>}
+          {/* DFL-R90-COMBO-AUDIT: nunca apresentar componente ausente como confirmado. */}
+          {Boolean(product.bundleItems?.length) && product.bundleItems!.every((component) => Number.isInteger(component.quantity) && component.quantity > 0 && products.some((catalogProduct) => catalogProduct.id === component.productId && catalogProduct.disponivel !== false)) &&
+            <small className={styles.r90AssistComposition}>
+              Composição cadastrada: {product.bundleItems!.slice(0, 3).map((component) => `${component.quantity}× ${products.find((catalogProduct) => catalogProduct.id === component.productId)?.name ?? ""}`).join(" · ")}{product.bundleItems!.length > 3 ? ` · +${product.bundleItems!.length - 3} item(ns)` : ""}. Confira os ingredientes na página do produto.
+            </small>}</div>
         <button type="button" onClick={()=>onOpenProduct(product)} aria-label={`Abrir detalhes de ${product.name}`}>Ver <span className={styles.offerButtonLabel}>produto</span></button>
       </li>)}</ul>{offers.length > 2 && <button type="button" aria-expanded={showAllOffers}
         onClick={()=>setShowAllOffers(value=>!value)}

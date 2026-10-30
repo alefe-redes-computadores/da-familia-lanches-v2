@@ -720,3 +720,73 @@
 .root :is(button,input,select,textarea):focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
 .root button{touch-action:manipulation}
 }
+
+/* DFL-R88-CATALOG-CHECK: conferência no editor */
+.r88Readiness{display:grid;gap:8px;padding:10px 13px;margin:0 0 8px;border:1px solid rgba(246,200,73,.22);border-radius:13px;background:#14191b;color:#f2f3f4}
+.r88ReadinessHead{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.r88ReadinessHead strong{font-size:12px;font-weight:850}.r88ReadinessHead span{font-size:11px;color:#f1ce6a;font-variant-numeric:tabular-nums}
+.r88ReadinessItems{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.r88ReadinessItems button{min-width:0;min-height:40px;display:flex;align-items:center;justify-content:center;gap:5px;border:1px solid #3b4248;border-radius:10px;padding:5px 4px;background:#20272b;color:#aebdc6;font-size:11px;font-weight:800;cursor:pointer}
+.r88ReadinessItems button[data-ready="true"]{border-color:rgba(94,183,130,.4);color:#b5eac6;background:#1a2a24}
+.r88ReadinessItems button:focus-visible{outline:2px solid #f8ce64;outline-offset:2px}
+.r88Readiness small{font-size:10px;color:#a5aeb6;line-height:1.4}
+@media(max-width:380px){.r88Readiness{padding:9px}.r88ReadinessItems button{gap:3px;font-size:10px}}
+
+
+/* DFL-R89-ADMIN-MACRO — acesso rapido, revisao e cadastro assistido */
+.r89CommandBar{display:grid;gap:10px;min-width:0;padding:13px;border:1px solid rgba(248,200,68,.24);border-radius:15px;background:#15191d;color:#eef3f6}
+.r89CommandIntro{display:grid;gap:3px}.r89CommandIntro strong{font-size:13px;color:#ffda70}.r89CommandIntro small{font-size:11px;color:#aab5be}
+.r89CommandActions{display:flex;flex-wrap:wrap;gap:7px}
+.r89CommandActions button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;min-width:0;padding:9px 12px;border:1px solid #3b444c;border-radius:11px;background:#232c33;color:#f1f5f7;font-size:12px;font-weight:850;cursor:pointer}
+.r89CommandActions button b{color:#ffda70;font-size:11px;font-variant-numeric:tabular-nums}
+.r89WorkspaceAnchor{scroll-margin-top:90px;min-height:0}
+.r89ReviewBar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px;border:1px solid #34404a;border-radius:14px;background:#141a1f;color:#edf3f6}
+.r89ReviewTitle{display:grid;gap:3px;grid-column:1/-1}.r89ReviewTitle strong{font-size:13px}.r89ReviewTitle span{font-size:11px;color:#aab6be}
+.r89ReviewChips{display:flex;flex-wrap:wrap;align-items:center;gap:7px;min-width:0}
+.r89ReviewChips button{display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:7px 11px;border:1px solid #36434c;border-radius:10px;background:#202a31;color:#c5d3dd;font-size:12px;font-weight:800;cursor:pointer}
+.r89ReviewChips button[data-active=true]{border-color:#d4a63d;background:#3c3320;color:#ffe3a0}
+.r89ReviewChips b{font-size:11px;font-variant-numeric:tabular-nums}
+.r89Sort{display:grid;gap:4px;min-width:130px;font-size:11px;color:#aebdc8;font-weight:750}
+.r89Sort select{min-height:44px;padding:7px;border:1px solid #40515a;border-radius:10px;background:#1b242c;color:#fff;font-size:13px}
+.r89Expand{grid-column:1/-1;justify-self:start;border:1px solid #39464e;background:#222a31;color:#d9e4eb;border-radius:10px;padding:8px 11px;min-height:42px;font-size:12px;font-weight:850;cursor:pointer}
+.r89SimilarAction{border:1px solid #44505a!important;background:#202930!important;color:#e4ebf0!important;min-height:44px}
+.root :is(.r89CommandBar,.r89ReviewBar) button:focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
+@media(max-width:700px){.r89CommandActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.r89CommandActions button{padding-inline:6px}.r89ReviewBar{grid-template-columns:1fr}.r89ReviewTitle{grid-column:1}.r89ReviewChips{grid-column:1}.r89Sort{grid-column:1;width:100%}.r89Expand{grid-column:1}.r89WorkspaceAnchor{scroll-margin-top:12px}}
+@media(max-width:380px){.r89ReviewChips button{padding-inline:8px;font-size:11px}.r89CommandActions button{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.r89WorkspaceAnchor{scroll-behavior:auto}}
+
+
+/* DFL-R90-COMBO-AUDIT — auditoria read-only e conferencia do editor */
+.r90BundleAudit{display:grid;gap:10px;min-width:0;padding:13px;border:1px solid rgba(255,190,71,.32);border-radius:15px;background:#1e1b17;color:#f3eee4}
+.r90BundleAuditHeader{display:flex;align-items:start;justify-content:space-between;gap:10px}
+.r90BundleAuditHeader>div{display:grid;gap:4px;min-width:0}.r90BundleAuditHeader strong{font-size:13px;color:#ffda8c}.r90BundleAuditHeader small{font-size:11px;line-height:1.45;color:#b8b4aa}
+.r90BundleAuditHeader>button{flex:0 0 auto;min-height:44px;padding:8px 12px;border:1px solid #786137;border-radius:11px;background:#3e321c;color:#ffe0a2;font-size:12px;font-weight:850;cursor:pointer}
+.r90BundleAuditList{display:grid;gap:6px}
+.r90BundleAuditList>button{min-width:0;min-height:48px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;align-items:center;text-align:left;padding:9px 11px;background:#24231f;border:1px solid #454038;border-radius:11px;color:#e3e7e9;cursor:pointer}
+.r90BundleAuditList strong{font-size:12px;min-width:0;overflow-wrap:anywhere}.r90BundleAuditList span{grid-row:2;grid-column:1;min-width:0;font-size:11px;color:#bbc0c2;overflow-wrap:anywhere}
+.r90BundleAuditList b{grid-row:1/3;grid-column:2;font-size:11px;color:#ffd67e}
+.r90BundlePreview{grid-column:1/-1;display:grid;gap:7px;padding:10px 12px;border:1px solid #3c444b;border-radius:13px;background:#151c22;color:#ebeff2}
+.r90BundlePreview>strong{font-size:12px;color:#ffda7c}.r90BundlePreview>small{font-size:11px;line-height:1.4;color:#9eabb4}
+.r90BundlePreview>div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;align-items:center;padding:7px 9px;border:1px solid #31424a;border-radius:9px;background:#1b272d}
+.r90BundlePreview>div b{grid-row:1/3;color:#ffd87a;font-size:12px}.r90BundlePreview>div span{font-size:12px;font-weight:800;min-width:0;overflow-wrap:anywhere}.r90BundlePreview>div small{font-size:10px;color:#aabac5}
+.r90BundlePreview>div[data-ready=false]{border-color:#8d5345;background:#2b2423}.r90BundlePreview>div[data-ready=false] small{color:#f2ae9e}
+@media(max-width:600px){.r90BundleAudit{padding:10px}.r90BundleAuditHeader{flex-wrap:wrap}.r90BundleAuditHeader>button{width:100%}.r90BundlePreview{padding:9px}}
+
+
+/* DFL-R91-GESTAO-COMERCIAL — revisao comercial e ferramentas dos adicionais */
+.r91CommercialPanel{display:grid;gap:9px;min-width:0;padding:12px;border:1px solid rgba(246,193,72,.28);border-radius:15px;background:#181d21;color:#eaf0f4}
+.r91CommercialHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.r91CommercialHeader>div{display:grid;gap:4px;min-width:0}.r91CommercialHeader>div>span{font-size:10px;letter-spacing:.12em;font-weight:900;color:#e7bb54}.r91CommercialHeader strong{font-size:14px}.r91CommercialHeader small,.r91CommercialPanel>small{color:#aab8c2;font-size:11px;line-height:1.45}
+.r91CommercialHeader button{min-height:44px;padding:8px 12px;flex:0 0 auto;border:1px solid #7a6133;border-radius:11px;background:#3b311e;color:#ffe09a;font-size:12px;font-weight:850;cursor:pointer}
+.r91CommercialIssues{display:grid;gap:6px}.r91CommercialIssues button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 9px;min-height:48px;padding:8px 10px;border:1px solid #3c444b;border-radius:11px;background:#21282c;color:#e8edf1;text-align:left;cursor:pointer}
+.r91CommercialIssues strong{grid-column:1;min-width:0;font-size:12px;overflow-wrap:anywhere}.r91CommercialIssues span{grid-column:1;min-width:0;font-size:11px;color:#adb8c0;overflow-wrap:anywhere}.r91CommercialIssues b{grid-column:2;grid-row:1/3;align-self:center;color:#f5cf79;font-size:11px}
+.r91AddonTools{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,1fr));gap:10px;padding:11px;border:1px solid #343d45;border-radius:13px;background:#151b20;color:#eaf0f4}
+.r91AddonTools label{display:grid;gap:5px;min-width:0;color:#b6c3ce;font-size:11px;font-weight:800}
+.r91AddonTools :is(input,select){min-width:0;width:100%;min-height:45px;border-radius:10px;border:1px solid #43535e;background:#222b33;color:#f3f7f9;font-size:14px;padding:8px 10px}
+.r91AddonToolbarFooter{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px;color:#9fb0ba;font-size:11px}
+.r91AddonToolbarFooter button,.r91AddonEmpty button{min-height:40px;border:1px solid #48535d;border-radius:10px;background:#29333c;color:#e5ebef;padding:8px 11px;font-size:11px;font-weight:850;cursor:pointer}
+.r91AddonEmpty{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px;color:#aebbc5;font-size:12px}
+.r91UnsavedAddon{display:block;margin-top:4px;color:#f8d584;font-size:11px;font-weight:850}
+.root :is(.r91CommercialPanel,.r91AddonTools) :is(button,input,select):focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
+@media(max-width:700px){.r91AddonTools{grid-template-columns:repeat(2,minmax(0,1fr))}.r91AddonSearch{grid-column:1/-1}.r91CommercialHeader{flex-wrap:wrap}.r91CommercialHeader>button{width:100%}}
+@media(max-width:390px){.r91AddonTools{grid-template-columns:1fr}.r91AddonTools label{grid-column:1/-1}}
