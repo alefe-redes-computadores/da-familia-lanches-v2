@@ -38,7 +38,8 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
   // Prioriza produto realmente recomendado, respeitando orcamento e disponibilidade do catalogo.
   const findFromIntent = () => {
     if (offers.length > 0) {
-      onFindProduct(offers[0].product.name);
+      // DFL-R74-ASSIST-PURCHASE: produto confirmado, sem pesquisa intermediaria.
+      onOpenProduct(offers[0].product);
       return;
     }
     if (discoveryHints.length > 0) {
@@ -53,6 +54,7 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
     <h3 className={styles.offerTitle}>Encontre seu lanche</h3>
     <div className={styles.quickSearch} role="group" aria-label="Buscas rápidas">
       <button type="button" aria-pressed={query === "frango"} onClick={()=>{setQuery("frango");setOnlyCombos(false);}}>Frango</button>
+      <button type="button" aria-pressed={query === "sem bacon"} onClick={()=>{setQuery("sem bacon");setOnlyCombos(false);}}>Sem bacon</button>
       <button type="button" aria-pressed={query === "bacon"} onClick={()=>{setQuery("bacon");setOnlyCombos(false);}}>Bacon</button>
       <button type="button" aria-pressed={onlyCombos} onClick={()=>{setQuery("combo");setOnlyCombos(true);}}>Combos</button>
       <button type="button" aria-pressed={budgetInput === "3000" && !query} onClick={()=>{setQuery("");setBudgetInput("3000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 30</button>
@@ -65,7 +67,7 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
         placeholder="Ex.: combo com frango até R$ 50" value={query}
         onChange={e=>{setQuery(e.target.value);setShowAllOffers(false);}}
         onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();findFromIntent();}}}/>
-      <button type="button" className={styles.offerSearchAction} disabled={!canFindFromIntent} onClick={findFromIntent}>{offers.length ? "Ver sugestão" : discoveryHints.length ? "Ver alternativa" : "Sem resultado"}</button>
+      <button type="button" className={styles.offerSearchAction} disabled={!canFindFromIntent} onClick={findFromIntent}>{offers.length ? "Abrir produto" : discoveryHints.length ? "Ver alternativa" : "Sem resultado"}</button>
     </div>
     {(intent.budget !== null || intent.people !== null) && <p className={styles.offerIntent} role="status">
       Entendi na frase: {intent.people !== null ? `${intent.people} pessoa(s)` : ""}{intent.people !== null && intent.budget !== null ? " · " : ""}{intent.budget !== null ? `até ${currency(intent.budget)}` : ""}. A frase tem prioridade sobre esses filtros.
@@ -75,7 +77,7 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
       <strong>Busca personalizada</strong>
       <span>{intent.people ?? people} { (intent.people ?? people) === 1 ? "pessoa" : "pessoas"}{(intent.budget ?? budget) != null ? ` · até ${currency((intent.budget ?? budget)!)}` : " · sem limite de preço"}{(onlyCombos || intent.comboOnly) ? " · somente combos" : ""}</span>
     </div>}
-    {intent.hasExclusion && <p className={styles.offerSafety}>Restrições ou ingredientes que deseja evitar: confira a composição com a equipe antes de pedir. A busca não comprova ausência de ingredientes.</p>}
+    {intent.hasExclusion && <p className={styles.offerSafety}>Evitar: {intent.excludedTerms.join(", ")}. Produtos que mencionam esses ingredientes não são sugeridos, mas a ausência na descrição NÃO garante ausência no preparo ou contaminação cruzada. Confira com a equipe antes de pedir.</p>}
     <div className={styles.offerFilters}>
       <div className={styles.peopleFilter} role="group" aria-label="Quantidade de pessoas">
         <span>Quantas pessoas?</span>
@@ -108,12 +110,18 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
         {showAllOffers ? "Mostrar menos sugestões" : `Ver mais ${offers.length-2} sugestões`}
       </button>}</> :
      <div className={styles.offerRecovery}>
-       <p className={styles.offerNotice}>Não encontrei opções confirmadas para esses filtros. Experimente outra busca, aumente o orçamento ou desmarque combos.</p>
+       <p className={styles.offerNotice}>Não encontrei opções confirmadas. Ajuste os filtros para explorar o cardápio real.</p>
+       <div className={styles.r74RecoveryActions} role="group" aria-label="Ajustar busca sem resultados">
+         {onlyCombos && <button type="button" onClick={() => setOnlyCombos(false)}>Ver também avulsos</button>}
+         {budgetInput && <button type="button" onClick={() => setBudgetInput("")}>Retirar limite de preço</button>}
+         {query.trim() && <button type="button" onClick={() => setQuery("")}>Limpar texto da busca</button>}
+       </div>
        {discoveryHints.length > 0 && <div className={styles.offerDiscovery} aria-label="Alternativas para explorar no cardápio">
          <small>Produtos com nomes parecidos — confira preço e filtros:</small>
          {discoveryHints.map(name => <button type="button" key={name} onClick={() => onFindProduct(name)}>{name}</button>)}
        </div>}
      </div>}
+    {/* DFL-R72-ASSIST-INTELIGENTE: transparencia sobre restricoes e resultados. */}
     {catalogReady && validBudget && <p className={styles.offerCount} role="status">{offers.length} {offers.length===1 ? "sugestão" : "sugestões"} do catálogo confirmado</p>}
     <p className={styles.offerNotice}>Sugestões não reservam itens. Confira os ingredientes, o preço e a disponibilidade na finalização.</p>
   </section>;

@@ -326,3 +326,11 @@
 .catalogRecoverySuggestions button{min-height:44px;max-width:100%;border:1px solid #dacba9;border-radius:999px;background:#fff;color:#493514;padding:8px 13px;font-size:12px;font-weight:850;overflow-wrap:anywhere;cursor:pointer;touch-action:manipulation}
 .catalogRecoverySuggestions button:focus-visible{outline:3px solid #c89510;outline-offset:3px}
 @media(max-width:370px){.catalogRecoverySuggestions{padding:10px}.catalogRecoverySuggestions button{width:100%;border-radius:12px}}
+
+/* DFL-R71-ASSIST-SCROLL */
+.r71AssistShortcut{position:fixed;z-index:90;right:max(12px,env(safe-area-inset-right));bottom:calc(88px + env(safe-area-inset-bottom));display:inline-flex;align-items:center;gap:8px;min-height:44px;max-width:calc(100vw - 24px);padding:10px 14px;border:1px solid rgba(255,206,89,.55);border-radius:999px;background:#211d16;color:#ffe3a2;font-size:12px;font-weight:800;line-height:1.25;box-shadow:0 9px 26px rgba(0,0,0,.32);cursor:pointer;touch-action:manipulation}
+.r71AssistShortcut:focus-visible{outline:3px solid #ffdb75;outline-offset:3px}
+.r71AssistShortcut:active{transform:scale(.98)}
+@media(min-width:760px){.r71AssistShortcut{bottom:24px;right:24px}}
+@media(max-width:360px){.r71AssistShortcut{font-size:11px;padding:9px 11px}}
+@media(prefers-reduced-motion:reduce){.r71AssistShortcut:active{transform:none}}

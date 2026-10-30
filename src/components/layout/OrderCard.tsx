@@ -372,6 +372,23 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
             </nav>
           )}
 
+          {/* DFL-R70-ADMIN-ORDER-FOCUS: conferencia comercial sem alterar quantidades */}
+          {inspector && inspectorTab === "resumo" && (
+            <section className={styles.r70QuickOrder} aria-label="Conferência rápida de itens">
+              <div className={styles.r70QuickOrderHead}>
+                <strong>Itens do pedido</strong>
+                <span>{itemCount} {itemCount === 1 ? "unidade" : "unidades"}</span>
+              </div>
+              <div className={styles.r70QuickOrderList}>
+                {itens.map((item: any, index: number) => (
+                  <div key={`${String(item.id || item.name || index)}-${index}`}>
+                    <b>{Number(item.quantity || item.qtd || 1)}×</b>
+                    <span>{String(item.name || item.nome || "Produto")}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           {inspector && inspectorTab === "resumo" && (
             <section className={styles.operationalCockpit}>
               <div className={styles.cockpitHead}>

@@ -31,6 +31,17 @@ function normalize(value: string) {
 
 export default function Home() {
   const openModal = useUIStore((s) => s.openModal);
+  const activeModal = useUIStore((s) => s.activeModal);
+  const mobileMenuOpen = useUIStore((s) => s.isMobileMenuOpen);
+  const [showAssistShortcut, setShowAssistShortcut] = useState(false);
+  useEffect(() => {
+    // DFL-R71-ASSIST-SCROLL: scroll passive, sem observar pixels ou consultar Firebase.
+    const sync = () => setShowAssistShortcut(window.scrollY > 470);
+    sync();
+    window.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync);
+    return () => { window.removeEventListener("scroll", sync); window.removeEventListener("resize", sync); };
+  }, []);
   const currentUser = useAuthStore((s) => s.currentUser);
   const shopStatus = useShopStatus();
   const { products, loading: catalogLoading, error: catalogError, reload: reloadCatalog } = useCatalog();
@@ -181,6 +192,13 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
+      {showAssistShortcut && !activeModal && !mobileMenuOpen && (
+        <button type="button" className={styles.r71AssistShortcut}
+          onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}
+          aria-label="Abrir DFL Assist para ajudar a escolher um produto">
+          <span aria-hidden="true">✦</span> Precisa de ajuda?
+        </button>
+      )}
       <section className={styles.hero}>
         <div className={styles.heroGlow} />
         <div className={styles.heroInner}>

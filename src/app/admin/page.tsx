@@ -98,7 +98,7 @@ function AdminIcon({ name }: { name: AdminIconName }) {
 
 function AdminPageContent() {
   const searchParams = useSearchParams();
-  const { currentUser } = useAuthStore();
+  const { currentUser, loading: authLoading } = useAuthStore();
   const {
     pedidos,
     loading,
@@ -523,6 +523,10 @@ function AdminPageContent() {
     };
   }, [selectedOrderId]);
 
+  // DFL-R71-AUTH-RESTORE: nao mostrar Google enquanto Firebase restaura a sessao.
+  if (authLoading) {
+    return <div className={styles.statePage} role="status" aria-live="polite" aria-busy="true"><AdminLoadingState label="Restaurando sua sessão segura…" /></div>;
+  }
   if (!currentUser) {
     return <AdminAuthGate />;
   }
@@ -1146,7 +1150,7 @@ function AdminPageContent() {
                   <button type="button" disabled={Boolean(updatingOrderId)} className={styles.sheetBackdrop} aria-label="Fechar detalhes" onClick={() => setSelectedOrderId(null)} />
                   <aside className={styles.orderInspector} role="dialog" aria-modal="true" aria-label="Detalhes do pedido">
                     <div className={styles.inspectorHead}>
-                      <div><span>PEDIDO SELECIONADO</span><strong>Detalhes e ações</strong></div>
+                      <div><span>PEDIDO SELECIONADO</span><strong>#{String(selectedOrder.id).slice(-8).toUpperCase()} · Detalhes e ações</strong>{/* DFL-R70-ADMIN-ORDER-FOCUS */}</div>
                       <button type="button" disabled={Boolean(updatingOrderId)} onClick={() => setSelectedOrderId(null)} aria-label="Fechar detalhes" data-admin-inspector-close="true">×</button>
                     </div>
                     <OrderCard

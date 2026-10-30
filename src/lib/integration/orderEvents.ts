@@ -119,6 +119,15 @@ function legacyBeverageComponents(
     return explicit;
   }
 
+  // DFL-R68-STANDALONE-DRINK-GUARD: bebida avulsa nunca e componente de si mesma.
+  // Mantem a inferencia legada para combos que incluem bebida como parte do pacote.
+  const mainId = text(item.id);
+  const mainName = normalizedCompositionText(item.name);
+  const mainCategory = normalizedCompositionText(item.category);
+  if (mainCategory === "bebidas" || beverageSpecs.some((spec) =>
+    spec.id === mainId || normalizedCompositionText(spec.name) === mainName
+  )) return explicit;
+
   const detailValues = Array.isArray(item.detailsItems) ? item.detailsItems : [];
   const source = normalizedCompositionText([
     item.name,

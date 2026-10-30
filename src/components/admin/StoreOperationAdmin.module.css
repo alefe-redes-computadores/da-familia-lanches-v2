@@ -147,3 +147,31 @@
 .r35DirtyNotice button{flex-shrink:0;min-height:44px;padding:8px 13px;border:1px solid #d4ac69;border-radius:10px;background:#3a3022;color:#fff3dd;font-size:11px;font-weight:850;cursor:pointer}
 .r35DirtyNotice button:disabled{opacity:.5;cursor:not-allowed}.r35DirtyNotice button:focus-visible{outline:3px solid #ffca28;outline-offset:2px}
 @media(max-width:540px){.r35DirtyNotice{flex-direction:column;align-items:stretch}.r35DirtyNotice button{width:100%}}
+
+/* DFL-R69-ADMIN-DENSITY — cartões de horário equilibrados e acessíveis */
+@media(max-width:680px){
+ .week{gap:7px!important}
+ .day[data-enabled="true"]{padding:12px!important;border-radius:14px!important}
+ .day[data-enabled="false"]{min-height:50px!important;padding:7px 11px!important}
+ .day[data-enabled="false"] .toggle{min-height:35px!important}
+ .times{gap:8px!important;margin-top:6px!important}
+ .times label{font-size:11px!important;line-height:1.35!important}
+ .times input{height:46px!important;min-height:46px!important;border-radius:11px!important;font-size:16px!important}
+ .toggle{gap:10px!important}
+ .toggle strong{font-size:13px!important}
+ .save{min-height:48px!important}
+ .exform{gap:9px!important}
+}
+@media(max-width:380px){.day[data-enabled="true"]{padding:10px!important}.times{gap:6px!important}}
+@media(prefers-reduced-motion:reduce){.day{transition:none!important}}
+
+/* DFL-R73-ADMIN-GESTAO */
+@media(max-width:650px){
+.root{min-width:0;gap:10px}
+.current,.block{min-width:0;padding:12px;border-radius:14px}
+.week{gap:7px}
+.day{min-width:0}
+.times{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.times input{width:100%;min-width:0;font-size:16px}
+.root :is(button,input,select):focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
+}

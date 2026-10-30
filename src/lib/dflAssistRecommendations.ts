@@ -28,19 +28,24 @@ const tokenize = (value: string) => normalize(value).split(" ").filter(word => w
 /** R27: interpretação local, sem IA remota, sem consulta de preços e sem gravar dados. */
 export function extractDFLIntent(query: string): {
   terms: string[]; people: number | null; budget: number | null;
-  comboOnly: boolean; hasExclusion: boolean;
+  comboOnly: boolean; hasExclusion: boolean; excludedTerms: string[];
 } {
   const raw = String(query ?? "").slice(0, 180);
   // DFL-R59-ASSIST-INTENTS: interpreta frases coloquiais sem alterar preços.
   const peopleMatch = raw.match(/\b(?:somos|para|pra)\s+([1-8])(?:\s+(?:pessoas?|amigos?))?\b/i)
     ?? raw.match(/\b([1-8])\s*(?:pessoas?|amigos?|adultos?)\b/i);
   const budgetMatch = raw.match(/(?:até|ate|no máximo|no maximo|menos de|abaixo de|tenho|gastar|orçamento de|orcamento de)\s*(?:R\$\s*)?(\d{1,4}(?:[.,]\d{1,2})?)/i)
-    ?? raw.match(/\bR\$\s*(\d{1,4}(?:[.,]\d{1,2})?)/i);
+    ?? raw.match(/\bR\$\s*(\d{1,4}(?:[.,]\d{1,2})?)/i)
+    ?? raw.match(/\b(\d{1,4}(?:[.,]\d{1,2})?)\s*reais\b/i);
   const people = peopleMatch ? Number(peopleMatch[1]) : null;
   const parsedBudget = budgetMatch ? Number(budgetMatch[1].replace(",", ".")) : NaN;
   const budget = Number.isFinite(parsedBudget) && parsedBudget >= 0 ? parsedBudget : null;
   const comboOnly = /\b(combos?|promocoes?|promocao)\b/.test(normalize(raw));
-  const hasExclusion = /\bsem\s+\S+/i.test(raw);
+  // DFL-R72-ASSIST-INTELIGENTE: exclusoes simples, sempre com conferencia humana da composicao.
+  const excludedTerms = [...new Set([...raw.matchAll(/\bsem\s+([a-zA-ZÀ-ÿ]{3,})/gi)]
+    .map(match => normalize(match[1]))
+    .map(word => ({ franguinho: "frango", bacons: "bacon", queijos: "queijo" } as Record<string,string>)[word] ?? word))];
+  const hasExclusion = excludedTerms.length > 0;
   const words = raw.replace(peopleMatch?.[0] ?? "\u0000", " ")
     .replace(budgetMatch?.[0] ?? "\u0000", " ")
     .replace(/\bsem\s+\S+/gi, " ");
@@ -50,7 +55,7 @@ export function extractDFLIntent(query: string): {
     refrigente: "refrigerante", refri: "refrigerante",
   };
   const terms = [...new Set(tokenize(words).map(token => aliases[token] ?? token))];
-  return { terms, people, budget, comboOnly, hasExclusion };
+  return { terms, people, budget, comboOnly, hasExclusion, excludedTerms };
 }
 
 function servings(product: Product): number | null {
@@ -79,6 +84,9 @@ export function recommendDFLProducts(products: readonly Product[], request: Assi
     if (combos && !isCombo(product)) return [];
     const name = normalize(product.name);
     const full = normalize([product.name, product.description, product.category, product.detailsItems?.join(" "), product.includedExtras].filter(Boolean).join(" "));
+    // Nao sugerir um item cuja descricao explicita inclua o ingrediente evitado.
+    // Ausencia do termo nao comprova ausencia do ingrediente, sobretudo em alergias.
+    if (intent.excludedTerms.some(word => full.split(" ").includes(word))) return [];
     const hits = words.filter(w => full.includes(w));
     if (words.length && !hits.length) return [];
     let score = hits.reduce((a,w) => a + (name.includes(w) ? 8 : 3), 0);
@@ -98,7 +106,8 @@ export function recommendDFLProducts(products: readonly Product[], request: Assi
           !Number.isFinite(product.price) || product.price < 0 ||
           !product.id || !product.name ||
           (budget !== null && product.price > budget) ||
-          (combos && !isCombo(product))) continue;
+          (combos && !isCombo(product)) ||
+          intent.excludedTerms.some(word => normalize([product.name, product.description, product.category, product.detailsItems?.join(" "), product.includedExtras].filter(Boolean).join(" ")).split(" ").includes(word))) continue;
       results.push({product, reason: "Nome parecido com sua busca — confira a composicao", score: -20, estimatedServings: servings(product)});
     }
   }
