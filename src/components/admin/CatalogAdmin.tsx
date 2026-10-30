@@ -648,6 +648,10 @@ export function CatalogAdmin() {
     const price = parseMoneyInput(addonDraft.price);
     const sortOrder = addonDraft.sortOrder.trim() ? Number(addonDraft.sortOrder) : null;
     if (!addonDraft.name.trim()) return setMessage("Informe o nome do adicional.");
+    // DFL-R98-MACRO-FINAL: impedir duplicatas acidentais de adicionais antes da gravacao.
+    const addonNameKey = (name: string) => name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim().replace(/\s+/g, " ");
+    if (allAddons.some((item) => item.id !== addonDraft.id && addonNameKey(item.name) === addonNameKey(addonDraft.name)))
+      return setMessage("Já existe um adicional com esse nome. Edite o existente para evitar duplicidade.");
     if (price === null || price < 0) return setMessage("Informe um preço válido para o adicional.");
 
     const usedIds = new Set(allAddons.map((addon) => addon.id));
@@ -1066,6 +1070,10 @@ export function CatalogAdmin() {
           <span>{productDraft.disponivel ? "Disponível" : "Pausado"} · {productDraft.showInOffers ? "Em ofertas" : "Sem destaque em ofertas"} · {productDraft.category === "bebidas" ? "Sem adicionais" : `${productDraft.addonIds === undefined ? "Todos" : productDraft.addonIds.length} adicionais permitidos`}</span>
           <span>{productDraft.bundleItems.length ? `${productDraft.bundleItems.length} componentes cadastrados no combo` : "Sem componentes de combo vinculados"}</span>
         </div>
+        <div className={styles.r97Review} role="status" aria-live="polite"><strong>Revisão do cadastro</strong><span>{productDraft.disponivel ? "Será disponibilizado no cardápio" : "Permanecerá pausado"} · {productDraft.showInOffers ? "Em destaque nas ofertas" : "Sem destaque em ofertas"}</span><small>{productDraft.bundleItems.length} componente(s) vinculado(s) · {productDraft.addonIds === undefined ? "Adicionais permitidos conforme regras atuais" : `${productDraft.addonIds.length} adicionais selecionados`}. O servidor validará tudo ao salvar.</small></div>
+        {/* DFL-R98-MACRO-FINAL: impacto da disponibilidade para produtos vinculados. */}
+        {!productDraft.disponivel && products.some((item) => item.id !== productDraft.id && item.bundleItems?.some((component) => component.productId === productDraft.id)) &&
+          <p className={styles.r98DependencyNotice} role="status">Atenção: este produto aparece na composição de {products.filter((item) => item.id !== productDraft.id && item.bundleItems?.some((component) => component.productId === productDraft.id)).length} combo(s). Pausar pode afetar a oferta desses combos.</p>}
         <div className={styles.editorActionsV86}>
           <button type="button" className={styles.backAction} onClick={() => { haptic("step"); if (productStep === "essencial") { void closeProductEditor(); } else setProductStep(productStep === "conteudo" ? "essencial" : productStep === "venda" ? "conteudo" : "venda"); }}>{productStep === "essencial" ? "Cancelar" : "Voltar"}</button>
           {productStep !== "opcoes" && <button type="button" className={styles.nextAction} onClick={() => { haptic("step"); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button>}

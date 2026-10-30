@@ -889,6 +889,9 @@
   .row button, .rateListToggle, .searchTrigger { min-height: 44px !important; }
 }
 
+/* DFL-R97-RATE-REVIEW — alerta sem mutacao */
+.r97RateReview{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 12px;border:1px solid rgba(251,191,36,.32);border-radius:12px;background:#231e15;color:#ffe8ab}
+.r97RateReview strong{font-size:12px}.r97RateReview span{flex:1;min-width:150px;font-size:11px;line-height:1.4}.r97RateReview button{min-height:40px;padding:8px 10px;border-radius:9px;border:1px solid rgba(251,191,36,.5);background:#302819;color:#ffe8ab;font-size:11px;font-weight:850}
 /* DFL-R73-ADMIN-GESTAO */
 @media(max-width:650px){
 .card{min-width:0;padding:12px;border-radius:14px}
@@ -908,3 +911,8 @@
 
 /* DFL-R94-MACRO-360 — leitura e edicao de taxas no celular */
 @media(max-width:480px){.card .toolbar{min-width:0;flex-wrap:wrap}.card .searchBox{min-width:0}.card .searchBox input{min-width:0;width:100%;font-size:16px}.card .addFields{min-width:0}.card .rateView{min-width:0;overflow-wrap:anywhere}}
+
+/* DFL-R98-MACRO-FINAL — filtro direto de valores zerados */
+.r98RateFilters{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.r98RateFilters button{min-height:40px;border:1px solid #46505a;border-radius:10px;padding:8px 11px;background:#171d24;color:#dce5e9;font-size:12px;font-weight:800;cursor:pointer}
+.r98RateFilters button[data-active="true"]{border-color:#e7b958;background:#3b2d16;color:#ffe2a5}

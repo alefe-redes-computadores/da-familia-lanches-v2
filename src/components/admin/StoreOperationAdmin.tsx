@@ -56,6 +56,20 @@ export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{sett
    <div className={styles.testForm}><input type="email" value={testEmail} onChange={e=>setTestEmail(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addTestEmail()}}} placeholder="email@exemplo.com" className={styles.testInput}/><button disabled={busy} onClick={addTestEmail} className={styles.testAdd}>Liberar</button></div>
    <div className={styles.testList}>{s.testAllowedEmails.length?s.testAllowedEmails.map(email=><div key={email} className={styles.testRow}><span className={styles.testEmail}>{email}</span><button disabled={busy} onClick={()=>removeTestEmail(email)} className={styles.testRemove}>Remover</button></div>):<small>Nenhum e-mail liberado.</small>}</div>
   </div>}</div>
+  <div className={styles.r97SchedulePulse} role="status"><strong>Conferência da semana</strong><span>{DAYS.filter(({key})=>s.schedule[key].enabled).length} dia(s) com atendimento previsto · {s.exceptions.length} exceção(ões) cadastrada(s)</span><small>{scheduleDirty ? "Você está vendo alterações locais ainda não publicadas." : "Agenda exibida sincronizada com a configuração atual."}</small></div>
+  {/* DFL-R98-MACRO-FINAL: atalho de padronizacao, altera apenas rascunho local. */}
+  <div className={styles.r98ScheduleTools}>
+    <strong>Horários em lote</strong>
+    <span>Copie o horário de segunda-feira (se ativa) para os outros dias ativos. Salve a agenda para publicar.</span>
+    <button type="button" disabled={busy || !s.schedule.mon.enabled} onClick={() => {
+      const nextSchedule = { ...s.schedule };
+      for (const {key} of DAYS) if (key !== "mon" && nextSchedule[key].enabled) nextSchedule[key] = { ...nextSchedule[key], open: s.schedule.mon.open, close: s.schedule.mon.close };
+      editingSchedule.current = true;
+      setS({ ...s, schedule: nextSchedule });
+      setMsg("Horários copiados para o rascunho. Confira e salve quando estiver pronto.");
+      haptic("step");
+    }}>Usar horário de segunda nos dias ativos</button>
+  </div>
   <div className={styles.block}><header><div><span>AGENDA SEMANAL</span><strong>Dias e horários</strong></div><p>Horário de Brasília.</p></header>{scheduleDirty&&<p className={styles.scheduleNotice} role="status">Você tem horários editados que ainda não foram publicados.</p>}<div className={styles.week}>{DAYS.map(({key,label})=>{const d=s.schedule[key];return<div className={styles.day} data-enabled={d.enabled} key={key}>
    <label className={styles.toggle}><input type="checkbox" checked={d.enabled} onChange={e=>{editingSchedule.current=true;setS({...s,schedule:{...s.schedule,[key]:{...d,enabled:e.target.checked}}})}}/><strong>{label}</strong><b>{d.enabled?"Aberto":"Fechado"}</b></label>
    {d.enabled&&<div className={styles.times}><label>Abre<input type="time" value={d.open} onChange={e=>{editingSchedule.current=true;setS({...s,schedule:{...s.schedule,[key]:{...d,open:e.target.value}}})}}/></label><label>Fecha<input type="time" value={d.close} onChange={e=>{editingSchedule.current=true;setS({...s,schedule:{...s.schedule,[key]:{...d,close:e.target.value}}})}}/></label></div>}

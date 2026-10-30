@@ -712,6 +712,9 @@
   .productGroup summary{min-height:48px}
 }
 
+/* DFL-R97-REVIEW: resumo antes de confirmar */
+.r97Review{display:grid;gap:4px;margin:10px 0 6px;padding:11px 13px;border:1px solid rgba(250,204,75,.3);background:#151b20;color:#f4f5f5;border-radius:13px;min-width:0}
+.r97Review strong{font-size:12px;color:#fbd46e}.r97Review span{font-size:12px;font-weight:750;overflow-wrap:anywhere}.r97Review small{font-size:11px;line-height:1.4;color:#b8c2ca}
 /* DFL-R73-ADMIN-GESTAO */
 @media(max-width:600px){
 .root{min-width:0;gap:10px}
@@ -811,3 +814,6 @@
 .r95EditorProgress{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;margin:3px 0 8px;border:1px solid rgba(246,200,73,.24);border-radius:11px;background:#181c1d;color:#dfe7ea;min-width:0}
 .r95EditorProgress strong{flex:0 0 auto;font-size:12px;color:#f8d779}.r95EditorProgress span{font-size:11px;line-height:1.35;text-align:right;color:#b9c4c9;overflow-wrap:anywhere}
 @media(max-width:420px){.r95EditorProgress{align-items:flex-start;flex-direction:column;gap:3px}.r95EditorProgress span{text-align:left}}
+
+/* DFL-R98-MACRO-FINAL — alerta de dependencia contextual */
+.r98DependencyNotice{margin:9px 0;padding:10px 12px;border:1px solid rgba(251,190,76,.45);border-radius:12px;background:#292217;color:#ffe1a2;font-size:12px;line-height:1.5;overflow-wrap:anywhere}

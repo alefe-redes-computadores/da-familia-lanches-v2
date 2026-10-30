@@ -112,6 +112,13 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
     </div>
     {/* DFL-R94-MACRO-360 — dicas claras sem conclusoes sobre alergias. */}
     <p className={styles.r94AssistGuidance}>Dica: combine pessoas, orçamento e ingrediente. Os resultados respeitam a disponibilidade informada pelo cardápio.</p>
+    {catalogReady && effectiveBudget != null && Number.isFinite(effectiveBudget) && <p className={styles.r97BudgetGuide}>Orçamento considerado: <strong>{currency(effectiveBudget)}</strong>. As recomendações exibidas respeitam esse teto, mas não incluem entrega ou adicionais.</p>}
+    {/* DFL-R98-MACRO-FINAL: orçamento rápido sem apagar pesquisa ou tipo de oferta. */}
+    <div className={styles.r98BudgetPresets} role="group" aria-label="Limites rapidos de orcamento">
+      <span>Orçamento rápido</span>
+      {([3000, 5000, 8000, 10000] as const).map((cents) => <button type="button" key={cents} aria-pressed={budgetInput === String(cents)} data-active={budgetInput === String(cents)} onClick={() => { setBudgetInput(String(cents)); setShowAllOffers(false); }}>{currency(cents / 100)}</button>)}
+      {budgetInput && <button type="button" onClick={() => { setBudgetInput(""); setShowAllOffers(false); }}>Sem limite</button>}
+    </div>
     <div className={styles.offerFilterFooter}>
       <label className={styles.offerToggle}><input type="checkbox" checked={onlyCombos} onChange={e=>setOnlyCombos(e.target.checked)}/> Mostrar somente combos</label>
       <button type="button" className={styles.offerClearFilters} onClick={clearFilters} disabled={!query && !budgetInput && !onlyCombos && people === 2}>Limpar filtros</button>

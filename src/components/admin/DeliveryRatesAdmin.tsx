@@ -43,6 +43,8 @@ export function DeliveryRatesAdmin() {
   const [editingKey, setEditingKey] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [showAllRates, setShowAllRates] = useState(false);
+  // DFL-R98-MACRO-FINAL: revisao pontual de taxas zeradas.
+  const [onlyZeroRates, setOnlyZeroRates] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -68,7 +70,8 @@ export function DeliveryRatesAdmin() {
 
   const sorted = useMemo(() => rates
     .filter((item) => !search.trim() || normalize(String(item.nome ?? "")).includes(normalize(search)))
-    .sort((a, b) => String(a.nome ?? "").localeCompare(String(b.nome ?? ""), "pt-BR")), [rates, search]);
+    .filter((item) => !onlyZeroRates || parseMoney(item.taxa) === 0)
+    .sort((a, b) => String(a.nome ?? "").localeCompare(String(b.nome ?? ""), "pt-BR")), [rates, search, onlyZeroRates]);
 
   const visibleRates = search.trim() || showAllRates ? sorted : sorted.slice(0, 8);
 
@@ -159,6 +162,12 @@ export function DeliveryRatesAdmin() {
       <span><strong>{sorted.length}</strong> no filtro atual</span>
       <span data-warning={invalidCount > 0}><strong>{invalidCount}</strong> para revisar</span>
     </div>}
+    {!loading && rates.some((rate) => parseMoney(rate.taxa) === 0) && <div className={styles.r97RateReview} role="status"><strong>Confira taxas zeradas</strong><span>{rates.filter((rate) => parseMoney(rate.taxa) === 0).length} bairro(s) com valor R$ 0,00. Pode ser intencional; confira antes de publicar.</span><button type="button" onClick={() => { setSearch(""); setSearchOpen(true); setShowAllRates(true); }}>Revisar bairros</button></div>}
+    {/* DFL-R98-MACRO-FINAL: filtro direto para bairros zerados. */}
+    {!loading && <div className={styles.r98RateFilters} role="group" aria-label="Revisar taxas">
+      <button type="button" aria-pressed={!onlyZeroRates} data-active={!onlyZeroRates} onClick={() => { setOnlyZeroRates(false); setShowAllRates(false); }}>Todos os bairros</button>
+      <button type="button" aria-pressed={onlyZeroRates} data-active={onlyZeroRates} onClick={() => { setOnlyZeroRates(true); setShowAllRates(true); }}>Taxas zeradas ({rates.filter((item) => parseMoney(item.taxa) === 0).length})</button>
+    </div>}
     <div className={styles.toolbar}>
       {(searchOpen || search)
         ? <label className={styles.searchBox}><Search size={15}/><input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar bairro" onBlur={() => !search && setSearchOpen(false)}/></label>
@@ -193,7 +202,7 @@ export function DeliveryRatesAdmin() {
           {!sorted.length && <div className={styles.empty}>Nenhum bairro encontrado.</div>}
         </div>}
 
-    {!loading && !search.trim() && sorted.length > 8 && (
+    {!loading && !search.trim() && !onlyZeroRates && sorted.length > 8 && (
       <button
         type="button"
         className={styles.rateListToggle}
