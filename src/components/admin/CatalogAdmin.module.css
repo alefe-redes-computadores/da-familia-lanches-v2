@@ -790,3 +790,24 @@
 .root :is(.r91CommercialPanel,.r91AddonTools) :is(button,input,select):focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
 @media(max-width:700px){.r91AddonTools{grid-template-columns:repeat(2,minmax(0,1fr))}.r91AddonSearch{grid-column:1/-1}.r91CommercialHeader{flex-wrap:wrap}.r91CommercialHeader>button{width:100%}}
 @media(max-width:390px){.r91AddonTools{grid-template-columns:1fr}.r91AddonTools label{grid-column:1/-1}}
+
+/* DFL-R93-OPERACAO-MACRO — atalho de revisao do cardapio */
+.r93LaunchChecks{display:grid;gap:9px;margin:4px 0 12px;padding:12px;border:1px solid rgba(255,202,40,.24);border-radius:14px;background:#161b21}
+.r93LaunchChecks>div:first-child{display:grid;gap:3px}.r93LaunchChecks strong{font-size:13px;color:#f4e2aa}.r93LaunchChecks small{font-size:11px;line-height:1.4;color:#aebcc7}
+.r93LaunchActions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.r93LaunchActions button{min-width:0;min-height:44px;padding:8px 5px;border:1px solid #39434b;border-radius:11px;background:#202931;color:#f2f4f5;font-weight:850;font-size:11px;cursor:pointer}
+.r93LaunchActions button:focus-visible{outline:3px solid #ffcf56;outline-offset:2px}
+@media(max-width:600px){.r93LaunchActions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* DFL-R94-MACRO-360 — hierarquia operacional do catalogo e conferencia mobile */
+.r94CatalogContext,.r94AddonContext,.r94EditorSummary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;margin:9px 0;padding:10px 12px;border:1px solid rgba(250,204,75,.22);border-radius:13px;background:#161c21;color:#dae5ec}
+.r94CatalogContext strong,.r94AddonContext strong,.r94EditorSummary strong{font-size:12px;font-weight:900;color:#f5d47a}
+.r94CatalogContext span,.r94AddonContext span,.r94EditorSummary span{font-size:11px;line-height:1.4;color:#b7c5ce;overflow-wrap:anywhere}
+.r94CatalogContext button{min-height:42px;border:1px solid #62552f;border-radius:10px;padding:7px 11px;background:#292a22;color:#f9d582;font-weight:800}
+.r94EditorSummary{display:grid;gap:5px;align-items:initial;margin:5px 0 8px}
+@media(max-width:520px){.r94CatalogContext,.r94AddonContext{display:grid;gap:4px}.r94CatalogContext button{width:100%}}
+
+/* DFL-R95-MACRO: orientacao no cadastro sem esconder campos */
+.r95EditorProgress{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;margin:3px 0 8px;border:1px solid rgba(246,200,73,.24);border-radius:11px;background:#181c1d;color:#dfe7ea;min-width:0}
+.r95EditorProgress strong{flex:0 0 auto;font-size:12px;color:#f8d779}.r95EditorProgress span{font-size:11px;line-height:1.35;text-align:right;color:#b9c4c9;overflow-wrap:anywhere}
+@media(max-width:420px){.r95EditorProgress{align-items:flex-start;flex-direction:column;gap:3px}.r95EditorProgress span{text-align:left}}

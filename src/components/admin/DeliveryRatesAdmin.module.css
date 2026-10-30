@@ -897,3 +897,14 @@
 .card button{min-height:42px;touch-action:manipulation}
 .card :is(button,input,select,textarea):focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
 }
+
+/* DFL-R93-OPERACAO-MACRO — qualidade e busca dos bairros */
+.r93RateSummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 12px}
+.r93RateSummary span{display:grid;gap:3px;min-width:0;border:1px solid #3a444e;border-radius:12px;padding:10px;background:#171d22;color:#c3d0d7;font-size:11px;line-height:1.3}
+.r93RateSummary strong{font-size:19px;font-weight:900;color:#f5f7f8;font-variant-numeric:tabular-nums}
+.r93RateSummary [data-warning="true"]{border-color:#b88240}
+.r93ClearSearch{border:1px solid #465460;border-radius:10px;padding:8px 11px;min-height:40px;background:#1b252c;color:#f1d182;font-size:12px;font-weight:800}
+@media(max-width:420px){.r93RateSummary{gap:5px}.r93RateSummary span{padding:8px;font-size:10px}.r93RateSummary strong{font-size:17px}}
+
+/* DFL-R94-MACRO-360 — leitura e edicao de taxas no celular */
+@media(max-width:480px){.card .toolbar{min-width:0;flex-wrap:wrap}.card .searchBox{min-width:0}.card .searchBox input{min-width:0;width:100%;font-size:16px}.card .addFields{min-width:0}.card .rateView{min-width:0;overflow-wrap:anywhere}}

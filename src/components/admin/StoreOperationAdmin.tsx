@@ -40,6 +40,14 @@ export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{sett
  if(!ready)return<div className={styles.state}>Carregando funcionamento...</div>;
  return<section className={styles.root}>
   {scheduleDirty && <div className={styles.r35DirtyNotice} role="status"><div><strong>Horários alterados, mas ainda não salvos</strong><small>O funcionamento público continua usando a agenda publicada. Salve a agenda ou descarte as edições.</small></div><button type="button" disabled={busy} onClick={()=>{setS(liveSettings);editingSchedule.current=false;setMsg("Edições locais descartadas. A configuração publicada não mudou.");haptic("step")}}>Descartar edições</button></div>}
+  {/* DFL-R93-OPERACAO-MACRO — situacao operacional sem leitura extra do Firebase. */}
+  <div className={styles.r93OpPulse} aria-label="Resumo operacional">
+    <div><small>SITUACAO PUBLICADA</small><strong>{current.isOpen ? "Aceitando pedidos conforme a operacao" : "Loja indisponivel para pedidos imediatos"}</strong></div>
+    <div><small>MODO DA LOJA</small><strong>{s.mode === "auto" ? "Automatico" : s.mode === "force_open" ? "Abertura manual" : s.mode === "force_closed" ? "Fechamento manual" : "Teste controlado"}</strong></div>
+    <div><small>AGENDA</small><strong>{scheduleDirty ? "Alteracoes nao salvas" : "Sem edicoes pendentes"}</strong></div>
+  </div>
+  {/* DFL-R95-MACRO: confianca operacional, sem alterar modo ou agenda. */}
+  <div className={styles.r95CloudNotice} role="note"><strong>Estado publicado na nuvem</strong><span>O painel abaixo reflete o funcionamento efetivo. Alterações de horário só entram em vigor depois de salvar.</span></div>
   <div className={styles.current} data-open={current.isOpen}><div><span>ESTADO EFETIVO</span><strong>{current.isOpen?"Loja aberta":"Loja fechada"}</strong><small>{current.message}</small></div><b>{current.source==="manual"?"MANUAL":current.source==="exception"?"EXCEÇÃO":"AUTOMÁTICO"}</b></div>
   <div className={styles.block}><header><div><span>CONTROLE</span><strong>Modo de funcionamento</strong></div><p>O modo manual tem prioridade sobre a agenda.</p></header><div className={styles.modes}>
    {([["auto","Automático","Segue os horários",Bot],["force_open","Forçar aberto","Ignora a agenda",DoorOpen],["force_closed","Forçar fechado","Fecha temporariamente",DoorClosed],["test_open","Aberto para teste","Só e-mails liberados",FlaskConical]]as const).map(([m,t,c,Icon])=><button key={m} data-active={s.mode===m} disabled={busy} onClick={()=>{haptic("step");void mode(m)}}><i><Icon size={17}/></i><span><strong>{t}</strong><small>{c}</small></span></button>)}

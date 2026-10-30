@@ -175,3 +175,22 @@
 .times input{width:100%;min-width:0;font-size:16px}
 .root :is(button,input,select):focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
 }
+
+/* DFL-R93-OPERACAO-MACRO — leitura operacional mobile */
+.r93OpPulse{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.r93OpPulse>div{display:grid;align-content:start;gap:5px;min-width:0;padding:12px;border:1px solid #364048;border-radius:13px;background:#161c21}
+.r93OpPulse small{font-size:10px;letter-spacing:.06em;color:#a7b4bd;font-weight:800}
+.r93OpPulse strong{font-size:12px;line-height:1.4;color:#f3f5f6;overflow-wrap:anywhere}
+@media(max-width:680px){.r93OpPulse{grid-template-columns:1fr 1fr}.r93OpPulse>div:first-child{grid-column:1/-1}}
+@media(max-width:350px){.r93OpPulse{grid-template-columns:1fr}.r93OpPulse>div:first-child{grid-column:auto}}
+
+/* DFL-R94-MACRO-360 — agendamento e excecoes responsivos */
+.root .block{min-width:0}.root .block header{min-width:0}.root .block header>div{min-width:0}.root .block header strong{overflow-wrap:anywhere}
+.root .modes button{min-width:0;min-height:48px;touch-action:manipulation}
+.root .exform :is(input,button){min-width:0;max-width:100%}
+@media(max-width:440px){.root .exform{grid-template-columns:minmax(0,1fr)}.root .exform>*{grid-column:auto}.root .exceptions>div{flex-wrap:wrap;min-width:0}.root .exceptions b{overflow-wrap:anywhere}}
+
+/* DFL-R95-MACRO: distincao entre estado efetivo e edicao local */
+.r95CloudNotice{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:10px 13px;border:1px solid rgba(246,200,73,.28);border-radius:12px;background:rgba(246,200,73,.07);color:#e5e7e9}
+.r95CloudNotice strong{flex:0 0 auto;color:#f7d983;font-size:12px}.r95CloudNotice span{font-size:11px;line-height:1.45;color:#b8c4cc}
+@media(max-width:520px){.r95CloudNotice{flex-direction:column;align-items:flex-start;gap:4px}}

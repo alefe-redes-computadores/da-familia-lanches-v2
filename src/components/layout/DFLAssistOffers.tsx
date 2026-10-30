@@ -69,12 +69,16 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
       <button type="button" aria-pressed={budgetInput === "3000" && !query} onClick={()=>{setQuery("");setBudgetInput("3000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 30</button>
       {/* DFL-R88-CATALOG-CHECK: atalho de orçamento intermediário. */}
       <button type="button" aria-pressed={budgetInput === "4000" && !query} onClick={()=>{setQuery("");setBudgetInput("4000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 40</button>
+      {/* DFL-R93-OPERACAO-MACRO — descoberta por orçamento, sem pedir dados externos. */}
+      <button type="button" aria-pressed={budgetInput === "6000" && !query} onClick={()=>{setQuery("");setBudgetInput("6000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 60</button>
       <button type="button" aria-pressed={budgetInput === "5000" && !query} onClick={()=>{setQuery("");setBudgetInput("5000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 50</button>
       <button type="button" aria-pressed={people === 2 && !query && !budgetInput && !onlyCombos} onClick={()=>{setPeople(2);setQuery("");setBudgetInput("");setOnlyCombos(false);setShowAllOffers(false);}}>Para 2 pessoas</button>
     </div>
     <label className={styles.offerQueryLabel} htmlFor="dfl-assist-ingredients">Descreva seu pedido ou procure um ingrediente</label>
     {/* DFL-R88-CATALOG-CHECK: orientação de uso sem inventar produtos. */}
     {!query && !budgetInput && <p className={styles.r88AssistHint}>Experimente “frango”, “sem bacon” ou um orçamento rápido. Sugestões vêm do cardápio disponível.</p>}
+    {/* DFL-R95-MACRO: orientacao de pesquisa e limpeza seletiva. */}
+    {query.trim() && <div className={styles.r95QueryTools}><span>Buscando por: <strong>{query.trim()}</strong></span><button type="button" onClick={() => { setQuery(""); setShowAllOffers(false); }}>Limpar texto</button></div>}
     <div className={styles.offerSearchRow}>
       <input id="dfl-assist-ingredients" className={styles.offerQuery} type="search" autoComplete="off" maxLength={100}
         placeholder="Ex.: combo com frango até R$ 50" value={query}
@@ -106,6 +110,8 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
           placeholder="Sem limite" aria-label="Orçamento em reais, opcional" autoComplete="off" />
       </label>
     </div>
+    {/* DFL-R94-MACRO-360 — dicas claras sem conclusoes sobre alergias. */}
+    <p className={styles.r94AssistGuidance}>Dica: combine pessoas, orçamento e ingrediente. Os resultados respeitam a disponibilidade informada pelo cardápio.</p>
     <div className={styles.offerFilterFooter}>
       <label className={styles.offerToggle}><input type="checkbox" checked={onlyCombos} onChange={e=>setOnlyCombos(e.target.checked)}/> Mostrar somente combos</label>
       <button type="button" className={styles.offerClearFilters} onClick={clearFilters} disabled={!query && !budgetInput && !onlyCombos && people === 2}>Limpar filtros</button>
@@ -123,7 +129,7 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
      !catalogReady ? <p className={styles.offerNotice} role="status">Cardápio online indisponível. Você ainda pode pesquisar ou falar com a equipe; não vou apresentar preços sem confirmação.</p> :
      offers.length ? <><ul className={styles.offerList}>{visibleOffers.map(({product,reason})=><li key={product.id}>
         <div className={styles.offerImage}>{product.image ? <CatalogImage src={product.image} alt={product.name} sizes="72px" /> : <span aria-hidden="true">DFL</span>}</div>
-        <div className={styles.offerCopy}><strong>{product.name}</strong><b className={styles.offerPrice}>{currency(product.price)}</b><small>{product.bundleItems?.length ? "Confira os itens e a composição do combo" : reason}</small>
+        <div className={styles.offerCopy}><strong>{product.name}</strong><small className={styles.r94AssistProductType}>{product.bundleItems?.length ? "Combo com componentes cadastrados" : "Produto do cardápio"}</small><b className={styles.offerPrice}>{currency(product.price)}</b><small>{product.bundleItems?.length ? "Confira os itens e a composição do combo" : reason}</small>
           {effectiveBudget != null && Number.isFinite(effectiveBudget) && effectiveBudget >= product.price && <small className={styles.r89BudgetRemaining}>Dentro do limite · sobra {currency(Math.max(0, effectiveBudget - product.price))}</small>}
           {/* DFL-R91-GESTAO-COMERCIAL: desconto apenas quando preco anterior valido. */}
           {typeof product.oldPrice === "number" && Number.isFinite(product.oldPrice) && product.oldPrice > product.price &&
@@ -145,6 +151,7 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
          {onlyCombos && <button type="button" onClick={() => setOnlyCombos(false)}>Ver também avulsos</button>}
          {budgetInput && <button type="button" onClick={() => setBudgetInput("")}>Retirar limite de preço</button>}
          {query.trim() && <button type="button" onClick={() => setQuery("")}>Limpar texto da busca</button>}
+         <button type="button" onClick={clearFilters}>Recomeçar sugestões</button>
        </div>
        {discoveryHints.length > 0 && <div className={styles.offerDiscovery} aria-label="Alternativas para explorar no cardápio">
          <small>Produtos com nomes parecidos — confira preço e filtros:</small>

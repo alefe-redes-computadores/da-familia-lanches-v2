@@ -711,6 +711,16 @@ export function CatalogAdmin() {
       </div>
     </section>
 
+    {/* DFL-R93-OPERACAO-MACRO — atalhos de abertura. Nao salvam no Firebase. */}
+    <section className={styles.r93LaunchChecks} aria-label="Conferencia rapida para abertura">
+      <div><strong>Antes de abrir a loja</strong><small>Revise disponibilidade e ofertas pelo catalogo atual.</small></div>
+      <div className={styles.r93LaunchActions}>
+        <button type="button" onClick={() => {setView("produtos");setSearch("");setAvailabilityFilter("paused");setCategoryFilter("all");}}>Pausados: {pausedProducts}</button>
+        <button type="button" onClick={() => {setView("produtos");setSearch("");setAvailabilityFilter("active");setCategoryFilter("all");}}>Ativos: {activeProducts}</button>
+        <button type="button" onClick={() => {setView("adicionais");}}>Adicionais: {allAddons.length}</button>
+        <button type="button" onClick={() => {setView("categorias");}}>Categorias: {categories.length}</button>
+      </div>
+    </section>
     <section className={styles.metrics}>
       <div><span>Produtos</span><strong>{products.length}</strong></div>
       <div><span>Disponíveis</span><strong>{activeProducts}</strong></div>
@@ -816,6 +826,12 @@ export function CatalogAdmin() {
       {(search || categoryFilter !== "all" || availabilityFilter !== "all" || reviewFilter !== "all") && <button onClick={() => { setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); setReviewFilter("all"); }}>Limpar filtros</button>}
     </div>
 
+    {/* DFL-R94-MACRO-360 — orientacao contextual sem gravacao. */}
+    <div className={styles.r94CatalogContext} role="status">
+      <strong>{search.trim() ? "Busca no cardápio" : reviewFilter !== "all" ? "Revisão direcionada" : "Cardápio da loja"}</strong>
+      <span>{filteredProducts.length} de {products.length} produtos no resultado atual.</span>
+      {filteredProducts.length === 0 && <button type="button" onClick={() => {setSearch("");setCategoryFilter("all");setAvailabilityFilter("all");setReviewFilter("all");}}>Mostrar todos</button>}
+    </div>
     <div className={styles.productGroups}>
       {groupedProducts.map((group) => <details className={styles.productGroup} key={group.categoryId} open={Boolean(search || categoryFilter !== "all" || availabilityFilter !== "all" || reviewFilter !== "all" || openAllGroups)}>
         <summary><div><span>CATEGORIA</span><strong>{group.label}</strong></div><b>{group.items.length} produto{group.items.length===1?"":"s"}</b><ChevronDown size={16}/></summary>
@@ -868,6 +884,8 @@ export function CatalogAdmin() {
           {(addonSearch || addonFilter !== "all" || addonSort !== "manual") && <button type="button" onClick={() => { setAddonSearch(""); setAddonFilter("all"); setAddonSort("manual"); }}>Limpar filtros</button>}
         </div>
       </div>
+      {/* DFL-R94-MACRO-360 — qualidade de adicionais do catalogo. */}
+      <div className={styles.r94AddonContext} role="status"><strong>{filteredAddons.length} adicionais exibidos</strong><span>{allAddons.filter(item => item.disponivel === false).length} pausados · {allAddons.filter(item => !Number.isFinite(item.price) || item.price < 0).length} preços a revisar</span></div>
       <div className={styles.addonGrid}>
         {filteredAddons.map((addon) => <article key={addon.id} className={styles.addonCard} data-off={addon.disponivel === false}>
           <button className={styles.addonEdit} onClick={() => openEditAddon(addon)}><div><span>{addon.name}</span><small>{addon.id}</small></div><b>{money(addon.price)}</b></button>
@@ -907,6 +925,11 @@ export function CatalogAdmin() {
     {productDraft && productMode && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) void closeProductEditor(); }}>
       <section className={styles.editor} data-product-step={productStep}>
         <div className={styles.editorHead}><div><span>{productMode === "create" ? "NOVO PRODUTO" : "EDITAR PRODUTO"}</span><h3>{productMode === "create" ? "Cadastrar item" : productDraft.name}</h3>{JSON.stringify(productDraft) !== productBaseline.current && <small className={styles.draftStatus} role="status">Alterações não salvas</small>}</div><button type="button" aria-label="Fechar editor" onClick={() => { haptic("step"); void closeProductEditor(); }}>×</button></div>
+        {/* DFL-R95-MACRO: orientacao de progresso sem ignorar validacoes. */}
+        <div className={styles.r95EditorProgress} role="status" aria-live="polite">
+          <strong>{productStep === "essencial" ? "1/4 · Identificação" : productStep === "conteudo" ? "2/4 · Composição" : productStep === "venda" ? "3/4 · Venda" : "4/4 · Opções"}</strong>
+          <span>{productStep === "essencial" ? "Nome, descrição, categoria e foto" : productStep === "conteudo" ? "Ingredientes e componentes do combo" : productStep === "venda" ? "Preço, ofertas e adicionais" : "Ajustes avançados e conferência"}</span>
+        </div>
         <nav className={styles.editorSteps} aria-label="Etapas do produto">
           {([["essencial", "1", "Essencial"], ["conteudo", "2", "Conteúdo"], ["venda", "3", "Venda"], ["opcoes", "4", "Opções"]] as Array<[ProductEditorStep, string, string]>).map(([step, number, label]) => <button type="button" key={step} data-active={productStep === step} onClick={() => { haptic("step"); if (step === "opcoes") setAdvancedProduct(true); setProductStep(step); }}><b>{number}</b><span>{label}</span></button>)}
         </nav>
@@ -1036,6 +1059,12 @@ export function CatalogAdmin() {
            {showAddonChoices && <div className={styles.checks}>{addons.map((addon) => { const checked = productDraft.addonIds === undefined || productDraft.addonIds.includes(addon.id); return <label key={addon.id}><input type="checkbox" checked={checked} onChange={() => { const base = productDraft.addonIds === undefined ? addons.map((item) => item.id) : productDraft.addonIds; setProductDraft({ ...productDraft, addonIds: checked ? base.filter((id) => id !== addon.id) : [...base, addon.id] }); }} /><span>{addon.name}</span><small>{money(addon.price)}</small></label>; })}</div>}
         </div>}
         <button type="button" data-editor-step="opcoes" className={styles.advancedDisclosure} onClick={() => setAdvancedProduct(value => !value)}>{advancedProduct ? "Ocultar configurações avançadas" : "Configurações avançadas · link, upsell e caminho da foto"}</button>
+        </div>
+        {/* DFL-R94-MACRO-360 — revisao comercial da configuracao local. */}
+        <div className={styles.r94EditorSummary} role="status" aria-live="polite">
+          <strong>Revisão antes de salvar</strong>
+          <span>{productDraft.disponivel ? "Disponível" : "Pausado"} · {productDraft.showInOffers ? "Em ofertas" : "Sem destaque em ofertas"} · {productDraft.category === "bebidas" ? "Sem adicionais" : `${productDraft.addonIds === undefined ? "Todos" : productDraft.addonIds.length} adicionais permitidos`}</span>
+          <span>{productDraft.bundleItems.length ? `${productDraft.bundleItems.length} componentes cadastrados no combo` : "Sem componentes de combo vinculados"}</span>
         </div>
         <div className={styles.editorActionsV86}>
           <button type="button" className={styles.backAction} onClick={() => { haptic("step"); if (productStep === "essencial") { void closeProductEditor(); } else setProductStep(productStep === "conteudo" ? "essencial" : productStep === "venda" ? "conteudo" : "venda"); }}>{productStep === "essencial" ? "Cancelar" : "Voltar"}</button>

@@ -142,3 +142,16 @@
 
 /* DFL-R91-GESTAO-COMERCIAL — economia verificada entre precos do cadastro */
 .r91AssistDiscount{display:block;padding:5px 7px;border-radius:8px;background:#eaf7e9;color:#24643b!important;font-size:11px;font-weight:850;line-height:1.4}
+
+/* DFL-R93-OPERACAO-MACRO — toque e leitura da recuperacao */
+.offerRecovery .r74RecoveryActions button{min-height:42px;white-space:normal;line-height:1.3}
+@media(max-width:390px){.quickSearch{gap:5px}.quickSearch button{min-height:42px}}
+
+/* DFL-R94-MACRO-360 — orientação e leitura das ofertas */
+.r94AssistGuidance{margin:0;padding:8px 10px;border-radius:10px;background:rgba(102,80,43,.06);font-size:11px;line-height:1.45;color:#665039}
+.offerCopy .r94AssistProductType{font-size:10px;letter-spacing:.01em;color:#826d4a;font-weight:750}
+@media(max-width:390px){.offers .offerFilters{grid-template-columns:minmax(0,1fr)}.offerList li{min-width:0}}
+
+/* DFL-R95-MACRO: recuperacao de consulta com orcamento preservado */
+.r95QueryTools{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;padding:7px 10px;border:1px solid #e7d8bd;border-radius:11px;background:#fff6e5;color:#5a4b3a;font-size:11px}
+.r95QueryTools span{min-width:0;overflow-wrap:anywhere}.r95QueryTools button{min-height:36px;flex:0 0 auto;padding:6px 10px;border:1px solid #d6b86d;border-radius:9px;background:#fffaf0;color:#47351b;font-weight:800;cursor:pointer}

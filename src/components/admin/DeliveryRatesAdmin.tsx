@@ -153,11 +153,17 @@ export function DeliveryRatesAdmin() {
       </div>
     </div>
 
+    {/* DFL-R93-OPERACAO-MACRO — busca e conferência sem novas consultas. */}
+    {!loading && <div className={styles.r93RateSummary} role="status">
+      <span><strong>{rates.length}</strong> bairros cadastrados</span>
+      <span><strong>{sorted.length}</strong> no filtro atual</span>
+      <span data-warning={invalidCount > 0}><strong>{invalidCount}</strong> para revisar</span>
+    </div>}
     <div className={styles.toolbar}>
       {(searchOpen || search)
         ? <label className={styles.searchBox}><Search size={15}/><input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar bairro" onBlur={() => !search && setSearchOpen(false)}/></label>
         : <button type="button" className={styles.searchTrigger} onClick={() => { haptic("step"); setSearchOpen(true); }}><Search size={15}/>Buscar bairro</button>}
-      {search.trim() && <span>{sorted.length} de {rates.length}</span>}
+      {search.trim() && <button type="button" className={styles.r93ClearSearch} onClick={() => { setSearch(""); setSearchOpen(false); }}>Limpar busca ({sorted.length})</button>}
     </div>
 
     {loading
