@@ -752,7 +752,7 @@
 .r89Sort{display:grid;gap:4px;min-width:130px;font-size:11px;color:#aebdc8;font-weight:750}
 .r89Sort select{min-height:44px;padding:7px;border:1px solid #40515a;border-radius:10px;background:#1b242c;color:#fff;font-size:13px}
 .r89Expand{grid-column:1/-1;justify-self:start;border:1px solid #39464e;background:#222a31;color:#d9e4eb;border-radius:10px;padding:8px 11px;min-height:42px;font-size:12px;font-weight:850;cursor:pointer}
-.r89SimilarAction{border:1px solid #44505a!important;background:#202930!important;color:#e4ebf0!important;min-height:44px}
+.root .actions button.r89SimilarAction{border:1px solid #44505a;background:#202930;color:#e4ebf0;min-height:46px}
 .root :is(.r89CommandBar,.r89ReviewBar) button:focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
 @media(max-width:700px){.r89CommandActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.r89CommandActions button{padding-inline:6px}.r89ReviewBar{grid-template-columns:1fr}.r89ReviewTitle{grid-column:1}.r89ReviewChips{grid-column:1}.r89Sort{grid-column:1;width:100%}.r89Expand{grid-column:1}.r89WorkspaceAnchor{scroll-margin-top:12px}}
 @media(max-width:380px){.r89ReviewChips button{padding-inline:8px;font-size:11px}.r89CommandActions button{font-size:11px}}

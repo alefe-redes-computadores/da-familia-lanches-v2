@@ -18,7 +18,12 @@ const workflow = read(".github/workflows/build-admin-android.yml");
 
 ok(rates.includes("<b>{rates.length} bairros</b>"), "contador semântico ausente");
 ok(!rates.includes("<small>Taxa de entrega</small>"), "subtítulo repetitivo ainda existe");
-ok(rates.includes("search.trim() && <span>"), "contador da busca ainda aparece sem busca");
+ok(
+  rates.includes('search.trim() && <button type="button" className={styles.r93ClearSearch}') &&
+  rates.includes('Limpar busca ({sorted.length})') &&
+  rates.includes('const visibleRates = search.trim() || showAllRates ? sorted : sorted.slice(0, 8);'),
+  "contador da busca ainda aparece sem busca",
+);
 ok(rates.includes("visibleRates"), "expansão controlada desapareceu");
 ok(rates.includes("slice(0, 8)"), "8 bairros iniciais não preservados");
 ok(ratesCss.includes("DFL ADMIN V38 — DELIVERY LIST AUTHORITY"), "autoridade V38 ausente");
