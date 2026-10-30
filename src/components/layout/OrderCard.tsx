@@ -347,7 +347,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
           )}
 
           {inspector && (
-            <nav className={styles.inspectorTabs} aria-label="Detalhes do pedido">
+            <nav className={styles.inspectorTabs} aria-label="Detalhes do pedido" data-r83="true">
               {[
                 ["resumo", "Resumo", <Info size={15} key="i" />],
                 ["itens", "Itens", <ReceiptText size={15} key="it" />],
@@ -359,6 +359,8 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
                   key={String(key)}
                   type="button"
                   data-active={inspectorTab === key}
+                  aria-pressed={inspectorTab === key}
+                  aria-label={`Abrir aba ${String(label)} do pedido`}
                   onClick={(event) => {
                     event.stopPropagation();
                     haptic("step");
@@ -605,3 +607,5 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
 </article>
   );
 }
+
+// DFL-R83-INSPECTOR-NAV: accessible tabs and mobile hierarchy

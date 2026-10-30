@@ -99,6 +99,11 @@ function AdminIcon({ name }: { name: AdminIconName }) {
 function AdminPageContent() {
   const searchParams = useSearchParams();
   const { currentUser, loading: authLoading } = useAuthStore();
+  // DFL-R85-ADMIN-UX: medidas locais, sem dados pessoais nem trafego adicional.
+  useEffect(() => {
+    if (typeof performance === "undefined") return;
+    if (!performance.getEntriesByName("dfl-admin-mounted", "mark").length) performance.mark("dfl-admin-mounted");
+  }, []);
   const {
     pedidos,
     loading,
@@ -115,6 +120,16 @@ function AdminPageContent() {
     desfazerReconhecimentoPedido,
   } = useAdminOrders(currentUser, ADMINS);
   const [tab, setTab] = useState<Tab>("cozinha");
+  useEffect(() => {
+    if (!authLoading && typeof performance !== "undefined" && !performance.getEntriesByName("dfl-admin-auth-ready", "mark").length) {
+      performance.mark("dfl-admin-auth-ready");
+    }
+  }, [authLoading]);
+  useEffect(() => {
+    if (!authLoading && currentUser && !loading && typeof performance !== "undefined" && !performance.getEntriesByName("dfl-admin-orders-ready", "mark").length) {
+      performance.mark("dfl-admin-orders-ready");
+    }
+  }, [authLoading, currentUser, loading]);
   const authorized = Boolean(currentUser?.email && ADMINS.includes(currentUser.email));
   const { settings: adminStoreSettings } = useAdminStoreSettings(authorized);
   const storeStatus = useMemo(() => evaluateStoreStatus(adminStoreSettings), [adminStoreSettings]);
@@ -538,7 +553,8 @@ function AdminPageContent() {
       />
     );
   }
-  if (loading) return <div className={styles.statePage}><strong>Carregando operação...</strong></div>;
+  // DFL-R84-ADMIN-STARTUP: usa o estado existente, sem consultas ou temporizadores extras.
+  if (loading) return <div className={styles.statePage} role="status" aria-live="polite" aria-busy="true"><AdminLoadingState label="Sincronizando pedidos da operação…" /></div>;
 
   const tabItems: Array<[Tab, string, number | null]> = [
     ["cozinha", "Cozinha", counts.cozinha],

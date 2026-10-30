@@ -55,21 +55,26 @@ export function AdminQuickSwitcher({
 }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
+  // DFL-R80-ADMIN-FOCUS: resultado selecionado nao muda apenas por toque incidental.
   const inputRef = useRef<HTMLInputElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
+  // DFL-R85-ADMIN-UX: seleção sempre limitada aos resultados reais.
+  const [showOnlyCurrent, setShowOnlyCurrent] = useState(false);
   const matches = useMemo(() => {
     const tokens = simplify(query).split(/\s+/).filter(Boolean);
-    if (!tokens.length) return ENTRIES;
-    return ENTRIES.filter((entry) => {
+    const candidates = showOnlyCurrent ? ENTRIES.filter((entry) => entry.target === currentTab) : ENTRIES;
+    if (!tokens.length) return candidates;
+    return candidates.filter((entry) => {
       const haystack = simplify(`${entry.name} ${entry.hint} ${entry.terms}`);
       return tokens.every((token) => haystack.includes(token));
     });
-  }, [query]);
+  }, [query, showOnlyCurrent, currentTab]);
 
   useEffect(() => {
     if (!open) return;
     setQuery("");
     setSelected(0);
+    setShowOnlyCurrent(false);
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -117,18 +122,32 @@ export function AdminQuickSwitcher({
             onKeyDown={handleKeyboard} placeholder="Buscar pedidos, catálogo, frete..." aria-label="Buscar ferramentas do Admin"
             role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="dfl-quick-results"
             aria-activedescendant={matches.length ? `dfl-quick-${matches[Math.min(selected, matches.length - 1)].id}` : undefined}/>
-          <kbd>Esc</kbd>
+          <kbd className={styles.desktopShortcut}>Esc</kbd>
         </label>
+        <div className={styles.resultsHeading}><strong>{query.trim() ? 'Resultados da busca' : 'Todos os atalhos'}</strong><span>{matches.length} {matches.length === 1 ? 'opção' : 'opções'}</span></div>
+        {/* DFL-R81-ADMIN-SEARCH: grupos claros, teclas e seleção preservadas. */}
+        <div className={styles.resultCount} role="status" aria-live="polite">
+          {query.trim() ? `${matches.length} ${matches.length === 1 ? "resultado" : "resultados"} para sua busca` : "Ferramentas por área"}
+        </div>
+        <div className={styles.r85Tools} role="group" aria-label="Filtros de ferramentas">
+          <button type="button" aria-pressed={!showOnlyCurrent} data-active={!showOnlyCurrent} onClick={() => { setShowOnlyCurrent(false); setSelected(0); }}>Todas as ferramentas</button>
+          <button type="button" aria-pressed={showOnlyCurrent} data-active={showOnlyCurrent} onClick={() => { setShowOnlyCurrent(true); setSelected(0); }}>Tela atual</button>
+          <span role="status">{matches.length} {matches.length === 1 ? "resultado" : "resultados"}</span>
+        </div>
         <div id="dfl-quick-results" role="listbox" aria-label="Ferramentas disponíveis" className={styles.results}>
           {matches.length ? matches.map((entry, index) => {
             const count = badgeCount(entry.id);
-            return <button type="button" key={entry.id} id={`dfl-quick-${entry.id}`} role="option" aria-selected={index === selected}
-              className={styles.option} data-active={index === selected} data-current={entry.target === currentTab}
-              onMouseEnter={() => setSelected(index)} onClick={() => choose(entry)}>
-              <span className={styles.optionBody}><small>{entry.group}</small><strong>{entry.name}</strong><em>{entry.hint}</em></span>
-              {count > 0 && <b className={styles.count}>{count}</b>}
-              <ArrowRight size={16} aria-hidden="true" />
-            </button>;
+            const groupStart = index === 0 || matches[index - 1].group !== entry.group;
+            return <div className={styles.resultBlock} key={entry.id} role="presentation">
+              {groupStart && <div className={styles.groupLabel} role="presentation">{entry.group}</div>}
+              <button type="button" id={`dfl-quick-${entry.id}`} role="option" aria-selected={index === selected}
+                className={styles.option} data-active={index === selected} data-current={entry.target === currentTab}
+                onMouseEnter={() => setSelected(index)} onClick={() => choose(entry)}>
+                <span className={styles.optionBody}><strong>{entry.name}</strong><em>{entry.hint}</em></span>
+                {count > 0 && <b className={styles.count}>{count}</b>}
+                <ArrowRight size={16} aria-hidden="true" />
+              </button>
+            </div>;
           }) : <div className={styles.empty}><strong>Nenhum atalho encontrado</strong><span>Tente “catálogo”, “frete”, “cozinha” ou “cupom”.</span></div>}
         </div>
         <footer className={styles.footer}><Keyboard size={16} /><span>↑ ↓ para navegar · Enter para abrir · Esc para fechar</span><b>DFL Admin</b></footer>

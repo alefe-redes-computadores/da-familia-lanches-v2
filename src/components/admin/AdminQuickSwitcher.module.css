@@ -20,3 +20,50 @@
 .panel :is(button,input):focus-visible{outline:3px solid #f5c84a;outline-offset:-2px}
 @media(max-width:640px){.backdrop{padding:calc(10px + env(safe-area-inset-top,0px)) 9px 15px}.panel{max-height:calc(100dvh - 26px - env(safe-area-inset-top,0px));border-radius:18px}.head{padding:16px 14px 12px}.head h2{font-size:21px}.search{margin:0 13px 9px}.results{padding-inline:8px}.option{min-height:66px}.footer{padding:11px 14px}.footer b{display:none}}
 @media(prefers-reduced-motion:reduce){.backdrop{scroll-behavior:auto}}
+
+
+/* DFL-R80-ADMIN-FOCUS — resultados com separacao e hierarquia legiveis no PWA */
+.resultsHeading{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 20px 10px;color:#b9c3ca;font-size:11px}
+.resultsHeading strong{font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+.resultsHeading span{color:#dfbd69;font-variant-numeric:tabular-nums}
+.results{gap:7px;padding:0 13px 14px}
+.option{flex-shrink:0;min-height:72px;gap:12px;padding:11px 13px;border:1px solid rgba(148,163,184,.13);background:#151d23;border-radius:13px;transition:background .12s ease,border-color .12s ease}
+.option[data-active=true]{border-color:rgba(255,202,40,.5);background:#242a2c}
+.optionBody{gap:4px}
+.optionBody small{font-size:10px;line-height:1.25}
+.optionBody strong{font-size:14px;line-height:1.3}
+.optionBody em{font-size:12px;line-height:1.3;color:#9faeb8}
+.search{min-width:0}
+.search input{width:100%;min-width:0;letter-spacing:normal}
+@media(max-width:640px){
+ .backdrop{padding:calc(10px + env(safe-area-inset-top,0px)) 9px 10px}
+ .panel{max-height:calc(100dvh - 20px - env(safe-area-inset-top,0px));min-height:0}
+ .head{flex:0 0 auto;padding:15px 15px 10px}
+ .head p{max-width:34ch}
+ .search{flex:0 0 auto;margin:0 12px 9px;padding-inline:11px}
+ .desktopShortcut{display:none}
+ .resultsHeading{padding:4px 15px 9px}
+ .results{min-height:0;gap:7px;padding:0 10px 12px}
+ .option{min-height:68px;padding:10px 12px}
+ .footer{font-size:10px;padding:9px 14px}
+}
+@media(prefers-reduced-motion:reduce){.option{transition:none}}
+
+/* DFL-R81-ADMIN-SEARCH — separadores de grupo e itens legiveis no PWA */
+.resultCount{padding:0 22px 9px;font-size:11px;font-weight:750;color:#abb5bf}
+.resultBlock{display:contents}
+.groupLabel{position:relative;margin:11px 5px 6px;padding:7px 8px 5px;border-bottom:1px solid rgba(148,163,184,.17);font-size:10px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;color:#eac46a}
+.results{gap:5px;padding-bottom:18px}
+.option{min-height:60px;padding:10px 13px;border:1px solid rgba(148,163,184,.12);background:#151d23;border-radius:12px;gap:10px}
+.option[data-active=true]{border-color:rgba(255,202,40,.55);background:#292819}
+.optionBody{gap:5px}.optionBody strong{font-size:14px;line-height:1.2}.optionBody em{font-size:12px;line-height:1.3;color:#aab5bf}
+.option>svg{margin-left:auto}
+@media(max-width:640px){.resultCount{padding:0 15px 8px}.groupLabel{margin-top:10px}.option{min-height:62px;padding:11px 12px}.head p{font-size:12px}.search{min-height:49px}.search input{height:48px}}
+
+/* DFL-R85-ADMIN-UX: filtros compactos e estados claros */
+.r85Tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:0 14px 10px}
+.r85Tools button{min-height:39px;border:1px solid rgba(148,163,184,.2);border-radius:11px;padding:7px 11px;background:#172128;color:#b7c3cb;font-size:11px;font-weight:850;cursor:pointer}
+.r85Tools button[data-active=true]{border-color:rgba(245,200,74,.7);background:#352c1a;color:#ffe4a1}
+.r85Tools span{margin-left:auto;font-size:11px;color:#a4afb7;white-space:nowrap}
+.r85Tools button:focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
+@media(max-width:390px){.r85Tools{padding-inline:9px}.r85Tools button{padding-inline:8px}.r85Tools span{width:100%;text-align:right}}

@@ -912,3 +912,30 @@
 .r70QuickOrderList b{font-size:12px;font-weight:950;color:#ffda75;font-variant-numeric:tabular-nums}
 .r70QuickOrderList span{font-size:12px;line-height:1.4;color:#ecf2f5;overflow-wrap:anywhere}
 @media(max-width:520px){.r70QuickOrder{margin-block:5px 10px;padding:10px;gap:8px}.r70QuickOrderList>div{padding:7px 9px}}
+
+/* DFL-R82-ORDER-SCAN: readable customer/item hierarchy in mobile list only */
+@media(max-width:620px){
+ .card:not([data-inspector="true"]){min-width:0!important}
+ .card:not([data-inspector="true"]) .summary{min-width:0!important;gap:9px!important}
+ .card:not([data-inspector="true"]) .summaryMain{min-width:0!important}
+ .card:not([data-inspector="true"]) .summaryMain h3{line-height:1.2!important;overflow-wrap:anywhere!important}
+ .card:not([data-inspector="true"]) .summaryTotal{flex:0 0 auto!important;font-variant-numeric:tabular-nums!important}
+ .card:not([data-inspector="true"]) .queueAddress{overflow-wrap:anywhere!important}
+ .card:not([data-inspector="true"]) .queuePreview{min-width:0!important}
+ .card:not([data-inspector="true"]) .queuePreview b{overflow-wrap:anywhere!important}
+}
+@media(prefers-reduced-motion:reduce){.card .summary{scroll-behavior:auto!important}}
+
+/* DFL-R83-INSPECTOR-NAV: abas de consulta com foco e densidade mobile */
+.inspectorTabs{scroll-margin-top:8px;overscroll-behavior-inline:contain;scrollbar-width:thin}
+.inspectorTabs button{min-width:0;min-height:44px;touch-action:manipulation}
+.inspectorTabs button:focus-visible{outline:3px solid #f9cb55;outline-offset:-3px}
+.inspectorTabs button[data-active=true]{box-shadow:inset 0 -2px 0 #f6c54b}
+@media(max-width:600px){
+ .inspectorTabs{display:flex;gap:5px;overflow-x:auto;flex-wrap:nowrap;padding:4px 1px 8px;scroll-snap-type:x proximity}
+ .inspectorTabs button{flex:0 0 auto;scroll-snap-align:start;padding:9px 11px;border-radius:10px}
+ .r70QuickOrder{gap:7px;margin-top:8px}
+ .inspectorSummaryGrid{gap:7px}
+ .operationalCockpit{margin-block:7px}
+}
+@media(max-width:380px){.inspectorTabs button{padding-inline:9px;font-size:11px}}
