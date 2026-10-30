@@ -13,3 +13,11 @@
   .nav{padding-bottom:max(7px,env(safe-area-inset-bottom))!important;backdrop-filter:blur(18px)!important}
   .item,.button,.nav button,.nav a{min-height:48px!important;touch-action:manipulation}
 }
+
+/* DFL-R100-FINAL-POLISH: foco acessivel, icons e aba ativa. */
+@media(max-width:760px){
+ .nav button>span{display:grid;place-items:center;min-height:22px}
+ .nav button[aria-current="page"]:not(.cart){background:#2c2922;color:#ffe0a0}
+ .nav button:focus-visible{outline:3px solid #ffca28;outline-offset:2px}
+ .nav button:disabled{opacity:.5;cursor:not-allowed}
+}

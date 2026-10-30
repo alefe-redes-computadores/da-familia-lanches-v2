@@ -195,3 +195,7 @@
   .clear{min-height:34px}
 }
 @media(max-width:350px){.smartCard{grid-template-columns:46px minmax(0,1fr)}.smartPrice{grid-column:2;flex-direction:row;align-items:center}}
+
+/* DFL-R100-FINAL-POLISH: alternativa de convidado legivel, sem acao de pedido implicita. */
+.loginCard .guestContinue{margin-top:8px;border:1px solid #565656;background:transparent;color:#f3f3f3;min-height:44px}
+.loginCard .guestContinue:focus-visible{outline:3px solid #ffca28;outline-offset:2px}

@@ -95,16 +95,23 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
       <div className={styles.summary}>
         <span className={styles.kicker}>{sectionLabel}</span><h1>{product.name}</h1>{leadDescription && <p>{leadDescription}</p>}
         <div className={styles.buyRow}><div className={styles.price}>{hasDiscount && <s>{money(product.oldPrice!)}</s>}<strong>{money(product.price)}</strong>{hasDiscount && <small>Economize {money(product.oldPrice! - product.price)}</small>}</div><button type="button" className={styles.share} onClick={share} aria-label="Compartilhar produto"><Share2 size={17} /><span>{copied ? "Link copiado" : "Compartilhar"}</span></button></div>
-        <button type="button" className={styles.saveFavorite} data-saved={saved} aria-pressed={saved}
-          onClick={() => { haptic("step"); setSaved(toggleSavedProductId(product.id)); }}>
-          <Heart size={17} fill={saved ? "currentColor" : "none"}/>{saved ? "Salvo nos favoritos" : "Salvar nos favoritos"}
-        </button>
+        {/* DFL-R100-FINAL-POLISH: WhatsApp sempre acessivel; somente compartilha link, nunca cria pedido. */}
+        <div className={styles.socialActions}>
+          <button type="button" className={styles.saveFavorite} data-saved={saved} aria-pressed={saved}
+            onClick={() => { haptic("step"); setSaved(toggleSavedProductId(product.id)); }}>
+            <Heart size={17} fill={saved ? "currentColor" : "none"}/>{saved ? "Salvo nos favoritos" : "Salvar nos favoritos"}
+          </button>
+          <a className={styles.whatsappQuick} href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`} target="_blank" rel="noopener noreferrer" aria-label={`Compartilhar ${product.name} pelo WhatsApp`}>
+            <MessageCircle size={17}/> Enviar no WhatsApp
+          </a>
+        </div>
         {shareFallback && <div className={styles.shareFallback} aria-label="Outras formas de compartilhar">
           <button type="button" onClick={copyLink}><Copy size={16} /> Copiar link</button>
           <a href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`} target="_blank" rel="noopener noreferrer"><MessageCircle size={16} /> WhatsApp</a>
           {shareError && <input aria-label="Selecione e copie o link do produto" readOnly value={shareUrl} onFocus={(event) => event.currentTarget.select()} onClick={(event) => event.currentTarget.select()} />}
         </div>}
         <button ref={primaryActionRef} type="button" className={styles.primaryAction} disabled={!available} onClick={() => { haptic("step"); openModal("product-details", product); }}><ShoppingCart size={20} strokeWidth={2} /><span>{available ? "Personalizar e adicionar" : "Indisponível no momento"}</span><b>{available ? money(product.price) : ""}</b></button>
+        {!available && related.length > 0 && <a className={styles.alternateAction} href="#opcoes-disponiveis">Ver outras opções disponíveis <ChevronRight size={16}/></a>}
         {inCart > 0 && <button className={styles.inCart} onClick={() => openModal("cart")}><span>{inCart} no carrinho</span><b>Ver pedido <ChevronRight size={15} /></b></button>}
         {hasComposition && <section className={styles.composition}>
           <div className={styles.compositionHead}><span>{bundle.length ? "POR DENTRO DO COMBO" : "INGREDIENTES"}</span><h2>{product.detailsTitle || `O que vem no ${product.name}?`}</h2></div>
@@ -117,7 +124,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
       <span><small>{product.name}</small><strong>{money(product.price)}</strong></span>
       <button type="button" onClick={() => { haptic("step"); openModal("product-details", product); }}><ShoppingCart size={17}/><b>Personalizar</b></button>
     </div>}
-    {related.length > 0 && <section className={styles.related}><div className={styles.relatedHead}><div><span>ESCOLHAS PARA O SEU PEDIDO</span><h2>Complete do seu jeito</h2><p>Sem repetir o que já vem neste item ou no seu carrinho.</p></div></div><div className={styles.relatedGrid}>{related.map((entry) => <Link href={productHref(entry.product)} key={entry.product.id}><CatalogImage src={entry.product.image} alt="" sizes="(max-width: 700px) 38vw, 180px" quality={68} /><span><small>{entry.eyebrow}</small><strong>{entry.product.name}</strong><em>{entry.reason}</em><b>{money(entry.product.price)} <span aria-hidden="true">›</span></b></span></Link>)}</div></section>}
+    {related.length > 0 && <section id="opcoes-disponiveis" className={styles.related}><div className={styles.relatedHead}><div><span>ESCOLHAS PARA O SEU PEDIDO</span><h2>Complete do seu jeito</h2><p>Sem repetir o que já vem neste item ou no seu carrinho.</p></div></div><div className={styles.relatedGrid}>{related.map((entry) => <Link href={productHref(entry.product)} key={entry.product.id}><CatalogImage src={entry.product.image} alt="" sizes="(max-width: 700px) 38vw, 180px" quality={68} /><span><small>{entry.eyebrow}</small><strong>{entry.product.name}</strong><em>{entry.reason}</em><b>{money(entry.product.price)} <span aria-hidden="true">›</span></b></span></Link>)}</div></section>}
 
   </main>;
 }

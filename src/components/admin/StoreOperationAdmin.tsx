@@ -1,17 +1,20 @@
 "use client";
 import{useEffect,useMemo,useRef,useState}from"react";import{Save,Plus,Trash2,Bot,DoorOpen,DoorClosed,FlaskConical}from"lucide-react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
-import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
+import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,type DayKey,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
 import styles from"./StoreOperationAdmin.module.css";
 import { haptic } from "@/lib/haptics";
 import{useAdminStoreSettings}from"@/hooks/useAdminStoreSettings";
 import{useAdminConfirm}from"@/components/admin/ui/AdminExperienceProvider";
 export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{settings:liveSettings,ready}=useAdminStoreSettings();const[s,setS]=useState<StoreSettings>(liveSettings),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
  const[ex,setEx]=useState<StoreException>({date:"",closed:true,label:""});
+ // DFL-R100-FINAL-POLISH: fonte explicita para replicar somente horas em dias abertos.
+ const[copySourceDay,setCopySourceDay]=useState<DayKey>("fri");
  const editingSchedule = useRef(false);
  useEffect(()=>{if(ready&&!editingSchedule.current)setS(liveSettings)},[ready,liveSettings]);
  // Estado efetivo vem da nuvem; edicoes locais de horario nao simulam loja aberta.
  const current=useMemo(()=>evaluateStoreStatus(liveSettings),[liveSettings]);
  const scheduleDirty=JSON.stringify(s.schedule)!==JSON.stringify(liveSettings.schedule);
+ const scheduleSource: DayKey | undefined = s.schedule[copySourceDay].enabled ? copySourceDay : DAYS.find(({key})=>s.schedule[key].enabled)?.key;
  useEffect(()=>{if(!scheduleDirty)editingSchedule.current=false},[scheduleDirty]);
  const save=async(next:StoreSettings,text:string)=>{if(busy)return;setBusy(true);try{await setDoc(doc(db,"settings","loja"),{...next,updatedAt:serverTimestamp()},{merge:true});setS(next);editingSchedule.current=false;setMsg(text);haptic("success")}catch(e){console.error(e);setMsg("Falha ao salvar funcionamento.");haptic("error")}finally{setBusy(false)}};
  const mode=async(m:StoreMode)=>{
@@ -60,10 +63,15 @@ export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{sett
   {/* DFL-R98-MACRO-FINAL: atalho de padronizacao, altera apenas rascunho local. */}
   <div className={styles.r98ScheduleTools}>
     <strong>Horários em lote</strong>
-    <span>Copie o horário de segunda-feira (se ativa) para os outros dias ativos. Salve a agenda para publicar.</span>
-    <button type="button" disabled={busy || !s.schedule.mon.enabled} onClick={() => {
+    <span>Escolha um dia aberto como referência. Só as horas dos outros dias ativos serão copiadas; você precisa salvar depois.</span>
+    <select aria-label="Dia de referência para horários" value={scheduleSource ?? ""} disabled={busy || !scheduleSource} onChange={e=>setCopySourceDay(e.target.value as DayKey)}>
+      {!scheduleSource && <option value="">Nenhum dia ativo</option>}
+      {DAYS.filter(({key})=>s.schedule[key].enabled).map(({key,label})=><option key={key} value={key}>{label}</option>)}
+    </select>
+    <button type="button" disabled={busy || !scheduleSource} onClick={() => {
+      if (!scheduleSource) return;
       const nextSchedule = { ...s.schedule };
-      for (const {key} of DAYS) if (key !== "mon" && nextSchedule[key].enabled) nextSchedule[key] = { ...nextSchedule[key], open: s.schedule.mon.open, close: s.schedule.mon.close };
+      for (const {key} of DAYS) if (key !== scheduleSource && nextSchedule[key].enabled) nextSchedule[key] = { ...nextSchedule[key], open: s.schedule[scheduleSource].open, close: s.schedule[scheduleSource].close };
       editingSchedule.current = true;
       setS({ ...s, schedule: nextSchedule });
       setMsg("Horários copiados para o rascunho. Confira e salve quando estiver pronto.");

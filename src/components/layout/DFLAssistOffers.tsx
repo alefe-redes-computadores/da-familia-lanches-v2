@@ -34,6 +34,7 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
   const discoveryHints = useMemo(() => catalogReady && validBudget && !offers.length && query.trim()
     ? suggestCatalogQueries(products, query, 3)
     : [], [catalogReady, validBudget, offers.length, products, query]);
+  // DFL-R100-FINAL-POLISH: limpeza inclui ordenacao, mesmo sem filtros textuais.
   const clearFilters = () => { setQuery(""); setPeople(2); setBudgetInput(""); setOnlyCombos(false); setShowAllOffers(false); setOfferSort("relevance"); };
   const orderedOffers = useMemo(() => {
     if (offerSort === "relevance") return offers;
@@ -121,7 +122,7 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
     </div>
     <div className={styles.offerFilterFooter}>
       <label className={styles.offerToggle}><input type="checkbox" checked={onlyCombos} onChange={e=>setOnlyCombos(e.target.checked)}/> Mostrar somente combos</label>
-      <button type="button" className={styles.offerClearFilters} onClick={clearFilters} disabled={!query && !budgetInput && !onlyCombos && people === 2}>Limpar filtros</button>
+      <button type="button" className={styles.offerClearFilters} onClick={clearFilters} disabled={!query && !budgetInput && !onlyCombos && people === 2 && offerSort === "relevance"}>Limpar filtros</button>
     </div>
     {catalogReady && offers.length > 1 && <div className={styles.r89OfferSort} role="group" aria-label="Ordenar sugestões">
       <span>Comparar sugestões</span>

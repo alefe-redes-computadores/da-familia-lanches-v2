@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { getDefaultDeliveryFee, SAFE_DEFAULT_DELIVERY_FEE, type DeliveryRate } from "@/lib/deliveryRates";
 import { haptic } from "@/lib/haptics";
 import styles from "./DeliveryRatesAdmin.module.css";
+import { parseDeliveryFeeForAudit } from "@/lib/deliveryFeeAudit"; // DFL-R100-FINAL-POLISH
 
 type EditableRate = DeliveryRate & { _key: string };
 
@@ -75,7 +76,7 @@ export function DeliveryRatesAdmin() {
 
   const visibleRates = search.trim() || showAllRates ? sorted : sorted.slice(0, 8);
 
-  const invalidCount = rates.filter((item) => !String(item.nome ?? "").trim() || !Number.isFinite(Number(item.taxa)) || Number(item.taxa) < 0).length;
+  const invalidCount = rates.filter((item) => !String(item.nome ?? "").trim() || parseDeliveryFeeForAudit(item.taxa) === null).length;
 
   const updateRate = (key: string, patch: Partial<DeliveryRate>) =>
     setRates((current) => current.map((item) => item._key === key ? { ...item, ...patch } : item));

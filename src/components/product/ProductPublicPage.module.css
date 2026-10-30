@@ -146,3 +146,13 @@
  .share{flex-shrink:0}
  .summary{padding-inline:12px}
 }
+
+/* DFL-R100-FINAL-POLISH: compartilhamento direto e alternativa a indisponibilidade. */
+.socialActions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.socialActions .saveFavorite{margin:0}
+.whatsappQuick,.alternateAction{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:9px 12px;border:1px solid #bad9bf;border-radius:12px;background:#eef9f0;color:#17612e;text-decoration:none;font-size:12px;font-weight:850;line-height:1.2}
+.whatsappQuick:hover{background:#dff3e4}
+.alternateAction{justify-content:space-between;margin-top:10px;width:100%;border-color:#e7d3a0;background:#fffae8;color:#694a0b}
+.whatsappQuick:focus-visible,.alternateAction:focus-visible{outline:3px solid #c28700;outline-offset:3px}
+.related{scroll-margin-top:95px}
+@media(max-width:380px){.socialActions{align-items:stretch}.socialActions>*{flex:1 1 100%;justify-content:center}}
