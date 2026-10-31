@@ -5,14 +5,61 @@ The Admin files remain immutable. In CI we use the same stable Android signing
 certificate for both app packages, declared independently by Digital Asset Links.
 """
 from pathlib import Path
-from PIL import Image, ImageOps, ImageFilter
-import re, shutil, sys
+from PIL import Image, ImageOps, ImageFilter, ImageDraw, ImageChops
+import json, re, shutil, sys
 
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE=ROOT/'android-admin'
 DEST=ROOT/'android-cliente'
 TARGET_PACKAGE='br.com.dafamilialanches.cliente'
 TARGET_HOST='dafamilialanches.com.br'
+# O manifesto PUBLICO do PWA e a autoridade: nao copiar/recriar o logo Admin.
+# Sem padding artificial nem fundo de outra identidade nos launchers.
+PWA_STANDARD_192='icon-192x192.png'
+PWA_STANDARD_512='icon-512x512.png'
+PWA_MASKABLE_512='icon-maskable-512x512.png'
+
+
+def pwa_assets():
+    manifest=json.loads((ROOT/'public/manifest.json').read_text(encoding='utf-8'))
+    entries=manifest.get('icons',[])
+    for filename, dimensions, purpose in [
+        (PWA_STANDARD_192,'192x192','any'),
+        (PWA_STANDARD_512,'512x512','any'),
+        (PWA_MASKABLE_512,'512x512','maskable'),
+    ]:
+        valid=any(
+            str(item.get('src','')).split('?',1)[0]=='/'+filename and
+            item.get('sizes')==dimensions and purpose in item.get('purpose','any').split()
+            for item in entries if isinstance(item,dict)
+        )
+        if not valid:raise SystemExit('R230: manifesto PWA nao autoriza '+filename)
+        if not (ROOT/'public'/filename).is_file():raise SystemExit('R230: PNG oficial ausente: '+filename)
+    theme=str(manifest.get('theme_color','')).upper()
+    if not re.fullmatch(r'#[0-9A-F]{6}',theme):raise SystemExit('R230: cor PWA invalida')
+    def load(filename,size):
+        with Image.open(ROOT/'public'/filename) as source:
+            source.load()
+            if source.size!=(size,size):raise SystemExit('R230: dimensoes invalidas '+filename)
+            return source.convert('RGBA')
+    return (load(PWA_STANDARD_192,192),load(PWA_STANDARD_512,512),load(PWA_MASKABLE_512,512),theme)
+
+
+def rounded_launcher(source,size,round_icon=False):
+    # Arredondamento NATIVO sem mudar os pixels centrais do icone oficial.
+    image=source.resize((size,size),Image.Resampling.LANCZOS)
+    factor=4
+    mask=Image.new('L',(size*factor,size*factor),0)
+    painter=ImageDraw.Draw(mask)
+    bounds=(0,0,size*factor-1,size*factor-1)
+    if round_icon:
+        painter.ellipse(bounds,fill=255)
+    else:
+        painter.rounded_rectangle(bounds,radius=round(size*factor*.22),fill=255)
+    antialias=mask.resize((size,size),Image.Resampling.LANCZOS)
+    image.putalpha(ImageChops.multiply(image.getchannel('A'),antialias))
+    return image
+
 
 
 def once(text,old,new,where):
@@ -27,6 +74,7 @@ def rewrite(path,changes):
     path.write_text(s,encoding='utf-8')
 
 def main():
+    standard192, standard512, maskable512, theme_color=pwa_assets()
     if not SOURCE.joinpath('app/src/main/java/br/com/dafamilialanches/admin/EntryActivity.java').is_file():
         raise SystemExit('R229: template Admin nao encontrado')
     if DEST.exists():
@@ -55,34 +103,39 @@ def main():
        ('br.com.dafamilialanches.admin.fileprovider',TARGET_PACKAGE+'.fileprovider')])
     colors=main/'res/values/colors.xml'
     rewrite(colors,[('admin_system_bar','cliente_system_bar')])
-    img_source=ROOT/'public/icon-512x512.png'
-    if not img_source.is_file():raise SystemExit('R229: icone oficial Cliente ausente')
-    image=Image.open(img_source).convert('RGBA')
-    if not image.getbbox():raise SystemExit('R229: icone Cliente vazio')
-    cropped=image.crop(image.getbbox())
+    colors_content=colors.read_text(encoding='utf-8')
+    if colors_content.count('#09090B')!=2:
+        raise SystemExit('R230: cor base Android inesperada: nao copiar Admin')
+    colors.write_text(colors_content.replace('#09090B',theme_color),encoding='utf-8')
+
     res=main/'res'
     for density,size in {'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}.items():
         folder=res/('mipmap-'+density)
         folder.mkdir(parents=True,exist_ok=True)
-        icon=Image.new('RGBA',(size,size),(14,14,16,255))
-        small=ImageOps.contain(cropped,(int(size*.86),int(size*.86)),Image.Resampling.LANCZOS)
-        icon.alpha_composite(small,((size-small.width)//2,(size-small.height)//2))
-        icon.convert('RGB').save(folder/'ic_launcher.png',optimize=True)
-        icon.convert('RGB').save(folder/'ic_launcher_round.png',optimize=True)
+        rounded_launcher(standard192,size).save(folder/'ic_launcher.png',optimize=True)
+        rounded_launcher(standard192,size,round_icon=True).save(folder/'ic_launcher_round.png',optimize=True)
+
     drawable=res/'drawable-nodpi'
     drawable.mkdir(parents=True,exist_ok=True)
-    def foreground(size,ratio):
-        img=Image.new('RGBA',(size,size),(0,0,0,0))
-        fg=ImageOps.contain(cropped,(int(size*ratio),int(size*ratio)),Image.Resampling.LANCZOS)
-        img.alpha_composite(fg,((size-fg.width)//2,(size-fg.height)//2))
-        return img
-    foreground(432,.68).save(drawable/'ic_launcher_foreground.png',optimize=True)
-    splash=Image.new('RGBA',(1152,1152),(14,14,16,255))
-    mid=ImageOps.contain(cropped,(440,440),Image.Resampling.LANCZOS)
+    # Maskable ja traz a area de seguranca do PWA: nao encolher pela segunda vez.
+    # Android recorta a forma (circulo, squircular etc) via adaptive-icon.xml.
+    maskable512.resize((432,432),Image.Resampling.LANCZOS).save(
+        drawable/'ic_launcher_foreground.png',optimize=True)
+    splash=Image.new('RGBA',(1152,1152),(*tuple(int(theme_color[i:i+2],16) for i in (1,3,5)),255))
+    mid=ImageOps.contain(standard512,(440,440),Image.Resampling.LANCZOS)
     splash.alpha_composite(mid,((1152-mid.width)//2,(1152-mid.height)//2))
     splash.convert('RGB').save(drawable/'splash.png',optimize=True)
-    alpha=foreground(96,.72).getchannel('A').filter(ImageFilter.MaxFilter(3)).point(lambda x: 255 if x>=42 else 0)
-    stat=Image.new('RGBA',(96,96),(255,255,255,0));stat.putalpha(alpha)
+    # Ic. de status monocromatico derivado da arte PWA (nunca do Admin).
+    sample=standard512.resize((96,96),Image.Resampling.LANCZOS)
+    alpha=sample.getchannel('A')
+    if alpha.getextrema()==(255,255):
+        # Caso a arte oficial seja RGB opaca, retirar a cor de fundo da borda.
+        base=sample.getpixel((0,0))[:3]
+        rgb=sample.convert('RGB')
+        diff=ImageChops.difference(rgb,Image.new('RGB',rgb.size,base))
+        alpha=ImageOps.grayscale(diff).point(lambda value:255 if value>=18 else 0)
+    alpha=alpha.filter(ImageFilter.MaxFilter(3))
+    stat=Image.new('RGBA',(96,96),(255,255,255,0)); stat.putalpha(alpha)
     stat.save(drawable/'ic_stat_dfl_cliente.png',optimize=True)
     # The selector owns the CI lifecycle; never publish unverified metadata.
     gradle_text=gradle.read_text(encoding='utf-8')
@@ -92,6 +145,6 @@ def main():
     assert '@drawable/ic_stat_dfl_cliente' in manifest_text
     assert (java.parent/'cliente/EntryActivity.java').is_file()
     assert (drawable/'ic_launcher_foreground.png').stat().st_size>0
-    print('R229 APK CLIENTE: launcher isolado, icones prontos, origem HTTPS verificada; assinatura no CI')
+    print('R230 APK CLIENTE: 3 PNGs do manifesto PWA, adaptive maskable, legacy arredondado; assinatura no CI')
 
 if __name__=='__main__':main()

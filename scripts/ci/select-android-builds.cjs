@@ -9,7 +9,7 @@ function scopeOf(path) {
   if (/^(?:docs\/|\.github\/ISSUE_TEMPLATE\/|README(?:\.|$)|.*\.(?:md|txt)$)/i.test(p)) return 'none';
   if (/^(?:android-admin\/|src\/app\/admin\/|src\/components\/admin\/|src\/hooks\/useAdmin|src\/lib\/admin|src\/app\/api\/admin\/|public\/admin[-.]|scripts\/generate-admin-android-assets\.py)/.test(p)) return 'admin';
   if (/^(?:src\/app\/\.well-known\/|\.github\/workflows\/build-admin-android\.yml|src\/components\/layout\/|src\/lib\/firebase\.|src\/lib\/integration\/)/.test(p)) return 'both';
-  if (/^(?:android-cliente\/|scripts\/prepare-client-android\.py|public\/manifest\.json|public\/(?:icon-|apple-touch-icon|favicon)|src\/data\/)/.test(p)) return 'cliente';
+  if (/^(?:android-cliente\/|scripts\/(?:prepare-client-android|verify-client-android-icons)\.py|public\/manifest\.json|public\/(?:icon-|apple-touch-icon|favicon)|src\/data\/)/.test(p)) return 'cliente';
   if (/^(?:src\/components\/|src\/app\/|src\/hooks\/|public\/)/.test(p)) return 'cliente';
   if (/^(?:scripts\/|\.github\/)/.test(p)) return 'none';
   // Unknown runtime/config: prefer conservative paired build.

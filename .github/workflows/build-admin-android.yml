@@ -115,6 +115,7 @@ jobs:
           node scripts/test-site-r228-relay-separation.cjs
           node scripts/test-site-r228-checkout-compat.cjs
           node scripts/test-site-r229-alarm-client.cjs
+          node scripts/test-site-r230-client-icon.cjs
           node scripts/test-android-release-gate-v50-1.mjs
           node scripts/test-site-r102-preopening.cjs
           node node_modules/typescript/bin/tsc --noEmit
@@ -235,13 +236,17 @@ jobs:
         run: |
           npm ci
           node scripts/test-site-r229-alarm-client.cjs
+          node scripts/test-site-r230-client-icon.cjs
           node scripts/test-site-sales-r5-ui-recovery.cjs
           node scripts/test-site-r228-checkout-compat.cjs
       - name: Gerar APK cliente a partir do launcher estavel
         run: |
           python3 -m pip install --disable-pip-version-check pillow
           python3 scripts/prepare-client-android.py
+          python3 scripts/verify-client-android-icons.py
           test -s android-cliente/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          test -s android-cliente/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+          test -s android-cliente/app/src/main/res/drawable-nodpi/ic_launcher_foreground.png
           test -s android-cliente/app/src/main/res/drawable-nodpi/ic_stat_dfl_cliente.png
       - name: Assinatura estavel da familia Android
         env:
