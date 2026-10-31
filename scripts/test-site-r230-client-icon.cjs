@@ -38,4 +38,5 @@ const checks=[
  ['Identidade do Admin nao foi editada',!source.includes("DEST=ROOT/'android-admin'")],
 ];
 for(const [label,ok] of checks)assert.ok(ok,label);
+require('./test-site-r231-client-launcher.cjs');
 console.log(`R230: ${checks.length} contratos visuais, fonte unica PWA e protecao de CI OK (sem pedidos reais)`);

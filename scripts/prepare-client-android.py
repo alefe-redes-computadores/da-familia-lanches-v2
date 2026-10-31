@@ -73,6 +73,14 @@ def rewrite(path,changes):
         s=s.replace(old,new)
     path.write_text(s,encoding='utf-8')
 
+def rewrite_optional(path,changes):
+    """Replace optional references only when present in each Java class."""
+    source=path.read_text(encoding='utf-8')
+    for old,new in changes:
+        source=source.replace(old,new)
+    path.write_text(source,encoding='utf-8')
+
+
 def main():
     standard192, standard512, maskable512, theme_color=pwa_assets()
     if not SOURCE.joinpath('app/src/main/java/br/com/dafamilialanches/admin/EntryActivity.java').is_file():
@@ -84,11 +92,16 @@ def main():
     shutil.copytree(SOURCE,DEST,ignore=ignored)
     main=DEST/'app/src/main'
     java=main/'java/br/com/dafamilialanches/admin'
-    for path in java.glob('*.java'):
-        rewrite(path,[('package br.com.dafamilialanches.admin','package '+TARGET_PACKAGE),
+    for path in sorted(java.glob('*.java')):
+        # Cada classe Java precisa do package, mas nem todas contêm URL,
+        # nomes visuais ou funções de diagnóstico. Esses dados são opcionais.
+        rewrite(path,[('package br.com.dafamilialanches.admin','package '+TARGET_PACKAGE)])
+        rewrite_optional(path,[
           ('admin.dafamilialanches.com.br',TARGET_HOST),
           ('DFL Admin','DFL Cliente'),('DFL ADMIN','DFL CLIENTE'),
-          ('AdminInBrowser','ClienteInBrowser'),('dfl_admin_native_diagnostics','dfl_cliente_native_diagnostics')])
+          ('AdminInBrowser','ClienteInBrowser'),
+          ('dfl_admin_native_diagnostics','dfl_cliente_native_diagnostics'),
+        ])
     java.rename(java.parent/'cliente')
     manifest=main/'AndroidManifest.xml'
     rewrite(manifest,[('admin.dafamilialanches.com.br',TARGET_HOST),
@@ -144,7 +157,12 @@ def main():
     assert 'admin.dafamilialanches.com.br' not in manifest_text
     assert '@drawable/ic_stat_dfl_cliente' in manifest_text
     assert (java.parent/'cliente/EntryActivity.java').is_file()
+    for generated in sorted((java.parent/'cliente').glob('*.java')):
+        content=generated.read_text(encoding='utf-8')
+        assert 'package '+TARGET_PACKAGE+';' in content, 'Pacote Java diferente: '+generated.name
+        assert 'br.com.dafamilialanches.admin' not in content, 'Referencia Admin: '+generated.name
+        assert 'admin.dafamilialanches.com.br' not in content, 'Host Admin: '+generated.name
     assert (drawable/'ic_launcher_foreground.png').stat().st_size>0
-    print('R230 APK CLIENTE: 3 PNGs do manifesto PWA, adaptive maskable, legacy arredondado; assinatura no CI')
+    print('R231 APK CLIENTE: Java opcional seguro + 3 PNGs do manifesto PWA, adaptive maskable, legacy arredondado; assinatura no CI')
 
 if __name__=='__main__':main()
