@@ -55,5 +55,9 @@ jobs:
         run: node scripts/test-site-r106-pwa-polish.cjs
       - name: R107 - Locks de rolagem sem sobreposicao
         run: node scripts/test-site-r107-scroll-lock.cjs
+      - name: R228 - Transporte e mensagens independentes
+        run: node scripts/test-site-r228-relay-separation.cjs
+      - name: R228 - Checkout incerto protegido
+        run: node scripts/test-site-r228-checkout-compat.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs

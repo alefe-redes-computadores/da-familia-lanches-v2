@@ -78,6 +78,8 @@ jobs:
           node scripts/test-site-r105-closing.cjs
           node scripts/test-site-r106-pwa-polish.cjs
           node scripts/test-site-r107-scroll-lock.cjs
+          node scripts/test-site-r228-relay-separation.cjs
+          node scripts/test-site-r228-checkout-compat.cjs
           node scripts/test-android-release-gate-v50-1.mjs
           node scripts/test-site-r102-preopening.cjs
           node node_modules/typescript/bin/tsc --noEmit

@@ -70,6 +70,10 @@ export interface IntegrationOutboxRecord<
   locked_by?: string;
   locked_at?: string;
   processed_at?: string;
+  /** HTTP 2xx confirmado pelo Entregas; nunca reenvia durante retry da mensagem. */
+  transport_acknowledged_at?: string;
+  transport_first_attempt_at?: string;
+  transport_http_status?: number;
   created_at: string;
   updated_at: string;
 }

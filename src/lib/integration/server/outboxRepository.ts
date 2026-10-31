@@ -146,12 +146,41 @@ export async function claimOutboxBatch(options: {
   return claimed;
 }
 
-export async function markOutboxSent(claimed: ClaimedOutboxEvent, workerId: string) {
-  await adminDb.runTransaction(async (tx) => {
+/** Persiste o reconhecimento remoto somente APOS o 2xx do Entregas.
+ * Um retry da mensageria passa a ignorar o transporte ja confirmado.
+ */
+export async function markOutboxTransportAcknowledged(
+  claimed: ClaimedOutboxEvent,
+  workerId: string,
+  status: number,
+  firstAttemptAt: string,
+): Promise<boolean> {
+  if (!Number.isInteger(status) || status < 200 || status >= 300) {
+    throw new Error("Somente HTTP 2xx permite reconhecimento da logística.");
+  }
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(claimed.ref);
+    if (!snap.exists) return false;
+    const record = snap.data() as IntegrationOutboxRecord;
+    if (record.status !== "processing" || record.locked_by !== workerId) return false;
+    if (record.transport_acknowledged_at) return true;
+    const now = isoNow();
+    tx.update(claimed.ref, {
+      transport_acknowledged_at: now,
+      transport_first_attempt_at: firstAttemptAt,
+      transport_http_status: status,
+      updated_at: now,
+    });
+    return true;
+  });
+}
+
+export async function markOutboxSent(claimed: ClaimedOutboxEvent, workerId: string): Promise<boolean> {
+  return adminDb.runTransaction(async (tx) => {
     const snapshot = await tx.get(claimed.ref);
-    if (!snapshot.exists) return;
+    if (!snapshot.exists) return false;
     const current = snapshot.data() as IntegrationOutboxRecord;
-    if (current.status !== "processing" || current.locked_by !== workerId) return;
+    if (current.status !== "processing" || current.locked_by !== workerId) return false;
     const now = isoNow();
     tx.update(claimed.ref, {
       status: "sent",
@@ -162,6 +191,7 @@ export async function markOutboxSent(claimed: ClaimedOutboxEvent, workerId: stri
       next_attempt_at: null,
       last_error: null,
     });
+    return true;
   });
 }
 

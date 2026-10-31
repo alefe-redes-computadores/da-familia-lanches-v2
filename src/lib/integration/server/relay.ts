@@ -7,6 +7,7 @@ import {
   readSentOutboxEvent,
   markOutboxFailed,
   markOutboxSent,
+  markOutboxTransportAcknowledged,
   type ClaimedOutboxEvent,
 } from "./outboxRepository";
 import { integrationSignature } from "./signature";
@@ -107,33 +108,94 @@ async function processClaimed(
 
   for (const item of claimed) {
     const eventId = item.record.event_id;
+    const startedAtMs = Date.now();
     try {
       const event = eventFromOutbox(item.record as unknown as Record<string, unknown>);
+      // Logistica e persistencia da mensagem iniciam juntas.
+      // Uma espera de WhatsApp jamais antecede o POST ao Entregas.
+      const previouslyAcknowledged = Boolean(item.record.transport_acknowledged_at);
+      const firstAttemptAt = new Date().toISOString();
+      const transport = previouslyAcknowledged
+        ? Promise.resolve(Number(item.record.transport_http_status) || 200)
+        : sendEvent(config.targetUrl!, config.signingSecret!, event, config.requestTimeoutMs);
+      const projection = ensureCommercialMessagingIntent(event);
+      const [transportOutcome, projectionOutcome] = await Promise.allSettled([transport, projection]);
 
-      // Mensagem comercial e projeção logística são ramos independentes.
-      // Um receiver do Entregas indisponível não pode impedir o aviso ao cliente.
-      const messagingIntent = await ensureCommercialMessagingIntent(event);
-      if ("intentId" in messagingIntent && messagingIntent.intentId) {
-        const fastLane = await drainMessagingIntentFastLane(messagingIntent.intentId);
-        if (fastLane.attempted && !fastLane.queued) console.warn("[integration/messaging] fast-lane falhou; fallback preservado", { eventId: event.event_id, reason: fastLane.reason });
+      // A mensagem tem fila e tentativas proprias. Fast-lane nao altera o estado
+      // de entrega ao Entregas; erros nao ressuscitam eventos ja recebidos.
+      const lane: Promise<unknown> = projectionOutcome.status === "fulfilled" &&
+        "intentId" in projectionOutcome.value && projectionOutcome.value.intentId
+        ? drainMessagingIntentFastLane(projectionOutcome.value.intentId)
+            .then((delivery) => {
+              if (delivery.attempted && !delivery.queued)
+                console.warn("[integration/messaging] fast-lane pendente; fila preservada", {
+                  eventId, reason: delivery.reason,
+                });
+            })
+            .catch((error) => {
+              console.warn("[integration/messaging] fast-lane falhou; fila preservada", {
+                eventId, kind: error instanceof Error ? error.name : "unknown",
+              });
+            })
+        : Promise.resolve();
+
+      if (transportOutcome.status === "fulfilled" && !previouslyAcknowledged) {
+        const acknowledged = await markOutboxTransportAcknowledged(
+          item, config.workerId, transportOutcome.value, firstAttemptAt,
+        );
+        if (!acknowledged) {
+          await lane;
+          throw new Error("Lease alterado antes de persistir o 2xx da logística.");
+        }
+      }
+      if (transportOutcome.status === "rejected") {
+        await lane;
+        throw transportOutcome.reason;
+      }
+      // Quando a mensagem nao pode sequer ser persistida, retemos o evento
+      // para retry SEM repetir o HTTP ja reconhecido pelo Entregas.
+      if (projectionOutcome.status === "rejected") {
+        await lane;
+        throw projectionOutcome.reason;
       }
 
-      const status = await sendEvent(config.targetUrl!, config.signingSecret!, event, config.requestTimeoutMs);
-      if (event.entity_type === "order" && (event.event_type === "order.created" || event.event_type === "order.updated")) {
-        await projectOrderEvent(event);
+      const markedSent = await markOutboxSent(item, config.workerId);
+      if (!markedSent) {
+        await lane;
+        throw new Error("Lease alterado antes do fechamento da outbox.");
       }
-      await markOutboxSent(item, config.workerId);
-      result.sent += 1;
-      result.results.push({ eventId, ok: true, status });
+      result.sent++;
+      result.results.push({ eventId, ok: true, status: transportOutcome.value });
+
+      // Analytics e fast-lane sao pos-ack: falhas nao mudam uma entrega 2xx
+      // para failed, nem geram um POST duplicado a cada retry analitico.
+      const analytics: Promise<unknown> = event.entity_type === "order" &&
+        (event.event_type === "order.created" || event.event_type === "order.updated")
+        ? projectOrderEvent(event) : Promise.resolve();
+      const effects = await Promise.allSettled([lane, analytics]);
+      if (effects[1].status === "rejected") {
+        console.warn("[integration/analytics] falha isolada; backfill continua disponivel", {
+          eventId, kind: effects[1].reason instanceof Error ? effects[1].reason.name : "unknown",
+        });
+      }
+      console.info("[integration/relay] entrega reconhecida", {
+        eventId, status: transportOutcome.value,
+        alreadyAcknowledged: previouslyAcknowledged,
+        originalEventAt: event.occurred_at,
+        durationMs: Date.now() - startedAtMs,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha desconhecida no relay.";
       await markOutboxFailed(item, config.workerId, message, config.maxAttempts);
-      result.failed += 1;
-      if (item.record.attempts >= config.maxAttempts) result.deadLetterCandidates += 1;
+      result.failed++;
+      if (item.record.attempts >= config.maxAttempts) result.deadLetterCandidates++;
       result.results.push({ eventId, ok: false, error: message });
+      console.warn("[integration/relay] retry preservado", {
+        eventId, durationMs: Date.now() - startedAtMs,
+        kind: error instanceof Error ? error.name : "unknown",
+      });
     }
   }
-
   return result;
 }
 

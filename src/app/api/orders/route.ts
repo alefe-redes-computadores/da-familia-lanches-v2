@@ -407,6 +407,27 @@ export async function POST(request: NextRequest) {
         tx.set(adminDb.doc(`Usuarios/${decoded.uid}/Loyalty/state`), { version: 2, totalOrders: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       }
       tx.create(adminDb.collection(INTEGRATION_COLLECTIONS.outbox).doc(encodeURIComponent(event.event_id)), buildOutboxRecord(event, occurredAt));
+      // DFL R228: o intento de mensagem inicial nasce na MESMA transacao
+      // do pedido e da outbox. Falhas do Entregas nao cancelam WhatsApp.
+      tx.create(adminDb.collection("integration_notification_intents").doc(
+        encodeURIComponent(`intent-msg-v1__${event.event_id}`)
+      ), {
+        intent_id: `intent-msg-v1__${event.event_id}`,
+        intent_type: "commercial_message",
+        source_event_id: event.event_id,
+        source_event_type: event.event_type,
+        messaging_event_type: "order.created",
+        messaging_source: "site",
+        messaging_eligible: true,
+        order_id: orderRef.id,
+        customer_phone: `+55${phone.replace(/\D/g, "")}`,
+        customer_name: text(customer.name, 120) || text(incoming.userName, 120) || "Cliente",
+        total,
+        status: "pending",
+        schema_version: 2,
+        created_at: occurredAt,
+        updated_at: occurredAt,
+      });
       // DFL-LATENCY-20261025: durable push dispatch before immediate HTTP 201.
       // A fila do worker de notificacoes recupera mesmo se a tarefa post-response nao executar.
       const pushDispatchId = createHash("sha256").update(`admin-new-order-v1:${orderRef.id}`).digest("hex");
