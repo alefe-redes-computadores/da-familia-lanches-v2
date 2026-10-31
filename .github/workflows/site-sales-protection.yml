@@ -47,5 +47,7 @@ jobs:
         run: node scripts/test-site-r102-preopening.cjs
       - name: R103 - Identidade visual isolada de checkout e precos
         run: node scripts/test-visual-campaign-r103.cjs
+      - name: R104 - Campanhas seguras e vitrine acessível
+        run: node scripts/test-visual-campaign-r104.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs

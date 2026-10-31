@@ -14,6 +14,6 @@ must(co.includes('placeholder="Nº"'), 'número compacto no mobile');
 must(co.includes('readGuestIdentity()'), 'checkout hidrata perfil guest independente do carrinho');
 must(co.includes('Entrega grátis configurada para'), 'frete grátis explica regra do bairro');
 must(!page.includes('#{guestLastOrder.id.slice(0,8)'), 'Home não expõe ID técnico truncado');
-must(page.includes('{!showAllOffers && <div className={styles.promoRail}>'), 'grade completa substitui teaser de ofertas');
+must(page.includes('showcaseProducts.slice(0,2)')&&page.includes('styles.r104OffersExpanded'), 'grade completa substitui teaser de ofertas');
 must(header.includes('Sincronizar com Google') && header.includes('viewBox="0 0 24 24"'), 'perfil local ganhou CTA Google visual');
 console.log('V56.3 MACROCIRURGIA: CONTRATOS OK');

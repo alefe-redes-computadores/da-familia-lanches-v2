@@ -38,7 +38,7 @@ check('Banner tem prioridade e Assist na Home nao duplica chamada',()=>{
  assert(read('src/app/page.module.css').includes('dflAssistWelcomeR103'));
  assert(read('src/app/page.module.css').includes('prefers-reduced-motion:reduce'));
 });
-check('Carrossel de ofertas permanece sem duplicacao',()=>{assert(home.includes('promoProducts.slice(0, 4)'));assert(home.includes('new Set(promoProducts.map((product) => product.id))'))});
+check('Carrossel de ofertas permanece sem duplicacao',()=>{assert(home.includes('showcaseProducts.slice(0,2)'));assert(home.includes('exclusive?showcaseProducts:promoProducts'))});
 check('Checkout e pedidos permanecem protegidos',()=>{for(const s of ['orderAttemptRef.current','confirmedOrderId = created.id','createCustomerOrder'])assert(checkout.includes(s),s);assert(orderApi.includes('requestFingerprint')&&orderApi.includes('tx.create(orderRef, canonicalOrder)'))});
 check('Carregamento WebP com arquivo e assinatura reais',()=>{assert(upload.includes('RIFF')&&upload.includes('WEBP')&&upload.includes('createHash'));assert(read('src/lib/campaignImageClient.ts').includes('canvas.toBlob'))});
 check('Workflow Android e vendas contêm gate R103',()=>{for(const p of ['.github/workflows/build-admin-android.yml','.github/workflows/site-sales-protection.yml'])assert(read(p).includes('node scripts/test-visual-campaign-r103.cjs'),p)});

@@ -81,6 +81,24 @@ export default function Home() {
   const deferredSearch = useDeferredValue(search);
   const [activeCategory, setActiveCategory] = useState<string>("todos");
   const [showAllOffers, setShowAllOffers] = useState(false);
+  const [highlightOffers,setHighlightOffers] = useState(false);
+  const offersScrollPending = useRef(false);
+  useEffect(()=>{
+    const expand=()=>{offersScrollPending.current=true;setShowAllOffers(true);setSearch("");setActiveCategory("todos");};
+    window.addEventListener("dfl:campaign-offers-open",expand);
+    return()=>window.removeEventListener("dfl:campaign-offers-open",expand);
+  },[]);
+  useEffect(()=>{
+    if(!showAllOffers||!offersScrollPending.current)return;
+    offersScrollPending.current=false;
+    const target=document.getElementById("dfl-family-offers");
+    if(!target)return;
+    const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({behavior:reduced?"auto":"smooth",block:"start"});
+    setHighlightOffers(true);
+    const timer=window.setTimeout(()=>setHighlightOffers(false),1500);
+    return()=>window.clearTimeout(timer);
+  },[showAllOffers]);
   const [recentProductIds, setRecentProductIds] = useState<string[]>([]);
   const [savedProductIds, setSavedProductIds] = useState<string[]>([]);
   const [clearFavoritesConfirm, setClearFavoritesConfirm] = useState(false);
@@ -177,10 +195,35 @@ export default function Home() {
     [products, visibleCategoryIds],
   );
 
+  // R104: IDs reais controlados no Admin; no legado preserva as seis ofertas comerciais existentes.
+  const showcaseProducts=useMemo(()=>{
+    const ids=campaign?.scopes.includes("offers") ? campaign.offerProductIds : [];
+    if(!ids?.length)return promoProducts;
+    const indexed=new Map(products.filter(product=>product.disponivel!==false&&
+      typeof product.oldPrice==="number"&&product.oldPrice>product.price&&visibleCategoryIds.has(product.category))
+      .map(product=>[product.id,product]));
+    return ids.map(id=>indexed.get(id)).filter((product):product is Product=>Boolean(product)).slice(0,12);
+  },[campaign,products,promoProducts,visibleCategoryIds]);
+  const renderShowcaseOffer=(product:Product,promoIndex:number,expanded:boolean)=>{
+    const validDiscount=typeof product.oldPrice==="number"&&Number.isFinite(product.oldPrice)&&product.oldPrice>product.price;
+    const pct=validDiscount?Math.round((1-product.price/product.oldPrice!)*100):0;
+    return <button type="button" key={`offer-${product.id}`} className={`${styles.r104OfferCard} ${expanded?styles.r104OfferCardExpanded:styles.r104OfferCardPreview}`}
+      onClick={()=>openProduct(product)} aria-label={`Ver e personalizar ${product.name}`}>
+      <div className={styles.r104OfferImage}><CatalogImage src={product.image} alt="" sizes={expanded?"(max-width: 699px) 100px, 140px":"(max-width: 699px) 92px, 118px"} quality={70} priority={promoIndex === 0}/></div>
+      <div className={styles.r104OfferContent}>
+        <span className={styles.r104OfferBadge} data-dfl-campaign-badge="true">{(campaign?.scopes.includes("offers") && campaign.badgeLabel)||"OFERTA"}{pct>0?` · -${pct}%`:""}</span>
+        <strong className={styles.r104OfferName}>{product.name}</strong>
+        <div className={styles.r104OfferPrices}>{validDiscount&&<s>{money(product.oldPrice!)}</s>}<b>{money(product.price)}</b></div>
+        <small>Ver e personalizar <span aria-hidden="true">›</span></small>
+      </div>
+    </button>;
+  };
+
   // V87 R1: uma indexação por render, sem filtragens/ordenações repetidas por categoria.
   const groupedProducts = useMemo(() => {
-    const excludePromos = activeCategory === "todos" && !search.trim();
-    const promoIds = excludePromos ? new Set(promoProducts.map((product) => product.id)) : null;
+    const exclusive=Boolean(campaign?.scopes.includes("offers")&&campaign.exclusiveShowcase);
+    const excludePromos=!search.trim() && (exclusive || activeCategory === "todos");
+    const promoIds=excludePromos?new Set((exclusive?showcaseProducts:promoProducts).map(product=>product.id)):null;
     const groups = new Map<string, Product[]>();
     for (const product of filtered) {
       if (promoIds?.has(product.id)) continue;
@@ -190,7 +233,7 @@ export default function Home() {
     }
     for (const group of groups.values()) group.sort(compareCatalogProducts);
     return groups;
-  }, [activeCategory, filtered, promoProducts, search]);
+  }, [activeCategory, filtered, promoProducts, showcaseProducts, campaign, search]);
 
   // R29: favoritos e recentes consultam indice local em O(1), sem novas consultas.
   const productById = useMemo(() => new Map(products.map(product => [product.id, product])), [products]);
@@ -254,22 +297,17 @@ export default function Home() {
         </div>
         {!currentUser && guestLastOrder && <CustomerExperiencePrompt />}
         {catalogLoading && <section className={styles.catalogSkeleton} aria-label="Carregando cardápio" aria-busy="true"><div className={styles.skeletonTitle}/><div className={styles.skeletonGrid}>{[0,1,2,3].map((item)=><div className={styles.skeletonCard} key={item}><i/><span/><b/></div>)}</div></section>}
-        {activeCategory === "todos" && !search.trim() && promoProducts.length > 0 && (
-          <section className={styles.promoShowcase} id="dfl-family-offers" data-dfl-campaign-offers="true">
+        {activeCategory === "todos" && !search.trim() && showcaseProducts.length > 0 && (
+          <section className={styles.promoShowcase} id="dfl-family-offers" data-dfl-campaign-offers="true" data-highlight={highlightOffers?"true":"false"} aria-label="Ofertas da Família">
             <div className={styles.promoShowcaseHead}>
-              <div><span>{(campaign?.scopes.includes("offers") && campaign.offersTitle) || "OFERTAS DA FAMÍLIA"}</span><h2>Preço bom pra pedir agora</h2><p>Promoções ativas no cardápio, sem precisar de cupom.</p></div>
-              <button type="button" className={styles.allOffersButton} onClick={()=>setShowAllOffers(v=>!v)}>{showAllOffers?"Fechar ofertas":`Ver ${promoProducts.length} ofertas`}</button>
+              <div><span data-dfl-campaign-heading="true">{(campaign?.scopes.includes("offers") && campaign.offersTitle)||"OFERTAS DA FAMÍLIA"}</span><h2>Preço bom pra pedir agora</h2></div>
+              <button type="button" data-dfl-campaign-expand="true" aria-expanded={showAllOffers} aria-controls="dfl-offers-products" className={styles.allOffersButton}
+                onClick={()=>setShowAllOffers(value=>!value)}>{showAllOffers?"Mostrar menos ofertas":`Ver todas as ${showcaseProducts.length} ofertas`}</button>
             </div>
-            {!showAllOffers && <div className={styles.promoRail}>
-              {promoProducts.slice(0, 4).map((product, promoIndex) => {
-                const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
-                return <article className={styles.promoHeroCard} key={`promo-${product.id}`} role="button" tabIndex={0} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openProduct(product); } }}>
-                  <div className={styles.promoHeroMedia}><CatalogImage src={product.image} alt="" sizes="(max-width: 699px) 74px, 82px" priority={promoIndex === 0} quality={70} /><span>-{discount}%</span></div>
-                  <div className={styles.promoHeroCopy}><small data-dfl-campaign-badge="true">{(campaign?.scopes.includes("offers") && campaign.badgeLabel) || "OFERTA ATIVA"}</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em><span className={styles.promoHint}>Toque para ver e personalizar</span></div>
-                </article>;
-              })}
-            </div>}
-            {showAllOffers && <div className={styles.offerGrid}>{promoProducts.map(product=><button type="button" key={`grid-${product.id}`} className={styles.offerGridCard} onClick={()=>openProduct(product)}><CatalogImage src={product.image} alt="" sizes="42vw" quality={68}/><span><b>{product.name}</b><s>{money(product.oldPrice!)}</s><strong>{money(product.price)}</strong><small>Ver e personalizar ›</small></span></button>)}</div>}
+            <div id="dfl-offers-products" className={showAllOffers?styles.r104OffersExpanded:styles.r104OffersPreview}>
+              {(showAllOffers?showcaseProducts:showcaseProducts.slice(0,2)).map((product,index)=>renderShowcaseOffer(product,index,showAllOffers))}
+            </div>
+            {!showAllOffers && showcaseProducts.length>2 && <p className={styles.r104OffersHint}>Deslize para conhecer as ofertas ou toque em “Ver todas”.</p>}
           </section>
         )}
 

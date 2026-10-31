@@ -17,12 +17,23 @@ const home=fs.readFileSync('src/app/page.tsx','utf8'),product=fs.readFileSync('s
 assert.ok(home.includes('recentlyViewed.map((product)'));assert.ok(home.includes('!search.trim() && recentlyViewed.length > 0'));
 // R30 R3: pertencimento da categoria continua obrigatorio, inclusive usando Set memoizado.
 const legacyCategoryFilter = home.includes('category.id === product.category');
+// V90 R104: proteger CADA origem da vitrine; não usar contagem exata de filtros.
+// A quarta checagem é necessária para IDs escolhidos na Central de Campanhas.
+const categoryCheckIn = (begin, end) => {
+  const start = home.indexOf(begin);
+  if (start < 0) return false;
+  const finish = home.indexOf(end, start + begin.length);
+  return finish > start && home.slice(start, finish).includes('visibleCategoryIds.has(product.category)');
+};
 const optimizedCategoryFilter =
   home.includes('const visibleCategoryIds = useMemo(() => new Set(categories.map((category) => category.id)), [categories]);') &&
   home.includes('const visibleCategories = visibleCategoryIds;') &&
-  (home.match(/visibleCategoryIds\.has\(product\.category\)/g) || []).length === 3;
-assert.ok(legacyCategoryFilter || optimizedCategoryFilter,
-  'V90: categoria deve ser validada em ofertas, favoritos e vistos, com indice ou comparacao direta');
+  categoryCheckIn('const promoProducts = useMemo(', '// R104: IDs reais') &&
+  categoryCheckIn('const showcaseProducts=useMemo(', 'const renderShowcaseOffer=') &&
+  categoryCheckIn('const savedProducts = useMemo(', 'const recentlyViewed = useMemo(') &&
+  categoryCheckIn('const recentlyViewed = useMemo(', 'const openProduct =');
+assert.ok(optimizedCategoryFilter,
+  'V90 R104: filtro de categoria em ofertas, vitrine, favoritos e vistos');
 assert.ok(home.includes('product.disponivel !== false'));
 
 assert.ok(product.includes('rememberRecentProductId(product.id)'));

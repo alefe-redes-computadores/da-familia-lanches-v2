@@ -16,6 +16,8 @@ export type VisualCampaign = {
   offersTitle: string; badgeLabel: string; seoTitle: string; seoDescription: string;
   // O anúncio da promoção com preço só é mostrado quando coincide com o catálogo.
   requiredOfferName: string; requiredOfferPrice: number | null;
+  /** R104: seleção por IDs reais e exclusividade APENAS na vitrine, não na busca/compra. */
+  offerProductIds: string[]; exclusiveShowcase: boolean;
 };
 
 export const BRAZIL_ZONE = "America/Sao_Paulo";
@@ -27,7 +29,7 @@ export const SCOPE_OPTIONS: {key:CampaignScope;label:string}[] = [
 const BF_PALETTE: CampaignPalette = {
   background:"#0B0B0D",surface:"#18181B",text:"#FAFAFA",muted:"#A1A1AA",
   accent:"#FACC15",accentText:"#0B0B0D",button:"#FACC15",buttonText:"#0B0B0D",
-  badge:"#FACC15",badgeText:"#0B0B0D",
+  badge:"#18181B",badgeText:"#FACC15",
 };
 const CHRISTMAS_PALETTE: CampaignPalette = {
   background:"#103B2D",surface:"#184B39",text:"#FFF8ED",muted:"#D8E6D9",
@@ -49,7 +51,7 @@ export const DEFAULT_VISUAL_CAMPAIGNS: VisualCampaign[] = [
     destination:"offers",destinationUrl:"",cta:"Ver ofertas",offersTitle:"Ofertas da Família — Especial Black Friday",badgeLabel:"BLACK FRIDAY",
     seoTitle:"Da Família Lanches | Black Friday em Patos de Minas",
     seoDescription:"A Black Friday chegou à Da Família Lanches! Confira ofertas especiais em hambúrgueres e combos. Peça online em Patos de Minas.",
-    requiredOfferName:"5 UAI",requiredOfferPrice:49.99},
+    requiredOfferName:"5 UAI",requiredOfferPrice:49.99,offerProductIds:[],exclusiveShowcase:true},
   {id:"natal-da-familia-2026",name:"Natal da Família 2026",publicName:"NATAL DA FAMÍLIA",
     slogan:"O melhor presente é reunir quem a gente ama!",headline:"Natal da Família",
     subtitle:"Ofertas para compartilhar com quem faz parte da sua história.",
@@ -57,7 +59,7 @@ export const DEFAULT_VISUAL_CAMPAIGNS: VisualCampaign[] = [
     palette:CHRISTMAS_PALETTE,scopes:["header","home","offers","catalog","checkout","footer"],
     destination:"offers",destinationUrl:"",cta:"Ver ofertas",offersTitle:"Natal da Família — Ofertas para compartilhar",badgeLabel:"NATAL DA FAMÍLIA",
     seoTitle:"Natal da Família | Hambúrgueres e Combos em Patos de Minas",seoDescription:"Celebre o Natal com a Da Família Lanches.",
-    requiredOfferName:"",requiredOfferPrice:null},
+    requiredOfferName:"",requiredOfferPrice:null,offerProductIds:[],exclusiveShowcase:false},
   {id:"virada-da-familia-2027",name:"Virada da Família 2027",publicName:"VIRADA DA FAMÍLIA",
     slogan:"Ano novo, fome de coisa boa!",headline:"Comece o ano com sabor de Família",
     subtitle:"Ano novo, fome de coisa boa!",bannerDesktop:"",bannerMobile:"",
@@ -65,7 +67,7 @@ export const DEFAULT_VISUAL_CAMPAIGNS: VisualCampaign[] = [
     palette:NEW_YEAR_PALETTE,scopes:["header","home","offers","catalog","checkout","footer"],
     destination:"offers",destinationUrl:"",cta:"Ver ofertas",offersTitle:"Virada da Família — Ofertas especiais",badgeLabel:"VIRADA DA FAMÍLIA",
     seoTitle:"Ano Novo na Da Família Lanches | Patos de Minas",seoDescription:"Comece o ano com sabor de Família.",
-    requiredOfferName:"",requiredOfferPrice:null},
+    requiredOfferName:"",requiredOfferPrice:null,offerProductIds:[],exclusiveShowcase:false},
 ];
 
 export function brazilDate(date: Date = new Date()): string {
@@ -137,6 +139,14 @@ export function normalizeVisualCampaign(raw:unknown):VisualCampaign {
   const scopes=Array.isArray(r.scopes)?[...new Set(r.scopes.filter((v):v is CampaignScope=>typeof v==="string"&&SCOPE_OPTIONS.some(x=>x.key===v)))]:[];
   const priority=r.priority;
   if(typeof priority!=="number"||!Number.isInteger(priority)||priority<0||priority>999)throw Error("CAMPAIGN_PRIORITY_INVALID");
+  if(r.offerProductIds!==undefined && !Array.isArray(r.offerProductIds)) throw Error("CAMPAIGN_OFFER_IDS_INVALID");
+  const offerProductIds=Array.isArray(r.offerProductIds)?r.offerProductIds:[];
+  if(offerProductIds.length>12 || offerProductIds.some(v=>typeof v!=="string" || !/^[a-z0-9_-]{1,100}$/i.test(v)) || new Set(offerProductIds).size!==offerProductIds.length) throw Error("CAMPAIGN_OFFER_IDS_INVALID");
+  if(r.exclusiveShowcase!==undefined && typeof r.exclusiveShowcase!=="boolean") throw Error("CAMPAIGN_EXCLUSIVE_INVALID");
+  // Migração de campanhas R103 armazenadas: troca badge amarelo antigo sem mexer na escolha manual posterior.
+  if(id==="black-friday-da-familia-2026" && p.badge==="#FACC15" && p.badgeText==="#0B0B0D"){
+    p.badge="#18181B"; p.badgeText="#FACC15";
+  }
   const requiredOfferName=text(r.requiredOfferName,70);
   const requiredOfferPrice=r.requiredOfferPrice===null||r.requiredOfferPrice===undefined?null:r.requiredOfferPrice;
   if(requiredOfferPrice!==null && (typeof requiredOfferPrice!=="number"||!Number.isFinite(requiredOfferPrice)||requiredOfferPrice<0||requiredOfferPrice>100000))throw Error("CAMPAIGN_OFFER_PRICE_INVALID");
@@ -144,7 +154,9 @@ export function normalizeVisualCampaign(raw:unknown):VisualCampaign {
     bannerDesktop,bannerMobile,startsOn,endsOn,status:status as CampaignStatus,priority,palette:p,scopes,
     destination:destination as CampaignDestination,destinationUrl:destination==="url"?destinationUrl:"",cta:text(r.cta,45),
     offersTitle:text(r.offersTitle,100),badgeLabel:text(r.badgeLabel,36),seoTitle:text(r.seoTitle,130),seoDescription:text(r.seoDescription,200),
-    requiredOfferName,requiredOfferPrice:requiredOfferPrice as number|null};
+    requiredOfferName,requiredOfferPrice:requiredOfferPrice as number|null,
+    offerProductIds:offerProductIds as string[],
+    exclusiveShowcase: r.exclusiveShowcase===undefined ? id==="black-friday-da-familia-2026" : r.exclusiveShowcase};
 }
 export function normalizeCampaignList(raw:unknown):VisualCampaign[] {
   if(!Array.isArray(raw)||raw.length>20)throw Error("CAMPAIGN_LIST_INVALID");

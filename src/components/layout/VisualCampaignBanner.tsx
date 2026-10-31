@@ -19,8 +19,8 @@ export function VisualCampaignBanner({show=true}:{show?:boolean}){
     document.getElementById("dfl-family-catalog")?.scrollIntoView({behavior:"smooth",block:"start"});
     return;
   }
-  if(campaign.destination==="offers"&&document.getElementById("dfl-family-offers")){
-    document.getElementById("dfl-family-offers")?.scrollIntoView({behavior:"smooth",block:"start"});
+  if(campaign.destination==="offers"){
+    window.dispatchEvent(new Event("dfl:campaign-offers-open"));
     return;
   }
   document.getElementById("dfl-family-catalog")?.scrollIntoView({behavior:"smooth",block:"start"});
@@ -32,7 +32,7 @@ export function VisualCampaignBanner({show=true}:{show?:boolean}){
  return <section className={styles.wrap} aria-label={campaign.publicName} data-dfl-campaign-banner="true">
    {campaign.destination==="none"?<div className={styles.media}>{image}</div>:<button type="button" className={styles.media} onClick={activate} aria-label={`${campaign.cta||"Ver campanha"}: ${campaign.publicName}`}>{image}</button>}
    <div className={styles.caption}>
-     <div><span><Sparkles size={15} aria-hidden="true"/>{campaign.slogan||campaign.publicName}</span><strong>{campaign.subtitle||campaign.headline}</strong></div>
+     <div><span><Sparkles size={15} aria-hidden="true"/>{campaign.slogan||campaign.publicName}</span></div>
      {campaign.destination!=="none"&&<button type="button" onClick={activate}>{campaign.cta||"Ver ofertas"}<ArrowRight size={17}/></button>}
    </div>
  </section>;
