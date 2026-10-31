@@ -1,0 +1,9 @@
+.wrap{margin:0 0 15px;min-width:0;border-radius:19px;overflow:hidden;background:#121214;box-shadow:0 14px 36px rgba(0,0,0,.16);color:#FAFAFA;scroll-margin-top:92px}
+.media{display:block;width:100%;padding:0;border:0;background:#0b0b0d;cursor:pointer;line-height:0;text-align:left;overflow:hidden}
+.media picture,.media img{display:block;width:100%;height:auto;max-height:460px;object-fit:contain}
+.media:focus-visible{outline:3px solid var(--dfl-campaign-accent,#facc15);outline-offset:-3px}
+.caption{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 15px;background:var(--dfl-campaign-surface,#18181b)}
+.caption>div{min-width:0;display:grid;gap:3px}.caption span{display:inline-flex;align-items:center;gap:6px;color:var(--dfl-campaign-accent,#facc15);font-size:12px;font-weight:900}.caption strong{font-size:12px;line-height:1.4;color:var(--dfl-campaign-text,#fafafa);overflow-wrap:anywhere}
+.caption button{display:flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:44px;padding:9px 14px;border:0;border-radius:11px;background:var(--dfl-campaign-button,#facc15);color:var(--dfl-campaign-buttonText,#0b0b0d);font-size:12px;font-weight:900;cursor:pointer}
+@media(max-width:620px){.wrap{margin:0 -2px 14px;border-radius:16px}.media img{max-height:none;object-fit:contain}.caption{flex-direction:column;align-items:stretch;gap:9px;padding:12px}.caption span{font-size:12px}.caption strong{font-size:12px}.caption button{width:100%;min-height:46px}.media picture{max-height:none}}
+@media(prefers-reduced-motion:reduce){.media,.caption button{transition:none}}

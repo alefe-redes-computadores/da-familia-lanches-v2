@@ -343,3 +343,8 @@
 .r102AssistEntry:focus-visible{outline:3px solid #f6c65b;outline-offset:2px}
 @media(max-width:360px){.r102AssistEntry{padding:10px 12px;gap:8px}.r102AssistEntryCopy strong{font-size:12px}.r102AssistEntryCopy small{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.r102AssistEntry{scroll-behavior:auto}}
+
+/* DFL R103 — Assist descubra uma vez, sem pulsação recorrente. Banner toma seu lugar no topo. */
+.r71AssistShortcut[data-first-hint="true"]{animation:dflAssistWelcomeR103 1.6s ease-out 1}
+@keyframes dflAssistWelcomeR103{0%,100%{box-shadow:0 9px 26px rgba(0,0,0,.32)}36%{box-shadow:0 0 0 5px rgba(250,204,21,.40),0 12px 30px rgba(0,0,0,.35)}}
+@media(prefers-reduced-motion:reduce){.r71AssistShortcut[data-first-hint="true"]{animation:none}}

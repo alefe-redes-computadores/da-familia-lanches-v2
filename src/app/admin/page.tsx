@@ -47,6 +47,7 @@ const CatalogAdmin = dynamic(() => import("@/components/admin/CatalogAdmin").the
 const SchedulingAdmin = dynamic(() => import("@/components/admin/SchedulingAdmin").then((mod) => mod.SchedulingAdmin), { loading: AdminPanelLoading });
 const RewardsAdmin = dynamic(() => import("@/components/admin/RewardsAdmin").then((mod) => mod.RewardsAdmin), { loading: AdminPanelLoading });
 const CouponsAdmin = dynamic(() => import("@/components/admin/CouponsAdmin").then((mod) => mod.CouponsAdmin), { loading: AdminPanelLoading });
+const VisualCampaignsAdmin = dynamic(() => import("@/components/admin/VisualCampaignsAdmin").then(mod => mod.VisualCampaignsAdmin), {loading: AdminPanelLoading});
 const PublicPromotionsAdmin = dynamic(() => import("@/components/admin/PublicPromotionsAdmin").then((mod) => mod.PublicPromotionsAdmin), { loading: AdminPanelLoading });
 const FirestoreBudgetAdmin = dynamic(() => import("@/components/admin/FirestoreBudgetAdmin").then((mod) => mod.FirestoreBudgetAdmin), { loading: AdminPanelLoading });
 const CustomerExperienceAdmin = dynamic(() => import("@/components/admin/CustomerExperienceAdmin").then((mod) => mod.CustomerExperienceAdmin), { loading: AdminPanelLoading });
@@ -62,7 +63,7 @@ const ADMINS = [
   "viniciusrdefreitas@gmail.com",
 ];
 
-type Tab = "cozinha" | "agendados" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons" | "fidelidade" | "gestao";
+type Tab = "cozinha" | "agendados" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons" | "fidelidade" | "campanhas" | "gestao";
 type ServiceFilter = "todos" | "delivery" | "pickup";
 
 const normalizeSearch = (value: unknown) =>
@@ -582,6 +583,7 @@ function AdminPageContent() {
     ["agendamentos", "Agendamentos", null],
     ["frete", "Entrega & frete", null],
     ["cupons", "Cupons", null],
+    ["campanhas", "Campanhas visuais", null],
     ["fidelidade", "Fidelidade", null],
     ["gestao", "Relatórios", null],
   ];
@@ -611,7 +613,7 @@ function AdminPageContent() {
               : "Atendimento em andamento",
         }
       : { label: "Fechada", tone: "closed", detail: storeDetail };
-  const managementActive = ["cancelados","catalogo","operacao","agendamentos","frete","cupons","fidelidade","gestao"].includes(tab);
+  const managementActive = ["cancelados","catalogo","operacao","agendamentos","frete","cupons","campanhas","fidelidade","gestao"].includes(tab);
   const activeOrders = counts.cozinha + counts.agendados + counts.expedicao;
 
   const queueContext = (() => {
@@ -1019,7 +1021,7 @@ function AdminPageContent() {
               <small>{storeState.label} · {storeStatus.source === "manual" ? "controle manual" : storeStatus.source === "exception" ? "exceção" : "agenda automática"}</small>
             </div>
             <div className={styles.managementNav}>
-              {tabItems.filter(([key]) => ["operacao","catalogo","agendamentos","frete","cupons","fidelidade","gestao","cancelados"].includes(key)).map(([key,label]) => (
+              {tabItems.filter(([key]) => ["operacao","catalogo","agendamentos","frete","cupons","campanhas","fidelidade","gestao","cancelados"].includes(key)).map(([key,label]) => (
                 <button key={key} data-active={tab === key} onClick={() => { haptic("step"); setTab(key); setAttentionOnly(false); }}>
                   <AdminIcon name={key === "operacao" ? "store" : key === "agendamentos" ? "calendar" : key === "frete" ? "dispatch" : key === "gestao" ? "management" : key === "cancelados" ? "history" : "orders"} />
                   <span>{key === "operacao" ? "Loja" : key === "frete" ? "Entrega" : key === "gestao" ? "Saúde" : label}</span>
@@ -1052,6 +1054,8 @@ function AdminPageContent() {
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>ENTREGA & FRETE</span><h2>Taxas e benefícios de entrega</h2></div><p>Taxa padrão, bairros e regras de frete grátis em um único lugar.</p></div><AdminSectionBoundary section="Entrega e frete" onBack={() => setTab("cozinha")}><DeliveryRatesAdmin /><FreeDeliveryAdmin /></AdminSectionBoundary></section>
         ) : tab === "cupons" ? (
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>CENTRAL DE PROMOÇÕES</span><h2>Campanhas & cupons</h2></div><p>Crie descontos, defina pedido mínimo e período, pause campanhas e escolha quais ofertas podem aparecer ao cliente.</p></div><AdminSectionBoundary section="Cupons e promoções" onBack={() => setTab("cozinha")}><CouponsAdmin /><PublicPromotionsAdmin /></AdminSectionBoundary></section>
+        ) : tab === "campanhas" ? (
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>MARKETING & IDENTIDADE</span><h2>Campanhas visuais</h2></div><p>Banners, cores, etiquetas e temas de datas especiais, sem alterar preços ou pedidos.</p></div><AdminSectionBoundary section="Campanhas visuais" onBack={() => setTab("cozinha")}><VisualCampaignsAdmin /></AdminSectionBoundary></section>
         ) : tab === "fidelidade" ? (
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><AdminSectionBoundary section="Fidelidade" onBack={() => setTab("cozinha")}><RewardsAdmin /></AdminSectionBoundary></section>
         ) : tab === "gestao" ? (

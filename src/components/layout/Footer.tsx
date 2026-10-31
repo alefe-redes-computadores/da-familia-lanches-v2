@@ -7,7 +7,7 @@ import styles from "./Footer.module.css";
 export function Footer() {
   const openModal = useUIStore((state) => state.openModal);
   return (
-    <footer className={styles.footer}>
+    <footer className={styles.footer} data-dfl-campaign-footer="true">
       <div className={styles.inner}>
         <div className={styles.brand}><span>DA FAMÍLIA LANCHES</span><strong>Feito para matar a fome de verdade.</strong><p>Rua Lázaro Martins Marciel (Rua 7), 164 - Jardim Quebec, Patos de Minas/MG</p></div>
         <div className={styles.links}>

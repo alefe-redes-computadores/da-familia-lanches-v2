@@ -3,6 +3,8 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { readGuestIdentity, readGuestOrders, type GuestIdentity, type GuestOrderMemory } from "@/lib/guestContinuity";
 import { CatalogImage } from "@/components/ui/CatalogImage";
+import { VisualCampaignBanner } from "@/components/layout/VisualCampaignBanner";
+import { campaignMatchesCatalogOffer, useVisualCampaign } from "@/components/layout/VisualCampaignProvider";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
 import { useCatalogCategories } from "@/hooks/useCatalogCategories";
@@ -30,10 +32,25 @@ function normalize(value: string) {
 }
 
 export default function Home() {
+  const campaign = useVisualCampaign();
   const openModal = useUIStore((s) => s.openModal);
   const activeModal = useUIStore((s) => s.activeModal);
   const mobileMenuOpen = useUIStore((s) => s.isMobileMenuOpen);
   const [showAssistShortcut, setShowAssistShortcut] = useState(false);
+  const [assistFirstHint, setAssistFirstHint] = useState(false);
+  useEffect(() => {
+    if (!showAssistShortcut || assistFirstHint) return;
+    try {
+      if (localStorage.getItem("dfl-assist-first-hint-r103") === "1") return;
+      localStorage.setItem("dfl-assist-first-hint-r103", "1");
+      setAssistFirstHint(true);
+    } catch { /* Sem armazenamento: sem animação promocional. */ }
+  }, [showAssistShortcut, assistFirstHint]);
+  useEffect(() => {
+    if (!assistFirstHint) return;
+    const timer = window.setTimeout(() => setAssistFirstHint(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [assistFirstHint]);
   const [catalogSearchFocused, setCatalogSearchFocused] = useState(false); // R102: nao obstruir a busca no celular
   useEffect(() => {
     // DFL-R71-ASSIST-SCROLL: scroll passive, sem observar pixels ou consultar Firebase.
@@ -191,10 +208,12 @@ export default function Home() {
     openModal("product-details", product);
   };
 
+  const bannerEligible = Boolean(campaign && campaign.scopes.includes("home") && !catalogLoading && !catalogError && campaignMatchesCatalogOffer(campaign, products));
+
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-dfl-campaign-home="true">
       {showAssistShortcut && !search.trim() && !catalogSearchFocused && !activeModal && !mobileMenuOpen && (
-        <button type="button" className={styles.r71AssistShortcut}
+        <button type="button" className={styles.r71AssistShortcut} data-first-hint={assistFirstHint}
           onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}
           aria-label="Abrir DFL Assist para ajudar a escolher um produto">
           <span aria-hidden="true">✦</span> Precisa de ajuda?
@@ -214,23 +233,20 @@ export default function Home() {
       </section>
 
       {/* DFL-R58-ASSIST-VISIBLE: entrada editorial discreta; nao ocupa barra fixa. */}
-      <button type="button" className={styles.r102AssistEntry} onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}
-        aria-label="Abrir DFL Assist para encontrar lanches e combos">
-        <span className={styles.r102AssistEntryCopy}><strong>Não sabe o que pedir? O DFL Assist te ajuda.</strong><small>Encontre opções por preço, fome ou quantidade de pessoas</small></span>
-        <span aria-hidden="true" className={styles.r102AssistEntryArrow}>›</span>
-      </button>
-      <div className={styles.categoryRailWrap}>
+
+      <div className={styles.categoryRailWrap} data-dfl-campaign-categories="true">
         <nav className={styles.categoryRail} aria-label="Categorias do cardápio">
-          <button type="button" className={activeCategory === "todos" ? styles.categoryActive : styles.category} onClick={() => setActiveCategory("todos")}>Todos</button>
+          <button type="button" className={activeCategory === "todos" ? styles.categoryActive : styles.category} aria-current={activeCategory === "todos" ? "true" : undefined} onClick={() => setActiveCategory("todos")}>Todos</button>
           {menuCategories.map((category) => (
-            <button type="button" key={category.id} className={activeCategory === category.id ? styles.categoryActive : styles.category} onClick={() => setActiveCategory(category.id)}>{category.label}</button>
+            <button type="button" key={category.id} className={activeCategory === category.id ? styles.categoryActive : styles.category} aria-current={activeCategory === category.id ? "true" : undefined} onClick={() => setActiveCategory(category.id)}>{category.label}</button>
           ))}
         </nav>
       </div>
 
-      <main className={styles.content}>
+      <main className={styles.content} id="dfl-family-catalog">
         {!isOnline && <div className={styles.connectionNotice} role="status"><div><strong>Você está offline</strong><span>O que já carregou continua disponível. Para atualizar o cardápio ou enviar um pedido, reconecte.</span></div></div>}
         {catalogError && isOnline && <div className={styles.catalogNotice} role="status"><div><strong>Cardápio em modo de contingência</strong><span>Mostrando a base disponível enquanto tentamos buscar a versão mais recente.</span></div><button type="button" onClick={() => void reloadCatalog()}>Tentar atualizar</button></div>}
+        <VisualCampaignBanner show={bannerEligible} />
         <div className={styles.orderSlot}>
           <ActiveOrderBanner />
           <LastOrderCard />
@@ -239,9 +255,9 @@ export default function Home() {
         {!currentUser && guestLastOrder && <CustomerExperiencePrompt />}
         {catalogLoading && <section className={styles.catalogSkeleton} aria-label="Carregando cardápio" aria-busy="true"><div className={styles.skeletonTitle}/><div className={styles.skeletonGrid}>{[0,1,2,3].map((item)=><div className={styles.skeletonCard} key={item}><i/><span/><b/></div>)}</div></section>}
         {activeCategory === "todos" && !search.trim() && promoProducts.length > 0 && (
-          <section className={styles.promoShowcase}>
+          <section className={styles.promoShowcase} id="dfl-family-offers" data-dfl-campaign-offers="true">
             <div className={styles.promoShowcaseHead}>
-              <div><span>OFERTAS DA FAMÍLIA</span><h2>Preço bom pra pedir agora</h2><p>Promoções ativas no cardápio, sem precisar de cupom.</p></div>
+              <div><span>{(campaign?.scopes.includes("offers") && campaign.offersTitle) || "OFERTAS DA FAMÍLIA"}</span><h2>Preço bom pra pedir agora</h2><p>Promoções ativas no cardápio, sem precisar de cupom.</p></div>
               <button type="button" className={styles.allOffersButton} onClick={()=>setShowAllOffers(v=>!v)}>{showAllOffers?"Fechar ofertas":`Ver ${promoProducts.length} ofertas`}</button>
             </div>
             {!showAllOffers && <div className={styles.promoRail}>
@@ -249,7 +265,7 @@ export default function Home() {
                 const discount = Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100);
                 return <article className={styles.promoHeroCard} key={`promo-${product.id}`} role="button" tabIndex={0} onClick={() => openProduct(product)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openProduct(product); } }}>
                   <div className={styles.promoHeroMedia}><CatalogImage src={product.image} alt="" sizes="(max-width: 699px) 74px, 82px" priority={promoIndex === 0} quality={70} /><span>-{discount}%</span></div>
-                  <div className={styles.promoHeroCopy}><small>OFERTA ATIVA</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em><span className={styles.promoHint}>Toque para ver e personalizar</span></div>
+                  <div className={styles.promoHeroCopy}><small data-dfl-campaign-badge="true">{(campaign?.scopes.includes("offers") && campaign.badgeLabel) || "OFERTA ATIVA"}</small><strong>{product.name}</strong><div><s>{money(product.oldPrice!)}</s><b>{money(product.price)}</b></div><em>Economize {money(product.oldPrice! - product.price)}</em><span className={styles.promoHint}>Toque para ver e personalizar</span></div>
                 </article>;
               })}
             </div>}
@@ -320,13 +336,13 @@ export default function Home() {
                   const hasDiscount = typeof product.oldPrice === "number" && product.oldPrice > product.price;
                   const discount = hasDiscount ? Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100) : 0;
                   return (
-                    <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id}>
+                    <article className={`${styles.card} ${!available ? styles.unavailable : ""}`} key={product.id} data-dfl-campaign-product={hasDiscount && available ? "true" : undefined}>
                       {available && <button type="button" className={styles.cardActionArea} onClick={() => openProduct(product)} aria-label={`Ver detalhes e personalizar ${product.name}`} />}
                       <div className={styles.media}>
                         <CatalogImage src={product.image} alt={product.name} sizes="(max-width: 560px) 37vw, (max-width: 640px) 50vw, (max-width: 1100px) 33vw, 280px" quality={72} />
                         <div className={styles.badges}>
                           {product.isSuggestion && available && <span className={styles.featured}>Sugestão da casa</span>}
-                          {hasDiscount && available && <span className={styles.discount}>-{discount}%</span>}
+                          {hasDiscount && available && <span className={styles.discount} data-dfl-campaign-badge="true">{campaign?.scopes.includes("catalog") && campaign.badgeLabel ? `${campaign.badgeLabel} · -${discount}%` : `-${discount}%`}</span>}
                         </div>
                         {!available && <span className={styles.soldOut}>Indisponível</span>}
                       </div>
@@ -339,7 +355,7 @@ export default function Home() {
                             {hasDiscount && <span className={styles.oldPrice}>{money(product.oldPrice!)}</span>}
                             <strong>{money(product.price)}</strong>
                           </div>
-                          <button type="button" className={styles.addButton} disabled={!available} onClick={(event) => { event.stopPropagation(); openProduct(product); }} aria-label={available ? `Ver opções de ${product.name}` : `${product.name} indisponível`}>
+                          <button type="button" className={styles.addButton} data-dfl-campaign-add="true" disabled={!available} onClick={(event) => { event.stopPropagation(); openProduct(product); }} aria-label={available ? `Ver opções de ${product.name}` : `${product.name} indisponível`}>
                             {available ? "+" : "—"}
                           </button>
                         </div>

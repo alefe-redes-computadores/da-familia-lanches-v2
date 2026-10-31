@@ -9,6 +9,7 @@ import { DFLAssist } from "@/components/layout/DFLAssist";
 import { MobileDrawerMenu } from "@/components/layout/MobileDrawerMenu";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { Footer } from "@/components/layout/Footer";
+import { VisualCampaignProvider } from "@/components/layout/VisualCampaignProvider";
 import { PrivacyBanner } from "@/components/ui/PrivacyBanner";
 
 
@@ -103,7 +104,8 @@ export function AppShell({ children }: Props) {
   })();
 
   return (
-    <div className={styles.shell}>
+    <VisualCampaignProvider>
+    <div className={styles.shell} data-dfl-site-shell="true">
       <Header />
       <MobileDrawerMenu />
       <main className={styles.main}>{children}</main>
@@ -114,5 +116,6 @@ export function AppShell({ children }: Props) {
       <CartToast />
       <DFLAssist />
     </div>
+    </VisualCampaignProvider>
   );
 }

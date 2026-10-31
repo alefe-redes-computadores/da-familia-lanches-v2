@@ -21,7 +21,7 @@ const android = read('.github/workflows/build-admin-android.yml');
 const sales = read('.github/workflows/site-sales-protection.yml');
 check(home.includes('catalogSearchFocused') && home.includes('!search.trim() && !catalogSearchFocused'), 'atalho flutuante respeita campo de busca');
 check(home.includes('!activeModal && !mobileMenuOpen'), 'atalho flutuante nao cobre modal/menu');
-check(home.includes('r102AssistEntry') && homeCss.includes('DFL-R102-FECHAMENTO-TOTAL'), 'entrada editorial responsiva preservada');
+check(!home.includes('className={styles.r102AssistEntry}') && home.includes('data-first-hint={assistFirstHint}') && homeCss.includes('DFL-R102-FECHAMENTO-TOTAL'), 'banner sazonal assume protagonismo, Assist flutuante acessivel sem convite duplicado');
 check(home.includes('window.scrollY > 470'), 'atalho flutuante so aparece apos rolagem');
 check(assist.includes('pathname === "/"') && assist.includes('sessionStorage.removeItem("dfl:pending-catalog-search")') && assist.includes('sessionStorage.setItem("dfl:pending-catalog-search", term)'), 'buscas na Home nao ressurgem na proxima visita');
 check(assist.includes('CATALOG_SEARCH_EVENT') && assist.includes('router.push("/")'), 'busca entre paginas preservada');

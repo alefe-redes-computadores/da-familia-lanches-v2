@@ -98,7 +98,7 @@ export function Header() {
   const goHome = () => { if (pathname === "/") window.scrollTo({ top: 0, behavior: "smooth" }); else router.push("/"); };
 
   return (
-    <header className={styles.header} data-compact={compact}>
+    <header className={styles.header} data-compact={compact} data-dfl-campaign-header="true">
       <button className={styles.brandBlock} type="button" onClick={goHome} aria-label="Ir para o início do cardápio">
         <strong className={styles.logo}>Da Família <span>Lanches</span></strong>
         <span className={styles.status}>
