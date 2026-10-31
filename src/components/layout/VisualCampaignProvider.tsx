@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { DEFAULT_VISUAL_CAMPAIGNS, brazilDate, chooseVisualCampaign, normalizeCampaignList, type VisualCampaign } from "@/lib/visualCampaigns";
+import { brazilDate, chooseVisualCampaign, normalizeCampaignList, type VisualCampaign } from "@/lib/visualCampaigns";
 
 const Context=createContext<VisualCampaign|null>(null);
 const CACHE_KEY="dfl-visual-campaigns-r103";
@@ -26,7 +26,8 @@ function millisecondsToNextBrazilMidnight(){
 
 export function VisualCampaignProvider({children}:{children:ReactNode}){
  const pathname=usePathname();
- const [items,setItems]=useState<VisualCampaign[]>(DEFAULT_VISUAL_CAMPAIGNS);
+ // Nunca ativar campanha antes de ler a configuração real: evita exibir uma promoção pausada.
+ const [items,setItems]=useState<VisualCampaign[]>([]);
  const [today,setToday]=useState(()=>brazilDate());
  const active=useMemo(()=>chooseVisualCampaign(items,today),[items,today]);
  useEffect(()=>{

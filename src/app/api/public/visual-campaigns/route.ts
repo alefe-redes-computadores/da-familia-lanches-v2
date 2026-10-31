@@ -16,6 +16,6 @@ export async function GET() {
   } catch (error) {
     console.error("[visual-campaigns] read failed", error);
     // Falha aberta somente para identidade visual. Nunca altera pedidos.
-    return NextResponse.json({items:DEFAULT_VISUAL_CAMPAIGNS,degraded:true}, {headers:{"Cache-Control":"no-store"}});
+    return NextResponse.json({items:[],degraded:true}, {headers:{"Cache-Control":"no-store"}});
   }
 }

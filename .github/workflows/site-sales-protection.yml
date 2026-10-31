@@ -49,5 +49,7 @@ jobs:
         run: node scripts/test-visual-campaign-r103.cjs
       - name: R104 - Campanhas seguras e vitrine acessível
         run: node scripts/test-visual-campaign-r104.cjs
+      - name: R105 - Fechamento e confiabilidade de campanhas
+        run: node scripts/test-site-r105-closing.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs

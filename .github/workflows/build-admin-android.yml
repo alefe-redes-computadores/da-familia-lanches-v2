@@ -75,6 +75,7 @@ jobs:
           node scripts/release-gate-catalog-v43.mjs
           node scripts/test-visual-campaign-r103.cjs
           node scripts/test-visual-campaign-r104.cjs
+          node scripts/test-site-r105-closing.cjs
           node scripts/test-android-release-gate-v50-1.mjs
           node scripts/test-site-r102-preopening.cjs
           node node_modules/typescript/bin/tsc --noEmit

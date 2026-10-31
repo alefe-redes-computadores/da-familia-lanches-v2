@@ -81,10 +81,11 @@ export default function Home() {
   const deferredSearch = useDeferredValue(search);
   const [activeCategory, setActiveCategory] = useState<string>("todos");
   const [showAllOffers, setShowAllOffers] = useState(false);
+  const [offersOpenRequest,setOffersOpenRequest] = useState(0);
   const [highlightOffers,setHighlightOffers] = useState(false);
   const offersScrollPending = useRef(false);
   useEffect(()=>{
-    const expand=()=>{offersScrollPending.current=true;setShowAllOffers(true);setSearch("");setActiveCategory("todos");};
+    const expand=()=>{offersScrollPending.current=true;setShowAllOffers(true);setOffersOpenRequest(value=>value+1);setSearch("");setActiveCategory("todos");};
     window.addEventListener("dfl:campaign-offers-open",expand);
     return()=>window.removeEventListener("dfl:campaign-offers-open",expand);
   },[]);
@@ -98,7 +99,7 @@ export default function Home() {
     setHighlightOffers(true);
     const timer=window.setTimeout(()=>setHighlightOffers(false),1500);
     return()=>window.clearTimeout(timer);
-  },[showAllOffers]);
+  },[showAllOffers,offersOpenRequest]);
   const [recentProductIds, setRecentProductIds] = useState<string[]>([]);
   const [savedProductIds, setSavedProductIds] = useState<string[]>([]);
   const [clearFavoritesConfirm, setClearFavoritesConfirm] = useState(false);
