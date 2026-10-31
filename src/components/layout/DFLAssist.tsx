@@ -53,9 +53,15 @@ export function DFLAssist() {
   const search = (value: string) => {
     const term = value.trim().slice(0,100);
     if (!term) return;
-    try { window.sessionStorage.setItem("dfl:pending-catalog-search", term); } catch {}
-    if (pathname === "/") window.dispatchEvent(new CustomEvent(CATALOG_SEARCH_EVENT,{detail:term}));
-    else router.push("/");
+    // R102: somente paginas internas precisam transferir a busca pelo sessionStorage.
+    // Na Home a busca chega diretamente ao input; nao deixar termo fantasma para outra visita.
+    if (pathname === "/") {
+      try { window.sessionStorage.removeItem("dfl:pending-catalog-search"); } catch {}
+      window.dispatchEvent(new CustomEvent(CATALOG_SEARCH_EVENT,{detail:term}));
+    } else {
+      try { window.sessionStorage.setItem("dfl:pending-catalog-search", term); } catch {}
+      router.push("/");
+    }
     setVisible(false);
   };
   if (!visible) return null;

@@ -76,7 +76,7 @@ export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{sett
       setS({ ...s, schedule: nextSchedule });
       setMsg("Horários copiados para o rascunho. Confira e salve quando estiver pronto.");
       haptic("step");
-    }}>Usar horário de segunda nos dias ativos</button>
+    }}>Aplicar horário do dia escolhido</button>
   </div>
   <div className={styles.block}><header><div><span>AGENDA SEMANAL</span><strong>Dias e horários</strong></div><p>Horário de Brasília.</p></header>{scheduleDirty&&<p className={styles.scheduleNotice} role="status">Você tem horários editados que ainda não foram publicados.</p>}<div className={styles.week}>{DAYS.map(({key,label})=>{const d=s.schedule[key];return<div className={styles.day} data-enabled={d.enabled} key={key}>
    <label className={styles.toggle}><input type="checkbox" checked={d.enabled} onChange={e=>{editingSchedule.current=true;setS({...s,schedule:{...s.schedule,[key]:{...d,enabled:e.target.checked}}})}}/><strong>{label}</strong><b>{d.enabled?"Aberto":"Fechado"}</b></label>

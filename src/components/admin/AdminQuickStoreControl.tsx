@@ -52,7 +52,8 @@ export function AdminQuickStoreControl({ open, settings, stateLabel, stateDetail
     try{
       await setDoc(doc(db,"settings","loja"),{mode,updatedAt:serverTimestamp()},{merge:true});
       setMessage("Modo atualizado.");haptic("success");
-      window.setTimeout(()=>onClose(),650);
+      // R101: a escrita ja foi confirmada; sem espera artificial apos o commit.
+      onClose();
     }catch(error){
       console.error("[admin/quick-store]",error);
       setMessage("Não foi possível alterar o funcionamento.");

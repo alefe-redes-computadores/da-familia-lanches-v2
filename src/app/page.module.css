@@ -334,3 +334,12 @@
 @media(min-width:760px){.r71AssistShortcut{bottom:24px;right:24px}}
 @media(max-width:360px){.r71AssistShortcut{font-size:11px;padding:9px 11px}}
 @media(prefers-reduced-motion:reduce){.r71AssistShortcut:active{transform:none}}
+
+/* DFL-R102-FECHAMENTO-TOTAL */
+/* Entrada editorial: nao compete com o menu fixo e funciona em 320px. */
+.r102AssistEntry{display:flex;align-items:center;justify-content:space-between;gap:12px;width:calc(100% - 24px);max-width:1100px;margin:10px auto 12px;padding:12px 15px;border:1px solid #5b4b23;border-radius:15px;background:linear-gradient(105deg,#1d1d21,#302714);color:#fff;text-align:left;cursor:pointer;box-sizing:border-box;touch-action:manipulation}
+.r102AssistEntryCopy{display:grid;gap:3px;min-width:0}.r102AssistEntryCopy strong{font-size:13px;line-height:1.35;overflow-wrap:anywhere}.r102AssistEntryCopy small{font-size:11px;line-height:1.35;color:#e8d4a5;overflow-wrap:anywhere}
+.r102AssistEntryArrow{flex:0 0 auto;color:#ffca28;font-size:22px}
+.r102AssistEntry:focus-visible{outline:3px solid #f6c65b;outline-offset:2px}
+@media(max-width:360px){.r102AssistEntry{padding:10px 12px;gap:8px}.r102AssistEntryCopy strong{font-size:12px}.r102AssistEntryCopy small{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.r102AssistEntry{scroll-behavior:auto}}

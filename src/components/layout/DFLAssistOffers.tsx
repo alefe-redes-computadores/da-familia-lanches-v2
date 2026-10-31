@@ -43,6 +43,8 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
       : b.product.price - a.product.price || b.score - a.score);
   }, [offers, offerSort]);
   const visibleOffers = showAllOffers ? orderedOffers : orderedOffers.slice(0, 2);
+  // R102: indice somente em memoria; evita varrer o catalogo para cada componente do combo.
+  const productLookup = useMemo(() => new Map(products.map(product => [product.id, product])), [products]);
   const effectiveBudget = intent.budget ?? budget;
   // DFL-R61-ASSIST-NAVIGATION: texto conversacional nunca vira busca literal por frase inteira.
   // Prioriza produto realmente recomendado, respeitando orcamento e disponibilidade do catalogo.
@@ -67,13 +69,8 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
       <button type="button" aria-pressed={query === "sem bacon"} onClick={()=>{setQuery("sem bacon");setOnlyCombos(false);}}>Sem bacon</button>
       <button type="button" aria-pressed={query === "bacon"} onClick={()=>{setQuery("bacon");setOnlyCombos(false);}}>Bacon</button>
       <button type="button" aria-pressed={onlyCombos} onClick={()=>{setQuery("combo");setOnlyCombos(true);}}>Combos</button>
-      <button type="button" aria-pressed={budgetInput === "3000" && !query} onClick={()=>{setQuery("");setBudgetInput("3000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 30</button>
-      {/* DFL-R88-CATALOG-CHECK: atalho de orçamento intermediário. */}
-      <button type="button" aria-pressed={budgetInput === "4000" && !query} onClick={()=>{setQuery("");setBudgetInput("4000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 40</button>
-      {/* DFL-R93-OPERACAO-MACRO — descoberta por orçamento, sem pedir dados externos. */}
-      <button type="button" aria-pressed={budgetInput === "6000" && !query} onClick={()=>{setQuery("");setBudgetInput("6000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 60</button>
-      <button type="button" aria-pressed={budgetInput === "5000" && !query} onClick={()=>{setQuery("");setBudgetInput("5000");setOnlyCombos(false);setShowAllOffers(false);}}>Até R$ 50</button>
-      <button type="button" aria-pressed={people === 2 && !query && !budgetInput && !onlyCombos} onClick={()=>{setPeople(2);setQuery("");setBudgetInput("");setOnlyCombos(false);setShowAllOffers(false);}}>Para 2 pessoas</button>
+      {/* R102: orcamentos ficam unificados nos atalhos logo abaixo do campo de valor;
+          quantidade de pessoas ja possui seletor proprio. Menos botoes repetidos. */}
     </div>
     <label className={styles.offerQueryLabel} htmlFor="dfl-assist-ingredients">Descreva seu pedido ou procure um ingrediente</label>
     {/* DFL-R88-CATALOG-CHECK: orientação de uso sem inventar produtos. */}
@@ -117,7 +114,7 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
     {/* DFL-R98-MACRO-FINAL: orçamento rápido sem apagar pesquisa ou tipo de oferta. */}
     <div className={styles.r98BudgetPresets} role="group" aria-label="Limites rapidos de orcamento">
       <span>Orçamento rápido</span>
-      {([3000, 5000, 8000, 10000] as const).map((cents) => <button type="button" key={cents} aria-pressed={budgetInput === String(cents)} data-active={budgetInput === String(cents)} onClick={() => { setBudgetInput(String(cents)); setShowAllOffers(false); }}>{currency(cents / 100)}</button>)}
+      {([3000, 4000, 5000, 6000, 8000, 10000] as const).map((cents) => <button type="button" key={cents} aria-pressed={budgetInput === String(cents)} data-active={budgetInput === String(cents)} onClick={() => { setBudgetInput(String(cents)); setShowAllOffers(false); }}>{currency(cents / 100)}</button>)}
       {budgetInput && <button type="button" onClick={() => { setBudgetInput(""); setShowAllOffers(false); }}>Sem limite</button>}
     </div>
     <div className={styles.offerFilterFooter}>
@@ -143,9 +140,9 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
           {typeof product.oldPrice === "number" && Number.isFinite(product.oldPrice) && product.oldPrice > product.price &&
             <small className={styles.r91AssistDiscount}>De {currency(product.oldPrice)} · economia de {currency(product.oldPrice - product.price)}</small>}
           {/* DFL-R90-COMBO-AUDIT: nunca apresentar componente ausente como confirmado. */}
-          {Boolean(product.bundleItems?.length) && product.bundleItems!.every((component) => Number.isInteger(component.quantity) && component.quantity > 0 && products.some((catalogProduct) => catalogProduct.id === component.productId && catalogProduct.disponivel !== false)) &&
+          {Boolean(product.bundleItems?.length) && product.bundleItems!.every((component) => Number.isInteger(component.quantity) && component.quantity > 0 && (productLookup.get(component.productId)?.disponivel !== false && productLookup.has(component.productId))) &&
             <small className={styles.r90AssistComposition}>
-              Composição cadastrada: {product.bundleItems!.slice(0, 3).map((component) => `${component.quantity}× ${products.find((catalogProduct) => catalogProduct.id === component.productId)?.name ?? ""}`).join(" · ")}{product.bundleItems!.length > 3 ? ` · +${product.bundleItems!.length - 3} item(ns)` : ""}. Confira os ingredientes na página do produto.
+              Composição cadastrada: {product.bundleItems!.slice(0, 3).map((component) => `${component.quantity}× ${productLookup.get(component.productId)?.name ?? ""}`).join(" · ")}{product.bundleItems!.length > 3 ? ` · +${product.bundleItems!.length - 3} item(ns)` : ""}. Confira os ingredientes na página do produto.
             </small>}</div>
         <button type="button" onClick={()=>onOpenProduct(product)} aria-label={`Abrir detalhes de ${product.name}`}>Ver <span className={styles.offerButtonLabel}>produto</span></button>
       </li>)}</ul>{offers.length > 2 && <button type="button" aria-expanded={showAllOffers}

@@ -154,7 +154,14 @@ export type RewardGrantPlan = {
 export async function prepareOrderSummaryTransition(order: Record<string, unknown>,nextStatus:"Finalizado"|"Cancelado"): Promise<RewardGrantPlan | null> {
   const userId = String(order.userId ?? "").trim();
   if (!userId) return null;
-  const summarySnapshot=await getDoc(doc(db,"Usuarios",userId,"Loyalty","state"));
+  // R101: duas leituras independentes em paralelo; a decisão de fidelidade
+  // continua usando apenas snapshots confirmados pelo Firestore.
+  const [summarySnapshot, configSnapshot] = await Promise.all([
+    getDoc(doc(db,"Usuarios",userId,"Loyalty","state")),
+    nextStatus === "Finalizado"
+      ? getDoc(doc(db,REWARDS_CONFIG_COLLECTION,REWARDS_CONFIG_ID))
+      : Promise.resolve(null),
+  ]);
   const known=summarySnapshot.data()??{};
   let seed={total:Math.max(0,Number(known.totalOrders)||0),completed:Math.max(0,Number(known.completedOrders)||0),cancelled:Math.max(0,Number(known.cancelledOrders)||0)};
   if(known.initialized!==true){
@@ -167,7 +174,6 @@ export async function prepareOrderSummaryTransition(order: Record<string, unknow
     seed={total:total.data().count,completed:completed.data().count,cancelled:cancelled.data().count};
   }
   const completedAfterTransition=seed.completed+(nextStatus==="Finalizado"?1:0);
-  const configSnapshot=nextStatus==="Finalizado"?await getDoc(doc(db,REWARDS_CONFIG_COLLECTION,REWARDS_CONFIG_ID)):null;
   const config=configSnapshot?.exists()?normalizeRewardsConfig(configSnapshot.data()):DEFAULT_REWARDS_CONFIG;
   const shouldReward=config.active&&completedAfterTransition>0&&completedAfterTransition%config.everyOrders===0;
   const milestone=shouldReward?completedAfterTransition/config.everyOrders:0;

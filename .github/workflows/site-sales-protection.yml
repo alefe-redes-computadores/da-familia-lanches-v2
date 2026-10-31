@@ -43,5 +43,7 @@ jobs:
         run: node scripts/test-site-sales-r5-ui-recovery.cjs
       - name: R6 - Integridade da protecao de vendas
         run: node scripts/test-site-sales-r6-guard.cjs
+      - name: R102 pre-abertura, Assist e invariantes de pedidos
+        run: node scripts/test-site-r102-preopening.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs

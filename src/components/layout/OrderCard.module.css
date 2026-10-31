@@ -939,3 +939,9 @@
  .operationalCockpit{margin-block:7px}
 }
 @media(max-width:380px){.inspectorTabs button{padding-inline:9px;font-size:11px}}
+
+/* DFL-R101-PREOPENING-AUDIT — safe-area, viewport dinâmico e rolagem independente. */
+
+.cancelIntelligence{box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+.cancelSheet{box-sizing:border-box;min-width:0;max-width:100%;overscroll-behavior:contain;overflow-x:hidden;overflow-wrap:anywhere}
+@media(max-width:520px){.cancelIntelligence{padding-top:env(safe-area-inset-top,0px)}.cancelSheet{max-height:calc(100dvh - env(safe-area-inset-top,0px) - 5px);padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}}

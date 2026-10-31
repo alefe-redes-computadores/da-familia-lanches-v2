@@ -91,3 +91,10 @@
 .adminGlobalToastAction{grid-column:2 / 4!important;grid-row:2!important;min-height:44px!important}
 }
 @media(max-width:340px){.adminGlobalToast{gap:7px;grid-template-columns:30px minmax(0,1fr) 40px!important}.adminGlobalToastIcon{width:30px;height:30px}}
+
+/* DFL-R101-PREOPENING-AUDIT — safe-area, viewport dinâmico e rolagem independente. */
+
+.adminConfirmBackdrop{box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+.adminConfirmDialog{box-sizing:border-box;max-width:100%;min-width:0;max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;overflow-wrap:anywhere}
+.adminConfirmCopy{min-width:0;overflow-wrap:anywhere}
+@media(max-width:479px){.adminConfirmBackdrop{padding:calc(8px + env(safe-area-inset-top,0px)) calc(10px + env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) calc(10px + env(safe-area-inset-left,0px))}.adminConfirmDialog{max-height:calc(100dvh - 16px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));padding:15px;border-radius:18px}}

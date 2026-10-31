@@ -67,3 +67,9 @@
 .r85Tools span{margin-left:auto;font-size:11px;color:#a4afb7;white-space:nowrap}
 .r85Tools button:focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
 @media(max-width:390px){.r85Tools{padding-inline:9px}.r85Tools button{padding-inline:8px}.r85Tools span{width:100%;text-align:right}}
+
+/* DFL-R101-PREOPENING-AUDIT — safe-area, viewport dinâmico e rolagem independente. */
+
+.backdrop{box-sizing:border-box;overscroll-behavior:contain}
+.panel{box-sizing:border-box;min-width:0;min-height:0;max-width:100%}
+@media(max-width:640px){.backdrop{padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}.panel{max-height:calc(100dvh - 18px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}}

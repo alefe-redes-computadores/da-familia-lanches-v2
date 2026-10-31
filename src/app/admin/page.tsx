@@ -286,11 +286,23 @@ function AdminPageContent() {
     }
 
     setUpdatingOrderId(id);
+    const statusFeedbackKey = `admin-status-${id}`;
     showFeedback({
+      key: statusFeedbackKey,
       tone: "progress",
       title: "Atualizando pedido",
       message: `Movendo o pedido para ${nextLabel}…`,
     });
+    // R101: a acao aparece imediatamente na fila; nunca anunciar sucesso
+    // antes do commit. A mensagem de espera nao faz consultas extras.
+    const slowConfirmationTimer = window.setTimeout(() => {
+      showFeedback({
+        key: statusFeedbackKey,
+        tone: "progress",
+        title: "Confirmando na nuvem",
+        message: "A etapa ja aparece na fila. Aguardando gravacao segura; nao toque novamente.",
+      });
+    }, 1600);
     haptic("step");
 
     try {
@@ -341,6 +353,7 @@ function AdminPageContent() {
           return next;
         });
       }, 5000);
+      return true;
     } catch (error) {
       if (alarmAcknowledged) {
         desfazerReconhecimentoPedido(id);
@@ -391,7 +404,9 @@ function AdminPageContent() {
       }
 
       haptic("error");
+      return false;
     } finally {
+      window.clearTimeout(slowConfirmationTimer);
       locks.delete(id);
 
       setUpdatingOrderId(

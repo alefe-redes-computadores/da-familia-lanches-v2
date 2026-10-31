@@ -2580,3 +2580,7 @@
  .loadMore{min-width:0!important;overflow-wrap:anywhere!important}
 }
 @media(max-width:420px){.queueHead p{max-width:33ch!important}.grid{gap:8px!important}}
+
+/* DFL-R101-PREOPENING-AUDIT — safe-area, viewport dinâmico e rolagem independente. */
+
+@media(max-width:820px){.orderInspector{box-sizing:border-box;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 5px)!important;overscroll-behavior:contain;overflow-x:hidden;overflow-y:auto;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))!important}.inspectorHead{min-width:0}.inspectorHead strong{overflow-wrap:anywhere}}

@@ -182,7 +182,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
 
     setCancelBusy(true);
     try {
-      await updateStatus(pedido.id, "Cancelado", pedido, {
+      const confirmed = await updateStatus(pedido.id, "Cancelado", pedido, {
         reasonCode: reason.code,
         reasonLabel: reason.label,
         note: cancelNote.trim() || undefined,
@@ -191,6 +191,8 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
           ? itens.map((item: any) => String(item.id || "")).filter(Boolean)
           : [],
       });
+      // R101: nao fechar a confirmacao de cancelamento se o servidor recusou.
+      if (confirmed !== true) return;
       if (cancelReasonCode === "item_unavailable") {
         const candidates: Array<{id:string;name:string}> = itens
           .map((item: any) => ({ id: String(item.id || "").trim(), name: String(item.name || "Produto").trim() }))

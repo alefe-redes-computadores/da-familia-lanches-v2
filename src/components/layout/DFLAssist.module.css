@@ -163,3 +163,14 @@
 .r98BudgetPresets span{font-weight:900;margin-right:4px}
 .r98BudgetPresets button{min-height:38px;padding:7px 10px;border:1px solid #dfc99e;border-radius:10px;background:#fff8ec;color:#5c4225;font-size:11px;font-weight:850;cursor:pointer}
 .r98BudgetPresets button[data-active="true"]{background:#f5dfad;border-color:#b98634;color:#38240b}
+
+/* DFL-R102-FECHAMENTO-TOTAL */
+/* R102: modal resiliente em Android com teclado e safe-area, sem scroll do fundo. */
+.backdrop{box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+.panel{box-sizing:border-box;min-width:0;max-width:100%;max-height:calc(100dvh - 16px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+.panel :is(h3,strong,small,span,p){overflow-wrap:anywhere}
+.quickSearch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.quickSearch button{min-width:0;min-height:44px;white-space:normal;line-height:1.25}
+.r98BudgetPresets{gap:6px;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;padding:2px 2px 6px;scrollbar-width:thin}.r98BudgetPresets>span,.r98BudgetPresets button{flex:0 0 auto}.r98BudgetPresets button{min-height:44px;touch-action:manipulation}
+@media(max-width:530px){.message{padding:10px 12px;font-size:13px;line-height:1.4}.offers{gap:9px}.panel{gap:10px}}
+@media(max-width:350px){.quickSearch{gap:5px}.quickSearch button{padding:8px;font-size:11px}}

@@ -817,3 +817,7 @@
 
 /* DFL-R98-MACRO-FINAL — alerta de dependencia contextual */
 .r98DependencyNotice{margin:9px 0;padding:10px 12px;border:1px solid rgba(251,190,76,.45);border-radius:12px;background:#292217;color:#ffe1a2;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+
+/* DFL-R101-PREOPENING-AUDIT — safe-area, viewport dinâmico e rolagem independente. */
+
+@media(max-width:620px){.editor{box-sizing:border-box;min-height:0;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 4px);overflow-x:hidden}.editorScroll{min-height:0;overscroll-behavior:contain;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}}

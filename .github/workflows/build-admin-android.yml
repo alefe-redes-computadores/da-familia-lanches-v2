@@ -74,6 +74,7 @@ jobs:
           node scripts/test-roadmap-final-v2.mjs
           node scripts/release-gate-catalog-v43.mjs
           node scripts/test-android-release-gate-v50-1.mjs
+          node scripts/test-site-r102-preopening.cjs
           node node_modules/typescript/bin/tsc --noEmit
           git diff --check
 

@@ -34,6 +34,7 @@ export default function Home() {
   const activeModal = useUIStore((s) => s.activeModal);
   const mobileMenuOpen = useUIStore((s) => s.isMobileMenuOpen);
   const [showAssistShortcut, setShowAssistShortcut] = useState(false);
+  const [catalogSearchFocused, setCatalogSearchFocused] = useState(false); // R102: nao obstruir a busca no celular
   useEffect(() => {
     // DFL-R71-ASSIST-SCROLL: scroll passive, sem observar pixels ou consultar Firebase.
     const sync = () => setShowAssistShortcut(window.scrollY > 470);
@@ -192,7 +193,7 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
-      {showAssistShortcut && !activeModal && !mobileMenuOpen && (
+      {showAssistShortcut && !search.trim() && !catalogSearchFocused && !activeModal && !mobileMenuOpen && (
         <button type="button" className={styles.r71AssistShortcut}
           onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}
           aria-label="Abrir DFL Assist para ajudar a escolher um produto">
@@ -206,18 +207,17 @@ export default function Home() {
 
           <label className={styles.searchBox}>
             <span aria-hidden="true">⌕</span>
-            <input ref={searchInputRef} aria-keyshortcuts="Control+K Meta+K" value={search} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setActiveCategory("todos"); }} placeholder="Buscar lanche, combo ou bebida" aria-label="Buscar no cardápio" /><kbd className={styles.searchShortcut} aria-hidden="true">Ctrl K</kbd>
+            <input ref={searchInputRef} aria-keyshortcuts="Control+K Meta+K" value={search} onFocus={() => setCatalogSearchFocused(true)} onBlur={() => setCatalogSearchFocused(false)} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setActiveCategory("todos"); }} placeholder="Buscar lanche, combo ou bebida" aria-label="Buscar no cardápio" /><kbd className={styles.searchShortcut} aria-hidden="true">Ctrl K</kbd>
             {search && <button type="button" onClick={() => setSearch("")} aria-label="Limpar busca">×</button>}
           </label>
         </div>
       </section>
 
       {/* DFL-R58-ASSIST-VISIBLE: entrada editorial discreta; nao ocupa barra fixa. */}
-      <button type="button" onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}
-        aria-label="Abrir DFL Assist para encontrar lanches e combos"
-        style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,width:"100%",maxWidth:1100,margin:"10px auto 12px",padding:"12px 15px",border:"1px solid #5b4b23",borderRadius:15,background:"linear-gradient(105deg,#1d1d21,#302714)",color:"#fff",textAlign:"left",cursor:"pointer"}}>
-        <span style={{display:"grid",gap:3,minWidth:0}}><strong style={{fontSize:13}}>Não sabe o que pedir? O DFL Assist te ajuda.</strong><small style={{fontSize:11,color:"#e8d4a5"}}>Encontre opções por preço, fome ou quantidade de pessoas</small></span>
-        <span aria-hidden="true" style={{flexShrink:0,color:"#ffca28",fontSize:22}}>›</span>
+      <button type="button" className={styles.r102AssistEntry} onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}
+        aria-label="Abrir DFL Assist para encontrar lanches e combos">
+        <span className={styles.r102AssistEntryCopy}><strong>Não sabe o que pedir? O DFL Assist te ajuda.</strong><small>Encontre opções por preço, fome ou quantidade de pessoas</small></span>
+        <span aria-hidden="true" className={styles.r102AssistEntryArrow}>›</span>
       </button>
       <div className={styles.categoryRailWrap}>
         <nav className={styles.categoryRail} aria-label="Categorias do cardápio">
