@@ -375,3 +375,30 @@
 @media(max-width:699px){.r104OffersExpanded{grid-template-columns:minmax(0,1fr)}.r104OfferCardPreview{flex-basis:min(84vw,315px)}.r104OfferImage{flex-basis:100px;width:100px;min-height:114px}.r104OfferCard{padding:9px;gap:10px}.promoShowcase{scroll-margin-top:calc(92px + env(safe-area-inset-top,0px))}}
 @media(max-width:360px){.r104OfferCardPreview{flex-basis:calc(100% - 22px)}.r104OfferImage{flex-basis:88px;width:88px}.promoShowcaseHead{gap:7px}.allOffersButton{font-size:11px;padding:8px}}
 @media(prefers-reduced-motion:reduce){.promoShowcase,.r104OfferCard{transition:none;animation:none}.r104OffersPreview{scroll-behavior:auto}}
+
+/* R106-MOBILE-REFINEMENT: hierarquia, cards leves, sem reformar o tema aprovado. */
+.r104OfferCardExpanded{min-height:126px;align-items:center}
+.r104OfferCardExpanded .r104OfferImage{height:116px;min-height:0;flex-basis:116px;width:116px}
+.r104OfferCardExpanded .r104OfferContent{justify-content:center;gap:5px}
+.r104OfferCardExpanded .r104OfferPrices{margin-top:4px}
+.r104OfferImage img{object-fit:contain}
+.r104OfferCard{transition:background-color .12s ease,transform .12s ease}
+.r104OfferCard:active{background:#2b2b2d;transform:scale(.994)}
+@media(hover:hover) and (pointer:fine){.r104OfferCard:hover{background:#2b2b2d}}
+@media(max-width:699px){
+  .promoShowcaseHead{flex-direction:column;align-items:stretch;gap:10px}
+  .promoShowcaseHead h2{line-height:1.16}
+  .allOffersButton{align-self:flex-start;min-height:38px;max-width:100%;font-size:11px;padding:8px 12px}
+  .r104OfferCardExpanded .r104OfferImage{height:108px;min-height:0;flex-basis:108px;width:108px}
+  .r104OfferCardExpanded{min-height:124px}
+  .r104OfferCardPreview{flex-basis:min(88%,320px);scroll-snap-align:start}
+  .content{padding-bottom:calc(130px + env(safe-area-inset-bottom,0px))}
+}
+@media(max-width:360px){
+  .r104OfferCardExpanded .r104OfferImage{height:96px;min-height:0;flex-basis:96px;width:96px}
+  .r104OfferCardPreview{flex-basis:calc(100% - 24px)}
+  .r104OfferBadge{font-size:8px}
+  .r104OfferName{font-size:12px}
+  .r104OfferPrices b{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){.r104OfferCard{transition:none}.r104OfferCard:active{transform:none}}

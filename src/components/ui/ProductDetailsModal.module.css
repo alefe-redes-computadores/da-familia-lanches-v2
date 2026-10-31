@@ -199,3 +199,9 @@
  .comboUpsellCopy>div{gap:5px}
 }
 @media(prefers-reduced-motion:reduce){.confirm,.comboUpsell button{animation:none;transition:none}}
+
+/* DFL-R106-ULTIMO-POLIMENTO-PWA: a mesma campanha da vitrine, sem alterar fundo do modal. */
+.campaignBadge{display:inline-flex;align-items:center;max-width:100%;padding:5px 8px;border:1px solid #55545a;border-radius:7px;background:var(--dfl-campaign-badge,#18181b);color:var(--dfl-campaign-badgeText,#facc15);font-size:10px;line-height:1.35;font-weight:900;letter-spacing:.025em;overflow-wrap:anywhere}
+.productTopline{align-items:flex-start}
+.productTopline .campaignBadge{flex:0 1 auto;min-width:0}
+@media(max-width:480px){.productTopline .campaignBadge{font-size:9px}.productPrice{flex-wrap:wrap}.productPrice>strong{color:#171717}}

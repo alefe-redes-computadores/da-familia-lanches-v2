@@ -256,7 +256,7 @@ export default function Home() {
 
   return (
     <div className={styles.page} data-dfl-campaign-home="true">
-      {showAssistShortcut && !search.trim() && !catalogSearchFocused && !activeModal && !mobileMenuOpen && (
+      {showAssistShortcut && !showAllOffers && !search.trim() && !catalogSearchFocused && !activeModal && !mobileMenuOpen && (
         <button type="button" className={styles.r71AssistShortcut} data-first-hint={assistFirstHint}
           onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}
           aria-label="Abrir DFL Assist para ajudar a escolher um produto">

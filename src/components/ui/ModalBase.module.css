@@ -115,3 +115,6 @@
  .modal{max-height:calc(100dvh - env(safe-area-inset-top,0px));padding-bottom:env(safe-area-inset-bottom,0px)}
  .body{min-height:0;-webkit-overflow-scrolling:touch}
 }
+
+/* R106-MOBILE-COMPOSITOR: modal usa escurecimento simples, evita blur durante screenshot. */
+@media(max-width:760px) and (pointer:coarse){.backdrop{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(0,0,0,.64)}}

@@ -51,5 +51,7 @@ jobs:
         run: node scripts/test-visual-campaign-r104.cjs
       - name: R105 - Fechamento e confiabilidade de campanhas
         run: node scripts/test-site-r105-closing.cjs
+      - name: R106 - Produto em campanha e desempenho PWA
+        run: node scripts/test-site-r106-pwa-polish.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs

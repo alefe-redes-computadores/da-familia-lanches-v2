@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogImage } from "@/components/ui/CatalogImage";
+import { useVisualCampaign } from "@/components/layout/VisualCampaignProvider";
+import { useCatalogCategories } from "@/hooks/useCatalogCategories";
+import { featuredCampaignProduct } from "@/lib/visualCampaignProduct";
 import { ArrowLeft, ChevronRight, Copy, Heart, MessageCircle, Share2, ShoppingCart } from "lucide-react";
 import type { Product } from "@/data/products";
 import { useCatalog } from "@/hooks/useCatalog";
@@ -21,6 +24,8 @@ import { readSavedProductIds, toggleSavedProductId } from "@/lib/savedProductIds
 
 export function ProductPublicPage({ section, slug }: { section: string; slug: string }) {
   const { products, loading } = useCatalog();
+  const { activeCategories } = useCatalogCategories();
+  const campaign = useVisualCampaign();
   const openModal = useUIStore((state) => state.openModal);
   const cartItems = useCartStore((state) => state.items);
   const [copied, setCopied] = useState(false);
@@ -56,6 +61,7 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   const available = product.disponivel !== false;
   const inCart = cartItems.filter((item) => item.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
   const hasDiscount = typeof product.oldPrice === "number" && product.oldPrice > product.price;
+  const featured = featuredCampaignProduct(campaign, product, products, new Set(activeCategories.map(c=>c.id)));
   const sectionLabel = PUBLIC_SECTION_LABELS[productPublicSection(product)] || product.category;
   const hasComposition = bundle.length > 0 || Boolean(product.detailsItems?.length) || Boolean(product.includedExtras);
   const leadDescription = productLeadDescription(product);
@@ -91,10 +97,10 @@ export function ProductPublicPage({ section, slug }: { section: string; slug: st
   return <main className={styles.page}>
     <nav className={styles.breadcrumb} aria-label="Navegação"><Link href="/"><ArrowLeft size={16} /> Cardápio</Link><span>•</span><strong>{sectionLabel}</strong></nav>
     <section className={styles.hero}>
-      <div className={styles.media}><CatalogImage src={product.image} alt={product.name} sizes="(max-width: 760px) calc(100vw - 20px), (max-width: 1080px) 48vw, 520px" priority quality={76} style={{ objectFit: "contain" }} />{hasDiscount && <b>-{Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100)}%</b>}{!available && <span>INDISPONÍVEL</span>}</div>
-      <div className={styles.summary}>
-        <span className={styles.kicker}>{sectionLabel}</span><h1>{product.name}</h1>{leadDescription && <p>{leadDescription}</p>}
-        <div className={styles.buyRow}><div className={styles.price}>{hasDiscount && <s>{money(product.oldPrice!)}</s>}<strong>{money(product.price)}</strong>{hasDiscount && <small>Economize {money(product.oldPrice! - product.price)}</small>}</div><button type="button" className={styles.share} onClick={share} aria-label="Compartilhar produto"><Share2 size={17} /><span>{copied ? "Link copiado" : "Compartilhar"}</span></button></div>
+      <div className={styles.media}><CatalogImage src={product.image} alt={product.name} sizes="(max-width: 760px) calc(100vw - 20px), (max-width: 1080px) 48vw, 520px" priority quality={76} style={{ objectFit: "contain" }} />{!featured && hasDiscount && <b>-{Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100)}%</b>}{!available && <span>INDISPONÍVEL</span>}</div>
+      <div className={styles.summary} data-campaign-offer={featured ? "true" : undefined}>
+        {featured && <span className={styles.campaignBadge}>{featured.label}{featured.percent>0?` · -${featured.percent}%`:""}</span>}<span className={styles.kicker}>{featured ? "OFERTAS DA FAMÍLIA" : sectionLabel}</span><h1>{product.name}</h1>{leadDescription && <p>{leadDescription}</p>}
+        <div className={styles.buyRow}><div className={styles.price}>{hasDiscount && <s>{money(product.oldPrice!)}</s>}<strong>{money(product.price)}</strong>{hasDiscount && !featured && <small>Economize {money(product.oldPrice! - product.price)}</small>}</div><button type="button" className={styles.share} onClick={share} aria-label="Compartilhar produto"><Share2 size={17} /><span>{copied ? "Link copiado" : "Compartilhar"}</span></button></div>
         {/* DFL-R100-FINAL-POLISH: WhatsApp sempre acessivel; somente compartilha link, nunca cria pedido. */}
         <div className={styles.socialActions}>
           <button type="button" className={styles.saveFavorite} data-saved={saved} aria-pressed={saved}

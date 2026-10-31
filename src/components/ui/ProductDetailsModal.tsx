@@ -1,6 +1,9 @@
 "use client";
 
 import { CatalogImage } from "@/components/ui/CatalogImage";
+import { useVisualCampaign } from "@/components/layout/VisualCampaignProvider";
+import { useCatalogCategories } from "@/hooks/useCatalogCategories";
+import { featuredCampaignProduct } from "@/lib/visualCampaignProduct";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Addon } from "@/data/addons";
@@ -45,6 +48,8 @@ export function ProductDetailsModal() {
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
   const { addons, products } = useCatalog();
+  const { activeCategories } = useCatalogCategories();
+  const campaign = useVisualCampaign();
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [observation, setObservation] = useState("");
@@ -53,6 +58,8 @@ export function ProductDetailsModal() {
 
   const addonsTotal = useMemo(() => selectedAddons.reduce((sum, addon) => sum + addon.price, 0), [selectedAddons]);
   if (!product) return null;
+  // Apenas pertencimento visual; não altera preço, composição ou carrinho.
+  const featured = featuredCampaignProduct(campaign, product, products, new Set(activeCategories.map(c=>c.id)));
 
   const total = (product.price + addonsTotal) * quantity;
   const hasDiscount = typeof product.oldPrice === "number" && product.oldPrice > product.price;
@@ -117,8 +124,10 @@ export function ProductDetailsModal() {
     <ModalBase title="Personalizar pedido" onClose={closeModal}>
       <div className={styles.wrap}>
         <div className={styles.product}>
-          <CatalogImage src={product.image} alt={product.name} sizes="(max-width: 700px) 100vw, 620px" priority quality={72} />
-          <div><div className={styles.productTopline}><span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span><Link className={styles.fullPageLink} href={productHref(product)} onClick={closeModal}>Página completa ↗</Link></div><h3>{product.name}</h3>{leadDescription && <p>{leadDescription}</p>}<div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && <small className={styles.savings}>Economize {money(savings)}</small>}</div></div>
+          <CatalogImage src={product.image} alt={product.name} sizes="(max-width: 480px) 82px, 92px" priority quality={72} />
+          <div><div className={styles.productTopline}>{featured ? <span className={styles.campaignBadge} aria-label={`Campanha ${featured.label}${featured.percent>0?` com ${featured.percent}% de desconto`:""}`}>
+              {featured.label}{featured.percent>0?` · -${featured.percent}%`:""}
+            </span> : <span className={styles.kicker}>{product.isSuggestion ? "SUGESTÃO DA CASA" : "PERSONALIZE"}</span>}<Link className={styles.fullPageLink} href={productHref(product)} onClick={closeModal}>Página completa ↗</Link></div><h3>{product.name}</h3>{leadDescription && <p>{leadDescription}</p>}<div className={styles.productPrice}>{hasDiscount && <span>{money(product.oldPrice!)}</span>}<strong>{money(product.price)}</strong>{hasDiscount && !featured && <small className={styles.savings}>Economize {money(savings)}</small>}</div></div>
         </div>
 
         {(hasBundle || product.detailsItems?.length || product.includedExtras) && <section className={hasBundle ? styles.composition : styles.ingredients}>
