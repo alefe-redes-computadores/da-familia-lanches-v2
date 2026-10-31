@@ -95,12 +95,23 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
   const historyVisibleRef = useRef(20);
   const historyBusyRef = useRef(false);
   const cancelledRef = useRef(false);
+  // Uma confirmacao invalida qualquer play() iniciado antes do aceite.
+  const alarmGenerationRef = useRef(0);
+  const alarmActiveRef = useRef(false);
+  const alarmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const silenceAlarm = useCallback(() => {
+    alarmGenerationRef.current += 1;
+    alarmActiveRef.current = false;
+    if (alarmTimeoutRef.current !== null) {
+      clearTimeout(alarmTimeoutRef.current);
+      alarmTimeoutRef.current = null;
+    }
     setAlarmeAtivo(false);
     const target = audioRef.current;
     target?.pause();
     if (target) target.currentTime = 0;
+    navigator.vibrate?.(0);
   }, []);
 
   const raiseAdminAlarm = useCallback((candidates: AdminAlarmCandidate[]) => {
@@ -117,21 +128,37 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
     }
     const newOrderAlerts=adminNotificationPrefEnabled("newOrders");
     const soundAndVibration=adminNotificationPrefEnabled("soundAndVibration");
-    if(newOrderAlerts)setAlarmeAtivo(true);
+    const generation = ++alarmGenerationRef.current;
+    if (newOrderAlerts) {
+      alarmActiveRef.current = true;
+      setAlarmeAtivo(true);
+      // Sem toque infinito: 35 segundos por lote; pedidos novos rearmam.
+      if (alarmTimeoutRef.current !== null) clearTimeout(alarmTimeoutRef.current);
+      alarmTimeoutRef.current = setTimeout(() => {
+        if (alarmGenerationRef.current === generation) silenceAlarm();
+      }, 35000);
+    }
 
     void (async () => {
       if(!newOrderAlerts)return;
       let audible = false;
       const target = audioRef.current;
-      if (target && soundAndVibration) {
+      if (target && soundAndVibration && alarmGenerationRef.current === generation) {
         try {
           target.currentTime = 0;
           await target.play();
+          // Promise de autoplay pode resolver DEPOIS de uma confirmacao.
+          if (alarmGenerationRef.current !== generation || !alarmActiveRef.current) {
+            target.pause();
+            target.currentTime = 0;
+            return;
+          }
           audible = true;
         } catch (error) {
           console.warn("[admin/orders] áudio local bloqueado; usando fallback do sistema", error);
         }
       }
+      if (alarmGenerationRef.current !== generation || !alarmActiveRef.current) return;
       if (!audible && soundAndVibration) navigator.vibrate?.([220,100,220,100,320]);
 
       for (const candidate of fresh) {
@@ -147,25 +174,19 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
         }));
       }
     })();
-  }, []);
+  }, [silenceAlarm]);
 
   const reconhecerPedido = useCallback((id: string) => {
     const cleanId = String(id).trim();
     if (!cleanId) return;
     acknowledgedPendingIdsRef.current.add(cleanId);
     alertedPendingIdsRef.current.add(cleanId);
-
-    const remaining = [
-      ...realtimeOrdersRef.current.values(),
-      ...authoritativeOrdersRef.current.values(),
-    ].some((order) => {
-      const orderId = String(order.id);
-      return orderId !== cleanId &&
-        normalizarStatus(order.status) === "Pendente" &&
-        !acknowledgedPendingIdsRef.current.has(orderId);
+    // Reconhecer um pedido encerra imediatamente o alarme daquele lote,
+    // mesmo se houver outros pendentes. Um pedido novo cria outro ciclo.
+    silenceAlarm();
+    navigator.serviceWorker?.controller?.postMessage({
+      type: "DFL_ADMIN_ACK_ORDER", orderId: cleanId,
     });
-
-    if (!remaining) silenceAlarm();
   }, [silenceAlarm]);
 
   const desfazerReconhecimentoPedido = useCallback((id: string) => {
@@ -226,9 +247,13 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       const target = audioRef.current;
       if (!target) return;
 
+      const generation = alarmGenerationRef.current;
       void target.play().then(() => {
-        target.pause();
-        target.currentTime = 0;
+        // Nao ressuscitar áudio depois do aceite e nem pausar alerta novo.
+        if (!alarmActiveRef.current) {
+          target.pause();
+          target.currentTime = 0;
+        }
         window.removeEventListener("click", unlock);
         window.removeEventListener("touchstart", unlock);
       }).catch(() => undefined);
@@ -241,6 +266,10 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       window.removeEventListener("click", unlock);
       window.removeEventListener("touchstart", unlock);
       audio.pause();
+      if (alarmTimeoutRef.current !== null) clearTimeout(alarmTimeoutRef.current);
+      alarmTimeoutRef.current = null;
+      alarmGenerationRef.current += 1;
+      alarmActiveRef.current = false;
     };
   }, []);
 
@@ -436,6 +465,10 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       }>).detail;
 
       if (detail?.type !== "admin.new_order" || !detail.orderId) return;
+      // Push atrasado nao pode rearmar um pedido ja aceito no snapshot.
+      const known = realtimeOrdersRef.current.get(detail.orderId) ??
+        authoritativeOrdersRef.current.get(detail.orderId);
+      if (known && normalizarStatus(known.status) !== "Pendente") return;
 
       raiseAdminAlarm([{
         id: detail.orderId,

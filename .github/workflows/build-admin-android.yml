@@ -4,9 +4,43 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      apps:
+        description: "APK a compilar (automatico no push)"
+        type: choice
+        required: true
+        default: ambos
+        options: [ambos, admin, cliente, automatico]
+
+permissions:
+  contents: read
 
 jobs:
+  scope:
+    name: Selecionar APKs pelo diff
+    runs-on: ubuntu-latest
+    outputs:
+      admin: ${{ steps.select.outputs.admin }}
+      cliente: ${{ steps.select.outputs.cliente }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: select
+        name: Classificar alteracoes sem rebuild desnecessario
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          RELEASE_MODE: ${{ inputs.apps }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/ci/select-android-builds.cjs
+
   build:
+    needs: scope
+    if: needs.scope.outputs.admin == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -80,6 +114,7 @@ jobs:
           node scripts/test-site-r107-scroll-lock.cjs
           node scripts/test-site-r228-relay-separation.cjs
           node scripts/test-site-r228-checkout-compat.cjs
+          node scripts/test-site-r229-alarm-client.cjs
           node scripts/test-android-release-gate-v50-1.mjs
           node scripts/test-site-r102-preopening.cjs
           node node_modules/typescript/bin/tsc --noEmit
@@ -178,5 +213,71 @@ jobs:
         with:
           name: DFL-Admin-${{ github.run_number }}-${{ github.sha }}
           path: android-admin/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  cliente:
+    name: DFL Cliente Android release
+    needs: scope
+    if: needs.scope.outputs.cliente == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+      - name: Validar isolamento do APK Cliente
+        run: |
+          npm ci
+          node scripts/test-site-r229-alarm-client.cjs
+          node scripts/test-site-sales-r5-ui-recovery.cjs
+          node scripts/test-site-r228-checkout-compat.cjs
+      - name: Gerar APK cliente a partir do launcher estavel
+        run: |
+          python3 -m pip install --disable-pip-version-check pillow
+          python3 scripts/prepare-client-android.py
+          test -s android-cliente/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          test -s android-cliente/app/src/main/res/drawable-nodpi/ic_stat_dfl_cliente.png
+      - name: Assinatura estavel da familia Android
+        env:
+          DFL_ADMIN_KEYSTORE_BASE64: ${{ secrets.DFL_ADMIN_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DFL_ADMIN_KEYSTORE_BASE64" || { echo 'Secret de assinatura ausente'; exit 1; }
+          KEYSTORE="$RUNNER_TEMP/dfl-cliente.keystore"
+          printf '%s' "$DFL_ADMIN_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+          SHA256="$(keytool -list -v -keystore "$KEYSTORE" -alias dfladmin -storepass android -keypass android | sed -n 's/^[[:space:]]*SHA256: //p' | head -n1)"
+          test "$SHA256" = '77:F6:88:B5:32:06:0E:41:35:C2:9F:4E:24:22:4A:6C:34:C0:F1:74:DB:D2:65:E4:BD:27:50:6D:88:17:55:63'
+          echo "DFL_ADMIN_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: Compilar APK Cliente
+        run: gradle -p android-cliente clean assembleRelease
+      - name: Validar pacote e assinatura final
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=android-cliente/app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          AAPT="$(find "$SDK/build-tools" -type f -name aapt 2>/dev/null | sort -V | tail -n1)"
+          APKSIGNER="$(find "$SDK/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n1)"
+          test -n "$AAPT" && test -n "$APKSIGNER"
+          "$AAPT" dump badging "$APK" | grep -Fq "package: name='br.com.dafamilialanches.cliente'"
+          "$APKSIGNER" verify --print-certs "$APK" > "$RUNNER_TEMP/client-cert.txt"
+          grep -iEq '77f688b532060e4135c29f4e24224a6c34c0f174dbd265e4bd27506d88175563' "$RUNNER_TEMP/client-cert.txt"
+          echo 'CLIENTE: ID E CERTIFICADO CONFERIDOS'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DFL-Cliente-${{ github.run_number }}-${{ github.sha }}
+          path: android-cliente/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 7

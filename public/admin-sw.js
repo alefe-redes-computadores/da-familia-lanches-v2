@@ -49,7 +49,17 @@ async function showAdminNotification(payload){
   });
 }
 messaging.onBackgroundMessage((payload)=>showAdminNotification(payload?.data||{}));
-self.addEventListener("message",(event)=>{if(event.data?.type!=="DFL_ADMIN_NOTIFY")return;event.waitUntil(showAdminNotification(event.data.payload||{}));});
+self.addEventListener("message",(event)=>{
+  if(event.data?.type==="DFL_ADMIN_ACK_ORDER"){
+    const id=String(event.data.orderId||"");
+    if(!id||id.length>160)return;
+    event.waitUntil(self.registration.getNotifications({tag:`new-order-${id}`})
+      .then(notifications=>notifications.forEach(notification=>notification.close())));
+    return;
+  }
+  if(event.data?.type!=="DFL_ADMIN_NOTIFY")return;
+  event.waitUntil(showAdminNotification(event.data.payload||{}));
+});
 function safeAdminTarget(value){
   try{
     const url=new URL(value||"/admin",self.location.origin);
