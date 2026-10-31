@@ -75,13 +75,8 @@ export function AppShell({ children }: Props) {
     if (isAdmin && activeModal) closeModal();
   }, [isAdmin, activeModal, closeModal]);
 
-  useEffect(() => {
-    const shouldLock = Boolean(!isAdmin && activeModal);
-    if (!shouldLock) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previous; };
-  }, [activeModal, isAdmin]);
+  // R107: cada camada gerencia sua própria rolagem (ModalBase, MobileDrawerMenu, DFLAssist).
+  // Evita locks aninhados com restauração de overflow fora de ordem ao navegar repetidamente.
 
   if (isAdmin) {
     return <div className={`${styles.shell} ${styles.adminShell}`}><main className={`${styles.main} ${styles.adminMain}`}>{children}</main></div>;
