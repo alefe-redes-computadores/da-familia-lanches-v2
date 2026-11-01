@@ -22,3 +22,15 @@
 .list button > span:last-child{flex:0 0 auto;font-size:19px;color:#997333}
 .list button > span:first-child small{font-size:11px;color:#6f5a3b;line-height:1.4}
 @media(max-width:390px){.list button > span:first-child{font-size:12px}}
+
+/* DFL-R234-COMPOUND-MOBILE: accessible distinct results under Android keyboard. */
+.searchHelp{margin:0 0 3px;color:#6b5c40;font-size:11px;line-height:1.5}
+.referenceSelected{margin:0 0 6px;padding:9px 11px;border:1px solid #ead8aa;border-radius:10px;background:#fff8e8;color:#72541e;font-size:12px;font-weight:750;line-height:1.5}
+.results{max-height:min(52dvh,420px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.list{max-height:min(34dvh,290px);overflow-y:auto;overscroll-behavior:contain}
+.list button{min-height:50px;gap:12px;padding:10px 12px}
+.list button[data-source="reference"]{border-style:dashed;background:#fffdfa}
+.list button .resultOrigin{display:block;margin-top:2px;font-size:10px;font-weight:650;color:#76654b;line-height:1.45}
+.list button[data-source="configured"] .resultOrigin{color:#366b40}
+@media(max-width:400px){.results{max-height:min(47dvh,350px);padding:9px}.list{max-height:min(30dvh,250px)}.list button{min-height:48px}.list button .resultOrigin{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.list button{scroll-behavior:auto}}

@@ -76,3 +76,5 @@ for(const source of [rd('src/lib/districtCatalog.ts'),picker]){
 const workflow=rd('.github/workflows/site-sales-protection.yml');
 ok(workflow.includes('node scripts/test-site-r233-quebec.cjs'),'CI regression wired to sales protection');
 console.log(`R233 QUEBEC: ${passed} contracts passed (reference != service coverage; no actual orders).`);
+// R234: automatically exercised by existing Sales Critical CI gate.
+require('./test-site-r234-compound-districts.cjs');

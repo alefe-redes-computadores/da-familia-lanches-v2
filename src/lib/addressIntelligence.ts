@@ -94,7 +94,7 @@ export function inspectDistrict(value: unknown, configured: string[] = []): Dist
     // R233: "Quebec" alone must suggest "Jardim Quebec", not count as a confirmed full name.
     // Keep exact canonical matches valid, and never assign delivery rates by substring.
     return candidate.length >= key.length + 3 &&
-      (candidate.startsWith(key) || (key.length >= 4 && candidate.endsWith(" " + key)));
+      (candidate.startsWith(key) || (key.length >= 4 && candidate.includes(" " + key)));
   });
   if (!exact && extending.length > 0)
     return {valid:false,reason:"incomplete",suggestions};

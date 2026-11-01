@@ -59,3 +59,55 @@ export function searchDistrictCatalog(
   return { source, results: results.slice(0, limit), total: results.length, limit };
 }
 // DFL-R38-DISTRICT-CATALOG
+
+/** R234: optional combined local discovery used only for suggestions.
+ * Original searchDistrictCatalog remains unchanged for legacy callers and pricing.
+ * Each match carries provenance: reference names NEVER assert store coverage.
+ */
+export type DistrictSearchMatch = { name: string; source: DistrictCatalogSource };
+export type DistrictCompleteCatalog = DistrictCatalog & { matches: DistrictSearchMatch[] };
+
+export function searchDistrictCatalogComplete(
+  query: string,
+  configured: readonly string[],
+  requestedLimit = 8,
+): DistrictCompleteCatalog {
+  const limit = clampLimit(requestedLimit);
+  const configuredNames = uniqueNames(configured);
+  const configuredKeys = new Set(configuredNames.map(normalizeDistrict));
+  // Existing matcher limits results to known, configured or reference names.
+  const original = searchDistrictCatalog(query, configuredNames, 80);
+  const fromTable = configuredNames.length && original.source === "configured"
+    ? original.results : [];
+  const q = normalizeDistrict(query).slice(0, 90);
+  // Empty input shows only the store's table. A customer must type at least
+  // 3 characters before we add reference names from the public city index.
+  const fromReference = q.length >= 3 || !configuredNames.length
+    ? searchDistrictCatalog(query, [], 80).results
+    : [];
+  const matches: DistrictSearchMatch[] = [];
+  const seen = new Set<string>();
+  for (const name of fromTable) {
+    const key = normalizeDistrict(name);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    matches.push({ name, source: "configured" });
+  }
+  for (const name of fromReference) {
+    const key = normalizeDistrict(name);
+    // Reference cannot upgrade a missing table rate to a confirmed coverage.
+    // Entries already in the table must use the table's canonical spelling.
+    if (seen.has(key) || configuredKeys.has(key)) continue;
+    seen.add(key);
+    matches.push({ name, source: "reference" });
+  }
+  const shown = matches.slice(0, limit);
+  return {
+    source: shown[0]?.source ?? original.source,
+    results: shown.map(item => item.name),
+    matches: shown,
+    total: matches.length,
+    limit,
+  };
+}
+// DFL-R234-COMPOUND-DISTRICTS
