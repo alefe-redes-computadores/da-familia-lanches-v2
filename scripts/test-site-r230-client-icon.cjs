@@ -39,4 +39,5 @@ const checks=[
 ];
 for(const [label,ok] of checks)assert.ok(ok,label);
 require('./test-site-r231-client-launcher.cjs');
+require('./test-site-r232-client-runtime.cjs');
 console.log(`R230: ${checks.length} contratos visuais, fonte unica PWA e protecao de CI OK (sem pedidos reais)`);

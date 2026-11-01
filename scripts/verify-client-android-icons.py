@@ -51,6 +51,8 @@ def main():
     check('@drawable/ic_launcher_foreground' in adaptive and '@color/ic_launcher_background' in adaptive,'mascara adaptive Android preservada')
     gradle=(ROOT/'android-cliente/app/build.gradle').read_text(encoding='utf-8')
     check('applicationId "br.com.dafamilialanches.cliente"' in gradle,'identidade cliente distinta de admin')
+    from client_android_runtime import validate_client_runtime
+    validate_client_runtime(ROOT)
     print('R230: CERTIFICACAO DE ICONES ANDROID / PWA APROVADA')
 
 if __name__=='__main__':main()

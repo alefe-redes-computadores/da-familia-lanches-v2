@@ -106,6 +106,10 @@ def main():
     manifest=main/'AndroidManifest.xml'
     rewrite(manifest,[('admin.dafamilialanches.com.br',TARGET_HOST),
       ('ic_stat_dfl_admin','ic_stat_dfl_cliente'),('admin_system_bar','cliente_system_bar')])
+    # R232: primeiro acesso do Cliente nao pode exigir push nao implementado.
+    # Operacao restrita ao clone android-cliente, nunca ao template Admin.
+    from client_android_runtime import prepare_client_runtime
+    prepare_client_runtime(main)
     gradle=DEST/'app/build.gradle'
     rewrite(gradle,[('br.com.dafamilialanches.admin',TARGET_PACKAGE)])
     settings=DEST/'settings.gradle'
