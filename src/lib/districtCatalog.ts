@@ -49,6 +49,13 @@ export function searchDistrictCatalog(
     ? suggestDistricts(q, all, 8).filter(name => permitted.has(normalizeDistrict(name)) && !direct.has(normalizeDistrict(name)))
     : [];
   const results = [...prefixes, ...contains, ...typo];
+  // R233: the shop's rate table can omit a familiar local name.
+  // A reference result helps identify the FULL name but NEVER proves service coverage or price.
+  // This fallback only runs when the configured list had ZERO matches.
+  if (configuredNames.length > 0 && results.length === 0 && q.length >= 3) {
+    const reference = searchDistrictCatalog(query, [], requestedLimit);
+    if (reference.total > 0) return reference;
+  }
   return { source, results: results.slice(0, limit), total: results.length, limit };
 }
 // DFL-R38-DISTRICT-CATALOG

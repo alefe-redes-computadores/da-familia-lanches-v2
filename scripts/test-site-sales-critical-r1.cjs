@@ -9,6 +9,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const ts = require('typescript');
 const crypto = require('node:crypto');
+// R233-R3: the REAL pure street validator runs inside this offline transaction gate.
+// This is intentionally not a permissive stub. No production writes or network.
+const streetGuardCode=ts.transpileModule(
+  fs.readFileSync('src/lib/streetNameSafety.ts','utf8'),
+  {fileName:'src/lib/streetNameSafety.ts',compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}
+).outputText;
+const streetGuardModule={exports:{}};
+new Function('module','exports',streetGuardCode)(streetGuardModule,streetGuardModule.exports);
+assert.equal(typeof streetGuardModule.exports.streetNeedsClarification,'function','R233-R3 real street guard is callable');
 const filename = 'src/app/api/orders/route.ts';
 const source = fs.readFileSync(filename, 'utf8');
 const compiled = ts.transpileModule(source, {
@@ -97,6 +106,7 @@ const fakeModules={
   '@/lib/catalogModifierGroups':{productGroupConfiguration:()=>({valid:true}),inspectProductSelections:()=>({valid:true})},
   '@/lib/commercialSettings':{normalizeCommercialSettings:()=>({}),freeDeliveryThreshold:()=>null},
   '@/lib/addressIntelligence':{inspectDistrict:(d)=>({valid:String(d||'').trim().length>=3}),matchDeliveryRate:(d,rates)=>rates.find(r=>r.nome===d)},
+  '@/lib/streetNameSafety':streetGuardModule.exports,
   '@/lib/integration/server/relay':{drainIntegrationOutboxEvent:async()=>{actions.relay++;return {sent:1,failed:0}}},
   '@/lib/server/observability':{errorCode:(e)=>e?.code||e?.name||'Error',startRouteTrace:()=>({id:'trace-test',startedAt:Date.now(),route:'orders.create'}),finishRouteTrace:(tr,outcome,details)=>actions.traces.push({outcome,details})}
 };
@@ -120,7 +130,7 @@ function input(override={}){
    userName:'Cliente Teste',userPhone:'(34) 99999-9999',subtotal:cost,taxaEntrega:fee,desconto:discount,total:cost+fee-discount,
    endereco:mode==='pickup'?'RETIRADA NO LOCAL':'Rua de Teste, 15 - Centro',tipoEntrega:mode,metodoPagamento:'pix',
    isAgendamento:override.scheduled||false,scheduledFor:override.scheduled?'2026-11-01T19:00:00-03:00':null,
-   customerSnapshot:{name:'Cliente Teste'},deliverySnapshot:mode==='pickup'?null:{cep:'38700-000',street:'Rua de Teste',number:'15',district:override.district||'Centro',complement:'',reference:''}};
+   customerSnapshot:{name:'Cliente Teste'},deliverySnapshot:mode==='pickup'?null:{cep:'38700-000',street:override.street??'Rua de Teste',number:'15',district:override.district||'Centro',complement:'',reference:''}};
  return {subtotal:cost,order,...(override.discountCode?{discount:{code:override.discountCode,expectedDiscount:discount}}:{})};
 }
 const request=(payload,auth=false)=>({headers:{get:(k)=>k.toLowerCase()==='authorization'&&auth?'Bearer client-test-token':null},text:async()=>JSON.stringify(payload)});
@@ -166,6 +176,23 @@ async function check(name,fn){try{await fn();++ok;console.log('✓',name);}catch
  await check('Delivery: bairro ausente nao grava pedido',async()=>{
   const p=input({deliveryMode:'delivery',district:'X'});const n=docs.size;const r=await call(p);
   assert.equal(r.status,409);assert.equal(r.body.error,'ADDRESS_INVALID');assert.equal(docs.size,n);
+ });
+ await check('R233-R3: Rua Deze incompleta nao grava pedido ou outbox',async()=>{
+   const p=input({deliveryMode:'delivery',street:'Rua Deze'});
+   const before=docs.size;const afterJobs=actions.after.length;
+   const result=await call(p);
+   assert.equal(result.status,409,JSON.stringify(result.body));
+   assert.equal(result.body.error,'ADDRESS_INVALID');
+   assert.equal(docs.size,before);
+   assert.equal(actions.after.length,afterJobs);
+ });
+ await check('R233-R3: Rua Dezesseis preservada integralmente no pedido',async()=>{
+   const p=input({deliveryMode:'delivery',street:'Rua Dezesseis'});
+   const result=await call(p);
+   assert.equal(result.status,201,JSON.stringify(result.body));
+   const order=docs.get('Pedidos/'+result.body.id);
+   assert.equal(order.deliverySnapshot.street,'Rua Dezesseis');
+   assert(order.endereco.includes('Rua Dezesseis'));
  });
  await check('Adicional: preco calculado no servidor e serializacao segura',async()=>{
   const p=input({addons:['cheese']});const r=await call(p);assert.equal(r.status,201,JSON.stringify(r.body));

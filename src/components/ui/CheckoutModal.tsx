@@ -16,6 +16,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { formatCEPBR, formatPhoneBR, saveUserAddresses, saveUserProfile, type SavedAddress } from "@/lib/userProfile";
 import { inspectDistrict, matchDeliveryRate, normalizeDistrict } from "@/lib/addressIntelligence";
+import { streetNeedsClarification } from "@/lib/streetNameSafety";
 import { recoverSavedDistrictForExactAddress } from "@/lib/addressDraftRepair";
 import { db } from "@/lib/firebase";
 import { createCustomerOrder } from "@/lib/orderRepository";
@@ -224,7 +225,7 @@ export function CheckoutModal() {
       setConfiguredDistricts(list.map(item => String(item.nome ?? "")).filter(Boolean));
     }).catch(() => { /* nenhum bloqueio ou taxa inventada */ });
   };
-  const addressReady = isPickup || Boolean((cep.replace(/\D/g, "").length === 0 || cep.replace(/\D/g, "").length === 8) && rua.trim().length >= 4 && numero.trim() && districtInspection.valid);
+  const addressReady = isPickup || Boolean((cep.replace(/\D/g, "").length === 0 || cep.replace(/\D/g, "").length === 8) && rua.trim().length >= 4 && !streetNeedsClarification(rua) && numero.trim() && districtInspection.valid);
   const phoneReady = phoneDigits.length === 10 || phoneDigits.length === 11;
 
   const nameReady = customerName.trim().length >= 2;
@@ -1241,8 +1242,9 @@ export function CheckoutModal() {
                     <strong>Endereço em 3 passos</strong>
                     <small>1. Escolha o bairro · 2. Digite a rua · 3. Informe o número. Se preferir, utilize a busca opcional por CEP.</small>
                   </div>
-                  <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Bairro completo" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value);deliveryFeeRequestRef.current += 1;setDeliveryStatus("")}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid&&districtSuggestions.length===0)void calculateDeliveryFee(bairro);}} /></label>
-                   {/* DFL-R38-ADDRESS-CATALOG: fonte cadastrada quando disponivel, sem alterar calculo de frete */}
+                  <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Ex.: Quebec, Centro..." aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value);deliveryFeeRequestRef.current += 1;setDeliveryStatus("")}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid&&districtSuggestions.length===0)void calculateDeliveryFee(bairro);}} /></label>
+                   <small className={styles.districtExample}>Pode digitar só parte do nome. Exemplo: “Quebec” → selecione “Jardim Quebec” na lista.</small>
+                    {/* DFL-R38-ADDRESS-CATALOG: fonte cadastrada quando disponivel, sem alterar calculo de frete */}
                    <DistrictQuickPicker query={bairro} configured={configuredDistricts} onOpen={openDistrictCatalog} onSelect={name => {
                      customerEditingRef.current = true;
                      districtManuallyEditedRef.current = true;
@@ -1252,16 +1254,17 @@ export function CheckoutModal() {
                      void calculateDeliveryFee(name);
                      window.requestAnimationFrame(() => r35StreetRef.current?.focus());
                    }} />
-                   <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input ref={r35StreetRef} className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}}  autoComplete="address-line1"/></label>
-                  {manualMode && districtInspection.valid && <StreetSuggestions street={rua} district={bairro} onSelect={name => { customerEditingRef.current=true; setRua(name); }} />}
+                   <label className={styles.addressFirstField}><span>2 · Rua ou avenida</span><input ref={r35StreetRef} className={styles.input} placeholder="Rua" value={rua} onChange={e=>{customerEditingRef.current=true;setRua(e.target.value)}}  autoComplete="address-line1" aria-invalid={streetNeedsClarification(rua)}/></label>
+                  {streetNeedsClarification(rua) && <div className={styles.streetCompletionPanel}><small className={styles.streetCompletionHint} role="alert">O nome da rua parece incompleto. Confira o nome inteiro (ex.: Rua Dezesseis) antes de continuar. Não completaremos automaticamente.</small><button type="button" onClick={() => { customerEditingRef.current=true;setRua("Rua Dezesseis");window.requestAnimationFrame(() => numberInputRef.current?.focus()); }}>Usar Rua Dezesseis</button></div>}
+                   {manualMode && districtInspection.valid && <StreetSuggestions street={rua} district={bairro} onSelect={name => { customerEditingRef.current=true; setRua(name); }} />}
                   <label className={styles.addressFirstField}><span>3 · Número</span><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/></label>
                   {/* DFL-R22:ADDRESS-SUMMARY */}
                   <div className={styles.addressLiveSummary}
-                    data-ready={districtInspection.valid && rua.trim().length >= 4 && Boolean(numero.trim()) && (cep.replace(/\\D/g, "").length === 0 || cep.replace(/\\D/g, "").length === 8)}
+                    data-ready={districtInspection.valid && rua.trim().length >= 4 && !streetNeedsClarification(rua) && Boolean(numero.trim()) && (cep.replace(/\\D/g, "").length === 0 || cep.replace(/\\D/g, "").length === 8)}
                     aria-label="Resumo do endereço">
                     <div className={styles.addressLiveTop}>
                       <strong>Prévia da entrega</strong>
-                      <span>{districtInspection.valid && rua.trim().length >= 4 && numero.trim() ? "Confira os dados" : "Preencha os 3 passos"}</span>
+                      <span>{districtInspection.valid && rua.trim().length >= 4 && !streetNeedsClarification(rua) && numero.trim() ? "Confira os dados" : "Preencha os 3 passos"}</span>
                     </div>
                     <div className={styles.addressLiveCopy}>
                       <strong>{displayDistrict(bairro) || "Bairro ainda não informado"}</strong>
@@ -1270,7 +1273,7 @@ export function CheckoutModal() {
                     </div>
                     <div className={styles.addressLiveSteps}>
                       <span data-done={districtInspection.valid}>Bairro</span>
-                      <span data-done={rua.trim().length >= 4}>Rua</span>
+                      <span data-done={rua.trim().length >= 4 && !streetNeedsClarification(rua)}>Rua</span>
                       <span data-done={Boolean(numero.trim())}>Número</span>
                     </div>
                     {!districtInspection.valid && bairro.trim() && <small className={styles.addressLiveHint}>Confira o nome completo do bairro ou escolha uma sugestão.</small>}

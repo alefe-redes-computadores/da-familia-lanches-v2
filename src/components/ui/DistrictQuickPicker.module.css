@@ -16,3 +16,9 @@
 .more{min-height:43px;padding:9px 12px;border-radius:10px;border:1px solid #bda376;color:#5d411a;background:#fdf4e1;font-weight:800;font-size:12px;cursor:pointer}
 .toggle:focus-visible,.list button:focus-visible,.more:focus-visible{outline:3px solid #c2913c;outline-offset:2px}
 @media(max-width:390px){.toggle{padding:10px}.results{padding:10px}.list button{font-size:11px}}
+
+/* R233 Quebec field-feedback: accessible labels on narrow Android screens. */
+.list button > span:first-child{min-width:0;font-size:13px;line-height:1.4;font-weight:800;color:#3b3326}
+.list button > span:last-child{flex:0 0 auto;font-size:19px;color:#997333}
+.list button > span:first-child small{font-size:11px;color:#6f5a3b;line-height:1.4}
+@media(max-width:390px){.list button > span:first-child{font-size:12px}}

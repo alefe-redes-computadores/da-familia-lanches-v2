@@ -40,7 +40,11 @@ export function DistrictQuickPicker({ query, configured, onSelect, onOpen }: {
         ✓ Bairro encontrado na lista da loja. O frete sera confirmado no checkout.
       </p>}
       {automatic && !selectedInConfigured && <p role="status" style={{fontSize:12,margin:"0 0 8px",fontWeight:750,color:"#5f503a"}}>
-        {catalog.total ? `Escolha uma sugestão abaixo (${catalog.total} resultado${catalog.total === 1 ? "" : "s"}).` : "Nenhum bairro correspondente. Tente outra escrita ou abra a lista."}
+        {catalog.total
+          ? catalog.source === "reference" && configured.length > 0
+            ? `Encontramos um nome parecido: ${catalog.results[0]}. Selecione para confirmar o nome; entrega e taxa ainda precisam ser verificadas.`
+            : `Escolha uma sugestão abaixo (${catalog.total} resultado${catalog.total === 1 ? "" : "s"}).`
+          : "Nenhum bairro correspondente. Tente outra escrita ou abra a lista."}
       </p>}
       <button type="button" className={styles.toggle} aria-expanded={expanded} aria-controls="dfl-r38-district-results"
         onClick={() => { if (!expanded) onOpen(); setDismissedQuery(query.trim()); setExpanded(value => !value); setLimit(8); }}>
@@ -52,7 +56,9 @@ export function DistrictQuickPicker({ query, configured, onSelect, onOpen }: {
         <p className={styles.notice}>
           {catalog.source === "configured"
             ? "Escolha um bairro cadastrado. O frete será consultado na tabela da loja."
-            : "Não foi possível obter a lista cadastrada. Estes nomes são apenas sugestões; a loja confirmará a entrega e a taxa."}
+            : configured.length > 0
+              ? "Nome encontrado na referência da cidade, não na tabela carregada. Confirme seu bairro; disponibilidade e taxa serão verificadas na finalização."
+              : "Não foi possível obter a lista cadastrada. Estes nomes são apenas sugestões; a loja confirmará a entrega e a taxa."}
         </p>
         <small className={styles.counter}>{query.trim() ? "Resultados para o que você digitou" : "Escolha um bairro ou digite para filtrar"} · {catalog.total} encontrado(s)</small>
         {catalog.results.length > 0 ? <div className={styles.list} aria-label="Bairros sugeridos">

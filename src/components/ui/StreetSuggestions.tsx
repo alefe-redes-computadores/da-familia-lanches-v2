@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./StreetSuggestions.module.css";
+import { streetNeedsClarification } from "@/lib/streetNameSafety";
 
 type Suggestion = { name: string; city: string; state: string };
 type ResponseBody = { ok?: boolean; suggestions?: Suggestion[]; code?: string };
@@ -49,7 +50,7 @@ export function StreetSuggestions({ street, district, onSelect }: {
         const data = await response.json() as ResponseBody;
         if (!controller.signal.aborted && data.ok && Array.isArray(data.suggestions)) {
           const filtered = data.suggestions.filter(item =>
-            item && typeof item.name === "string" && item.name.length > 2 &&
+            item && typeof item.name === "string" && item.name.length > 2 && !streetNeedsClarification(item.name) &&
             item.city === "Patos de Minas" && item.state === "MG",
           ).slice(0, 5);
           if (!filtered.length) setNotice("Nenhuma rua confirmada na busca. Você pode digitar o endereço manualmente.");

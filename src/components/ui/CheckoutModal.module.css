@@ -809,3 +809,12 @@
   .checkoutReadinessTags{max-height:58px}
   .checkoutReadiness{padding:9px 10px}
 }
+
+/* R233 Bairro parcial: orientacao visivel sem confundir nome com cobertura. */
+.addressForm .districtExample{display:block;margin:-3px 0 1px;color:#665a45;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+
+/* R233-R2: warning only for provably incomplete street fragments. */
+.addressForm .streetCompletionPanel{display:grid;gap:8px;padding:10px 12px;border:1px solid #e6bb70;border-radius:11px;background:#fff5df}
+.addressForm .streetCompletionHint{display:block;color:#71460f;font-size:12px;font-weight:750;line-height:1.5;overflow-wrap:anywhere}
+.addressForm .streetCompletionPanel button{min-height:44px;border:1px solid #bd8a2b;border-radius:10px;padding:9px 12px;background:#fff;color:#583c12;font-size:12px;font-weight:850;text-align:left;cursor:pointer}
+.addressForm .streetCompletionPanel button:focus-visible{outline:3px solid #bd8a2b;outline-offset:2px}

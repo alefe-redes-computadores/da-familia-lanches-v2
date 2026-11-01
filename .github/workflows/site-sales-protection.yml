@@ -59,5 +59,11 @@ jobs:
         run: node scripts/test-site-r228-relay-separation.cjs
       - name: R228 - Checkout incerto protegido
         run: node scripts/test-site-r228-checkout-compat.cjs
+      - name: R233 — Bairro parcial, Jardim Quebec e frete seguro
+        run: node scripts/test-site-r233-quebec.cjs
+      - name: R233-R2 — Nome de rua incompleto e integridade do pedido
+        run: node scripts/test-site-r233-street-guard.cjs
+      - name: R233-R3 — Teste transacional com validador real de rua
+        run: node scripts/test-site-r233-sales-mock.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs
