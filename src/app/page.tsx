@@ -63,7 +63,7 @@ export default function Home() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const shopStatus = useShopStatus();
   const { products, loading: catalogLoading, error: catalogError, reload: reloadCatalog } = useCatalog();
-  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [isOnline, setIsOnline] = useState(true);
   const { activeCategories: categories } = useCatalogCategories();
   const [search, setSearch] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -184,8 +184,14 @@ export default function Home() {
   }, []);
   useEffect(() => {
     const online=()=>setIsOnline(true), offline=()=>setIsOnline(false);
+    const syncConnectivity=()=>setIsOnline(navigator.onLine);
+    const onVisible=()=>{ if (document.visibilityState === "visible") syncConnectivity(); };
+    syncConnectivity();
     window.addEventListener("online",online); window.addEventListener("offline",offline);
-    return()=>{window.removeEventListener("online",online);window.removeEventListener("offline",offline);};
+    window.addEventListener("pageshow",syncConnectivity);
+    window.addEventListener("focus",syncConnectivity);
+    document.addEventListener("visibilitychange",onVisible);
+    return()=>{window.removeEventListener("online",online);window.removeEventListener("offline",offline);window.removeEventListener("pageshow",syncConnectivity);window.removeEventListener("focus",syncConnectivity);document.removeEventListener("visibilitychange",onVisible);};
   }, []);
 
   const promoProducts = useMemo(

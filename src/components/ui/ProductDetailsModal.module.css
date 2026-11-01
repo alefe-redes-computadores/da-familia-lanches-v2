@@ -200,6 +200,16 @@
 }
 @media(prefers-reduced-motion:reduce){.confirm,.comboUpsell button{animation:none;transition:none}}
 
+/* R235: informacao comercial explicita, sem alterar regras de adicionais. */
+.r235BundleScope{display:grid;gap:5px;margin:10px 0 4px;padding:12px 13px;border:1px solid #e8dbbd;border-radius:13px;background:#fffaf0;color:#493923}
+.r235BundleScope strong{font-size:13px;line-height:1.3}
+.r235BundleScope span{font-size:11px;line-height:1.5}
+.r235AddonBreakdown{margin:10px 2px 0;font-size:11px;line-height:1.45;color:#5a421e;font-weight:700}
+.r235PriceContext{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}
+.r235PriceContext span{font-size:10px;line-height:1.35;color:#5e544b;min-width:0}
+.r235PriceContext strong{font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media(max-width:380px){.r235PriceContext{align-items:flex-start;flex-direction:column;gap:3px}.r235PriceContext strong{font-size:12px}}
+
 /* DFL-R106-ULTIMO-POLIMENTO-PWA: a mesma campanha da vitrine, sem alterar fundo do modal. */
 .campaignBadge{display:inline-flex;align-items:center;max-width:100%;padding:5px 8px;border:1px solid #55545a;border-radius:7px;background:var(--dfl-campaign-badge,#18181b);color:var(--dfl-campaign-badgeText,#facc15);font-size:10px;line-height:1.35;font-weight:900;letter-spacing:.025em;overflow-wrap:anywhere}
 .productTopline{align-items:flex-start}

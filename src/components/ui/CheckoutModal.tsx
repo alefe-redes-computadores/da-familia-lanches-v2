@@ -168,7 +168,7 @@ export function CheckoutModal() {
   const [wantsSchedule, setWantsSchedule] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [scheduleError, setScheduleError] = useState("");
-  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [isOnline, setIsOnline] = useState(true);
   const [draftRecovered, setDraftRecovered] = useState(false);
   const [draftRecoveredAge, setDraftRecoveredAge] = useState<number | null>(null);
   const draftHydratedRef = useRef(false);
@@ -378,8 +378,14 @@ export function CheckoutModal() {
 
   useEffect(()=>{
     const online=()=>setIsOnline(true), offline=()=>setIsOnline(false);
+    const syncConnectivity=()=>setIsOnline(navigator.onLine);
+    const onVisible=()=>{ if (document.visibilityState === "visible") syncConnectivity(); };
+    syncConnectivity();
     window.addEventListener("online",online); window.addEventListener("offline",offline);
-    return()=>{window.removeEventListener("online",online);window.removeEventListener("offline",offline);};
+    window.addEventListener("pageshow",syncConnectivity);
+    window.addEventListener("focus",syncConnectivity);
+    document.addEventListener("visibilitychange",onVisible);
+    return()=>{window.removeEventListener("online",online);window.removeEventListener("offline",offline);window.removeEventListener("pageshow",syncConnectivity);window.removeEventListener("focus",syncConnectivity);document.removeEventListener("visibilitychange",onVisible);};
   },[]);
   useEffect(() => {
     let alive = true;

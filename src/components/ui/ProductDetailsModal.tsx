@@ -70,6 +70,8 @@ export function ProductDetailsModal() {
   const addOk=inspectProductSelections(product,selectedAddons.map(item=>item.id)).valid;
   const bundleItems = resolveBundleItems(product, products);
   const hasBundle = Boolean(product.bundleItems?.length && bundleItems.length > 0);
+  // R235: a linha do pedido tem UMA selecao de adicionais por combo, nao por componente.
+  const bundlePieceCount = hasBundle ? bundleItems.reduce((sum, item) => sum + item.quantity, 0) : 0;
   const leadDescription = productLeadDescription(product);
   const upsellProduct = product.upsellProductId
     ? products.find((candidate) => candidate.id === product.upsellProductId && candidate.disponivel !== false)
@@ -141,6 +143,13 @@ export function ProductDetailsModal() {
           {product.includedExtras && !hasBundle && <p><b>Acompanha:</b> {product.includedExtras}</p>}
         </section>}
 
+        {hasBundle && <aside className={styles.r235BundleScope} role="note" aria-label="Como funciona a personalização do combo">
+          <strong>Como personalizar este combo</strong>
+          <span>{bundlePieceCount} item(ns) na composição de cada combo. Você está escolhendo {quantity} combo(s).</span>
+          <span>Adicionais escolhidos abaixo são cobrados uma vez por combo, não por lanche individual. O sistema ainda não separa escolhas por lanche dentro do combo.</span>
+          <span>Se precisar retirar ou alterar algo em lanches específicos, descreva quais e quantos na observação. A equipe precisará conferir a solicitação; remoções não descontam automaticamente do preço.</span>
+        </aside>}
+
         {hasExplicitUpsell && upsellProduct && product.upsellUnitPrice != null && (
           <section className={styles.comboUpsell}>
             <div className={styles.comboUpsellCopy}>
@@ -154,19 +163,22 @@ export function ProductDetailsModal() {
 
         {allowAddons && (
           <section className={styles.section}>
-            <div className={styles.sectionTitle}><div><strong>Turbine seu lanche</strong><span>{addonPolicyHint(product)}</span></div><b>{selectedAddons.length}/{limits.max}</b></div>
+            <div className={styles.sectionTitle}><div><strong>{hasBundle ? "Adicionais do combo" : "Turbine seu lanche"}</strong><span>{addonPolicyHint(product)}</span></div><b>{selectedAddons.length}/{limits.max}</b></div>
             <div className={styles.addons}>
               {product.addonGroups?.length ? <AddonGroupsChoices groups={product.addonGroups} addons={productAddons} selected={selectedAddons.map(item=>item.id)} onToggle={toggleAddon}/> : productAddons.map((addon) => {
                 const selected = selectedAddons.some((item) => item.id === addon.id);
-                return <button type="button" key={addon.id} className={selected ? styles.addonSelected : styles.addon} onClick={() => toggleAddon(addon)}><span className={styles.check}>{selected ? "✓" : "+"}</span><span className={styles.addonName}>{addon.name}</span><strong>+ {money(addon.price)}</strong></button>;
+                return <button type="button" key={addon.id} className={selected ? styles.addonSelected : styles.addon} aria-pressed={selected} onClick={() => toggleAddon(addon)}><span className={styles.check}>{selected ? "✓" : "+"}</span><span className={styles.addonName}>{addon.name}</span><strong>+ {money(addon.price)}</strong></button>;
               })}
             </div>
+            {selectedAddons.length > 0 && <p className={styles.r235AddonBreakdown} role="status">
+              Extras: {money(addonsTotal)} {hasBundle ? "por combo" : "por unidade"}. {quantity > 1 ? `Para ${quantity} unidade(s): ${money(addonsTotal * quantity)} em extras.` : ""}
+            </p>}
           </section>
         )}
 
         <section className={styles.section}>
           <label className={styles.observation}>
-            <strong>Observação</strong><span>Ex.: sem cebola, molho separado...</span>
+            <strong>Observação</strong><span>{hasBundle ? "Informe quais lanches e quantos precisam de alterações; a equipe deverá conferir." : "Ex.: sem cebola, molho separado..."}</span>
             <textarea value={observation} onChange={(event) => setObservation(event.target.value)} maxLength={180} placeholder="Algum detalhe para a cozinha?" />
             <small>{observation.length}/180</small>
           </label>
@@ -175,6 +187,10 @@ export function ProductDetailsModal() {
         {addonNotice && <div className={styles.addonNoticeV86} role="alert">{addonNotice}</div>}
         {!addOk && !addonNotice && <div className={styles.addonHintV86} role="status">{inspectProductSelections(product,selectedAddons.map(item=>item.id)).reason||addonPolicyHint(product)}</div>}
         <div className={styles.bottom}>
+          <div className={styles.r235PriceContext} role="status" aria-live="polite">
+            <span>{quantity} {hasBundle ? "combo(s)" : "unidade(s)"} · Base {money(product.price)}{selectedAddons.length ? ` + extras ${money(addonsTotal)}` : ""} por unidade</span>
+            <strong>Total {money(total)}</strong>
+          </div>
           <div className={styles.quantity} aria-label="Quantidade de unidades"><button type="button" aria-label="Diminuir quantidade" disabled={quantity <= 1} onClick={() => setQuantity((q) => Math.max(1, q - 1))}>−</button><span aria-live="polite">{quantity}</span><button type="button" aria-label="Aumentar quantidade" disabled={quantity >= 30} onClick={() => setQuantity((q) => Math.min(30, q + 1))}>+</button></div>
           <button type="button" className={styles.confirm} onClick={handleAdd} disabled={!addOk}><span>Adicionar</span><strong>{money(total)}</strong></button>
         </div>
