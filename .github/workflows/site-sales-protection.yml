@@ -75,5 +75,7 @@ jobs:
         run: node scripts/test-site-r239-combo-cart-bridge.cjs
       - name: R240 - Contrato isolado de cozinha, bobina e Entregas para combo por unidade
         run: node scripts/test-site-r240-kitchen-handoff.cjs
+      - name: R241 - Auditoria de compatibilidade versionada Site e Entregas (OFF)
+        run: node scripts/test-site-r241-receiver-compat.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs
