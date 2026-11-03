@@ -11,6 +11,7 @@ import {
 } from "@/lib/comboUnitBatchDraft";
 import type {ComboScope} from "@/lib/comboUnitPlan";
 import {prepareComboBatchHandoffPreview} from "@/lib/comboUnitBatchHandoffDraft";
+import {buildComboBatchThermalLab,type ThermalLabSize} from "@/lib/comboUnitBatchThermalLab";
 import {ComboUnitBatchAuditDraft} from "./ComboUnitBatchAuditDraft";
 import styles from "./ComboUnitBatchConfiguratorDraft.module.css";
 
@@ -35,10 +36,12 @@ function ComboBatchLabEditor({catalog,initialQuantity}:{catalog:ComboCatalogLab;
   const [current,setCurrent]=useState(1);
   const [selection,setSelection]=useState<Record<number,Selection>>({});
   const [error,setError]=useState("");
+  const [paper,setPaper]=useState<ThermalLabSize>("58");
   const groups=useMemo(()=>listComboEditorGroups(blueprint),[blueprint]);
   const preview=useMemo(()=>{try{return readComboBatchPreview(blueprint,batch,catalog.policy);}catch{return null;}},[blueprint,batch,catalog.policy]);
   const audit=useMemo(()=>{try{return prepareComboBatchHandoffPreview(catalog,batch);}catch{return null;}},[catalog,batch]);
   const rows=useMemo(()=>readComboEditorUnits(blueprint,batch.plans[current-1]),[blueprint,batch,current]);
+  const ticket=useMemo(()=>{try{return audit?buildComboBatchThermalLab(audit,paper):null;}catch{return null;}},[audit,paper]);
   const act=(run:()=>ReturnType<typeof createComboBatchDraft>)=>{
     try{setBatch(run());setError("");}catch{setError("Não foi possível aplicar esta mudança. Confira os limites.");}
   };
@@ -58,7 +61,7 @@ function ComboBatchLabEditor({catalog,initialQuantity}:{catalog:ComboCatalogLab;
     act(()=>changeComboBatchUnits(blueprint,batch,current,scope,{field,id,enabled},catalog.capabilities));
   };
   return <section className={styles.root} data-release="preview-only" aria-label="Laboratório de combos individuais">
-    <header className={styles.head}><span>DFL LAB · R244 · DESATIVADO</span><h2>Cada combo, do seu jeito</h2><p>As escolhas são separadas por combo. Esta prévia não cria pedidos nem autoriza cobrança.</p></header>
+    <header className={styles.head}><span>✦ DFL LAB · PRÉVIA PREMIUM</span><h2>Cada combo, do seu jeito</h2><p>Personalize cada lanche separadamente. Veja o resultado na cozinha sem alterar qualquer pedido real.</p></header>
     <div className={styles.quantity} role="group" aria-label="Quantidade de combos">
       <strong>Combos na simulação</strong>
       <button type="button" disabled={quantity<=1} aria-label="Retirar um combo" onClick={()=>{act(()=>resizeComboBatchDraft(blueprint,batch,quantity-1));setCurrent(Math.min(current,quantity-1));}}>−</button>
@@ -89,12 +92,12 @@ function ComboBatchLabEditor({catalog,initialQuantity}:{catalog:ComboCatalogLab;
           {group.units.map(u=><label key={u.key}><input type="checkbox" checked={selected.keys.includes(u.key)} onChange={(e:ChangeEvent<HTMLInputElement>)=>setSelection(prev=>({...prev,[group.index]:{mode:"selected",keys:e.target.checked?[...selected.keys,u.key]:selected.keys.filter(x=>x!==u.key)}}))}/>{u.unitNumber}</label>)}
         </div>}
         {!!addons.length&&<div className={styles.optionSet}><strong>Adicionais</strong><div className={styles.chips}>
-          {addons.map(id=><button type="button" key={id} onClick={()=>change(group.index,keys,"addon",id)}>
-            + {catalog.labels.addons[id]??id} · {formatBRL(catalog.additionPricesCents[id])}
-          </button>)}
+          {addons.map(id=>{const selectedKeys=selected.mode==="all"?keys:selected.keys.filter(k=>keys.includes(k));const targets=rows.filter(row=>selectedKeys.includes(row.unitKey));const count=targets.filter(row=>row.addonIds.includes(id)).length;const active=targets.length>0&&count===targets.length;return <button type="button" key={id} aria-pressed={active} data-active={active} data-partial={count>0&&!active} onClick={()=>change(group.index,keys,"addon",id)}>
+            {active?"✓ ":"+ "}{catalog.labels.addons[id]??id} · {formatBRL(catalog.additionPricesCents[id])}{count>0&&!active?" · parcial":""}
+          </button>;})}
         </div></div>}
         {!!removals.length&&<div className={styles.optionSet}><strong>Retirar</strong><div className={styles.chips}>
-          {removals.map(id=><button type="button" key={id} onClick={()=>change(group.index,keys,"removal",id)}>Sem {catalog.labels.ingredients[id]??id}</button>)}
+          {removals.map(id=>{const selectedKeys=selected.mode==="all"?keys:selected.keys.filter(k=>keys.includes(k));const targets=rows.filter(row=>selectedKeys.includes(row.unitKey));const count=targets.filter(row=>row.removedIngredientIds.includes(id)).length;const active=targets.length>0&&count===targets.length;return <button type="button" key={id} aria-pressed={active} data-active={active} data-partial={count>0&&!active} onClick={()=>change(group.index,keys,"removal",id)}>{active?"✓ ":""}Sem {catalog.labels.ingredients[id]??id}{count>0&&!active?" · parcial":""}</button>;})}
         </div></div>}
         {!addons.length&&!removals.length&&<small className={styles.muted}>Sem alterações liberadas para este componente.</small>}
         <div className={styles.units}>{group.units.map(u=>{
@@ -110,6 +113,13 @@ function ComboBatchLabEditor({catalog,initialQuantity}:{catalog:ComboCatalogLab;
     })}
     {error&&<p role="alert" className={styles.error}>{error}</p>}
     {audit?<ComboUnitBatchAuditDraft preview={audit}/>:<p role="status" className={styles.error}>Conferência de cozinha indisponível: revise o catálogo e os adicionais.</p>}
+    <section className={styles.thermalSection} aria-label="Bobina simulada para conferência">
+      <div className={styles.thermalHead}><div><span>COZINHA · SOMENTE PRÉVIA</span><strong>Como sai na bobina</strong></div><div className={styles.thermalModes} role="group" aria-label="Largura de bobina">
+        <button type="button" aria-pressed={paper==="58"} onClick={()=>setPaper("58")}>58 mm</button><button type="button" aria-pressed={paper==="80"} onClick={()=>setPaper("80")}>80 mm</button>
+      </div></div>
+      {ticket?<div className={styles.ticketSurface}><div className={styles.ticket}><pre>{ticket.lines.join("\n")}</pre></div></div>:<p className={styles.error} role="status">Prévia térmica indisponível: confira os itens e a composição.</p>}
+      <small>Prévia local. Nenhum comando de impressão é enviado e nenhuma entrega é criada.</small>
+    </section>
     <footer className={styles.total} aria-live="polite">
       <strong>{preview?.unitCount??0} unidades · {preview?.customizedUnits??0} personalizadas</strong>
       <span>{preview?.amountStatus==="preview_only"&&preview.amountCents!=null?`Total apenas ilustrativo: ${formatBRL(preview.amountCents)}`:"Prévia indisponível: confira a política de adicionais."}</span>

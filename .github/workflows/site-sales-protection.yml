@@ -85,5 +85,7 @@ jobs:
         run: node scripts/test-site-r245-combo-joint.cjs
       - name: R246 - Remocoes autorizadas no Admin e bobina 58/80 em laboratorio
         run: node scripts/test-site-r246-removals-thermal.cjs
+      - name: R247 - laboratorio premium visivel apenas no Admin (sem compra, print ou relay)
+        run: node scripts/test-site-r247-premium-admin-lab.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs

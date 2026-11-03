@@ -28,6 +28,8 @@ import { addonPolicy, addonPolicyHint } from "@/lib/catalogAddonPolicy";
 import { productGroupConfiguration, type AddonChoiceGroup } from "@/lib/catalogModifierGroups";
 import { AddonGroupsEditor } from "./AddonGroupsEditor";
 import { CatalogRemovalOptions } from "./CatalogRemovalOptions";
+import { ComboUnitPremiumLabAdmin } from "./ComboUnitPremiumLabAdmin";
+import comboLabStyle from "./ComboUnitPremiumLabAdmin.module.css";
 import {parseCatalogRemovableIngredients,type CatalogRemovableIngredient} from "@/lib/catalogRemovableIngredients";
 import { haptic } from "@/lib/haptics";
 
@@ -177,6 +179,7 @@ export function CatalogAdmin() {
   const { products, addons, allAddons, source, remoteProducts, remoteAddons, loading } = useCatalog();
   const { categories, remoteCategories, loading: categoriesLoading } = useCatalogCategories();
   const [productDraft, setProductDraft] = useState<ProductDraft | null>(null);
+  const [comboLabId, setComboLabId] = useState<string | null>(null);
   const [productMode, setProductMode] = useState<"create" | "edit" | null>(null);
   const [addonDraft, setAddonDraft] = useState<AddonDraft | null>(null);
   const [addonMode, setAddonMode] = useState<"create" | "edit" | null>(null);
@@ -1000,6 +1003,10 @@ export function CatalogAdmin() {
             <p className={styles.promoHint}>dafamilialanches.com.br/{productDraft.publicSection || (productDraft.showInOffers ? "ofertas-da-familia" : productDraft.category)}/{productDraft.publicSlug || slugify(productDraft.name) || "produto"}</p>
           </div>}
           <div className={`${styles.full} ${styles.bundleEditor}`} data-editor-step="conteudo">
+            {productMode === "edit" && productDraft.bundleItems.length > 0 && <div className={comboLabStyle.launch} data-dfl-combo-preview="admin-only">
+              <div><span>✦ DFL LAB · PRÉVIA PREMIUM</span><strong>Experimente a personalização por lanche</strong><small>Teste dois combos com escolhas independentes e confira as bobinas 58/80 mm. Usa os dados já salvos no catálogo.</small></div>
+              <button type="button" onClick={() => setComboLabId(productDraft.id)}>Abrir demonstração <span aria-hidden="true">↗</span></button>
+            </div>}
             <div className={styles.bundleEditorHead}><div><strong>Produtos incluídos no combo</strong><small>Fonte operacional do pedido: adicione somente produtos completos: por exemplo, 5 × Uai e 1 × refrigerante. Pão, bacon e outros ingredientes ficam no campo Ingredientes acima.</small></div><button type="button" onClick={() => { const existing=new Set(productDraft.bundleItems.map((item)=>item.productId)); const candidate=products.find((item)=>item.id!==productDraft.id && !existing.has(item.id) && item.disponivel!==false); if(candidate)setProductDraft({...productDraft,bundleItems:[...productDraft.bundleItems,{productId:candidate.id,quantity:1,note:""}]}); else setMessage("Não há outro produto disponível para vincular. Confira os componentes já adicionados."); }}>+ Adicionar componente</button></div>
             {/* DFL-R90-COMBO-AUDIT: espelho dos componentes operacionais realmente vinculados. */}
             <div className={styles.r90BundlePreview} aria-label="Composição operacional em conferência">
@@ -1092,6 +1099,8 @@ export function CatalogAdmin() {
         </div>
       </section>
     </div>}
+
+    {comboLabId && <ComboUnitPremiumLabAdmin key={comboLabId} comboId={comboLabId} products={products} addons={addons} onClose={() => setComboLabId(null)} />}
 
     {addonDraft && addonMode && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) void closeAddonEditor(); }}>
       <section className={styles.smallEditor}>
