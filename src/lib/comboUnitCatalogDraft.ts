@@ -89,7 +89,19 @@ export function prepareComboCatalogLab(
       const price=cents(addon.price,"ADDON_PRICE_INVALID",1_000_000);
       priceTable[addon.id]=price;additionPricesCents[addon.id]=price;addonsLabels[addon.id]=addon.name.trim();
     }
-    const removals=options.removableByProductId?.[id]??[];
+    const declared=product.removableIngredients;
+    guard(!(declared!==undefined&&options.removableByProductId?.[id]!==undefined),"REMOVAL_SOURCE_CONFLICT");
+    const removals=declared!==undefined?declared:(options.removableByProductId?.[id]??[]);
+    if(declared!==undefined){
+      const keys=new Map<string,string>();
+      for(const detail of product.detailsItems??[]){
+        const key=detail.normalize("NFD").replace(/[̀-ͯ]/g,"").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+        guard(!keys.has(key),"REMOVAL_DETAIL_AMBIGUOUS");keys.set(key,detail.trim().toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g,""));
+      }
+      guard(Array.isArray(declared)&&declared.length<=20&&product.category!=="bebidas"&&!product.bundleItems?.length,"REMOVAL_CATALOG_INVALID");
+      guard(declared.every(x=>x&&typeof x.id==="string"&&typeof x.label==="string"&&keys.has(x.id)&&
+        keys.get(x.id)===x.label.trim().toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g,"")),"REMOVAL_NOT_IN_DETAILS");
+    }
     guard(Array.isArray(removals)&&removals.length<=MAX_ADDONS,"REMOVALS_INVALID");
     const removedIds:string[]=[];
     for(const removal of removals){

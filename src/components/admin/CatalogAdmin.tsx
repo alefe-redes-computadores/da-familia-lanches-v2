@@ -27,6 +27,8 @@ import { validateBundleItems } from "@/lib/catalogComposition";
 import { addonPolicy, addonPolicyHint } from "@/lib/catalogAddonPolicy";
 import { productGroupConfiguration, type AddonChoiceGroup } from "@/lib/catalogModifierGroups";
 import { AddonGroupsEditor } from "./AddonGroupsEditor";
+import { CatalogRemovalOptions } from "./CatalogRemovalOptions";
+import {parseCatalogRemovableIngredients,type CatalogRemovableIngredient} from "@/lib/catalogRemovableIngredients";
 import { haptic } from "@/lib/haptics";
 
 
@@ -48,6 +50,7 @@ type ProductDraft = {
   addonGroups: AddonChoiceGroup[];
   detailsTitle: string;
   detailsItems: string;
+  removableIngredients: CatalogRemovableIngredient[];
   includedExtras: string;
   bundleItems: Array<{ productId: string; quantity: number; note: string }>;
   publicSlug: string;
@@ -153,6 +156,7 @@ const draftFromProduct = (product: Product): ProductDraft => ({
   addonGroups: product.addonGroups ?? [],
   detailsTitle: product.detailsTitle ?? "",
   detailsItems: product.detailsItems?.join("\n") ?? "",
+  removableIngredients: product.removableIngredients ?? [],
   includedExtras: product.includedExtras ?? "",
   bundleItems: (product.bundleItems ?? []).map((item) => ({ productId: item.productId, quantity: item.quantity, note: item.note ?? "" })),
   publicSlug: product.publicSlug ?? productPublicSlug(product),
@@ -343,7 +347,7 @@ export function CatalogAdmin() {
     setAdvancedProduct(false);
     setShowAddonChoices(false);
     setProductStep("essencial");
-    const draft: ProductDraft = { id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, minAddonSelections: "0", maxAddonSelections: "20", addonGroups: [], detailsTitle: "", detailsItems: "", includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "", upsellProductId: "", upsellUnitPrice: "" };
+    const draft: ProductDraft = { id: "", name: "", description: "", price: "", oldPrice: "", image: "", category: categories.find((category) => category.active)?.id ?? "tradicionais", disponivel: true, isSuggestion: false, showInOffers: false, sortOrder: "", addonIds: undefined, minAddonSelections: "0", maxAddonSelections: "20", addonGroups: [], detailsTitle: "", detailsItems: "", removableIngredients: [], includedExtras: "", bundleItems: [], publicSlug: "", publicSection: "", upsellProductId: "", upsellUnitPrice: "" };
     productBaseline.current = JSON.stringify(draft);
     setProductDraft(draft);
     setMessage("");
@@ -356,7 +360,7 @@ export function CatalogAdmin() {
     const draft: ProductDraft = {
       ...base, id: "", name: "", price: "", oldPrice: "", image: "", sortOrder: "",
       disponivel: false, isSuggestion: false, showInOffers: false,
-      bundleItems: [], detailsTitle: "", publicSlug: "", publicSection: "",
+      bundleItems: [], detailsTitle: "", removableIngredients: [], publicSlug: "", publicSection: "",
       upsellProductId: "", upsellUnitPrice: "",
     };
     setProductMode("create");
@@ -488,6 +492,8 @@ export function CatalogAdmin() {
     const bundleValidation = validateBundleItems(productDraft.bundleItems, new Set(products.map((item) => item.id)));
     if (!bundleValidation.valid) return setMessage(bundleValidation.errors[0] || "Revise a composição inclusa.");
     if (productDraft.bundleItems.some((item) => item.productId === productDraft.id)) return setMessage("O produto não pode incluir ele mesmo na composição.");
+    let validatedRemovals:CatalogRemovableIngredient[]=[];
+    try{validatedRemovals=parseCatalogRemovableIngredients(productDraft.removableIngredients,productDraft.detailsItems.split("\n").map(x=>x.trim()).filter(Boolean),productDraft.category,productDraft.bundleItems);}catch{setProductStep("conteudo");return setMessage("Ingredientes removíveis incompatíveis com o cadastro. Revise a seleção ou a composição.");}
 
     const duplicate = products.find((item) =>
       item.id !== productDraft.id && item.category === productDraft.category &&
@@ -524,6 +530,7 @@ export function CatalogAdmin() {
         addonGroups: productDraft.addonGroups.length?productDraft.addonGroups:null,
         detailsTitle: productDraft.detailsTitle.trim() || null,
         detailsItems: productDraft.detailsItems.split("\n").map((item) => item.trim()).filter(Boolean),
+        removableIngredients: validatedRemovals,
         includedExtras: productDraft.includedExtras.trim() || null,
         bundleItems: productDraft.bundleItems.length ? productDraft.bundleItems.map((item) => ({ productId: item.productId, quantity: Math.max(1, Math.trunc(item.quantity || 1)), ...(item.note.trim() ? { note: item.note.trim() } : {}) })) : null,
         publicSlug: slugify(productDraft.publicSlug) || null,
@@ -563,6 +570,7 @@ export function CatalogAdmin() {
          minAddonSelections: product.minAddonSelections ?? 0, maxAddonSelections: product.maxAddonSelections ?? 20,
          addonGroups: product.addonGroups ?? null,
         detailsTitle: product.detailsTitle ?? null, detailsItems: product.detailsItems ?? [],
+        removableIngredients: product.removableIngredients ?? [],
         includedExtras: product.includedExtras ?? null, bundleItems: product.bundleItems ?? null,
         publicSlug: product.publicSlug ?? null, publicSection: product.publicSection ?? null,
         upsellProductId: product.upsellProductId ?? null, upsellUnitPrice: product.upsellUnitPrice ?? null,
@@ -981,6 +989,7 @@ export function CatalogAdmin() {
           <label className={styles.full} data-editor-step="essencial">Descrição curta<textarea value={productDraft.description} onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })} placeholder="Texto curto para o card" /></label>
           <label className={styles.full} data-editor-step="conteudo">Título dos detalhes<input value={productDraft.detailsTitle} onChange={(e) => setProductDraft({ ...productDraft, detailsTitle: e.target.value })} placeholder="Ex.: O que vem no Uai?" /></label>
           <label className={styles.full} data-editor-step="conteudo">Ingredientes / composição<textarea value={productDraft.detailsItems} onChange={(e) => setProductDraft({ ...productDraft, detailsItems: e.target.value })} placeholder={"Um item por linha\nPão\nHambúrguer\nBacon"} /></label>
+          <div className={styles.full} data-editor-step="conteudo"><CatalogRemovalOptions detailsItems={productDraft.detailsItems} category={productDraft.category} hasBundle={productDraft.bundleItems.length>0} value={productDraft.removableIngredients} onChange={removableIngredients=>setProductDraft({...productDraft,removableIngredients})}/></div>
           <label className={styles.full} data-editor-step="conteudo">Acompanha<textarea value={productDraft.includedExtras} onChange={(e) => setProductDraft({ ...productDraft, includedExtras: e.target.value })} placeholder="Maionese temperada da casa, molho verde e ketchup sachê" /></label>
           {advancedProduct && <div className={`${styles.full} ${styles.commercialBlock}`} data-editor-step="opcoes">
             <div className={styles.commercialHead}><div><span>LINK PÚBLICO</span><strong>Página para divulgação</strong></div><small>Google, Instagram e WhatsApp</small></div>

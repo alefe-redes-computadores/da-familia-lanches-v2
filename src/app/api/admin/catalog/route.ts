@@ -8,6 +8,7 @@ import { CATALOG_PRODUCTS_COLLECTION,CATALOG_ADDONS_COLLECTION } from"@/lib/cata
 import { CATALOG_CATEGORIES_COLLECTION } from"@/lib/catalogCategories";
 import { addonPolicy } from "@/lib/catalogAddonPolicy";
 import { parseAddonGroups, productGroupConfiguration } from "@/lib/catalogModifierGroups";
+import { parseCatalogRemovableIngredients } from "@/lib/catalogRemovableIngredients";
 
 export const runtime="nodejs"; export const dynamic="force-dynamic";
 const SNAPSHOT_COLLECTION="public_materialized",SNAPSHOT_DOCUMENT="catalog_v1";
@@ -61,6 +62,8 @@ function product(data:Raw){
     }).filter(v=>v.productId)
   : [];
 
+ const declaredRemovals=Object.prototype.hasOwnProperty.call(data,"removableIngredients");
+ const removableIngredients=declaredRemovals?parseCatalogRemovableIngredients(data.removableIngredients,detailsItems,category,bundleItems):[];
  return {
   name,description,image,category,price,
   oldPrice:oldPrice??FieldValue.delete(),
@@ -74,6 +77,7 @@ function product(data:Raw){
    addonGroups:addonGroups.groups.length?addonGroups.groups:FieldValue.delete(),
   detailsTitle:cleanString(data.detailsTitle,200)||FieldValue.delete(),
   detailsItems,
+  ...(declaredRemovals?{removableIngredients:removableIngredients.length?removableIngredients:FieldValue.delete()}:{}),
   includedExtras:cleanString(data.includedExtras,500)||FieldValue.delete(),
   bundleItems:bundleItems.length?bundleItems:FieldValue.delete(),
   publicSlug:cleanString(data.publicSlug,100)||FieldValue.delete(),
@@ -167,7 +171,8 @@ export async function POST(request:NextRequest){
  }catch(error){
   const code=error instanceof Error?error.message:"CATALOG_MUTATION_FAILED";
   console.error("[api/admin/catalog]",error);
-  const client=new Set(["BULK_AVAILABILITY_INVALID","BULK_AVAILABILITY_STALE","PRODUCT_INVALID","PROMOTION_INVALID","ADDON_INVALID","CATEGORY_INVALID","CATEGORY_IN_USE","ID_REQUIRED","ORDER_INVALID","PRODUCT_NOT_FOUND","BACKUP_ID_REQUIRED","BACKUP_NOT_FOUND","BACKUP_INVALID"]);
-  return NextResponse.json({ok:false,error:client.has(code)?code:"CATALOG_MUTATION_FAILED"},{status:client.has(code)?400:500});
+  const removalError=code.startsWith("REMOVABLE_");
+   const client=new Set(["BULK_AVAILABILITY_INVALID","BULK_AVAILABILITY_STALE","PRODUCT_INVALID","PROMOTION_INVALID","ADDON_INVALID","CATEGORY_INVALID","CATEGORY_IN_USE","ID_REQUIRED","ORDER_INVALID","PRODUCT_NOT_FOUND","BACKUP_ID_REQUIRED","BACKUP_NOT_FOUND","BACKUP_INVALID"]);
+  return NextResponse.json({ok:false,error:(client.has(code)||removalError)?code:"CATALOG_MUTATION_FAILED"},{status:(client.has(code)||removalError)?400:500});
  }
 }

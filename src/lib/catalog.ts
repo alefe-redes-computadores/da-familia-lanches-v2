@@ -2,6 +2,7 @@ import type { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { products as fallbackProducts, type Product, type ProductCategory } from "@/data/products";
 import { ADDONS as fallbackAddons, type Addon } from "@/data/addons";
 import { parseAddonGroups } from "@/lib/catalogModifierGroups";
+import { safeRemoteRemovableIngredients } from "@/lib/catalogRemovableIngredients";
 
 export const CATALOG_PRODUCTS_COLLECTION = "CatalogoProdutos";
 export const CATALOG_ADDONS_COLLECTION = "CatalogoAdicionais";
@@ -79,6 +80,7 @@ export function normalizeRemoteProductRecord(snapshotId: string, raw: DocumentDa
   const detailsItems = stringArray(raw.detailsItems ?? raw.itensDetalhes);
   const includedExtras = text(raw.includedExtras ?? raw.acompanha) || undefined;
   const normalizedBundleItems = bundleItems(raw.bundleItems ?? raw.itensCombo);
+  const removableIngredients = safeRemoteRemovableIngredients(raw.removableIngredients,detailsItems,category,normalizedBundleItems);
   const publicSlug = text(raw.publicSlug ?? raw.slugPublico) || undefined;
   const publicSection = text(raw.publicSection ?? raw.secaoPublica) || undefined;
   const upsellProductId = text(raw.upsellProductId ?? raw.upsellProdutoId) || undefined;
@@ -101,6 +103,7 @@ export function normalizeRemoteProductRecord(snapshotId: string, raw: DocumentDa
     ...(addonGroups.groups.length ? { addonGroups: addonGroups.groups } : {}),
     ...(detailsTitle ? { detailsTitle } : {}),
     ...(detailsItems !== undefined ? { detailsItems } : {}),
+    ...(removableIngredients.length ? { removableIngredients } : {}),
     ...(includedExtras ? { includedExtras } : {}),
     ...(normalizedBundleItems ? { bundleItems: normalizedBundleItems } : {}),
     ...(publicSlug ? { publicSlug } : {}),
