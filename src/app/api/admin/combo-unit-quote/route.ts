@@ -11,6 +11,7 @@ import {products as fallbackProducts,type Product} from '@/data/products';
 import {ADDONS as fallbackAddons,type Addon} from '@/data/addons';
 import {normalizeRemoteProductRecord,normalizeRemoteAddonRecord} from '@/lib/catalog';
 import {evaluateServerComboQuote} from '@/lib/comboUnitServerQuote';
+import {prepareComboOrderV3Candidate} from '@/lib/comboUnitOrderV3Candidate';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -68,7 +69,8 @@ export async function POST(request:NextRequest){
       byAddonId.set(doc.id,normalizedAddon(doc.id,doc.data() as Record<string,unknown>));
     }
     const quote=evaluateServerComboQuote(comboId,body.batch,products,[...byAddonId.values()]);
-    return NextResponse.json({ok:true,quote},{headers});
+    const releaseGate=prepareComboOrderV3Candidate(quote);
+    return NextResponse.json({ok:true,quote,releaseGate},{headers});
   }catch(error){
     const code=error instanceof Error?error.message:'';
     if(/^(?:COMBO_|CATALOG_)/.test(code))return response('CATALOG_OR_COMBO_CHANGED',409);

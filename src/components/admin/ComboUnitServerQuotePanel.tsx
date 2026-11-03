@@ -4,6 +4,8 @@ import {useEffect,useRef,useState} from 'react';
 import {auth} from '@/lib/firebase';
 import type {ComboBatchDraft} from '@/lib/comboUnitBatchDraft';
 import type {ComboServerQuote} from '@/lib/comboUnitServerQuote';
+import type {ComboOrderV3Candidate} from '@/lib/comboUnitOrderV3Candidate';
+import {ComboUnitV3AcceptancePanel} from './ComboUnitV3AcceptancePanel';
 import styles from './ComboUnitServerQuotePanel.module.css';
 
 type Props=Readonly<{
@@ -15,6 +17,7 @@ export function ComboUnitServerQuotePanel({comboId,batch,localTotalCents,localUn
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [quote,setQuote]=useState<ComboServerQuote|null>(null);
+  const [releaseGate,setReleaseGate]=useState<ComboOrderV3Candidate|null>(null);
   const [paper,setPaper]=useState<'58'|'80'>('58');
   const active=useRef<AbortController|null>(null);
   useEffect(()=>()=>active.current?.abort(),[]);
@@ -22,7 +25,7 @@ export function ComboUnitServerQuotePanel({comboId,batch,localTotalCents,localUn
     if(busy)return;
     active.current?.abort();
     const controller=new AbortController();active.current=controller;
-    setBusy(true);setError('');setQuote(null);
+    setBusy(true);setError('');setQuote(null);setReleaseGate(null);
     try{
       const token=await auth.currentUser?.getIdToken();
       if(!token)throw Error('Faça login como administrador para conferir.');
@@ -31,7 +34,7 @@ export function ComboUnitServerQuotePanel({comboId,batch,localTotalCents,localUn
         cache:'no-store',signal:controller.signal,
         body:JSON.stringify({schema:1,comboId,batch}),
       });
-      const data=await response.json().catch(()=>null) as {ok?:boolean;quote?:ComboServerQuote;error?:string}|null;
+      const data=await response.json().catch(()=>null) as {ok?:boolean;quote?:ComboServerQuote;releaseGate?:ComboOrderV3Candidate;error?:string}|null;
       if(controller.signal.aborted)return;
       if(!response.ok||!data?.ok||!data.quote){
         if(response.status===409)throw Error('O catálogo ou a composição mudou. Reabra a prévia e confira novamente.');
@@ -45,7 +48,17 @@ export function ComboUnitServerQuotePanel({comboId,batch,localTotalCents,localUn
         next.authorization.relay!==false||next.authorization.production!==false||
         next.productId!==comboId||next.blueprintFingerprint!==localFingerprint||
         next.unitCount!==localUnitCount)throw Error('Resposta incompatível. Reabra o laboratório e tente novamente.');
-      setQuote(next);
+      const gate=data.releaseGate;
+      if(!gate||gate.contract!=='dfl_site_combo_order_v3_candidate'||gate.orderSchemaVersion!==3||
+        gate.state!=='certification_only'||gate.authorization.checkout!==false||
+        gate.authorization.payment!==false||gate.authorization.persist!==false||gate.authorization.relay!==false||
+        gate.authorization.print!==false||gate.authorization.production!==false||
+        gate.orderId!==null||gate.eventId!==null||gate.idempotencyKey!==null||
+        gate.acceptance.status!=='blocked'||gate.acceptance.liveCheckoutReleased!==false||
+        gate.productId!==comboId||gate.blueprintFingerprint!==next.blueprintFingerprint||
+        gate.unitCount!==next.unitCount||gate.item.totalCents!==next.totalCents||
+        gate.item.units.length!==next.rows.length)throw Error('Homologação incompleta. Não é possível ativar este contrato.');
+      setQuote(next);setReleaseGate(gate);
     }catch(cause){
       if(controller.signal.aborted)return;
       setError(cause instanceof Error?cause.message:'Falha na conferência.');
@@ -61,6 +74,7 @@ export function ComboUnitServerQuotePanel({comboId,batch,localTotalCents,localUn
     </button>
     {busy&&<p className={styles.wait} role="status">Consultando o catálogo da loja para este combo, sem alterar seus dados.</p>}
     {error&&<p role="alert" className={styles.error}>{error}</p>}
+    {quote&&releaseGate&&<ComboUnitV3AcceptancePanel candidate={releaseGate}/>}
     {quote&&<div className={styles.result} role="status">
       <div className={styles.summary}><div><small>Base por combo</small><b>{money(quote.basePricePerComboCents)}</b></div><div><small>Adicionais de todos os combos</small><b>{money(quote.extrasForOrderCents)}</b></div><div><small>Total conferido no servidor</small><strong>{money(quote.totalCents)}</strong></div></div>
       <p className={delta===0?styles.same:styles.changed}>

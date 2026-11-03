@@ -41,6 +41,7 @@ const receiver=load('src/lib/comboUnitReceiverDraft.ts',{'./comboUnitOperational
 const bridge=load('src/lib/comboUnitBatchHandoffDraft.ts',{'./comboUnitBatchDraft':batch,'./comboUnitCartDraft':cart,'./comboUnitOperationalDraft':operational,'./comboUnitReceiverDraft':receiver});
 const thermal=load('src/lib/comboUnitBatchThermalLab.ts');
 const quoteEngine=load('src/lib/comboUnitServerQuote.ts',{'./comboUnitCatalogDraft':lab,'./comboUnitBatchDraft':batch,'./comboUnitBatchHandoffDraft':bridge,'./comboUnitBatchThermalLab':thermal});
+const candidate=load('src/lib/comboUnitOrderV3Candidate.ts');
 const products=fixtureProducts,addons=fixtureAddons;
 eq(quoteEngine.COMBO_SERVER_QUOTE_CHECKOUT_ENABLED,false,'checkout flag always off');
 eq(quoteEngine.COMBO_SERVER_QUOTE_VERSION,1,'version fixed');
@@ -191,6 +192,7 @@ const routeModule=load('src/app/api/admin/combo-unit-quote/route.ts',{
  '@/lib/integration/server/admin':{adminDb:fakeDb},'@/lib/adminAuthorization':{isAdminEmail:email=>email==='admin@example.com'},
  '@/data/products':{products},'@/data/addons':{ADDONS:addons},
  '@/lib/catalog':{...catalog,normalizeRemoteAddonRecord:(id,raw)=>({id,name:raw.name,price:raw.price,disponivel:raw.disponivel!==false})},'@/lib/comboUnitServerQuote':quoteEngine,
+ '@/lib/comboUnitOrderV3Candidate':candidate,
 });
 (async()=>{
  const firstReads=reads;

@@ -89,5 +89,7 @@ jobs:
         run: node scripts/test-site-r247-premium-admin-lab.cjs
       - name: R248 - Preco no servidor administrativo e contrato de combo (sem pagamento)
         run: node scripts/test-site-r248-server-quote.cjs
+      - name: R249 - Certificacao V3 de combos sem habilitar vendas
+        run: node scripts/test-site-r249-v3-gate.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs
