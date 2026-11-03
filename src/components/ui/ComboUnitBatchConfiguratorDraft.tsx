@@ -13,6 +13,7 @@ import type {ComboScope} from "@/lib/comboUnitPlan";
 import {prepareComboBatchHandoffPreview} from "@/lib/comboUnitBatchHandoffDraft";
 import {buildComboBatchThermalLab,type ThermalLabSize} from "@/lib/comboUnitBatchThermalLab";
 import {ComboUnitBatchAuditDraft} from "./ComboUnitBatchAuditDraft";
+import {ComboUnitServerQuotePanel} from "@/components/admin/ComboUnitServerQuotePanel";
 import styles from "./ComboUnitBatchConfiguratorDraft.module.css";
 
 export type ComboUnitBatchLabProps=Readonly<{
@@ -37,13 +38,14 @@ function ComboBatchLabEditor({catalog,initialQuantity}:{catalog:ComboCatalogLab;
   const [selection,setSelection]=useState<Record<number,Selection>>({});
   const [error,setError]=useState("");
   const [paper,setPaper]=useState<ThermalLabSize>("58");
+  const [serverQuoteRevision,setServerQuoteRevision]=useState(0);
   const groups=useMemo(()=>listComboEditorGroups(blueprint),[blueprint]);
   const preview=useMemo(()=>{try{return readComboBatchPreview(blueprint,batch,catalog.policy);}catch{return null;}},[blueprint,batch,catalog.policy]);
   const audit=useMemo(()=>{try{return prepareComboBatchHandoffPreview(catalog,batch);}catch{return null;}},[catalog,batch]);
   const rows=useMemo(()=>readComboEditorUnits(blueprint,batch.plans[current-1]),[blueprint,batch,current]);
   const ticket=useMemo(()=>{try{return audit?buildComboBatchThermalLab(audit,paper):null;}catch{return null;}},[audit,paper]);
   const act=(run:()=>ReturnType<typeof createComboBatchDraft>)=>{
-    try{setBatch(run());setError("");}catch{setError("Não foi possível aplicar esta mudança. Confira os limites.");}
+    try{setBatch(run());setServerQuoteRevision(v=>v+1);setError("");}catch{setError("Não foi possível aplicar esta mudança. Confira os limites.");}
   };
   const quantity=batch.plans.length;
   const selectedFor=(index:number,keys:readonly string[]):Selection=>selection[index]??{mode:"one",keys:[keys[0]]};
@@ -120,6 +122,7 @@ function ComboBatchLabEditor({catalog,initialQuantity}:{catalog:ComboCatalogLab;
       {ticket?<div className={styles.ticketSurface}><div className={styles.ticket}><pre>{ticket.lines.join("\n")}</pre></div></div>:<p className={styles.error} role="status">Prévia térmica indisponível: confira os itens e a composição.</p>}
       <small>Prévia local. Nenhum comando de impressão é enviado e nenhuma entrega é criada.</small>
     </section>
+    <ComboUnitServerQuotePanel key={serverQuoteRevision} comboId={blueprint.productId} batch={batch} localTotalCents={preview?.amountCents??null} localUnitCount={preview?.unitCount??0} localFingerprint={blueprint.fingerprint}/>
     <footer className={styles.total} aria-live="polite">
       <strong>{preview?.unitCount??0} unidades · {preview?.customizedUnits??0} personalizadas</strong>
       <span>{preview?.amountStatus==="preview_only"&&preview.amountCents!=null?`Total apenas ilustrativo: ${formatBRL(preview.amountCents)}`:"Prévia indisponível: confira a política de adicionais."}</span>

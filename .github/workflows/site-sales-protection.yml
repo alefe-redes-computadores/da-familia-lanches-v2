@@ -87,5 +87,7 @@ jobs:
         run: node scripts/test-site-r246-removals-thermal.cjs
       - name: R247 - laboratorio premium visivel apenas no Admin (sem compra, print ou relay)
         run: node scripts/test-site-r247-premium-admin-lab.cjs
+      - name: R248 - Preco no servidor administrativo e contrato de combo (sem pagamento)
+        run: node scripts/test-site-r248-server-quote.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs
