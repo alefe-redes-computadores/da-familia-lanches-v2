@@ -67,5 +67,7 @@ jobs:
         run: node scripts/test-site-r233-sales-mock.cjs
       - name: R236 - Certificacao operacional, feriado, combos, offline e mobile
         run: node scripts/test-site-r236-operational-final.cjs
+      - name: R237 - Motor isolado de personalizacao por unidade, com API v1 protegida
+        run: node scripts/test-site-r237-combo-unit-engine.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs

@@ -102,6 +102,9 @@ function parseLines(value: unknown): CartLine[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > 40) throw new Error("CART_INVALID");
   return value.map((entry) => {
     const raw = object(entry); const id = text(raw.id, 120);
+    // R237: v2 de personalização por unidade ainda NÃO está homologado.
+    // Nunca descartar silenciosamente escolhas por lanche e registrar pedido diferente.
+    if (raw.comboUnitPlan !== undefined || raw.unitCustomization !== undefined || raw.comboCustomization !== undefined) throw new Error("CART_INVALID");
     const quantity = Math.trunc(Number(raw.quantity));
     const selectedAddons = Array.isArray(raw.selectedAddons) ? raw.selectedAddons.map((v) => ({ id: text(object(v).id, 120) })).filter((v) => v.id) : [];
     if (!id || !Number.isFinite(quantity) || quantity < 1 || quantity > 30 || selectedAddons.length > 20) throw new Error("CART_INVALID");
