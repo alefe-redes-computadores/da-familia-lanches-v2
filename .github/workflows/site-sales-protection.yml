@@ -73,5 +73,7 @@ jobs:
         run: node scripts/test-site-r238-combo-commerce.cjs
       - name: R239 - Ponte isolada de carrinho e bloqueio v1 para combos por lanche
         run: node scripts/test-site-r239-combo-cart-bridge.cjs
+      - name: R240 - Contrato isolado de cozinha, bobina e Entregas para combo por unidade
+        run: node scripts/test-site-r240-kitchen-handoff.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs
