@@ -12,6 +12,7 @@ import { inspectCheckoutReviewSafety } from "@/lib/checkoutReviewSafety";
 import { inspectCheckoutReadiness } from "@/lib/checkoutReadiness";
 import { useUIStore } from "@/store/ui";
 import { useCartStore } from "@/store/cart.store";
+import { inspectLegacyCartForUnitDraft } from "@/lib/comboUnitCartDraft";
 import { useAuthStore } from "@/store/auth.store";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { formatCEPBR, formatPhoneBR, saveUserAddresses, saveUserProfile, type SavedAddress } from "@/lib/userProfile";
@@ -799,6 +800,12 @@ export function CheckoutModal() {
 
   const finishOrder = async () => {
     if(submittingRef.current) return;
+    // R239: inspeção do carrinho BRUTO, antes de criar tentativa ou chamar a API.
+    if (!inspectLegacyCartForUnitDraft(items).safe ||
+        !inspectLegacyCartForUnitDraft(useCartStore.getState().items).safe) {
+      setErrorMessage("Há personalização individual ainda não habilitada neste carrinho. Volte ao carrinho e remova apenas o item experimental antes de finalizar.");
+      return;
+    }
     if(!navigator.onLine){
       setIsOnline(false);
       setErrorMessage("Você está sem internet. Seu carrinho continua salvo neste aparelho; reconecte para registrar o pedido.");
@@ -810,6 +817,8 @@ export function CheckoutModal() {
       addons: item.selectedAddons, observation: item.observation,
     })));
     const clearConfirmedCart = () => {
+      // Mesmo se o carrinho mudar durante o POST, nunca apagar instruções experimentais.
+      if (!inspectLegacyCartForUnitDraft(useCartStore.getState().items).safe) return false;
       const currentCart = JSON.stringify(useCartStore.getState().items.map(item => ({
         id: item.cartId, quantity: item.quantity, price: item.price,
         addons: item.selectedAddons, observation: item.observation,

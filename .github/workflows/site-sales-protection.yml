@@ -71,5 +71,7 @@ jobs:
         run: node scripts/test-site-r237-combo-unit-engine.cjs
       - name: R238 - Previa comercial isolada de personalizacao por lanche
         run: node scripts/test-site-r238-combo-commerce.cjs
+      - name: R239 - Ponte isolada de carrinho e bloqueio v1 para combos por lanche
+        run: node scripts/test-site-r239-combo-cart-bridge.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs

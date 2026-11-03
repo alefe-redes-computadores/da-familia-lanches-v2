@@ -19,6 +19,7 @@ import { DEFAULT_COMMERCIAL_SETTINGS, getCommercialSettings, type CommercialSett
 import { availableAddonsForProduct } from "@/lib/catalog";
 import { validAddonSelection, addonPolicyHint } from "@/lib/catalogAddonPolicy";
 import { inspectProductSelections } from "@/lib/catalogModifierGroups";
+import { inspectLegacyCartForUnitDraft } from "@/lib/comboUnitCartDraft";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -29,6 +30,8 @@ export function CartModal() {
   const orderStats = useCustomerOrderStats();
   const { products, allAddons, loading: catalogLoading, error: catalogError, source: catalogSource } = useCatalog();
   const { items, increaseQtd, decreaseQtd, removeItem, restoreItem, clearCart, replaceItems, getCartTotal } = useCartStore();
+  // R239: dados experimentais no storage não podem perder escolhas no checkout v1.
+  const comboDraftSafety = inspectLegacyCartForUnitDraft(items);
   const [clearArmed, setClearArmed] = useState(false);
   // R30: segunda confirmacao expira; nao fica armada indefinidamente.
   useEffect(() => {
@@ -196,6 +199,7 @@ export function CartModal() {
       : "Preços e adicionais atualizados após sua confirmação.");
   };
   const handleFinish = () => {
+    if (!comboDraftSafety.safe) { setCatalogNotice("Há uma personalização de combo ainda não disponível para compra. Remova esse item experimental e adicione o produto novamente pelo cardápio."); return; }
     if (reconciliation) { setCatalogNotice("Confira e confirme as mudanças do carrinho antes de finalizar."); return; }
     if (catalogSource==="hybrid" && invalidSelections.length){setCatalogNotice(`Revise os adicionais de ${invalidSelections[0].name}: ${invalidSelections[0].hint}. Remova o item e adicione novamente com as opções corretas.`);return;}
     openModal("checkout");
@@ -204,6 +208,7 @@ export function CartModal() {
   return (
     <ModalBase title={`Seu carrinho${itemCount ? ` · ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}`} onClose={closeModal}>
       <div className={styles.body}>
+        {!comboDraftSafety.safe && <div className={styles.catalogNotice} role="alert">Personalização individual de combo ainda não habilitada para compras. Seus outros itens foram preservados; remova apenas o item experimental para continuar.</div>}
         {catalogNotice && <div className={styles.catalogNotice} role="status">{catalogNotice}<button type="button" aria-label="Fechar aviso" onClick={() => setCatalogNotice("")}>×</button></div>}
         {!catalogLoading && catalogError && <div className={styles.catalogWait} role="status">Não conseguimos conferir o cardápio atualizado agora. Seu carrinho foi mantido intacto; preços e disponibilidade serão conferidos ao finalizar.</div>}
         {reconciliation && <section className={styles.cartReview} role="status" aria-label="Revisar mudanças do carrinho">
@@ -229,7 +234,7 @@ export function CartModal() {
           {suggestions.length > 0 && <section className={styles.smartSuggestions} aria-label="Sugestões para o pedido"><div className={styles.smartHead}><strong>Seu pedido, um pouco mais esperto</strong><span>Sugestões baseadas no que já está no carrinho.</span></div><div className={styles.smartList}>{suggestions.map((suggestion) => <button type="button" className={styles.smartCard} key={`${suggestion.kind}-${suggestion.product.id}`} onClick={() => handleSmartSuggestion(suggestion)}><CatalogImage src={suggestion.product.image} alt="" sizes="96px" quality={68} /><span className={styles.smartCopy}><small>{suggestion.eyebrow}</small><b>{suggestion.title}</b><em>{suggestion.description}</em>{suggestion.saving && suggestion.saving > 0 ? <strong>{suggestion.kind==="upsell" ? "Você economiza " : "Economia calculada de "}{money(suggestion.saving)}</strong> : null}</span><span className={styles.smartPrice}>{suggestion.kind==="upsell"&&suggestion.explicitUnitPrice!=null?<><del>{money(suggestion.product.price)}</del>{money(suggestion.explicitUnitPrice)}</>:money(suggestion.product.price)}<i>{suggestion.kind==="upsell"?"Adicionar agora +":"Ver opção ›"}</i></span></button>)}</div></section>}
 
           {freeDeliveryTarget !== null && <section className={styles.freeDeliveryProgress} data-earned={freeDeliveryMissing <= 0}><div className={styles.freeDeliveryCopy}><span>{freeDeliveryMissing <= 0 ? "META PARA ENTREGA GRÁTIS ALCANÇADA" : "CAMINHO PARA ENTREGA GRÁTIS"}</span><strong>{freeDeliveryMissing <= 0 ? "Você bateu a meta" : `Faltam ${money(freeDeliveryMissing)}`}</strong></div><div className={styles.freeDeliveryTrack}><i style={{ width: `${freeDeliveryProgress}%` }} /></div><small>{freeDeliveryMissing <= 0 ? "Condição sujeita à confirmação do bairro: confira o valor final no checkout." : `Complete o carrinho até ${money(freeDeliveryTarget)}.`}</small></section>}
-          {catalogSource === "hybrid" && invalidSelections.length > 0 && <div className={styles.catalogNotice} role="alert">Revise os adicionais de {invalidSelections[0].name}: {invalidSelections[0].hint}. Remova esse item e adicione novamente com as escolhas corretas. Seu carrinho foi preservado.</div>}<CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish} disabled={Boolean(reconciliation) || (catalogSource === "hybrid" && invalidSelections.length > 0)}>{reconciliation ? "Revise as mudanças acima" : "Continuar para finalizar"}</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Confirmar esvaziamento · 8 segundos" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
+          {catalogSource === "hybrid" && invalidSelections.length > 0 && <div className={styles.catalogNotice} role="alert">Revise os adicionais de {invalidSelections[0].name}: {invalidSelections[0].hint}. Remova esse item e adicione novamente com as escolhas corretas. Seu carrinho foi preservado.</div>}<CartPromotionInsight />{productSavings > 0 && <div className={styles.savings}><span>Você economizou nos produtos</span><strong>{money(productSavings)}</strong></div>}<div className={styles.summary}><div><span>Subtotal</span><strong>{money(total)}</strong></div><small>Entrega, descontos e forma de pagamento são confirmados na próxima etapa.</small><button className={styles.checkout} type="button" onClick={handleFinish} disabled={!comboDraftSafety.safe || Boolean(reconciliation) || (catalogSource === "hybrid" && invalidSelections.length > 0)}>{reconciliation ? "Revise as mudanças acima" : "Continuar para finalizar"}</button><button className={styles.clear} data-armed={clearArmed} type="button" onClick={handleClearCart}>{clearArmed ? "Confirmar esvaziamento · 8 segundos" : "Esvaziar carrinho"}</button>{clearArmed && <button className={styles.cancelClear} type="button" onClick={() => setClearArmed(false)}>Cancelar</button>}</div>
         </>}
       </div>
     </ModalBase>
