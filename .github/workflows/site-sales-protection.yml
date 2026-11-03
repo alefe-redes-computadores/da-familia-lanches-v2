@@ -79,5 +79,7 @@ jobs:
         run: node scripts/test-site-r241-receiver-compat.cjs
       - name: R243 - Interface OFF e estados individuais de combos (somente simulacao)
         run: node scripts/test-site-r243-combo-editor.cjs
+      - name: R244 - Catalago real e planos independentes por combo (laboratorio OFF)
+        run: node scripts/test-site-r244-catalog-batch.cjs
       - name: Gates completos de regressao e TypeScript (sem build)
         run: node scripts/test-site-v88-v90-release-gate.cjs
