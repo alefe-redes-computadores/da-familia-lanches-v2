@@ -10,6 +10,8 @@ import {
   noteComboBatchUnit,readComboBatchPreview,
 } from "@/lib/comboUnitBatchDraft";
 import type {ComboScope} from "@/lib/comboUnitPlan";
+import {prepareComboBatchHandoffPreview} from "@/lib/comboUnitBatchHandoffDraft";
+import {ComboUnitBatchAuditDraft} from "./ComboUnitBatchAuditDraft";
 import styles from "./ComboUnitBatchConfiguratorDraft.module.css";
 
 export type ComboUnitBatchLabProps=Readonly<{
@@ -35,6 +37,7 @@ function ComboBatchLabEditor({catalog,initialQuantity}:{catalog:ComboCatalogLab;
   const [error,setError]=useState("");
   const groups=useMemo(()=>listComboEditorGroups(blueprint),[blueprint]);
   const preview=useMemo(()=>{try{return readComboBatchPreview(blueprint,batch,catalog.policy);}catch{return null;}},[blueprint,batch,catalog.policy]);
+  const audit=useMemo(()=>{try{return prepareComboBatchHandoffPreview(catalog,batch);}catch{return null;}},[catalog,batch]);
   const rows=useMemo(()=>readComboEditorUnits(blueprint,batch.plans[current-1]),[blueprint,batch,current]);
   const act=(run:()=>ReturnType<typeof createComboBatchDraft>)=>{
     try{setBatch(run());setError("");}catch{setError("Não foi possível aplicar esta mudança. Confira os limites.");}
@@ -106,6 +109,7 @@ function ComboBatchLabEditor({catalog,initialQuantity}:{catalog:ComboCatalogLab;
       </div>;
     })}
     {error&&<p role="alert" className={styles.error}>{error}</p>}
+    {audit?<ComboUnitBatchAuditDraft preview={audit}/>:<p role="status" className={styles.error}>Conferência de cozinha indisponível: revise o catálogo e os adicionais.</p>}
     <footer className={styles.total} aria-live="polite">
       <strong>{preview?.unitCount??0} unidades · {preview?.customizedUnits??0} personalizadas</strong>
       <span>{preview?.amountStatus==="preview_only"&&preview.amountCents!=null?`Total apenas ilustrativo: ${formatBRL(preview.amountCents)}`:"Prévia indisponível: confira a política de adicionais."}</span>
