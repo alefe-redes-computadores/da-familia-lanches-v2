@@ -62,3 +62,10 @@
   .header[data-compact="true"] .compactSearch input{font-size:12px}
 }
 @media(prefers-reduced-motion:reduce){.header .iconButton{transition:none}}
+
+/* R250 — Assist: realce discreto apenas na interacao, sem giro permanente. */
+.assistLauncher{border-color:#dec79e;background:linear-gradient(145deg,#fffdf8,#fff4de);color:#8d5b18}
+.assistLauncher svg{transition:transform .2s ease}
+@media(hover:hover) and (pointer:fine){.assistLauncher:hover svg{transform:rotate(-10deg) scale(1.08)}}
+.assistLauncher:active svg{transform:scale(.93)}
+@media(prefers-reduced-motion:reduce){.assistLauncher svg{transition:none}.assistLauncher:hover svg{transform:none}}

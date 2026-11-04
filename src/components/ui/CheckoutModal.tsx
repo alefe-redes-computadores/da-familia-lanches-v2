@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { readGuestIdentity, saveGuestIdentity, rememberGuestOrder } from "@/lib/guestContinuity";
 import { doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { ModalBase } from "./ModalBase";
+import { CheckoutAssistHelp } from "./CheckoutAssistHelp";
 import { StreetSuggestions } from "./StreetSuggestions";
 import { DistrictQuickPicker } from "./DistrictQuickPicker";
 import { AddressMapPreview } from "./AddressMapPreview";
@@ -1210,6 +1211,7 @@ export function CheckoutModal() {
           <i data-active="true" /><i data-active={step === 2} />
         </div>
         <div className={styles.stepCaption}><strong>{step === 1 ? "Entrega" : "Pagamento"}</strong><span>{step}/2</span></div>
+        <CheckoutAssistHelp checkoutStep={step} hasError={Boolean(errorMessage)} uncertain={orderOutcomeUncertain} />
          {step === 1 && <section className={styles.checkoutReadiness} aria-label="O que falta para continuar" data-ready={readiness.ready}>
            <div className={styles.checkoutReadinessTop}><strong>{readiness.ready ? "Tudo pronto para revisar" : "Confira os dados do seu pedido"}</strong><b>{readiness.done}/{readiness.total}</b></div>
            <div className={styles.checkoutReadinessTrack} role="progressbar" aria-label="Campos preenchidos" aria-valuemin={0} aria-valuemax={readiness.total} aria-valuenow={readiness.done}><i style={{ width: `${readiness.total ? Math.round(readiness.done / readiness.total * 100) : 100}%` }} /></div>

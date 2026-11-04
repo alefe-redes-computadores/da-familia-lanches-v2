@@ -1,24 +1,33 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Bot, Search, ShoppingCart, MessageCircle, X } from "lucide-react";
+import { Bot, BookOpen, Search, ShoppingCart, MessageCircle, X } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { CATALOG_SEARCH_EVENT } from "@/lib/catalogSearch";
 import { useUIStore } from "@/store/ui";
 import { businessWhatsAppUrl } from "@/lib/businessContact";
 import styles from "./DFLAssist.module.css";
 import { DFLAssistOffers } from "./DFLAssistOffers";
+import { DFLAssistWalkthrough } from "./DFLAssistWalkthrough";
 import type { Product } from "@/data/products";
 
-/** Assistente de navegação v1: não é IA generativa e não registra pedidos. */
+const tourKey = "dfl:assist-tour-v1";
+/** Assistente comercial de leitura: nao e IA generativa e nao registra pedidos. */
 export function DFLAssist() {
   const [visible, setVisible] = useState(false);
+  const [tour, setTour] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
   const router = useRouter();
   const pathname = usePathname();
   const openModal = useUIStore((s) => s.openModal);
   const activeModal = useUIStore((s) => s.activeModal);
   useEffect(() => {
-    const show = () => setVisible(true);
+    const show = (event: Event) => {
+      let shouldTour = false;
+      try { shouldTour = !window.localStorage.getItem(tourKey); } catch { /* storage bloqueado */ }
+      if (event instanceof CustomEvent && event.detail?.mode === "guide") shouldTour = true;
+      setTour(shouldTour);
+      setVisible(true);
+    };
     window.addEventListener("dfl:assist-open", show);
     return () => window.removeEventListener("dfl:assist-open", show);
   }, []);
@@ -50,6 +59,10 @@ export function DFLAssist() {
       if (prior?.isConnected && (document.activeElement === document.body || panelRef.current?.contains(document.activeElement))) prior.focus({ preventScroll: true });
     };
   }, [visible]);
+  const finishTour = () => {
+    try { window.localStorage.setItem(tourKey, "1"); } catch { /* storage opcional */ }
+    setTour(false);
+  };
   const search = (value: string) => {
     const term = value.trim().slice(0,100);
     if (!term) return;
@@ -67,16 +80,19 @@ export function DFLAssist() {
   if (!visible) return null;
   return <div className={styles.backdrop} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setVisible(false)}}>
     <section ref={panelRef} tabIndex={-1} className={styles.panel} role="dialog" aria-modal="true" aria-label="DFL Assist">
-      <header className={styles.header}><span className={styles.avatar}><Bot size={23} aria-hidden="true"/></span><div><strong>DFL Assist</strong><small>Seu ajudante de compras</small></div><button type="button" className={styles.close} onClick={()=>setVisible(false)} aria-label="Fechar DFL Assist"><X size={20}/></button></header>
-      <p className={styles.message}>Encontre seu lanche por ingrediente, preço ou quantidade de pessoas.</p>
-      <p className={styles.assistHint}>Busca no cardápio real. Não cria pedidos. {/* DFL-R43-ASSIST */}</p>
-      <DFLAssistOffers onFindProduct={search} onOpenProduct={(product: Product) => {
-        // DFL-R64-DIRECT-PRODUCT: o produto vem do catalogo real confirmado.
-        setVisible(false);
-        openModal("product-details", product);
-      }} />
-      <div className={styles.actions}><button type="button" onClick={()=>{setVisible(false);openModal("cart")}}><ShoppingCart size={19}/> Ver carrinho</button><button type="button" onClick={()=>search("combo")}><Search size={19}/> Ver combos</button><a href={businessWhatsAppUrl("Olá! Preciso de ajuda para escolher ou finalizar meu pedido no site da Da Família Lanches.")} target="_blank" rel="noopener noreferrer"><MessageCircle size={19}/> Falar com a equipe</a></div>
-      <p className={styles.note}>O WhatsApp é atendimento, não confirma nem cria um pedido. Seus dados e carrinho não são enviados automaticamente.</p>
+      <header className={styles.header}><span className={styles.avatar}><Bot size={23} aria-hidden="true"/></span><div><strong>DFL Assist</strong><small>{tour ? "Conheça nosso guia de compra" : "Seu ajudante de compras"}</small></div><button type="button" className={styles.close} onClick={()=>setVisible(false)} aria-label="Fechar DFL Assist"><X size={20}/></button></header>
+      {tour ? <DFLAssistWalkthrough onDone={finishTour} onSkip={finishTour} /> : <>
+        <p className={styles.message}>Escolha com mais facilidade: encontre lanches por ingredientes, orçamento ou número de pessoas.</p>
+        <p className={styles.assistHint}>Sugestões do cardápio real. Não é atendimento por IA generativa e não cria pedidos. {/* DFL-R43-ASSIST */}</p>
+        <button type="button" className={styles.openTour} onClick={()=>setTour(true)}><BookOpen size={17} aria-hidden="true"/> Como fazer meu pedido? Ver passo a passo</button>
+        <DFLAssistOffers onFindProduct={search} onOpenProduct={(product: Product) => {
+          // DFL-R64-DIRECT-PRODUCT: o produto vem do catalogo real confirmado.
+          setVisible(false);
+          openModal("product-details", product);
+        }} />
+        <div className={styles.actions}><button type="button" onClick={()=>{setVisible(false);openModal("cart")}}><ShoppingCart size={19}/> Ver carrinho</button><button type="button" onClick={()=>search("combo")}><Search size={19}/> Ver combos</button><a href={businessWhatsAppUrl("Olá! Preciso de ajuda para escolher ou finalizar meu pedido no site da Da Família Lanches.")} target="_blank" rel="noopener noreferrer"><MessageCircle size={19}/> Falar com a equipe</a></div>
+        <p className={styles.note}>O WhatsApp é atendimento, não confirma nem cria um pedido. Seus dados e carrinho não são enviados automaticamente.</p>
+      </>}
     </section>
   </div>;
 }

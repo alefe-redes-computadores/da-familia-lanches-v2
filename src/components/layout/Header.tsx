@@ -148,7 +148,7 @@ export function Header() {
           <button className={styles.login} type="button" onClick={() => openModal("login")} aria-label="Entrar na conta"><UserRound size={17}/><span>Entrar</span></button>
         )}
 
-        <button className={styles.iconButton} type="button" onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))} aria-label="Abrir DFL Assist" title="DFL Assist"><Bot size={20} aria-hidden="true" /></button>
+        <button className={`${styles.iconButton} ${styles.assistLauncher}`} type="button" onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))} aria-label="Abrir DFL Assist" title="DFL Assist"><Bot size={20} aria-hidden="true" /></button>
         <button className={`${styles.iconButton} ${styles.desktopCart}`} type="button" onClick={() => openModal("cart")} aria-label="Abrir carrinho">
           <ShoppingCart size={19} aria-hidden="true" />
           {totalItems > 0 && <b className={styles.badge}>{totalItems > 99 ? "99+" : totalItems}</b>}

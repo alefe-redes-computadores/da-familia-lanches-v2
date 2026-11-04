@@ -174,3 +174,18 @@
 .r98BudgetPresets{gap:6px;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;padding:2px 2px 6px;scrollbar-width:thin}.r98BudgetPresets>span,.r98BudgetPresets button{flex:0 0 auto}.r98BudgetPresets button{min-height:44px;touch-action:manipulation}
 @media(max-width:530px){.message{padding:10px 12px;font-size:13px;line-height:1.4}.offers{gap:9px}.panel{gap:10px}}
 @media(max-width:350px){.quickSearch{gap:5px}.quickSearch button{padding:8px;font-size:11px}}
+
+/* R250 — Guia de primeiro acesso e acabamento premium sem animacoes continuas */
+.panel{border:1px solid rgba(181,134,57,.25);box-shadow:0 28px 85px rgba(0,0,0,.43)}
+.panel .header{position:sticky;top:0;background:linear-gradient(125deg,#211c16,#393020);color:#fffaf0;border:1px solid rgba(246,192,98,.18);border-radius:17px;padding:12px 13px;box-shadow:0 6px 16px rgba(45,29,12,.12)}
+.panel .header small{color:#e2cba3}.panel .header .avatar{background:#ffe6ae;color:#422f13}.panel .header .close{color:#fff9eb}
+.panel .header .close:hover{background:rgba(255,255,255,.1)}
+.openTour{display:flex;align-items:center;justify-content:center;gap:9px;min-height:44px;padding:9px 12px;border:1px solid #d8ae62;border-radius:12px;background:#fff3d7;color:#5b380a;font:inherit;font-size:12px;line-height:1.35;font-weight:850;cursor:pointer}
+.tour{display:grid;gap:14px;min-width:0}.tourTop{display:flex;justify-content:space-between;align-items:center;gap:10px}.tourEyebrow{font-size:10px;font-weight:900;letter-spacing:.08em;color:#8c601a}.tourSkip{min-height:38px;padding:5px 8px;border:0;border-radius:9px;background:#f1e6d4;color:#63492b;font:inherit;font-size:11px;font-weight:850;cursor:pointer}
+.tourProgress{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;height:5px}.tourProgress span{border-radius:10px;background:#e4d6bb}.tourProgress span[data-complete=true]{background:#af852f}.tourProgress span[data-current=true]{background:#44311b}
+.tourHero{display:grid;justify-items:start;gap:13px;min-height:258px;padding:22px 19px;border:1px solid #ebd7af;border-radius:19px;background:linear-gradient(145deg,#fff3d9,#fffdf7)}
+.tourIcon{width:56px;height:56px;display:grid;place-items:center;border-radius:18px;background:#29221a;color:#ffce75}.tourHero h2{margin:0;font-size:23px;line-height:1.18;letter-spacing:-.035em}.tourHero p{margin:0;color:#54452f;font-size:14px;line-height:1.6}.tourHero small{font-size:12px;line-height:1.45;color:#8e632a;font-weight:700}
+.tourActions{display:flex;align-items:center;justify-content:space-between;gap:10px}.tourActions button{min-height:46px;display:flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:13px;padding:11px 13px;font:inherit;font-size:13px;font-weight:850;cursor:pointer}.tourBack{background:#f1e8d8;color:#54432c}.tourNext{margin-left:auto;background:#211b14;color:#fff4dc}.tourLegal{font-size:11px;line-height:1.5;color:#65543c;margin:0}.tourWhatsApp{min-height:44px;display:flex;justify-content:center;align-items:center;padding:10px;border:1px solid #d4b67c;border-radius:12px;color:#44321e;background:#fffaf2;text-decoration:none;font-size:13px;font-weight:850}
+.panel :is(.openTour,.tour button,.tour a):focus-visible{outline:3px solid #c99516;outline-offset:2px}
+@media(max-width:375px){.tourHero{padding:15px;min-height:250px}.tourHero h2{font-size:21px}.tourActions button{font-size:12px;padding:10px}.panel .header{padding:10px}}
+@media(prefers-reduced-motion:reduce){.tour *,.openTour{transition:none!important;animation:none!important}}

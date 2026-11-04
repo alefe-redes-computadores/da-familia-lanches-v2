@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import styles from "./AppShell.module.css";
 import { Header } from "@/components/layout/Header";
 import { DFLAssist } from "@/components/layout/DFLAssist";
+import { DFLAssistInvitation } from "@/components/layout/DFLAssistInvitation";
 import { MobileDrawerMenu } from "@/components/layout/MobileDrawerMenu";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { Footer } from "@/components/layout/Footer";
@@ -110,6 +111,7 @@ export function AppShell({ children }: Props) {
       {modal}
       <CartToast />
       <DFLAssist />
+      <DFLAssistInvitation />
     </div>
     </VisualCampaignProvider>
   );
