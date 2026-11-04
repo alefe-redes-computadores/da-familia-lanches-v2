@@ -42,6 +42,13 @@ type Props = { children: ReactNode };
 
 export function AppShell({ children }: Props) {
   const pathname = usePathname();
+  // R253: isolate confidential tracking from commerce state, auth, banners and assistant.
+  if (pathname === '/acompanhar') return <>{children}</>;
+  return <CommerceShell>{children}</CommerceShell>;
+}
+
+function CommerceShell({ children }: Props) {
+  const pathname = usePathname();
   const [adminHost, setAdminHost] =
     useState(false);
 
