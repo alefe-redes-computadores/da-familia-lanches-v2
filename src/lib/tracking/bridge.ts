@@ -83,9 +83,19 @@ export type BridgeResult = {connected:boolean; public_access_granted:false; mess
 export async function probeEntregasBridge(config: BridgeConfig, transport: typeof fetch = fetch): Promise<BridgeResult> {
   const denied: BridgeResult = {connected:false,public_access_granted:false,messages_sent:false};
   const request = bridgeRequest(config);
+  // Only the separately deployed, Vercel-protected homologation may use this
+  // server-only automation bypass. Never forward it to a caller-selected host.
+  let outgoingHeaders: Record<string, string> = request.headers;
+  if (process.env.NEXT_PUBLIC_DFL_TRACKING_HOMOLOGATION === '1') {
+    const upstreamBypass = process.env.DFL_SITE_TRACKING_UPSTREAM_BYPASS || '';
+    if (config.origin !== 'https://dfl-entregas-tracking-hml.vercel.app' ||
+        config.host !== 'dfl-site-tracking-hml.vercel.app' ||
+        !/^[A-Za-z0-9]{32}$/.test(upstreamBypass)) return denied;
+    outgoingHeaders = {...request.headers, 'x-vercel-protection-bypass':upstreamBypass};
+  }
   try {
     const response = await transport(config.origin + BRIDGE_PATH, {
-      method:'POST',body:request.body,headers:request.headers,
+      method:'POST',body:request.body,headers:outgoingHeaders,
       cache:'no-store',redirect:'error',credentials:'omit',signal:AbortSignal.timeout(8000),
     });
     if (response.status !== 200 || !(response.headers.get('content-type') || '').toLowerCase().includes('application/json')) return denied;
