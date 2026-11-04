@@ -138,10 +138,9 @@ def main():
     # Android recorta a forma (circulo, squircular etc) via adaptive-icon.xml.
     maskable512.resize((432,432),Image.Resampling.LANCZOS).save(
         drawable/'ic_launcher_foreground.png',optimize=True)
-    splash=Image.new('RGBA',(1152,1152),(*tuple(int(theme_color[i:i+2],16) for i in (1,3,5)),255))
-    mid=ImageOps.contain(standard512,(440,440),Image.Resampling.LANCZOS)
-    splash.alpha_composite(mid,((1152-mid.width)//2,(1152-mid.height)//2))
-    splash.convert('RGB').save(drawable/'splash.png',optimize=True)
+    # R252: oficial 512px -> marca sem moldura no splash TWA nativo; apenas Cliente.
+    from client_android_splash_premium import apply_client_splash
+    apply_client_splash(main, standard512, theme_color)
     # Ic. de status monocromatico derivado da arte PWA (nunca do Admin).
     sample=standard512.resize((96,96),Image.Resampling.LANCZOS)
     alpha=sample.getchannel('A')

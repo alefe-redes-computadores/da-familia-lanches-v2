@@ -1,0 +1,41 @@
+'use strict';
+// Client-only native launch guard, runnable in Termux without Pillow or Android SDK.
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const cp=require('node:child_process');
+const prepare=fs.readFileSync('scripts/prepare-client-android.py','utf8');
+const verify=fs.readFileSync('scripts/verify-client-android-icons.py','utf8');
+const patch=fs.readFileSync('scripts/client_android_splash_premium.py','utf8');
+const admin=fs.readFileSync('android-admin/app/src/main/AndroidManifest.xml','utf8');
+const entry=fs.readFileSync('android-admin/app/src/main/java/br/com/dafamilialanches/admin/EntryActivity.java','utf8');
+const safe=fs.readFileSync('android-admin/app/src/main/java/br/com/dafamilialanches/admin/SafeLauncherActivity.java','utf8');
+const brand=fs.readFileSync('public/manifest.json','utf8');
+const pwa=JSON.parse(brand);
+assert.equal(pwa.theme_color.toUpperCase(),'#111111');
+assert.ok(pwa.icons.some(x=>x.src.startsWith('/icon-512x512.png')));
+assert.match(prepare,/from client_android_splash_premium import apply_client_splash/);
+assert.match(prepare,/apply_client_splash\(main, standard512, theme_color\)/);
+assert.match(verify,/from client_android_splash_premium import verify_client_splash/);
+assert.match(verify,/verify_client_splash\(DEST, PUBLIC\/'icon-512x512.png', theme\)/);
+assert.match(patch,/alpha_logo\(source/);
+assert.match(patch,/original_alpha \* max\(neutral_alpha, red_alpha\)/);
+assert.match(patch,/SPLASH_IMAGE_DRAWABLE/);
+assert.match(patch,/SPLASH_SCREEN_BACKGROUND_COLOR/);
+assert.match(patch,/FILE_PROVIDER_AUTHORITY/);
+assert.match(patch,/windowSplashScreenAnimatedIcon/);
+assert.match(patch,/CENTER_INSIDE/);
+assert.match(patch,/twa_splash\//);
+assert.match(patch,/FileProvider/);
+assert.match(patch,/android:windowBackground/);
+assert.match(patch,/android:windowSplashScreenBackground/);
+assert.ok(!patch.includes('android.permission.POST_NOTIFICATIONS'));
+assert.match(safe,/extends LauncherActivity/);
+assert.match(safe,/private static final AtomicBoolean/);
+assert.match(entry,/launchTwaWithNativeNotificationPermission\(\)/);
+assert.ok(!admin.includes('SPLASH_IMAGE_DRAWABLE'));
+assert.ok(!admin.includes('FileProvider'));
+for(const path of ['scripts/prepare-client-android.py','scripts/verify-client-android-icons.py','scripts/client_android_splash_premium.py']){
+ const t=cp.spawnSync('python3',['-c','import ast,sys;ast.parse(sys.stdin.read())'],{input:fs.readFileSync(path,'utf8'),encoding:'utf8'});
+ assert.equal(t.status,0,`Python inválido ${path}: ${t.stderr}`);
+}
+console.log('R252: tema escuro, marca PWA oficial, no-border 1152, splash TWA transfer, Android12 e isolamento Cliente: OK');

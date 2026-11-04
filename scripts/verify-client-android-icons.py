@@ -53,6 +53,9 @@ def main():
     check('applicationId "br.com.dafamilialanches.cliente"' in gradle,'identidade cliente distinta de admin')
     from client_android_runtime import validate_client_runtime
     validate_client_runtime(ROOT)
+    # R252: CI verifica splash nativo, imagem, isolamento e FileProvider Cliente.
+    from client_android_splash_premium import verify_client_splash
+    verify_client_splash(DEST, PUBLIC/'icon-512x512.png', theme)
     print('R230: CERTIFICACAO DE ICONES ANDROID / PWA APROVADA')
 
 if __name__=='__main__':main()
