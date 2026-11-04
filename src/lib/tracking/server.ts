@@ -53,16 +53,30 @@ export async function callEntregas(path: typeof ACCESS_PATH | typeof STATUS_PATH
   const nonce = randomBytes(24).toString('base64url');
   const input = ['POST', path, sha(raw), timestamp, nonce, conf.kid, conf.tenant].join('\n');
   const signature = createHmac('sha256', conf.secret).update(input).digest('hex');
+  // R256 HML ONLY: Site -> Entregas token exchange/status must traverse
+  // Vercel Deployment Protection without exposing the bypass to customers.
+  // In any non-HML build the original signed transport remains unchanged.
+  const signedHeaders: Record<string, string> = {
+    'content-type': 'application/json', 'accept': 'application/json',
+    'x-dfl-tracking-timestamp': timestamp,
+    'x-dfl-tracking-nonce': nonce,
+    'x-dfl-tracking-kid': conf.kid,
+    'x-dfl-tracking-signature': signature,
+  };
+  if (process.env.NEXT_PUBLIC_DFL_TRACKING_HOMOLOGATION === '1') {
+    const bypass = process.env.DFL_SITE_TRACKING_UPSTREAM_BYPASS || '';
+    if (conf.origin !== 'https://dfl-entregas-tracking-hml.vercel.app' ||
+        process.env.DFL_SITE_TRACKING_PUBLIC_HOST !== 'dfl-site-tracking-hml.vercel.app' ||
+        process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID !== 'dfl-finance' ||
+        !/^[A-Za-z0-9]{32}$/.test(bypass)) {
+      return {ok: false as const, status: 503, data: null};
+    }
+    signedHeaders['x-vercel-protection-bypass'] = bypass;
+  }
   try {
     const response = await fetch(conf.origin + path, {
       method: 'POST', cache: 'no-store', redirect: 'error', credentials: 'omit', signal: AbortSignal.timeout(8000),
-      headers: {
-        'content-type': 'application/json', 'accept': 'application/json',
-        'x-dfl-tracking-timestamp': timestamp,
-        'x-dfl-tracking-nonce': nonce,
-        'x-dfl-tracking-kid': conf.kid,
-        'x-dfl-tracking-signature': signature,
-      },
+      headers: signedHeaders,
       body: raw,
     });
     if (!response.ok || !(response.headers.get('content-type') || '').includes('application/json'))
