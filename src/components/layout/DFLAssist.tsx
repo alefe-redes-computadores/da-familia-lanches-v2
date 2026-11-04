@@ -8,6 +8,7 @@ import { businessWhatsAppUrl } from "@/lib/businessContact";
 import styles from "./DFLAssist.module.css";
 import { DFLAssistOffers } from "./DFLAssistOffers";
 import { DFLAssistWalkthrough } from "./DFLAssistWalkthrough";
+import { DFLAssistHelpDesk } from "./DFLAssistHelpDesk";
 import type { Product } from "@/data/products";
 
 const tourKey = "dfl:assist-tour-v1";
@@ -85,6 +86,7 @@ export function DFLAssist() {
         <p className={styles.message}>Escolha com mais facilidade: encontre lanches por ingredientes, orçamento ou número de pessoas.</p>
         <p className={styles.assistHint}>Sugestões do cardápio real. Não é atendimento por IA generativa e não cria pedidos. {/* DFL-R43-ASSIST */}</p>
         <button type="button" className={styles.openTour} onClick={()=>setTour(true)}><BookOpen size={17} aria-hidden="true"/> Como fazer meu pedido? Ver passo a passo</button>
+        <DFLAssistHelpDesk onTour={() => setTour(true)} onOpenCart={() => { setVisible(false); openModal("cart"); }} onOpenOrders={() => { setVisible(false); openModal("orders"); }} />
         <DFLAssistOffers onFindProduct={search} onOpenProduct={(product: Product) => {
           // DFL-R64-DIRECT-PRODUCT: o produto vem do catalogo real confirmado.
           setVisible(false);

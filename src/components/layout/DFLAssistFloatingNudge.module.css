@@ -1,0 +1,15 @@
+/* R251 — CTA discreto, uma animação de escrita por sessão e contorno âmbar pontual. */
+.floating{position:fixed;right:12px;bottom:calc(114px + env(safe-area-inset-bottom,0px));z-index:955;display:flex;align-items:center;gap:5px;max-width:calc(100vw - 24px);pointer-events:auto;filter:drop-shadow(0 8px 16px rgba(25,18,11,.16))}
+.trigger{position:relative;isolation:isolate;box-sizing:border-box;display:flex;align-items:center;gap:9px;min-height:49px;max-width:min(226px,calc(100vw - 74px));padding:6px 13px 6px 7px;border:2px solid #dbad49;border-radius:999px;background:#24201b;color:#fff5db;font:inherit;font-weight:800;font-size:12px;letter-spacing:-.01em;cursor:pointer;touch-action:manipulation;box-shadow:0 4px 16px rgba(38,30,15,.24)}
+.avatar{flex:0 0 34px;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#f5c85e;color:#3c2b12}
+.copy{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:clip}
+.caret{display:inline-block;width:1.5px;height:14px;margin-left:2px;vertical-align:-3px;background:#f4c766;opacity:.85}
+.dismiss{flex:0 0 32px;display:grid;place-items:center;width:32px;height:32px;padding:0;border:1px solid #d7c4a5;border-radius:50%;background:#fffdf8;color:#5b472e;cursor:pointer;touch-action:manipulation}
+.floating button:focus-visible{outline:3px solid #e7a715;outline-offset:3px}
+.trigger[data-glow=true]::before{content:"";position:absolute;inset:-3px;z-index:-1;border-radius:inherit;padding:3px;background:conic-gradient(from var(--ring-angle,0deg),transparent 0deg,transparent 242deg,#ffdf91 290deg,#f5b63b 322deg,transparent 355deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;pointer-events:none;animation:r251-ring 2600ms linear 1 forwards}
+@property --ring-angle{syntax:"<angle>";inherits:false;initial-value:0deg}
+@keyframes r251-ring{from{--ring-angle:0deg}to{--ring-angle:360deg}}
+@media(min-width:761px){.floating{right:22px;bottom:26px}}
+@media(max-width:360px){.floating{right:8px;bottom:calc(105px + env(safe-area-inset-bottom,0px))}.trigger{max-width:calc(100vw - 55px);gap:6px;padding-right:9px;font-size:11px}.dismiss{width:30px;height:30px}}
+@media(max-height:520px){.floating{bottom:calc(85px + env(safe-area-inset-bottom,0px))}}
+@media(prefers-reduced-motion:reduce){.trigger[data-glow=true]::before{animation:none;background:#f5ba3b}.caret{display:none}}

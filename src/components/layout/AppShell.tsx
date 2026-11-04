@@ -7,6 +7,7 @@ import styles from "./AppShell.module.css";
 import { Header } from "@/components/layout/Header";
 import { DFLAssist } from "@/components/layout/DFLAssist";
 import { DFLAssistInvitation } from "@/components/layout/DFLAssistInvitation";
+import { DFLAssistFloatingNudge } from "@/components/layout/DFLAssistFloatingNudge";
 import { MobileDrawerMenu } from "@/components/layout/MobileDrawerMenu";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { Footer } from "@/components/layout/Footer";
@@ -112,6 +113,7 @@ export function AppShell({ children }: Props) {
       <CartToast />
       <DFLAssist />
       <DFLAssistInvitation />
+      <DFLAssistFloatingNudge />
     </div>
     </VisualCampaignProvider>
   );
