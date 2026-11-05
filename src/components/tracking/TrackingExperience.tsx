@@ -44,7 +44,12 @@ export function TrackingExperience(){
       if(window.location.hash) window.history.replaceState(null,'',window.location.pathname+window.location.search);
       if(token){
         // A new link must never reuse a previous order's cookie.
-        try { await fetch('/acompanhar/api/session/revoke',{method:'POST',headers:{'content-type':'application/json'},body:'{}',credentials:'same-origin',cache:'no-store'}); } catch {}
+        try {
+          const revoked = await fetch('/acompanhar/api/session/revoke',{method:'POST',headers:{'content-type':'application/json'},body:'{}',credentials:'same-origin',cache:'no-store'});
+          if(!revoked.ok){if(!cancelled){setState(null);setPhase('denied')}return;}
+        }catch{if(!cancelled){setState(null);setPhase('offline')}return;}
+        // A superseded effect must not exchange the token after an asynchronous revoke.
+        if(cancelled)return;
         if(!/^[A-Za-z0-9_-]{43}$/.test(token)){setPhase('denied');return;}
         try{
           const result=await fetch('/acompanhar/api/session',{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',cache:'no-store',body:JSON.stringify({token})});
