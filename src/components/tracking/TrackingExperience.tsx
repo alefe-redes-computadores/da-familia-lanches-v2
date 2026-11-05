@@ -1,11 +1,20 @@
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { CheckCircle2, Clock3, LockKeyhole, PackageCheck, RefreshCw, ShieldAlert, Truck, WifiOff } from 'lucide-react';
+import { CheckCircle2, Clock3, LockKeyhole, PackageCheck, RefreshCw, ShieldAlert, Truck, WifiOff, ChefHat, Bike, House, CalendarClock, ClipboardCheck, CircleAlert, XCircle, Route, ShoppingBag } from 'lucide-react';
 import styles from './TrackingExperience.module.css';
 
 type State = {contract:'dfl.tracking.public';version:1;order:{label:string;origin_label:string;fulfillment:'delivery'|'pickup'};status:string;as_of:string;freshness:string;timeline:{id:string;kind:string;title:string;at:string}[];progress:null|{status:'verified';current_stop_number:number|null;planned_customer_stop_number:number|null;total_physical_stops:number;stops_ahead:number|null;is_next_stop:boolean};courier:{first_name:string}|null;terminal:boolean};
 const titles:Record<string,string>={received:'Pedido recebido',scheduled:'Pedido agendado',confirmed:'Pedido confirmado',preparing:'Em preparação',ready:'Pedido pronto',assigned:'Organizado para entrega',out_for_delivery:'Seu pedido saiu para entrega',next_stop:'Você é a próxima parada',delivered:'Pedido entregue',delivery_issue:'Precisamos verificar sua entrega',cancelled:'Pedido cancelado'};
 const humanTime=(v:string)=>{const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})};
+// Never invent a commercial order number, leak a long technical ID, or truncate one.
+// Short verified labels pass through unchanged; otherwise show a neutral label.
+const friendlyOrderLabel=(label:string)=>/^#[A-Za-z0-9-]{1,12}$/.test(label)?`Pedido ${label}`:'Seu pedido';
+const eventIcons:Record<string,typeof CheckCircle2>={
+  received:ShoppingBag,scheduled:CalendarClock,confirmed:ClipboardCheck,
+  preparing:ChefHat,ready:PackageCheck,assigned:Route,
+  out_for_delivery:Bike,reorganized:Route,next_stop:Bike,
+  delivered:House,delivery_issue:CircleAlert,cancelled:XCircle,
+};
 export function TrackingExperience(){
   const [state,setState]=useState<State|null>(null);
   const [phase,setPhase]=useState<'loading'|'ready'|'denied'|'offline'|'logout-error'>('loading');
@@ -82,12 +91,12 @@ export function TrackingExperience(){
   const stale=state?.freshness!=='fresh';
   return <div className={styles.page}><main className={styles.wrap}>
     <header className={styles.header}><span className={styles.brand}>DFL <span>DA FAMÍLIA LANCHES</span></span><span className={styles.private}><LockKeyhole size={14}/> Acesso protegido</span></header>
-    <div className={styles.title}><p>ACOMPANHAMENTO</p><h1>Acompanhe seu pedido</h1><span>Informações verificadas pela nossa equipe de entregas.</span></div>
+    <div className={styles.title}><p>ACOMPANHAMENTO</p><h1>Seu pedido, passo a passo</h1><span>Acompanhe cada etapa do seu pedido, diretamente da Da Família Lanches.</span></div>
     {phase==='ready'&&state?<>
-      <section className={styles.hero} aria-live="polite"><span className={styles.label}>{state.order.label} · {state.order.origin_label}</span><div className={styles.heroTitle}><span className={styles.circle}><Truck size={26}/></span><h2>{titles[state.status]||'Acompanhamento do pedido'}</h2></div><p>{stale?'Estamos atualizando o andamento da rota.':state.status==='out_for_delivery'?'Sua entrega foi despachada e está seguindo o percurso confirmado.':state.status==='assigned'?'Seu pedido está organizado para uma rota. Isso ainda não significa que saiu da loja.':'Acompanhe os próximos acontecimentos confirmados.'}</p>{state.courier&&!state.terminal&&<p className={styles.courier}>Entregador: {state.courier.first_name}</p>}</section>
+      <section className={styles.hero} aria-live="polite"><span className={styles.label}>{friendlyOrderLabel(state.order.label)} · {state.order.origin_label}</span><div className={styles.heroTitle}><span className={styles.circle}>{(()=>{const Icon=eventIcons[state.status]||PackageCheck;return <Icon size={26}/>})()}</span><h2>{titles[state.status]||'Acompanhamento do pedido'}</h2></div><p>{stale?'Estamos atualizando o andamento da rota.':state.status==='out_for_delivery'?'Sua entrega foi despachada e está seguindo o percurso confirmado.':state.status==='assigned'?'Seu pedido está organizado para uma rota. Isso ainda não significa que saiu da loja.':'Acompanhe os próximos acontecimentos confirmados.'}</p>{state.courier&&!state.terminal&&<p className={styles.courier}>Entregador: {state.courier.first_name}</p>}</section>
       {state.progress&&state.status==='out_for_delivery'&&!stale&&<section className={styles.progress}><div><span className={styles.label}>PARADAS ANTES DA SUA</span><strong>{state.progress.stops_ahead}</strong><small>{state.progress.is_next_stop?'Sua parada é a próxima pendente.':'Posição verificada pela operação, sujeita a alterações.'}</small></div><span className={styles.circle}><Truck size={22}/></span></section>}
       {stale&&<div className={styles.warning}><Clock3 size={18}/> Estamos atualizando o andamento da rota.</div>}
-      <section className={styles.timeline}><h2>Histórico confirmado</h2><ol>{state.timeline.map((item,i)=><li key={item.id}><span className={styles.dot}>{i===state.timeline.length-1?<PackageCheck size={16}/>:<CheckCircle2 size={16}/>}</span><div><strong>{item.title}</strong><time dateTime={item.at}>{humanTime(item.at)}</time></div></li>)}</ol>{!state.timeline.length&&<p>Aguardando o primeiro acontecimento confirmado.</p>}</section>
+      <section className={styles.timeline}><h2>Histórico confirmado</h2><ol>{state.timeline.map((item,i)=><li key={item.id}><span className={styles.dot}>{(()=>{const Icon=eventIcons[item.kind]||CheckCircle2;return <Icon size={16}/>})()}</span><div><strong>{item.title}</strong><time dateTime={item.at}>{humanTime(item.at)}</time></div></li>)}</ol>{!state.timeline.length&&<p>Aguardando o primeiro acontecimento confirmado.</p>}</section>
       <div className={styles.footline}><Clock3 size={15}/> Última atualização confirmada: {humanTime(state.as_of)}</div>
       <div className={styles.actions}><button onClick={()=>void refresh()} disabled={busy}><RefreshCw size={17}/>{busy?'Atualizando…':'Atualizar'}</button><button onClick={()=>void close()} className={styles.secondary}>Encerrar acesso</button></div>
     </>:<section className={styles.empty} aria-live="polite"><span className={styles.circle}>{phase==='offline'?<WifiOff size={25}/>:phase==='denied'?<ShieldAlert size={25}/>:<Clock3 size={25}/>}</span><h2>{phase==='loading'?'Conectando com segurança…':phase==='denied'?'Link inválido ou acesso encerrado':phase==='logout-error'?'Encerramento não confirmado':'Acompanhamento indisponível'}</h2><p>{phase==='loading'?'Conferindo sua sessão.':phase==='denied'?'Confira seu link ou solicite um novo acesso à equipe.':phase==='logout-error'?'Não foi possível confirmar o encerramento. Seus dados estão ocultos; tente novamente quando a conexão voltar.':'Não foi possível atualizar agora. Sua compra não foi alterada.'}</p>{phase!=='loading'&&<button onClick={()=>void (phase==='logout-error'?close():refresh())} disabled={busy||closingRequest.current}><RefreshCw size={17}/>{busy?'Tentando…':phase==='logout-error'?'Tentar encerrar novamente':'Tentar novamente'}</button>}</section>}
