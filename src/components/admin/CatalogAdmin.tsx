@@ -948,6 +948,7 @@ export function CatalogAdmin() {
         <nav className={styles.editorSteps} aria-label="Etapas do produto">
           {([["essencial", "1", "Essencial"], ["conteudo", "2", "Conteúdo"], ["venda", "3", "Venda"], ["opcoes", "4", "Opções"]] as Array<[ProductEditorStep, string, string]>).map(([step, number, label]) => <button type="button" key={step} data-active={productStep === step} onClick={() => { haptic("step"); if (step === "opcoes") setAdvancedProduct(true); setProductStep(step); }}><b>{number}</b><span>{label}</span></button>)}
         </nav>
+        <div className={styles.editorScroll}>
         <div className={styles.editorLivePreview} aria-label="Prévia do produto no cardápio">
           <div className={styles.livePreviewMedia}>
             {productDraft.image.trim() ? <CatalogImage src={productDraft.image} alt="" sizes="92px" quality={65}/> : <span>Sem foto</span>}
@@ -984,7 +985,6 @@ export function CatalogAdmin() {
           </div>
           <small>Confira também as opções e a composição. O servidor valida tudo antes de salvar.</small>
         </section>
-        <div className={styles.editorScroll}>
         <div className={styles.editorIntro} data-editor-step="essencial">Preencha o essencial primeiro. Ingredientes descrevem o lanche; componentes vinculados são os produtos entregues no combo.</div>
         {productMode === "edit" && advancedProduct && <div className={styles.idBox} data-editor-step="opcoes"><span>ID permanente</span><strong>{productDraft.id}</strong></div>}
         <div className={styles.form}>
@@ -1079,7 +1079,6 @@ export function CatalogAdmin() {
            {showAddonChoices && <div className={styles.checks}>{addons.map((addon) => { const checked = productDraft.addonIds === undefined || productDraft.addonIds.includes(addon.id); return <label key={addon.id}><input type="checkbox" checked={checked} onChange={() => { const base = productDraft.addonIds === undefined ? addons.map((item) => item.id) : productDraft.addonIds; setProductDraft({ ...productDraft, addonIds: checked ? base.filter((id) => id !== addon.id) : [...base, addon.id] }); }} /><span>{addon.name}</span><small>{money(addon.price)}</small></label>; })}</div>}
         </div>}
         <button type="button" data-editor-step="opcoes" className={styles.advancedDisclosure} onClick={() => setAdvancedProduct(value => !value)}>{advancedProduct ? "Ocultar configurações avançadas" : "Configurações avançadas · link, upsell e caminho da foto"}</button>
-        </div>
         {/* DFL-R94-MACRO-360 — revisao comercial da configuracao local. */}
         <div className={styles.r94EditorSummary} role="status" aria-live="polite">
           <strong>Revisão antes de salvar</strong>
@@ -1090,6 +1089,7 @@ export function CatalogAdmin() {
         {/* DFL-R98-MACRO-FINAL: impacto da disponibilidade para produtos vinculados. */}
         {!productDraft.disponivel && products.some((item) => item.id !== productDraft.id && item.bundleItems?.some((component) => component.productId === productDraft.id)) &&
           <p className={styles.r98DependencyNotice} role="status">Atenção: este produto aparece na composição de {products.filter((item) => item.id !== productDraft.id && item.bundleItems?.some((component) => component.productId === productDraft.id)).length} combo(s). Pausar pode afetar a oferta desses combos.</p>}
+        </div>
         <div className={styles.editorActionsV86}>
           <button type="button" className={styles.backAction} onClick={() => { haptic("step"); if (productStep === "essencial") { void closeProductEditor(); } else setProductStep(productStep === "conteudo" ? "essencial" : productStep === "venda" ? "conteudo" : "venda"); }}>{productStep === "essencial" ? "Cancelar" : "Voltar"}</button>
           {productStep !== "opcoes" && <button type="button" className={styles.nextAction} onClick={() => { haptic("step"); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button>}
