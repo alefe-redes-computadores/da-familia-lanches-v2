@@ -29,6 +29,15 @@ for(const bad of [
 ])ok(parse(bad,origin)===null,'reject invalid URL: '+bad.slice(0,30));
 ok(parse('x'.repeat(2049),origin)===null,'maximum input length');
 ok(parse(good,'https://other.example')===null,'same-origin enforced');
+
+// R268: canonical host can be opened from the public www alias without
+// server redirects or converting the private fragment into a query string.
+ok(parse(good,'https://www.dafamilialanches.com.br')===good,'www handoff to canonical apex');
+ok(parse('https://www.dafamilialanches.com.br/acompanhar#t='+token,origin)===null,'reject www token as noncanonical');
+ok(parse('https://www.dafamilialanches.com.br/acompanhar#t='+token,'https://www.dafamilialanches.com.br')===null,'reject www-only link even on www');
+ok(parse(good,'https://evil.example')===null,'untrusted origin cannot use canonical exception');
+ok(parse(origin+'/acompanhar?t='+token,'https://www.dafamilialanches.com.br')===null,'reject token in query string');
+
 const cmp=fs.readFileSync('src/components/tracking/TrackingLinkEntry.tsx','utf8');
 const orders=fs.readFileSync('src/components/ui/OrdersModal.tsx','utf8');
 const route=fs.readFileSync('src/app/api/customer/tracking-capability/route.ts','utf8');
