@@ -8,12 +8,14 @@ const titles:Record<string,string>={received:'Pedido recebido',scheduled:'Pedido
 const humanTime=(v:string)=>{const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})};
 export function TrackingExperience(){
   const [state,setState]=useState<State|null>(null);
-  const [phase,setPhase]=useState<'loading'|'ready'|'denied'|'offline'>('loading');
+  const [phase,setPhase]=useState<'loading'|'ready'|'denied'|'offline'|'logout-error'>('loading');
   const [busy,setBusy]=useState(false);
   const initializing = useRef(true);
   const epoch = useRef(0);
+  const closing = useRef(false);
+  const closingRequest = useRef(false);
   const check=useCallback(async()=>{
-    if(initializing.current) return;
+    if(initializing.current || closing.current) return;
     const currentEpoch = ++epoch.current;
     if(document.visibilityState!=='visible'||!navigator.onLine){setState(null);setPhase('offline');return;}
     try{
@@ -47,16 +49,36 @@ export function TrackingExperience(){
     return()=>{cancelled=true};
   },[check]);
   useEffect(()=>{
-    const visible=()=>{if(document.visibilityState==='visible')void check();else{epoch.current++;setState(null);setPhase('loading')}};
+    const visible=()=>{if(closing.current)return;if(document.visibilityState==='visible')void check();else{epoch.current++;setState(null);setPhase('loading')}};
     const online=()=>{void check()};
     const timer=window.setInterval(()=>{if(document.visibilityState==='visible'&&navigator.onLine)void check()},30000);
     document.addEventListener('visibilitychange',visible);window.addEventListener('online',online);window.addEventListener('offline',online);
-    const pageshow=()=>{epoch.current++;setState(null);setPhase('loading');void check()};
+    const pageshow=()=>{if(closing.current)return;epoch.current++;setState(null);setPhase('loading');void check()};
     window.addEventListener('pageshow',pageshow);
     return()=>{window.clearInterval(timer);document.removeEventListener('visibilitychange',visible);window.removeEventListener('online',online);window.removeEventListener('offline',online);window.removeEventListener('pageshow',pageshow)};
   },[check]);
   const refresh=async()=>{if(busy)return;setBusy(true);await check();setBusy(false)};
-  const close=async()=>{epoch.current++;setState(null);setPhase('denied');try{await fetch('/acompanhar/api/session/revoke',{method:'POST',headers:{'content-type':'application/json'},body:'{}',credentials:'same-origin',cache:'no-store'})}finally{setState(null);setPhase('denied')}};
+  const close=async()=>{
+    if(closingRequest.current)return;
+    closingRequest.current=true;
+    closing.current=true;
+    epoch.current++;
+    setState(null);setPhase('loading');
+    try{
+      const response=await fetch('/acompanhar/api/session/revoke',{
+        method:'POST',headers:{'content-type':'application/json'},body:'{}',
+        credentials:'same-origin',cache:'no-store',
+      });
+      if(!response.ok)throw new Error('TRACKING_REVOKE_UNCONFIRMED');
+      setPhase('denied');
+    }catch{
+      // Never assert a successful logout on network/HTTP failure.
+      // Do not restore tracking data while the session may still be active.
+      setPhase('logout-error');
+    }finally{
+      closingRequest.current=false;
+    }
+  };
   const stale=state?.freshness!=='fresh';
   return <div className={styles.page}><main className={styles.wrap}>
     <header className={styles.header}><span className={styles.brand}>DFL <span>DA FAMÍLIA LANCHES</span></span><span className={styles.private}><LockKeyhole size={14}/> Acesso protegido</span></header>
@@ -68,7 +90,7 @@ export function TrackingExperience(){
       <section className={styles.timeline}><h2>Histórico confirmado</h2><ol>{state.timeline.map((item,i)=><li key={item.id}><span className={styles.dot}>{i===state.timeline.length-1?<PackageCheck size={16}/>:<CheckCircle2 size={16}/>}</span><div><strong>{item.title}</strong><time dateTime={item.at}>{humanTime(item.at)}</time></div></li>)}</ol>{!state.timeline.length&&<p>Aguardando o primeiro acontecimento confirmado.</p>}</section>
       <div className={styles.footline}><Clock3 size={15}/> Última atualização confirmada: {humanTime(state.as_of)}</div>
       <div className={styles.actions}><button onClick={()=>void refresh()} disabled={busy}><RefreshCw size={17}/>{busy?'Atualizando…':'Atualizar'}</button><button onClick={()=>void close()} className={styles.secondary}>Encerrar acesso</button></div>
-    </>:<section className={styles.empty} aria-live="polite"><span className={styles.circle}>{phase==='offline'?<WifiOff size={25}/>:phase==='denied'?<ShieldAlert size={25}/>:<Clock3 size={25}/>}</span><h2>{phase==='loading'?'Conectando com segurança…':phase==='denied'?'Link inválido ou acesso encerrado':'Acompanhamento indisponível'}</h2><p>{phase==='loading'?'Conferindo sua sessão.':phase==='denied'?'Confira seu link ou solicite um novo acesso à equipe.':'Não foi possível atualizar agora. Sua compra não foi alterada.'}</p>{phase!=='loading'&&<button onClick={()=>void refresh()} disabled={busy}><RefreshCw size={17}/>{busy?'Tentando…':'Tentar novamente'}</button>}</section>}
+    </>:<section className={styles.empty} aria-live="polite"><span className={styles.circle}>{phase==='offline'?<WifiOff size={25}/>:phase==='denied'?<ShieldAlert size={25}/>:<Clock3 size={25}/>}</span><h2>{phase==='loading'?'Conectando com segurança…':phase==='denied'?'Link inválido ou acesso encerrado':phase==='logout-error'?'Encerramento não confirmado':'Acompanhamento indisponível'}</h2><p>{phase==='loading'?'Conferindo sua sessão.':phase==='denied'?'Confira seu link ou solicite um novo acesso à equipe.':phase==='logout-error'?'Não foi possível confirmar o encerramento. Seus dados estão ocultos; tente novamente quando a conexão voltar.':'Não foi possível atualizar agora. Sua compra não foi alterada.'}</p>{phase!=='loading'&&<button onClick={()=>void (phase==='logout-error'?close():refresh())} disabled={busy||closingRequest.current}><RefreshCw size={17}/>{busy?'Tentando…':phase==='logout-error'?'Tentar encerrar novamente':'Tentar novamente'}</button>}</section>}
     <footer className={styles.footer}>Seu acompanhamento é privado. Não compartilhe o link de acesso. <a href="/">Voltar ao cardápio</a></footer>
   </main></div>;
 }
