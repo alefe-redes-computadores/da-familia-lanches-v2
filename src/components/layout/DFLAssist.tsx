@@ -16,6 +16,8 @@ const tourKey = "dfl:assist-tour-v1";
 export function DFLAssist() {
   const [visible, setVisible] = useState(false);
   const [tour, setTour] = useState(false);
+  const tourRef = useRef(tour);
+  tourRef.current = tour;
   const panelRef = useRef<HTMLElement>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -41,7 +43,7 @@ export function DFLAssist() {
     document.body.style.overflow = "hidden";
     const frame = window.requestAnimationFrame(() => panelRef.current?.focus({ preventScroll: true }));
     const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); setVisible(false); return; }
+      if (event.key === "Escape") { event.preventDefault(); closeAssist(); return; }
       if (event.key !== "Tab") return;
       const nodes = panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),[tabindex]:not([tabindex="-1"])');
       if (!nodes?.length) return;
@@ -64,6 +66,14 @@ export function DFLAssist() {
     try { window.localStorage.setItem(tourKey, "1"); } catch { /* storage opcional */ }
     setTour(false);
   };
+  const closeAssist = () => {
+    // Fechar uma apresentação já exibida não deve reiniciá-la na próxima abertura.
+    if (tourRef.current) {
+      try { window.localStorage.setItem(tourKey, "1"); } catch { /* storage opcional */ }
+      setTour(false);
+    }
+    setVisible(false);
+  };
   const search = (value: string) => {
     const term = value.trim().slice(0,100);
     if (!term) return;
@@ -79,9 +89,9 @@ export function DFLAssist() {
     setVisible(false);
   };
   if (!visible) return null;
-  return <div className={styles.backdrop} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setVisible(false)}}>
+  return <div className={styles.backdrop} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)closeAssist()}}>
     <section ref={panelRef} tabIndex={-1} className={styles.panel} role="dialog" aria-modal="true" aria-label="DFL Assist">
-      <header className={styles.header}><span className={styles.avatar}><Bot size={23} aria-hidden="true"/></span><div><strong>DFL Assist</strong><small>{tour ? "Conheça nosso guia de compra" : "Seu ajudante de compras"}</small></div><button type="button" className={styles.close} onClick={()=>setVisible(false)} aria-label="Fechar DFL Assist"><X size={20}/></button></header>
+      <header className={styles.header}><span className={styles.avatar}><Bot size={23} aria-hidden="true"/></span><div><strong>DFL Assist</strong><small>{tour ? "Conheça nosso guia de compra" : "Seu ajudante de compras"}</small></div><button type="button" className={styles.close} onClick={closeAssist} aria-label="Fechar DFL Assist"><X size={20}/></button></header>
       {tour ? <DFLAssistWalkthrough onDone={finishTour} onSkip={finishTour} /> : <>
         <p className={styles.message}>Escolha com mais facilidade: encontre lanches por ingredientes, orçamento ou número de pessoas.</p>
         <p className={styles.assistHint}>Sugestões do cardápio real. Não é atendimento por IA generativa e não cria pedidos. {/* DFL-R43-ASSIST */}</p>

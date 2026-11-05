@@ -8,6 +8,7 @@ import styles from "./DFLAssistFloatingNudge.module.css";
 
 const sessionKey = "dfl:assist-floating-intro-r251";
 const dismissKey = "dfl:assist-floating-dismissed-r251";
+const tourKey = "dfl:assist-tour-v1";
 const message = "Precisa de ajuda?";
 type Phase = "idle" | "typing" | "hold" | "compact";
 
@@ -23,7 +24,13 @@ export function DFLAssistFloatingNudge() {
   const started = useRef(false);
 
   useEffect(() => {
-    try { setDismissed(sessionStorage.getItem(dismissKey) === "1"); } catch { /* storage opcional */ }
+    try { setDismissed(localStorage.getItem(dismissKey) === "1" || localStorage.getItem(tourKey) === "1"); }
+    catch { setDismissed(true); }
+    const onAssistOpened = () => {
+      setDismissed(true);
+      try { localStorage.setItem(dismissKey, "1"); } catch { /* storage opcional */ }
+    };
+    window.addEventListener("dfl:assist-open", onAssistOpened);
     const focusedInput = () => {
       const node = document.activeElement;
       setInputActive(node instanceof HTMLElement && Boolean(node.closest("input,textarea,select,[contenteditable=true]")));
@@ -31,7 +38,7 @@ export function DFLAssistFloatingNudge() {
     const onBlur = () => window.setTimeout(focusedInput, 0);
     document.addEventListener("focusin", focusedInput);
     document.addEventListener("focusout", onBlur);
-    return () => { document.removeEventListener("focusin", focusedInput); document.removeEventListener("focusout", onBlur); };
+    return () => { window.removeEventListener("dfl:assist-open", onAssistOpened); document.removeEventListener("focusin", focusedInput); document.removeEventListener("focusout", onBlur); };
   }, []);
 
   useEffect(() => {
@@ -96,7 +103,7 @@ export function DFLAssistFloatingNudge() {
           {phase === "typing" && <span className={styles.caret} aria-hidden="true" />}
         </span>
       </button>
-      <button type="button" className={styles.dismiss} onClick={() => { setDismissed(true); try { sessionStorage.setItem(dismissKey, "1"); } catch { /* opcional */ } }} aria-label="Ocultar sugestão de ajuda"><X size={15} /></button>
+      <button type="button" className={styles.dismiss} onClick={() => { setDismissed(true); try { localStorage.setItem(dismissKey, "1"); } catch { /* opcional */ } }} aria-label="Ocultar sugestão de ajuda"><X size={15} /></button>
     </aside>
   );
 }
