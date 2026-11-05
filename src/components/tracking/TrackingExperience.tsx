@@ -14,7 +14,7 @@ export function TrackingExperience(){
   const epoch = useRef(0);
   const check=useCallback(async()=>{
     if(initializing.current) return;
-    const currentEpoch = epoch.current;
+    const currentEpoch = ++epoch.current;
     if(document.visibilityState!=='visible'||!navigator.onLine){setState(null);setPhase('offline');return;}
     try{
       const response=await fetch('/acompanhar/api/status',{cache:'no-store',credentials:'same-origin'});
