@@ -215,3 +215,14 @@
 .r276DaySelect:focus-visible{outline:3px solid #ffca28;outline-offset:2px}
 .r276DaySelect:disabled{opacity:.5}
 @media(max-width:580px){.r276DaySelect{width:100%;font-size:16px}}
+
+/* DFL SITE R277 - ADMIN PREMIUM GLOBAL: agora, semana e excecoes */
+.root{min-width:0}.root .current,.root .block{min-width:0;border-radius:17px}
+.root .current strong,.root .block header strong{line-height:1.3;overflow-wrap:anywhere}
+.root .week{min-width:0;gap:9px}.root .day{min-width:0;border-radius:14px}
+.root .times{min-width:0;gap:8px}.root .times label{min-width:0;font-size:12px;line-height:1.4}
+.root .times :is(input,select){min-width:0;width:100%;min-height:46px;border-radius:11px;font-size:16px}
+.root .exceptions,.root .exform{min-width:0}.root .exceptions>div{min-width:0;overflow-wrap:anywhere}
+.root .r276DaySelect{min-height:48px}.root .save{min-height:50px;font-weight:950}
+@media(max-width:580px){.root .current,.root .block{padding:13px}.root .times{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:360px){.root .times{grid-template-columns:minmax(0,1fr)}}

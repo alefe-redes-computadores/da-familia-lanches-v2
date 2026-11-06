@@ -916,3 +916,13 @@
 .r98RateFilters{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
 .r98RateFilters button{min-height:40px;border:1px solid #46505a;border-radius:10px;padding:8px 11px;background:#171d24;color:#dce5e9;font-size:12px;font-weight:800;cursor:pointer}
 .r98RateFilters button[data-active="true"]{border-color:#e7b958;background:#3b2d16;color:#ffe2a5}
+
+/* DFL SITE R277 - ADMIN PREMIUM GLOBAL: taxas com hierarquia */
+.card{min-width:0}.card .topGrid{min-width:0;align-items:stretch;gap:12px}
+.card .fallback{min-width:0;border:1px solid rgba(255,209,91,.25);border-radius:16px}
+.card .fallback .moneyInput{border-color:#665434;border-radius:12px}
+.card .fallback .moneyInput input{font-variant-numeric:tabular-nums;font-size:19px;font-weight:900;color:#ffda83}
+.card .rateView:focus-visible{outline:2px solid #ffcf56;outline-offset:2px}
+.card .row[data-editing="true"]{border-radius:13px;outline:1px solid rgba(255,208,79,.32);outline-offset:-1px}
+.card .r98RateFilters button{min-height:44px}.card .save{min-height:50px;font-weight:950}
+@media(max-width:520px){.card .topGrid,.card .addFields{min-width:0}.card .fallback{padding:13px}.card .r98RateFilters button{flex:1 1 130px}}

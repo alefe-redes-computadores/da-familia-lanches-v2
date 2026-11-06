@@ -73,3 +73,11 @@
 @media(min-width:900px){[data-admin-ui] input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),[data-admin-ui] select,[data-admin-ui] textarea{font-size:15px}}
 @media(min-width:1280px){[data-admin-ui]{--admin-radius-lg:24px}}
 @media(prefers-reduced-motion:reduce){[data-admin-ui] *,[data-admin-ui] *::before,[data-admin-ui] *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* DFL SITE R277 - ADMIN PREMIUM GLOBAL: acessibilidade e legibilidade */
+[data-admin-ui] :is(input,select,textarea):not(:disabled){caret-color:#ffd46b}
+[data-admin-ui] :is(input,select,textarea):focus-visible{outline:2px solid rgba(255,211,92,.92);outline-offset:2px}
+[data-admin-ui] select:not(:disabled){background-image:linear-gradient(45deg,transparent 50%,#f4cf70 50%),linear-gradient(135deg,#f4cf70 50%,transparent 50%);background-position:calc(100% - 19px) 51%,calc(100% - 14px) 51%}
+[data-admin-ui] :is(input,textarea)::placeholder{color:#86939e;opacity:1}
+[data-admin-ui] [role="status"]{overflow-wrap:anywhere}
+@media(max-width:479px){[data-admin-ui] :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){font-size:16px}}

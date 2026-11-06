@@ -293,3 +293,15 @@
 .wrap button{min-height:42px;touch-action:manipulation}
 .wrap :is(button,input,select,textarea):focus-visible{outline:3px solid #f5c84a;outline-offset:2px}
 }
+
+/* DFL SITE R277 - ADMIN PREMIUM GLOBAL: cupons claros no celular */
+.wrap{min-width:0;align-items:start}.wrap .editor,.wrap .listCard{min-width:0;border-radius:17px}
+.wrap .editorHeader strong,.wrap .listHeader strong{font-size:17px}
+.wrap .grid label,.wrap .full{min-width:0;gap:7px}
+.wrap .grid label>span,.wrap .full>span{color:#bac8d2;font-size:12px;line-height:1.4}
+.wrap .grid :is(input,select),.wrap .full textarea{min-width:0;min-height:46px;border-radius:12px}
+.wrap .coupon{min-width:0;padding:13px;border-radius:14px}
+.wrap .couponTop>div{min-width:0}.wrap .couponTop>div>strong{font-size:16px;overflow-wrap:anywhere}
+.wrap .meta{line-height:1.5;font-variant-numeric:tabular-nums}
+.wrap .actions button{min-height:44px;min-width:0}.wrap .primary{min-height:49px;font-weight:950}
+@media(max-width:360px){.wrap .grid{grid-template-columns:minmax(0,1fr)}.wrap .grid label{grid-column:1/-1}}

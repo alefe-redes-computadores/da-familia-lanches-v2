@@ -24,7 +24,9 @@ ok(publicCardSizes.includes("(max-width: 560px) 37vw") &&
    publicCardSizes.includes("(max-width: 640px) 50vw") &&
    publicCardSizes.includes("(max-width: 1100px) 33vw") &&
    publicCardSizes.endsWith(", 280px"), "cards públicos têm sizes responsivo");
-ok(admin.includes('sizes="76px"'),"thumbnail do admin otimizado");
+// R277: o novo thumbnail da R276 usa Next Image em contêiner quadrado de 88px.
+const adminThumb=admin.includes('<div className={styles.r276Thumb}><CatalogImage src={product.image} alt="" sizes="88px" quality={72} /></div>');
+ok(adminThumb && css.includes('.product .r276Thumb') && css.includes('aspect-ratio:1') && css.includes('object-fit:contain'),"thumbnail quadrado do admin otimizado");
 ok(modal.includes("CatalogImage"),"modal de produto otimizado");
 ok(product.includes("CatalogImage"),"página pública de produto otimizada");
 ok((css.match(/!important/g)||[]).length<=397,"dívida !important não aumentou");
