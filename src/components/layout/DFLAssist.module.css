@@ -189,3 +189,46 @@
 .panel :is(.openTour,.tour button,.tour a):focus-visible{outline:3px solid #c99516;outline-offset:2px}
 @media(max-width:375px){.tourHero{padding:15px;min-height:250px}.tourHero h2{font-size:21px}.tourActions button{font-size:12px;padding:10px}.panel .header{padding:10px}}
 @media(prefers-reduced-motion:reduce){.tour *,.openTour{transition:none!important;animation:none!important}}
+
+/* R290 PREMIUM — pesquisa em primeiro plano, divulgacao progressiva e teclado Android. */
+.panel{gap:10px;padding:clamp(12px,3vw,17px);padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));scroll-padding-top:70px;overflow-x:hidden;overscroll-behavior:contain}
+.panel .header{gap:9px;padding:8px 10px;border-radius:14px;top:0}
+.panel .header strong{font-size:15px;line-height:1.2}
+.panel .header small{font-size:10px;line-height:1.25}
+.panel .header .avatar{width:36px;height:36px;flex:0 0 36px;border-radius:12px}
+.panel .header .close{margin-left:auto;flex:0 0 44px;min-width:44px;min-height:44px}
+.message{padding:10px 12px;font-size:12px;line-height:1.4}
+.assistMore{min-width:0;border:1px solid #e4d5be;border-radius:13px;background:#fffdf8}
+.assistMore>summary{min-height:44px;display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;font-size:12px;font-weight:850;color:#4a3217;list-style:none}
+.assistMore>summary::-webkit-details-marker{display:none}
+.assistMore>summary::after{content:"+";margin-left:auto;font-size:19px;line-height:1;color:#a57e38}
+.assistMore[open]>summary::after{content:"−"}
+.assistMoreBody{display:grid;gap:10px;padding:0 12px 12px}
+.assistMoreBody>.assistHint{margin:0;color:#635341;font-size:11px;line-height:1.45}
+.assistMoreBody .actions{gap:7px}
+.offers{gap:9px;border-top:0;padding-top:0;min-width:0}
+.offerTitle{font-size:15px;letter-spacing:-.02em}
+.offerSearchRow{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:7px;min-width:0}
+.offerSearchRow .offerQuery{width:100%;min-width:0;height:46px;min-height:46px;padding:9px 10px;font-size:16px;text-overflow:clip}
+.offerSearchAction{min-width:72px;max-width:none;min-height:46px;padding:8px;font-size:12px}
+.quickSearch{display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;scrollbar-width:thin;overscroll-behavior-x:contain;padding:2px 1px 7px}
+.quickSearch button{flex:0 0 auto;min-width:max-content;min-height:42px;padding:8px 12px;white-space:nowrap}
+.advancedToggle{width:100%;display:flex;align-items:center;justify-content:center;min-height:44px;padding:9px 12px;background:#faf1df;border:1px solid #d9c39e;border-radius:12px;font-size:12px;font-weight:850;color:#5b3b0e;cursor:pointer}
+.advancedSection{display:grid;gap:9px;min-width:0}
+.advancedSection[hidden]{display:none!important}
+.assistComposition{min-width:0;margin-top:2px}
+.assistComposition>summary{cursor:pointer;color:#76541b;font-size:11px;font-weight:800;min-height:30px;padding:5px 0}
+.assistComposition .r90AssistComposition{margin-top:4px;font-size:10px;line-height:1.35}
+.offerList{gap:7px}
+.offerList li{grid-template-columns:58px minmax(0,1fr) 58px;gap:8px;min-height:81px;padding:8px;border-radius:13px;align-items:start}
+.offerImage{width:58px;height:62px;border-radius:10px}
+.offerCopy{gap:3px}
+.offerCopy strong{font-size:12px}
+.offerCopy .r94AssistProductType{font-size:9px}
+.offerPrice{font-size:15px}
+.offerList li>button{width:58px;min-width:58px;max-width:58px;min-height:44px;padding:7px 6px;align-self:center}
+.offerCopy .r91AssistDiscount{padding:3px 5px;font-size:10px}
+.panel :is(.advancedToggle,.assistMore>summary,.assistComposition>summary):focus-visible{outline:3px solid #c99516;outline-offset:2px}
+@media(max-width:360px){.panel{padding:11px}.offerList li{grid-template-columns:49px minmax(0,1fr) 49px;gap:5px;padding:7px}.offerImage{width:49px;height:54px}.offerList li>button{width:49px;min-width:49px;max-width:49px;padding:5px}.offerSearchRow{grid-template-columns:minmax(0,1fr) 64px}.offerSearchAction{min-width:64px;padding:6px}}
+@media(max-height:560px){.panel{max-height:calc(100dvh - 10px - env(safe-area-inset-bottom,0px))}}
+@media(prefers-reduced-motion:reduce){.quickSearch,.panel{scroll-behavior:auto!important}.advancedToggle{transition:none!important}}

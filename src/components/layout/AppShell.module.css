@@ -17,3 +17,14 @@
   min-width:0;
   width:100%;
 }
+
+/* R290 PREMIUM — o rodape ja reserva a navegacao fixa. Evita somar 108px ANTES do rodape.
+ * Apenas Home; modais, admin e rotas secundarias conservam seus contratos anteriores. */
+@media(max-width:760px){
+  .shell[data-dfl-site-shell="true"][data-dfl-route="home"]{min-height:0}
+  .shell[data-dfl-site-shell="true"][data-dfl-route="home"] .main{
+    flex:0 0 auto;
+    padding-bottom:0;
+    scroll-padding-bottom:calc(108px + env(safe-area-inset-bottom,0px));
+  }
+}

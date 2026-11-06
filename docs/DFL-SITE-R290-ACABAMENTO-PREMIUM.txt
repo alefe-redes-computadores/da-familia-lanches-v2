@@ -1,0 +1,31 @@
+DFL SITE R290 — ACABAMENTO PREMIUM — 06/11/2026
+
+DIAGNOSTICO EM CODIGO (confirmado):
+- Home adicionava 130px + safe area de padding inferior no catalogo e ainda 108px + safe area no shell publico. Footer ja contem reserva para nav fixa: espacadores somados.
+- Assist: guia, explicacao, helpdesk, filtros detalhados, comparador e acoes eram exibidos simultaneamente; pesquisa e botao competiam pela largura.
+- Assist flutuante so avaliava scrollY >= 240 e nao observava a entrada do rodape.
+- Footer tinha contraste fraco em textos secundarios e creditos.
+- Header e nav ja tem refinamentos responsive/safe-area: nao alterar sua geometria global.
+
+R290 ESCOPO:
+- DFL Assist com cabecalho compacto, pesquisa em primeiro plano, chips horizontais, filtros expansivos, guia e acoes secundarias em <details>, resumo de cards e composicao expansivel.
+- Ajustes Home (catalogo/shell) removem espaco artificial ANTES do rodape; nav continua fixa e rodape oferece area de gesto.
+- DFL Assist flutuante e atalho Home se escondem quando footer entra na regiao visivel via IntersectionObserver com cleanup.
+- Contraste e areas de toque do footer.
+- Nao modifica dados de catalogo, produto, imagens, combos, checkout, pagamento, pedidos, integracoes, Supabase ou Firestore.
+
+DEFERIDOS CONSCIENTEMENTE:
+- Fotos de catalogo: aguardar arquivos finais para upload separado; nenhuma imagem trocada.
+- Banner WhatsApp: NAO publicado; homologacao operacional de mensagens para clientes e requisito obrigatorio.
+- Combo por unidade: existem componentes de rascunho/quote sem autorizacao comercial. Nao habilitar sem teste real de precomposicao/preco e Entregas.
+- Performance visual em aparelhos reais: exige observacao do proprietario apos o deploy.
+
+GATES LOCAIS:
+- Teste dedicado R290 de TSX/hierarquia/seguranca.
+- R106 PWA, R236 fluxo operacional, teste de vendas critico (se estiverem presentes).
+- TypeScript sem emitir; git diff --check; sem stage alheio; hashes Git originais exatos; backup.
+- Push somente após gates; publicacao Vercel posterior requer READY e teste manual PWA/Android.
+
+ROLLBACK:
+- Antes de commit: automatizado restaurando so os caminhos da cirurgia.
+- Depois de push: preferir revert seletivo acompanhado por auditoria, nunca git reset --hard.

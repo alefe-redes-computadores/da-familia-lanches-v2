@@ -407,3 +407,12 @@
   .r104OfferPrices b{font-size:16px}
 }
 @media(prefers-reduced-motion:reduce){.r104OfferCard{transition:none}.r104OfferCard:active{transform:none}}
+
+/* R290 PREMIUM — R106 preservado: reserva de navegacao fica no rodape, nao apos o ultimo produto. */
+@media(max-width:699px){
+  .page .content{padding-bottom:clamp(24px,5vw,44px)}
+}
+/* Convides flutuantes somem perto do rodape; link e credito permanecem acessiveis. */
+:global(html[data-dfl-footer-near="true"]) .r71AssistShortcut{
+  opacity:0;visibility:hidden;pointer-events:none;
+}

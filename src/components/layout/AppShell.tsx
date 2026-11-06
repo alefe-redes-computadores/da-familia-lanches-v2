@@ -109,7 +109,7 @@ function CommerceShell({ children }: Props) {
 
   return (
     <VisualCampaignProvider>
-    <div className={styles.shell} data-dfl-site-shell="true">
+    <div className={styles.shell} data-dfl-site-shell="true" data-dfl-route={pathname === "/" ? "home" : "other"}>
       <Header />
       <MobileDrawerMenu />
       <main className={styles.main}>{children}</main>

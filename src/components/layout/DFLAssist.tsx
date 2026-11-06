@@ -45,7 +45,7 @@ export function DFLAssist() {
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); closeAssist(); return; }
       if (event.key !== "Tab") return;
-      const nodes = panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),[tabindex]:not([tabindex="-1"])');
+      const nodes = panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),summary,[tabindex]:not([tabindex="-1"])');
       if (!nodes?.length) return;
       const first = nodes[0], last = nodes[nodes.length - 1];
       if (event.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
@@ -93,17 +93,27 @@ export function DFLAssist() {
     <section ref={panelRef} tabIndex={-1} className={styles.panel} role="dialog" aria-modal="true" aria-label="DFL Assist">
       <header className={styles.header}><span className={styles.avatar}><Bot size={23} aria-hidden="true"/></span><div><strong>DFL Assist</strong><small>{tour ? "Conheça nosso guia de compra" : "Seu ajudante de compras"}</small></div><button type="button" className={styles.close} onClick={closeAssist} aria-label="Fechar DFL Assist"><X size={20}/></button></header>
       {tour ? <DFLAssistWalkthrough onDone={finishTour} onSkip={finishTour} /> : <>
-        <p className={styles.message}>Escolha com mais facilidade: encontre lanches por ingredientes, orçamento ou número de pessoas.</p>
-        <p className={styles.assistHint}>Sugestões do cardápio real. Não é atendimento por IA generativa e não cria pedidos. {/* DFL-R43-ASSIST */}</p>
-        <button type="button" className={styles.openTour} onClick={()=>setTour(true)}><BookOpen size={17} aria-hidden="true"/> Como fazer meu pedido? Ver passo a passo</button>
-        <DFLAssistHelpDesk onTour={() => setTour(true)} onOpenCart={() => { setVisible(false); openModal("cart"); }} onOpenOrders={() => { setVisible(false); openModal("orders"); }} />
+        <p className={styles.message}>Encontre seu lanche usando ingredientes, orçamento ou sugestões do cardápio.</p>
         <DFLAssistOffers onFindProduct={search} onOpenProduct={(product: Product) => {
           // DFL-R64-DIRECT-PRODUCT: o produto vem do catalogo real confirmado.
           setVisible(false);
           openModal("product-details", product);
         }} />
-        <div className={styles.actions}><button type="button" onClick={()=>{setVisible(false);openModal("cart")}}><ShoppingCart size={19}/> Ver carrinho</button><button type="button" onClick={()=>search("combo")}><Search size={19}/> Ver combos</button><a href={businessWhatsAppUrl("Olá! Preciso de ajuda para escolher ou finalizar meu pedido no site da Da Família Lanches.")} target="_blank" rel="noopener noreferrer"><MessageCircle size={19}/> Falar com a equipe</a></div>
-        <p className={styles.note}>O WhatsApp é atendimento, não confirma nem cria um pedido. Seus dados e carrinho não são enviados automaticamente.</p>
+        <details className={styles.assistMore}>
+          <summary>Ajuda e passo a passo</summary>
+          <div className={styles.assistMoreBody}>
+            <p className={styles.assistHint}>Sugestões do cardápio real. Não é atendimento por IA generativa e não cria pedidos. {/* DFL-R43-ASSIST */}</p>
+            <button type="button" className={styles.openTour} onClick={()=>setTour(true)}><BookOpen size={17} aria-hidden="true"/> Como fazer meu pedido? Ver passo a passo</button>
+            <DFLAssistHelpDesk onTour={() => setTour(true)} onOpenCart={() => { setVisible(false); openModal("cart"); }} onOpenOrders={() => { setVisible(false); openModal("orders"); }} />
+          </div>
+        </details>
+        <details className={styles.assistMore}>
+          <summary>Outras ações</summary>
+          <div className={styles.assistMoreBody}>
+            <div className={styles.actions}><button type="button" onClick={()=>{setVisible(false);openModal("cart")}}><ShoppingCart size={19}/> Ver carrinho</button><button type="button" onClick={()=>search("combo")}><Search size={19}/> Ver combos</button><a href={businessWhatsAppUrl("Olá! Preciso de ajuda para escolher ou finalizar meu pedido no site da Da Família Lanches.")} target="_blank" rel="noopener noreferrer"><MessageCircle size={19}/> Falar com a equipe</a></div>
+            <p className={styles.note}>O WhatsApp é atendimento, não confirma nem cria um pedido. Seus dados e carrinho não são enviados automaticamente.</p>
+          </div>
+        </details>
       </>}
     </section>
   </div>;

@@ -19,6 +19,7 @@ export function DFLAssistFloatingNudge() {
   const [pastThreshold, setPastThreshold] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [inputActive, setInputActive] = useState(false);
+  const [footerNear, setFooterNear] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [length, setLength] = useState(0);
   const started = useRef(false);
@@ -59,6 +60,20 @@ export function DFLAssistFloatingNudge() {
     };
   }, [pathname]);
 
+  // R290: ao aproximar o rodape, libera os links e evita dois CTAs sobrepostos.
+  useEffect(() => {
+    if (pathname !== "/") return;
+    const footer = document.querySelector<HTMLElement>('footer[data-dfl-campaign-footer="true"]');
+    if (!footer || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => {
+      const near = Boolean(entry?.isIntersecting);
+      setFooterNear(near);
+      document.documentElement.dataset.dflFooterNear = near ? "true" : "false";
+    }, { rootMargin: "0px 0px 130px 0px", threshold: 0 });
+    observer.observe(footer);
+    return () => { observer.disconnect(); document.documentElement.removeAttribute("data-dfl-footer-near"); };
+  }, [pathname]);
+
   useEffect(() => {
     if (!pastThreshold || pathname !== "/" || activeModal || dismissed || started.current) return;
     started.current = true;
@@ -87,7 +102,7 @@ export function DFLAssistFloatingNudge() {
     return () => window.clearTimeout(timer);
   }, [phase]);
 
-  if (pathname !== "/" || !pastThreshold || Boolean(activeModal) || dismissed || inputActive || phase === "idle") return null;
+  if (pathname !== "/" || !pastThreshold || Boolean(activeModal) || dismissed || inputActive || footerNear || phase === "idle") return null;
 
   const open = () => {
     try { sessionStorage.setItem(sessionKey, "1"); } catch { /* opcional */ }
