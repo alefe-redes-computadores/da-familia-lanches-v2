@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Clock3, LockKeyhole, MessageSquareText, RefreshCw, Search, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock3, LockKeyhole, MessageSquareText, RefreshCw, Search, ShieldCheck, ChevronDown, Layers3, ListFilter, Store, Truck, Settings2 } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import styles from './MessagingCenterAdmin.module.css';
 
@@ -77,6 +77,8 @@ export function MessagingCenterAdmin() {
   const [confirmRetry, setConfirmRetry] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState<string | null>(null);
   const [retryMessage, setRetryMessage] = useState('');
+  const [view, setView] = useState<'orders' | 'messages'>('orders');
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   const consult = async () => {
     if (busy) return;
@@ -180,28 +182,40 @@ export function MessagingCenterAdmin() {
       suppressed: all.filter(r => r.status === 'suppressed').length };
   }, [data]);
 
+  const orders = useMemo(() => {
+    // Agrupa somente a amostra recebida do servidor. Nenhuma nova leitura,
+    // sincronizacao, listener ou alteracao do status comercial.
+    const result = new Map<string, {id:string;label:string;name:string;items:MessageRow[];failed:number;updated:number;source:string}>();
+    for(const row of rows){
+      const id=row.orderId || row.id;
+      const timestamp=Date.parse(row.updatedAt || row.createdAt || '') || 0;
+      const previous=result.get(id) || {id,label:row.orderLabel,name:row.customerName,items:[],failed:0,updated:timestamp,source:row.source};
+      previous.items.push(row);
+      previous.failed += row.status==='failed' ? 1 : 0;
+      previous.updated=Math.max(previous.updated,timestamp);
+      if(timestamp>=previous.updated){previous.name=row.customerName;previous.source=row.source;}
+      result.set(id,previous);
+    }
+    return [...result.values()].sort((a,b)=>b.updated-a.updated).map(group=>({
+      ...group,items:group.items.sort((a,b)=>Date.parse(b.createdAt||'')-Date.parse(a.createdAt||'')),
+    }));
+  },[rows]);
+
   return <section className={styles.root} aria-label="Central de mensageria">
     <div className={styles.hero}>
-      <span className={styles.eyebrow}><MessageSquareText size={16}/> MSG-M3 · CENTRO DE CONTROLE</span>
-      <h3>Mensagens por pedido, sem surpresas</h3>
-      <p>Acompanhe a fila, entenda a falha e solicite até duas tentativas manuais seguras quando permitido. Esta central não ativa o WhatsApp nem envia mensagens sem a autorização do servidor.</p>
-      <div className={styles.heroActions}>
-        <span className={styles.safety}><LockKeyhole size={15}/> Envio manual {data?.manualBridgeEnabled ? 'habilitado no servidor' : 'OFF / não habilitado'}</span>
-        <button type="button" disabled={busy} onClick={() => void consult()}><RefreshCw size={16} aria-hidden="true"/>{busy ? 'Consultando…' : data ? 'Atualizar agora' : 'Consultar mensagens'}</button>
-        <button type="button" disabled={bridgeBusy} onClick={() => void inspectBridges()}><ShieldCheck size={16} aria-hidden="true"/>{bridgeBusy ? 'Analisando…' : 'Diagnosticar pontes'}</button>
+      <div className={styles.heroHead}>
+        <span className={styles.eyebrow}><MessageSquareText size={15}/> OPERAÇÃO · DFL 360</span>
+        <span className={styles.heroSeal}><ShieldCheck size={14}/> Acesso administrativo</span>
       </div>
-      {data && <small className={styles.checked} role="status">Consulta: {niceDate(data.checkedAt)} · {data.rows.length} registros recentes</small>}
+      <h3>Central de Mensageria</h3>
+      <p className={styles.heroLead}>Pedidos e avisos em um único lugar. Encontre uma falha, acompanhe a fila e confira a etapa do cliente sem perder tempo em relatórios técnicos.</p>
+      <div className={styles.heroActions}>
+        <button type="button" disabled={busy} onClick={() => void consult()}><RefreshCw size={16} aria-hidden="true"/>{busy ? 'Consultando…' : data ? 'Atualizar mensagens' : 'Consultar mensagens'}</button>
+        <span className={styles.safety}><LockKeyhole size={14}/> {data?.retryEnabled ? 'Retry sob autorização' : 'Reenvio protegido'}</span>
+      </div>
+      {data && <small className={styles.checked} role="status">Última consulta: {niceDate(data.checkedAt)} · {data.rows.length} intenções na amostra</small>}
       {error && <p className={styles.error} role="alert"><AlertCircle size={16}/>{error}</p>}
-      {bridgeError && <p className={styles.error} role="alert"><AlertCircle size={16}/>{bridgeError}</p>}
       {retryMessage && <p className={styles.retryFeedback} role="status" aria-live="polite">{retryMessage}</p>}
-      {bridge && <div className={styles.notice} role="status" aria-live="polite">
-        <ShieldCheck size={17} aria-hidden="true" />
-        <p><strong>MSG-M4 · Diagnóstico das pontes (somente leitura)</strong>
-          <span style={{display:'block',marginTop:6}}>Site → fila: {bridge.gates.ingestConfigured ? 'configurada' : 'pendente'} · worker: {bridge.gates.workerConfigured ? 'configurado' : 'pendente'} · Site → Entregas: {bridge.gates.siteToEntregasRelayEnabled ? 'habilitado' : 'OFF'} · avisos manuais: {bridge.gates.manualInboundEnabled ? 'habilitados' : 'OFF'}.</span>
-          <span style={{display:'block',marginTop:6}}>Últimas {bridge.sample} intenções consultadas: Site {Object.values(bridge.summary.site).reduce((a,b)=>a+b,0)}, Entregas {Object.values(bridge.summary.entregas).reduce((a,b)=>a+b,0)}. Último evento da logística: {niceDate(bridge.latest.entregas)}.</span>
-          <small style={{display:'block',marginTop:6}}>Amostra limitada a {bridge.sampleLimit} registros. Não confirma entrega no WhatsApp nem estado da Evolution API.</small>
-        </p>
-      </div>}
     </div>
 
     <div className={styles.metrics} aria-label="Resumo das últimas intenções consultadas">
@@ -210,6 +224,26 @@ export function MessagingCenterAdmin() {
       <div><AlertCircle size={18}/><strong>{data ? metrics.failed : '—'}</strong><small>Falhas</small></div>
       <div><ShieldCheck size={18}/><strong>{data ? metrics.suppressed : '—'}</strong><small>Suprimidas</small></div>
     </div>
+
+    <details className={styles.advanced}>
+      <summary><span><Settings2 size={17}/> Ferramentas avançadas</span><span>Diagnóstico técnico <ChevronDown size={16}/></span></summary>
+      <div className={styles.advancedBody}>
+        <p>Os testes de assinatura e os bloqueios de integração ficam aqui, fora da operação diária. Não há envio ao clicar em diagnosticar.</p>
+        <div className={styles.advancedControls}>
+          <button type="button" disabled={bridgeBusy} onClick={() => void inspectBridges()}><ShieldCheck size={16} aria-hidden="true"/>{bridgeBusy ? 'Analisando…' : 'Diagnosticar pontes'}</button>
+          <span>Mensageria manual: {data?.manualBridgeEnabled ? 'habilitada pelo servidor' : 'desativada'}.</span>
+        </div>
+        {bridgeError && <p className={styles.error} role="alert"><AlertCircle size={16}/>{bridgeError}</p>}
+        {bridge && <div className={styles.notice} role="status" aria-live="polite">
+          <ShieldCheck size={17} aria-hidden="true" />
+          <p><strong>Diagnóstico das pontes · somente leitura</strong>
+            <span style={{display:'block',marginTop:6}}>Site → fila: {bridge.gates.ingestConfigured ? 'configurada' : 'pendente'} · worker: {bridge.gates.workerConfigured ? 'configurado' : 'pendente'} · Site → Entregas: {bridge.gates.siteToEntregasRelayEnabled ? 'habilitado' : 'OFF'} · avisos manuais: {bridge.gates.manualInboundEnabled ? 'habilitados' : 'OFF'}.</span>
+            <span style={{display:'block',marginTop:6}}>Últimas {bridge.sample} intenções: Site {Object.values(bridge.summary.site).reduce((a,b)=>a+b,0)}, Entregas {Object.values(bridge.summary.entregas).reduce((a,b)=>a+b,0)}. Último evento logístico: {niceDate(bridge.latest.entregas)}.</span>
+            <small style={{display:'block',marginTop:6}}>Amostra limitada a {bridge.sampleLimit} registros; não confirma entrega no WhatsApp nem estado do provedor.</small>
+          </p>
+        </div>}
+      </div>
+    </details>
 
     <div className={styles.notice}><ShieldCheck size={18} aria-hidden="true"/><p><strong>Fila não é confirmação de entrega.</strong> “Na fila” significa que a integração aceitou a intenção. Não informa se o WhatsApp recebeu, leu ou entregou a mensagem. Não se repete uma mensagem já aceita pelo provedor sem conciliar o histórico real.</p></div>
     <div className={styles.retryNotice}><LockKeyhole size={16}/><span>MSG-M5 · até 2 tentativas manuais, 1 processamento por toque, com intervalo de segurança. Falhas definitivas e mensagens já enfileiradas não podem ser reexecutadas. {data?.retryEnabled ? 'Reenvio controlado autorizado.' : 'Reenvio manual OFF até homologação.'}</span></div>
@@ -223,7 +257,34 @@ export function MessagingCenterAdmin() {
         <label>Origem<select value={source} onChange={event => setSource(event.target.value as 'all' | 'site' | 'entregas')}><option value="all">Ambas as origens</option><option value="site">Site</option><option value="entregas">Entregas</option></select></label>
       </div>
       <p className={styles.results} role="status">{rows.length} de {data.rows.length} registros exibidos {data.truncated ? `· limite de ${data.limit}; não é o histórico completo` : ''}</p>
-      <div className={styles.list}>
+      <div className={styles.viewTabs} role="group" aria-label="Modo de visualização">
+        <button type="button" aria-pressed={view==='orders'} className={view==='orders'?styles.activeTab:undefined} onClick={()=>setView('orders')}><Layers3 size={16}/> Por pedido <span>{orders.length}</span></button>
+        <button type="button" aria-pressed={view==='messages'} className={view==='messages'?styles.activeTab:undefined} onClick={()=>setView('messages')}><ListFilter size={16}/> Mensagens <span>{rows.length}</span></button>
+      </div>
+      {view==='orders' ? <div className={styles.orderList}>
+        {orders.length===0 && <div className={styles.empty}>Nenhum pedido encontrado com esses filtros.</div>}
+        {orders.map(group=><article className={styles.orderCard} key={group.id}>
+          <button type="button" className={styles.orderTrigger} aria-expanded={expandedOrder===group.id} onClick={()=>setExpandedOrder(expandedOrder===group.id?null:group.id)}>
+            <span className={styles.orderIcon}>{group.source==='site'?<Store size={19}/>:<Truck size={19}/>}</span>
+            <span className={styles.orderIdentity}>
+              <strong>{group.name}</strong>
+              <small>{group.label} · {group.items.length} atualizaç{group.items.length===1?'ão':'ões'}</small>
+            </span>
+            <span className={group.failed?styles.orderProblem:group.items[0].status==='queued'?styles.orderHealthy:styles.orderNeutral}>{group.failed?`${group.failed} falha${group.failed===1?'':'s'}`:statusLabels[group.items[0].status]}</span>
+            <ChevronDown className={expandedOrder===group.id?styles.rotated:undefined} size={17}/>
+          </button>
+          {expandedOrder===group.id&&<div className={styles.orderDetails}>
+            <div className={styles.orderTimelineLabel}>Histórico na amostra · não é rastreamento da entrega</div>
+            {group.items.map(item=><div key={item.id} className={styles.timelineItem} data-state={item.status}>
+              <div className={styles.timelineRow}><strong>{eventLabels[item.event]||item.event}</strong><span>{statusLabels[item.status]}</span></div>
+              <small>{niceDate(item.createdAt)} · {item.source==='site'?'Site':'Entregas'} · {item.phoneMasked}</small>
+              {item.status==='failed'&&<p className={styles.timelineFailure}><AlertCircle size={14}/>{item.retry.explanation} {item.retry.retryable?'Abra “Mensagens” para uma tentativa autorizada.':'Reenvio bloqueado.'}</p>}
+            </div>)}
+            <p className={styles.orderFootnote}>Para editar ou mudar etapas do pedido, use o gerenciamento oficial no Admin. Esta central gerencia apenas notificações.</p>
+          </div>}
+        </article>)}
+      </div> : <div className={styles.list}>
+
         {rows.length === 0 && <div className={styles.empty}>Nenhuma intenção corresponde aos filtros atuais.</div>}
         {rows.map(item => <article key={item.id} className={styles.item} data-state={item.status}>
           <div className={styles.itemTop}><div><span className={styles.origin}>{item.source === 'site' ? 'SITE' : 'ENTREGAS'}</span><strong>{eventLabels[item.event] || item.event}</strong></div><span className={styles.state}>{statusLabels[item.status]}</span></div>
@@ -249,7 +310,7 @@ export function MessagingCenterAdmin() {
           </div>}
           {item.status === 'queued' && <small className={styles.queuedDisclaimer}><CheckCircle2 size={13}/> Aceita na fila — entrega ao cliente não verificada; reenvio bloqueado.</small>}
         </article>)}
-      </div>
+      </div>}
     </>}
     {!data && !busy && <div className={styles.empty}>Nenhum dado carregado. Toque em “Consultar mensagens” para ler os registros sob demanda.</div>}
   </section>;
