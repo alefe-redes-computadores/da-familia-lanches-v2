@@ -75,6 +75,18 @@ class Timestamp { toMillis(){return Date.now();} }
 const fallbackProduct={id:'sale-test',name:'Teste de venda',category:'lanches',description:'',image:'',price:20,disponivel:true,
   minAddonSelections:undefined,maxAddonSelections:undefined,addonGroups:undefined,detailsTitle:undefined,detailsItems:undefined,
   addonIds:['cheese'],bundleItems:undefined};
+// R291-R2: compile the real pure print policy for the isolated sales gate.
+const r291PolicySource=fs.readFileSync('src/lib/printing/printStationPolicy.ts','utf8');
+const r291PolicyCompiled=ts.transpileModule(r291PolicySource,{fileName:'src/lib/printing/printStationPolicy.ts',
+  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const r291PolicyModule={exports:{}};
+new Function('module','exports',r291PolicyCompiled)(r291PolicyModule,r291PolicyModule.exports);
+assert.equal(typeof r291PolicyModule.exports.planSitePrintJobs,'function','R291 real print policy loaded');
+const r291SalesPolicy={...r291PolicyModule.exports,planSitePrintJobs:(orderId,scheduled,env)=>{
+  const planned=r291PolicyModule.exports.planSitePrintJobs(orderId,scheduled,{...env,DFL_PRINT_AUTO_ENABLED:'false'});
+  assert.equal(planned.length,0,'R291 sales regression must not create print jobs when OFF');
+  return planned;
+}};
 const fakeModules={
   'next/server':{
     after(callback){actions.after.push(callback);},
@@ -107,6 +119,7 @@ const fakeModules={
   '@/lib/commercialSettings':{normalizeCommercialSettings:()=>({}),freeDeliveryThreshold:()=>null},
   '@/lib/addressIntelligence':{inspectDistrict:(d)=>({valid:String(d||'').trim().length>=3}),matchDeliveryRate:(d,rates)=>rates.find(r=>r.nome===d)},
   '@/lib/streetNameSafety':streetGuardModule.exports,
+  '@/lib/printing/printStationPolicy':r291SalesPolicy,
   '@/lib/integration/server/relay':{drainIntegrationOutboxEvent:async()=>{actions.relay++;return {sent:1,failed:0}}},
   '@/lib/server/observability':{errorCode:(e)=>e?.code||e?.name||'Error',startRouteTrace:()=>({id:'trace-test',startedAt:Date.now(),route:'orders.create'}),finishRouteTrace:(tr,outcome,details)=>actions.traces.push({outcome,details})}
 };
@@ -143,6 +156,7 @@ async function check(name,fn){try{await fn();++ok;console.log('✓',name);}catch
   assert.equal(result.status,201,JSON.stringify(result.body));assert.equal(result.body.ok,true);
   assert(result.body.id.startsWith('site_'));
   assert(docs.has('Pedidos/'+result.body.id));
+  assert.equal([...docs.keys()].filter(k=>k.startsWith('integration_print_jobs/')).length,0,'R291: OFF must not emit print jobs');
   assert([...docs.keys()].some(k=>k.startsWith('integration_outbox/')));
   assert([...docs.keys()].some(k=>k.startsWith('AdminPushDispatches/')));
   assert.equal(actions.after.length,before+1);

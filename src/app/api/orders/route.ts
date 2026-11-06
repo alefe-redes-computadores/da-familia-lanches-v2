@@ -1,5 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
+import { planSitePrintJobs } from "@/lib/printing/printStationPolicy";
 import { adminAuth } from "@/lib/integration/server/adminAuth";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/integration/server/admin";
@@ -407,6 +408,13 @@ export async function POST(request: NextRequest) {
       if (deliveryMode === "delivery" && (text(delivery.street).length < 4 || streetNeedsClarification(delivery.street) || !text(delivery.number) || !inspectDistrict(district).valid || ![0, 8].includes(text(delivery.cep).replace(/\D/g, "").length))) throw new Error("ADDRESS_INVALID");
       const event = buildOrderCreatedEvent({ orderId: orderRef.id, order: canonicalOrder, occurredAt });
       tx.create(orderRef, canonicalOrder);
+      // R291: fila termica nasce atomicamente com o pedido, somente se TODOS os gates estiverem ON.
+      // Checkout reusado e agendado nao criam jobs; nenhuma impressao ocorre nesta API.
+      for (const job of planSitePrintJobs(orderRef.id, isScheduled, process.env)) {
+        tx.create(adminDb.collection("integration_print_jobs").doc(job.id), {
+          ...job, status: "pending", created_at: occurredAt, updated_at: occurredAt,
+        });
+      }
 
       if (decoded) {
         tx.set(adminDb.collection("Usuarios").doc(decoded.uid), { pedidosFeitos: FieldValue.increment(1) }, { merge: true });

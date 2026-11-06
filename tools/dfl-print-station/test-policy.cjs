@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {canArm,serverUrl,validJob}=require('./station-policy.cjs');
+const base={DFL_PRINT_STATION_MODE:'print',DFL_PRINT_STATION_ARMED:'YES',DFL_PRINT_STATION_URL:'https://www.dafamilialanches.com.br/api/integration/printing',DFL_PRINT_STATION_TOKEN:'1'.repeat(64),DFL_PRINT_STATION_PRINTER:'Generic / Text Only'};
+assert(canArm(base));
+for(const [key,value] of [['DFL_PRINT_STATION_MODE','off'],['DFL_PRINT_STATION_ARMED','NO'],['DFL_PRINT_STATION_TOKEN','short'],['DFL_PRINT_STATION_PRINTER',''],['DFL_PRINT_STATION_URL','http://evil.test/api/integration/printing']])assert(!canArm({...base,[key]:value}),key);
+assert(!serverUrl('https://evil.example/api/integration/printing'));
+assert(!serverUrl('http://www.dafamilialanches.com.br/api/integration/printing'));
+assert(!serverUrl('https://www.dafamilialanches.com.br/api/integration/printing?token=secret'));
+const job={id:'print-v1__site_'+('a'.repeat(40))+'__kitchen',claimToken:'a'.repeat(64),kind:'kitchen',paperMm:'58',html:'<!doctype html><html>DA FAMÍLIA LANCHES'+('A'.repeat(150))};
+assert(validJob(job));assert(!validJob({...job,id:job.id.replace('kitchen','full')}));
+assert(!validJob({...job,claimToken:'bad'}));assert(!validJob({...job,kind:'other'}));
+console.log('R291 Windows agent: 15 contratos puros aprovados; ZERO Electron/Windows/rede.');

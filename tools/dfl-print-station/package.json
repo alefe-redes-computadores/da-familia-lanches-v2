@@ -1,0 +1,9 @@
+{
+  "name": "dfl-print-station",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Estacao local de impressao DFL no Windows. OFF por padrao.",
+  "main": "main.cjs",
+  "scripts": {"start":"electron .", "doctor":"electron . --doctor", "test":"node test-policy.cjs"},
+  "devDependencies": {"electron":"45.2.3"}
+}
