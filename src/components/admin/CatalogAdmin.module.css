@@ -894,3 +894,54 @@
 .editor .editorActionsV86 :is(.nextAction,.publishAction){grid-column:2;background:#ffca28;color:#21160b;border-color:#ffca28;font-weight:950}
 @media(max-width:420px){.root .product .actions button{font-size:12px}.editor .editorActionsV86{gap:8px}}
 @media(prefers-reduced-motion:reduce){.root .product .actions button{transition:none}}
+
+/* DFL-R294-ADMIN-HIERARCHY — acabamento e fluxo mobile, sem regras comerciais. */
+.root .r294AdvancedTools{min-width:0;border:1px solid #35424d;border-radius:15px;background:#121920;color:#eaf1f5;overflow:hidden}
+.root .r294AdvancedTools>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;min-height:60px;padding:11px 14px}
+.root .r294AdvancedTools>summary::-webkit-details-marker{display:none}
+.root .r294AdvancedCopy{min-width:0;display:grid;gap:3px;flex:1}
+.root .r294AdvancedCopy strong{font-size:14px;color:#f5db9b;line-height:1.3}
+.root .r294AdvancedCopy small{font-size:11px;color:#aebbc6;line-height:1.4}
+.root .r294AdvancedBadge{flex:0 0 auto;max-width:40%;font-size:10px;line-height:1.25;color:#f6d685;text-align:right}
+.root .r294AdvancedTools>summary>svg{flex:0 0 auto;color:#d2ae55;transition:transform .18s ease}
+.root .r294AdvancedTools[open]>summary>svg{transform:rotate(180deg)}
+.root .r294AdvancedContent{display:grid;gap:11px;padding:12px;border-top:1px solid #2b3944}
+.root .r294AdvancedContent :is(.r93LaunchChecks,.metrics,.r89CommandBar,.r90BundleAudit,.r91CommercialPanel){min-width:0;margin:0}
+.root .r294AdvancedContent .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.root .r294AdvancedContent .metrics>*{min-width:0;overflow-wrap:anywhere}
+.root .r294AdvancedContent .metrics span{white-space:normal;line-height:1.35;font-size:11px}
+.root .summaryActions button{min-height:46px;min-width:0;line-height:1.3;text-align:center}
+.root .summaryActions .mainAction{background:#ffca28;color:#221708;border-color:#e2b62a}
+.root .summaryActions .secondaryAction{background:#1c2731;color:#e9f0f5;border:1px solid #364551}
+.editor .editorLivePreview button.livePreviewMedia{position:relative;cursor:pointer;padding:0;border:1px solid rgba(255,210,82,.45);background:#202933;display:grid;place-items:center;overflow:hidden;box-shadow:none;color:#dce7ef}
+.editor .editorLivePreview button.livePreviewMedia img{width:100%;height:100%;object-fit:cover}
+.editor .editorLivePreview button.livePreviewMedia:disabled{cursor:progress;opacity:.65}
+.editor .editorLivePreview button.livePreviewMedia:focus-visible{outline:3px solid #ffca28;outline-offset:2px}
+.editor .r294PhotoHint{position:absolute;right:2px;bottom:2px;display:grid;place-items:center;width:22px;height:22px;border-radius:8px;background:#ffca28;color:#271a05;font-size:16px;font-weight:900;pointer-events:none}
+.editor .photoUpload{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;align-items:stretch;padding:11px 12px}
+.editor .photoUpload .photoButton{box-sizing:border-box;position:relative;display:flex;align-items:center;justify-content:center;min-height:50px;width:100%;padding:11px 13px;margin:0;border:1px solid #e7b62c;border-radius:12px;background:#ffca28;color:#1d1608;text-align:center;line-height:1.3;font-size:13px;font-weight:900;cursor:pointer}
+.editor .photoUpload>div{display:grid;gap:3px;min-width:0}
+.editor .photoUpload>div strong{font-size:12px;color:#f3f5f7}
+.editor .photoUpload>div small{font-size:11px;line-height:1.45;color:#aab6c3}
+.editor[data-product-step="venda"] .switches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;min-width:0}
+.editor .switches button{box-sizing:border-box;display:flex;align-items:center;justify-content:flex-start;gap:9px;min-width:0;width:100%;min-height:53px;padding:11px 12px;border:1px solid #3a4754;border-radius:12px;background:#19232d;color:#e9f0f5;font-size:13px;line-height:1.35;text-align:left;white-space:normal;overflow-wrap:anywhere;box-shadow:none}
+.editor .switches button:nth-child(3):last-child{grid-column:1/-1}
+.editor .switches button[data-on="true"]{border-color:#8c6d31;background:#2b281d;color:#ffe1a0}
+.editor .switches button[data-on="false"]{border-color:#3a4754;background:#19232d;color:#cdd7e0}
+.editor .switches button i{flex:0 0 10px;display:block;width:10px;height:10px;border-radius:50%;background:#7c8995;box-shadow:none}
+.editor .switches button[data-on="true"] i{background:#ffca28}
+.editor .switches button:focus-visible{outline:3px solid #ffca28;outline-offset:2px}
+.editor .addonPickerHead>button{min-height:45px;padding:8px 11px;border:1px solid #5b6773;border-radius:11px;background:#23303d;color:#f2f5f8;font-size:12px;line-height:1.2}
+.editor .addonDisclosure{min-height:46px;background:#1b2631;border-color:#435463;color:#e6edf5}
+.editor .moneyInput input{min-width:0;flex:1 1 auto;background:transparent;border:0;box-shadow:none;border-radius:0;padding:10px 4px}
+.editor .moneyInput input:focus{background:transparent;border:0;box-shadow:none}
+.editor .promoPreview>b,.editor .commercialHead>b{background:#3c321d;color:#f9df9b;border:1px solid #80662e;border-radius:11px;padding:6px 11px}
+.editor .editorActionsV86 button{font-size:13px;line-height:1.3;min-height:50px;display:flex;justify-content:center;align-items:center;white-space:normal;text-align:center}
+@media(max-width:620px){
+ .root .r294AdvancedTools>summary{padding:10px 12px}
+ .root .r294AdvancedBadge{max-width:33%}
+ .editor .editorActionsV86{bottom:0;margin-bottom:0;padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}
+ .editor .switches button{font-size:12px}
+}
+@media(max-width:390px){.root .r294AdvancedBadge{font-size:9px}.editor .switches button{padding:10px}}
+@media(prefers-reduced-motion:reduce){.root .r294AdvancedTools>summary>svg{transition:none}}

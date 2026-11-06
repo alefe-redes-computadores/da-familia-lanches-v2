@@ -160,6 +160,7 @@ export function CatalogAdmin() {
   const [showAddonChoices, setShowAddonChoices] = useState(false);
   const [productStep, setProductStep] = useState<ProductEditorStep>("essencial");
   const saveProductBusy = useRef(false);
+  const productPhotoInputRef = useRef<HTMLInputElement>(null);
   const productBaseline = useRef("");
   const addonBaseline = useRef(""); // DFL-R91-GESTAO-COMERCIAL
   const confirmProductClose = useAdminConfirm();
@@ -687,7 +688,7 @@ export function CatalogAdmin() {
       <div className={styles.summaryCopy}>
         <span>CATÁLOGO ATIVO</span>
         <strong>{products.length} produtos · {activeProducts} disponíveis</strong>
-        <small>{source === "hybrid" ? "Nuvem operacional" : "Fallback local"} · {remoteAddons} adicionais · {remoteCategories} categorias remotas</small>
+        <small>{source === "hybrid" ? "Nuvem operacional" : "Fallback local"} · {remoteAddons} adicionais · {categories.length} categorias{remoteCategories > 0 ? " sincronizadas" : ""}</small>
       </div>
       <div className={styles.summaryActions}>
         <button className={styles.mainAction} onClick={openCreateProduct}><Plus size={16}/>Produto</button>
@@ -696,6 +697,15 @@ export function CatalogAdmin() {
       </div>
     </section>
 
+    {message && <div className={styles.message} data-tone={/falha|erro|inválid|não foi|obrigatóri|informe|precisa|não pode/i.test(message) ? "error" : "success"} role="status" aria-live="polite"><span>{message}</span><button type="button" aria-label="Fechar aviso" onClick={() => setMessage("")}>×</button></div>}
+    {/* DFL-R294-ADMIN-HIERARCHY: diagnosticos recolhidos sem eliminar ferramentas. */}
+    <details className={styles.r294AdvancedTools}>
+      <summary>
+        <span className={styles.r294AdvancedCopy}><strong>Ferramentas e diagnósticos</strong><small>Abertura, atalhos, auditorias e operações avançadas</small></span>
+        <span className={styles.r294AdvancedBadge}>{productsWithBundleIssues.size ? `${productsWithBundleIssues.size} combos a conferir` : "Revisão opcional"}</span>
+        <ChevronDown size={18} aria-hidden="true" />
+      </summary>
+      <div className={styles.r294AdvancedContent}>
     {/* DFL-R93-OPERACAO-MACRO — atalhos de abertura. Nao salvam no Firebase. */}
     <section className={styles.r93LaunchChecks} aria-label="Conferencia rapida para abertura">
       <div><strong>Antes de abrir a loja</strong><small>Revise disponibilidade e ofertas pelo catalogo atual.</small></div>
@@ -713,7 +723,6 @@ export function CatalogAdmin() {
       <div><span>Adicionais ativos</span><strong>{activeAddons}</strong></div>
     </section>
 
-    {message && <div className={styles.message} data-tone={/falha|erro|inválid|não foi|obrigatóri|informe|precisa|não pode/i.test(message) ? "error" : "success"} role="status" aria-live="polite"><span>{message}</span><button type="button" aria-label="Fechar aviso" onClick={() => setMessage("")}>×</button></div>}
 
     {/* DFL-R89-ADMIN-MACRO: atalhos sempre visiveis antes dos paineis de auditoria. */}
     <nav className={styles.r89CommandBar} aria-label="Ações rápidas do catálogo">
@@ -758,6 +767,8 @@ export function CatalogAdmin() {
     <CatalogQualityPanel products={products} categories={categories} />
     <CatalogBulkOperations products={products} categories={categories} source={source} />
     <CatalogLaunchCenter products={products} addons={allAddons} categories={categories} source={source} onEdit={openEditProduct} />
+      </div>
+    </details>
     <div id="dfl-r89-catalog-workspace" className={styles.r89WorkspaceAnchor} />
     <nav className={styles.viewTabs} aria-label="Seções do cardápio">
       {([["produtos", "Produtos", products.length], ["categorias", "Categorias", categories.length], ["adicionais", "Adicionais", allAddons.length], ["ordem", "Ordem", null]] as Array<[CatalogView, string, number | null]>).map(([key, label, count]) => (
@@ -912,9 +923,12 @@ export function CatalogAdmin() {
         </nav>
         <div className={styles.editorScroll}>
         <div className={styles.editorLivePreview} aria-label="Prévia do produto no cardápio">
-          <div className={styles.livePreviewMedia}>
+          <button type="button" className={styles.livePreviewMedia} disabled={imageUploading}
+            aria-label={productDraft.image.trim() ? "Trocar foto do produto" : "Selecionar foto do produto"}
+            title="Toque para escolher a foto" onClick={() => productPhotoInputRef.current?.click()}>
             {productDraft.image.trim() ? <CatalogImage src={productDraft.image} alt="" sizes="92px" quality={65}/> : <span>Sem foto</span>}
-          </div>
+            <span className={styles.r294PhotoHint} aria-hidden="true">✎</span>
+          </button>
           <div className={styles.livePreviewCopy}>
             <span>COMO O CLIENTE VERÁ</span>
             <strong>{productDraft.name.trim() || "Nome do produto"}</strong>
@@ -955,7 +969,7 @@ export function CatalogAdmin() {
           <div className={styles.formChoice} data-editor-step="essencial"><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={categoryOptions} /></div>
           <div className={styles.photoUpload} data-editor-step="essencial">
               <label className={styles.photoButton} data-busy={imageUploading}>
-                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={imageUploading} onChange={(event) => {
+                <input ref={productPhotoInputRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={imageUploading} onChange={(event) => {
                   const file = event.target.files?.[0];
                   event.currentTarget.value = "";
                   if (file) void uploadProductImage(file);
@@ -1026,9 +1040,9 @@ export function CatalogAdmin() {
         </div>
         {productDraft.image.trim() && <div className={styles.photoReady} data-editor-step="essencial" role="status">✓ Foto selecionada. Confira a prévia acima.</div>}
         <div className={styles.switches} data-editor-step="venda">
-          <button type="button" data-on={productDraft.disponivel} onClick={() => setProductDraft({ ...productDraft, disponivel: !productDraft.disponivel })}><i />Disponível</button>
-          <button type="button" data-on={productDraft.isSuggestion} onClick={() => setProductDraft({ ...productDraft, isSuggestion: !productDraft.isSuggestion })}><i />Sugestão da casa</button>
-          <button type="button" data-on={productDraft.showInOffers} onClick={() => setProductDraft({ ...productDraft, showInOffers: !productDraft.showInOffers })}><i />Exibir em Ofertas da Família</button>
+          <button type="button" aria-pressed={productDraft.disponivel} data-on={productDraft.disponivel} onClick={() => setProductDraft({ ...productDraft, disponivel: !productDraft.disponivel })}><i />Disponível</button>
+          <button type="button" aria-pressed={productDraft.isSuggestion} data-on={productDraft.isSuggestion} onClick={() => setProductDraft({ ...productDraft, isSuggestion: !productDraft.isSuggestion })}><i />Sugestão da casa</button>
+          <button type="button" aria-pressed={productDraft.showInOffers} data-on={productDraft.showInOffers} onClick={() => setProductDraft({ ...productDraft, showInOffers: !productDraft.showInOffers })}><i />Exibir em Ofertas da Família</button>
         </div>
         {productDraft.category !== "bebidas" && <div className={styles.addonPicker} data-editor-step="venda">
           <div className={styles.addonPickerHead}><div><strong>Adicionais permitidos</strong><span>{productDraft.addonIds === undefined ? "Todos os adicionais ativos" : `${productDraft.addonIds.length} selecionados`}</span></div><button type="button" onClick={() => setProductDraft({ ...productDraft, addonIds: undefined })}>Permitir todos</button></div>
@@ -1059,7 +1073,7 @@ export function CatalogAdmin() {
         </div>
         <div className={styles.editorActionsV86} data-step={productStep}>
           <button type="button" className={styles.backAction} onClick={() => { haptic("step"); if (productStep === "essencial") { void closeProductEditor(); } else setProductStep(productStep === "conteudo" ? "essencial" : productStep === "venda" ? "conteudo" : "venda"); }}>{productStep === "essencial" ? "Cancelar" : "Voltar"}</button>
-          {productStep !== "opcoes" ? <button type="button" className={styles.nextAction} onClick={() => { haptic("step"); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button> :
+          {productStep !== "opcoes" ? <button type="button" className={styles.nextAction} onClick={() => { haptic("step"); if (productStep === "venda") setAdvancedProduct(true); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button> :
           <button type="button" className={styles.publishAction} onClick={() => void saveProduct()} disabled={busy.startsWith("product-") || imageUploading || saveProductBusy.current}>
             {busy.startsWith("product-") ? "Salvando..." : imageUploading ? "Aguarde a foto" : productMode === "create" ? "Criar produto" : "Salvar alterações"}
           </button>}
