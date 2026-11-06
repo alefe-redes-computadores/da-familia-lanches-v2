@@ -888,9 +888,9 @@
 .editor .r292Guide{width:100%;border:1px solid #35404b;border-radius:12px;background:#161d25;padding:0;color:#d5e0e7}
 .editor .r292Guide summary{cursor:pointer;min-height:43px;padding:11px 13px;color:#efd088;font-size:12px;font-weight:850;line-height:1.5}
 .editor .r292Guide p{margin:0;border-top:1px solid #35404b;padding:9px 13px;font-size:12px;color:#cad6df;line-height:1.5}
-.editor .editorActionsV86{display:grid!important;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)!important;align-items:stretch;gap:9px;min-width:0}
-.editor .editorActionsV86 :is(.backAction,.nextAction,.publishAction){min-width:0;width:100%;min-height:49px;grid-row:1!important;border-radius:13px;font-size:13px;line-height:1.2}
-.editor .editorActionsV86 .backAction{grid-column:1!important;background:#202630;color:#d5e0ea}
-.editor .editorActionsV86 :is(.nextAction,.publishAction){grid-column:2!important;background:#ffca28!important;color:#21160b!important;border-color:#ffca28!important;font-weight:950}
+.editor .editorActionsV86{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);align-items:stretch;gap:9px;min-width:0}
+.editor .editorActionsV86 :is(.backAction,.nextAction,.publishAction){min-width:0;width:100%;min-height:49px;grid-row:1;border-radius:13px;font-size:13px;line-height:1.2}
+.editor .editorActionsV86 .backAction{grid-column:1;background:#202630;color:#d5e0ea}
+.editor .editorActionsV86 :is(.nextAction,.publishAction){grid-column:2;background:#ffca28;color:#21160b;border-color:#ffca28;font-weight:950}
 @media(max-width:420px){.root .product .actions button{font-size:12px}.editor .editorActionsV86{gap:8px}}
-@media(prefers-reduced-motion:reduce){.root .product .actions button{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.root .product .actions button{transition:none}}
