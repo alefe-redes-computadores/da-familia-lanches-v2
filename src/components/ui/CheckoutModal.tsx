@@ -415,22 +415,14 @@ export function CheckoutModal() {
           closedForUser,
         );
 
-        if (closedForUser) {
-          const slots =
-            await getOrderScheduleSlots();
-
-          if (!alive) return;
-
-          setScheduleSlots(slots);
-
-          // V56.1: disponibilidade não é consentimento. Nunca escolha um horário pelo cliente.
-          setScheduledFor((current) =>
-            slots.some((slot) => slot.value === current && !slot.disabled) ? current : "",
-          );
-        } else {
-          setScheduleSlots([]);
-          setScheduledFor("");
-        }
+        // DFL R293: agendamento e uma escolha independente do status aberto/fechado.
+        // O servidor controla a agenda e as vagas; nao selecionar horarios automaticamente.
+        const slots = await getOrderScheduleSlots();
+        if (!alive) return;
+        setScheduleSlots(slots);
+        setScheduledFor((current) =>
+          slots.some((slot) => slot.value === current && !slot.disabled) ? current : "",
+        );
       } catch (error) {
         console.error(
           "Falha ao preparar agendamento",
@@ -1228,6 +1220,11 @@ export function CheckoutModal() {
               <button type="button" data-active={deliveryMode === "delivery"} onClick={() => setDeliveryMode("delivery")}><b>Entrega</b><small>Receber no endereço</small></button>
               <button type="button" data-active={deliveryMode === "pickup"} onClick={() => setDeliveryMode("pickup")}><b>Retirada</b><small>Buscar no balcão</small></button>
             </div>
+            {/* DFL R293: acesso ao agendamento visivel antes de preencher o endereco. */}
+            <button type="button" className={styles.cepToggle} onClick={() => {
+              if (!shopClosed) setWantsSchedule(true);
+              window.requestAnimationFrame(() => scheduleSectionRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+            }}>{shopClosed ? "Ver horários para agendar" : wantsSchedule ? "Ver horários de agendamento" : "Agendar para mais tarde"}</button>
             <div className={styles.profileHint} data-loaded={Boolean(profile)}><div><strong>{profile ? "Dados carregados da sua conta" : "Seus dados de entrega"}</strong><span>{profile ? "Você pode alterar aqui. Salvamos a atualização depois do pedido." : "Preencha uma vez e os próximos pedidos ficam mais rápidos."}</span></div>{profileLoading && <b>Carregando…</b>}</div>
             <label className={styles.label}>Nome para o pedido<input ref={r35NameRef} className={styles.input} data-invalid={Boolean(customerName && !nameReady)} placeholder="Seu nome" value={customerName} onChange={(event) => { customerEditingRef.current = true; setCustomerName(event.target.value); }} autoComplete="name" /></label>
             <label className={styles.label}>WhatsApp para contato e atualizações <span>(obrigatório)</span><input ref={r35PhoneRef} className={styles.input} data-invalid={Boolean(userPhone && !phoneReady)} placeholder="(34) 99999-9999" value={userPhone} onChange={(event) => { customerEditingRef.current = true; setUserPhone(formatPhoneBR(event.target.value)); }} inputMode="tel" autoComplete="tel" /></label>
