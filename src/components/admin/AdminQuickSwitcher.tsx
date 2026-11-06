@@ -7,7 +7,7 @@ import styles from "./AdminQuickSwitcher.module.css";
 export type AdminQuickTarget =
   | "cozinha" | "agendados" | "expedicao" | "concluidos" | "cancelados"
   | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons"
-  | "fidelidade" | "gestao";
+  | "fidelidade" | "mensageria" | "gestao";
 
 type QuickAction = "attention" | "notifications" | "store";
 type Entry = {
@@ -34,6 +34,7 @@ const ENTRIES: ReadonlyArray<Entry> = [
   { id:"frete", name:"Entrega e frete", hint:"Bairros, taxas e frete grátis", group:"Loja e catálogo", terms:"preço taxa bairros delivery", target:"frete" },
   { id:"cupons", name:"Cupons e promoções", hint:"Campanhas e descontos", group:"Ferramentas", terms:"cupom promoção oferta campanhas", target:"cupons" },
   { id:"fidelidade", name:"Fidelidade", hint:"Recompensas dos clientes", group:"Ferramentas", terms:"pontos vantagens recompensas", target:"fidelidade" },
+  { id:"mensageria", name:"Central de mensageria", hint:"Fila, histórico e falhas (somente leitura)", group:"Ferramentas", terms:"whatsapp mensagens envio cliente status notificações erro", target:"mensageria" },
   { id:"gestao", name:"Saúde e diagnóstico", hint:"Operação, leituras e relatórios", group:"Ferramentas", terms:"saúde desempenho diagnóstico firestore monitoramento", target:"gestao" },
   { id:"notifications", name:"Notificações", hint:"Permissões e status do push", group:"Ferramentas", terms:"avisos alerta celular som vibração", action:"notifications" },
 ];

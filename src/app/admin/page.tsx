@@ -53,6 +53,7 @@ const FirestoreBudgetAdmin = dynamic(() => import("@/components/admin/FirestoreB
 const CustomerExperienceAdmin = dynamic(() => import("@/components/admin/CustomerExperienceAdmin").then((mod) => mod.CustomerExperienceAdmin), { loading: AdminPanelLoading });
 const FreeDeliveryAdmin = dynamic(() => import("@/components/admin/FreeDeliveryAdmin").then((mod) => mod.FreeDeliveryAdmin), { loading: AdminPanelLoading });
 const DeliveryRatesAdmin = dynamic(() => import("@/components/admin/DeliveryRatesAdmin").then((mod) => mod.DeliveryRatesAdmin), { loading: AdminPanelLoading });
+const MessagingCenterAdmin = dynamic(() => import("@/components/admin/MessagingCenterAdmin").then((mod) => mod.MessagingCenterAdmin), { loading: AdminPanelLoading });
 
 const ADMINS = [
   "alefejohsefe@gmail.com",
@@ -63,7 +64,7 @@ const ADMINS = [
   "viniciusrdefreitas@gmail.com",
 ];
 
-type Tab = "cozinha" | "agendados" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons" | "fidelidade" | "campanhas" | "gestao";
+type Tab = "cozinha" | "agendados" | "expedicao" | "concluidos" | "cancelados" | "catalogo" | "operacao" | "agendamentos" | "frete" | "cupons" | "fidelidade" | "campanhas" | "mensageria" | "gestao";
 type ServiceFilter = "todos" | "delivery" | "pickup";
 
 const normalizeSearch = (value: unknown) =>
@@ -585,6 +586,7 @@ function AdminPageContent() {
     ["cupons", "Cupons", null],
     ["campanhas", "Campanhas visuais", null],
     ["fidelidade", "Fidelidade", null],
+    ["mensageria", "Mensageria", null],
     ["gestao", "Relatórios", null],
   ];
 
@@ -613,7 +615,7 @@ function AdminPageContent() {
               : "Atendimento em andamento",
         }
       : { label: "Fechada", tone: "closed", detail: storeDetail };
-  const managementActive = ["cancelados","catalogo","operacao","agendamentos","frete","cupons","campanhas","fidelidade","gestao"].includes(tab);
+  const managementActive = ["cancelados","catalogo","operacao","agendamentos","frete","cupons","campanhas","fidelidade","mensageria","gestao"].includes(tab);
   const activeOrders = counts.cozinha + counts.agendados + counts.expedicao;
 
   const queueContext = (() => {
@@ -722,6 +724,10 @@ function AdminPageContent() {
           <button type="button" data-active={managementActive && tab !== "gestao"} onClick={() => { setTab("operacao"); setAttentionOnly(false); }}>
             <span className={styles.railIcon}><AdminIcon name="management" /></span>
             <span>Gestão</span>
+          </button>
+          <button type="button" data-active={tab === "mensageria"} onClick={() => { setTab("mensageria"); setAttentionOnly(false); }}>
+            <span className={styles.railIcon}><AdminIcon name="bell" /></span>
+            <span>Mensageria</span>
           </button>
           <button type="button" data-active={tab === "gestao"} onClick={() => { setTab("gestao"); setAttentionOnly(false); }}>
             <span className={styles.railIcon}><AdminIcon name="health" /></span>
@@ -1021,7 +1027,7 @@ function AdminPageContent() {
               <small>{storeState.label} · {storeStatus.source === "manual" ? "controle manual" : storeStatus.source === "exception" ? "exceção" : "agenda automática"}</small>
             </div>
             <div className={styles.managementNav}>
-              {tabItems.filter(([key]) => ["operacao","catalogo","agendamentos","frete","cupons","campanhas","fidelidade","gestao","cancelados"].includes(key)).map(([key,label]) => (
+              {tabItems.filter(([key]) => ["operacao","catalogo","agendamentos","frete","cupons","campanhas","fidelidade","mensageria","gestao","cancelados"].includes(key)).map(([key,label]) => (
                 <button key={key} data-active={tab === key} onClick={() => { haptic("step"); setTab(key); setAttentionOnly(false); }}>
                   <AdminIcon name={key === "operacao" ? "store" : key === "agendamentos" ? "calendar" : key === "frete" ? "dispatch" : key === "gestao" ? "management" : key === "cancelados" ? "history" : "orders"} />
                   <span>{key === "operacao" ? "Loja" : key === "frete" ? "Entrega" : key === "gestao" ? "Saúde" : label}</span>
@@ -1058,6 +1064,8 @@ function AdminPageContent() {
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>MARKETING & IDENTIDADE</span><h2>Campanhas visuais</h2></div><p>Banners, cores, etiquetas e temas de datas especiais, sem alterar preços ou pedidos.</p></div><AdminSectionBoundary section="Campanhas visuais" onBack={() => setTab("cozinha")}><VisualCampaignsAdmin /></AdminSectionBoundary></section>
         ) : tab === "fidelidade" ? (
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>FIDELIDADE</span><h2>Campanha de recompensas</h2></div><p>Configure benefícios reais. Apenas pedidos finalizados contam.</p></div><AdminSectionBoundary section="Fidelidade" onBack={() => setTab("cozinha")}><RewardsAdmin /></AdminSectionBoundary></section>
+        ) : tab === "mensageria" ? (
+          <section className={styles.management}><div className={styles.sectionHeading}><div><span>COMUNICAÇÃO</span><h2>Central de mensageria</h2></div><p>Histórico recente, filas e diagnósticos sem envio automático.</p></div><AdminSectionBoundary section="Mensageria" onBack={() => setTab("cozinha")}><MessagingCenterAdmin /></AdminSectionBoundary></section>
         ) : tab === "gestao" ? (
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>SAÚDE DA OPERAÇÃO</span><h2>Saúde da loja</h2></div><p>Exceções operacionais, pressão de leituras e indicadores comerciais sem novas assinaturas em tempo real.</p></div><AdminSectionBoundary section="Saúde e relatórios" onBack={() => setTab("cozinha")}>
             <AdminSectionBoundary
