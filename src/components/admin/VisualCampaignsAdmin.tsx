@@ -11,6 +11,7 @@ import {
 } from "@/lib/visualCampaigns";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Eye, ImagePlus, Monitor, PauseCircle, Plus, RotateCcw, Save, Smartphone, Sparkles, X } from "lucide-react";
 import styles from "./VisualCampaignsAdmin.module.css";
+import { AdminChoiceSelect } from "./ui/AdminChoiceSelect";
 
 type ColorKey=keyof CampaignPalette;
 const COLOR_FIELDS:{key:ColorKey;title:string}[]=[
@@ -141,7 +142,10 @@ export function VisualCampaignsAdmin(){
      <div className={styles.dateField}><span>Começa em</span><button type="button" onClick={()=>setDatePicker("startsOn")}><CalendarDays size={16}/>{selected.startsOn.split("-").reverse().join("/")}</button></div>
      <div className={styles.dateField}><span>Termina em (inclusive)</span><button type="button" onClick={()=>setDatePicker("endsOn")}><CalendarDays size={16}/>{selected.endsOn.split("-").reverse().join("/")}</button></div>
      <label>Prioridade (0–999)<input type="number" min={0} max={999} value={selected.priority} onChange={e=>patch({priority:Number(e.target.value)})}/></label>
-     <label>Destino do banner<select value={selected.destination} onChange={e=>patch({destination:e.target.value as VisualCampaign["destination"]})}><option value="offers">Ofertas da Família</option><option value="combos">Buscar combos</option><option value="menu">Cardápio</option><option value="url">Página do próprio site</option><option value="none">Sem ação</option></select></label>
+     <div><AdminChoiceSelect label="Destino do banner" value={selected.destination} onChange={(destination:VisualCampaign["destination"])=>patch({destination})} options={[
+       {value:"offers",label:"Ofertas da Família"},{value:"combos",label:"Buscar combos"},
+       {value:"menu",label:"Cardápio"},{value:"url",label:"Página do próprio site"},{value:"none",label:"Sem ação"}
+     ]}/></div>
      {selected.destination==="url"&&<label className={styles.wide}>Caminho interno (ex.: /combos)<input value={selected.destinationUrl} onChange={e=>patch({destinationUrl:e.target.value})} placeholder="/"/></label>}
      <label>Texto do botão<input value={selected.cta} maxLength={45} onChange={e=>patch({cta:e.target.value})}/></label>
      <label>Nome da seção de ofertas<input value={selected.offersTitle} maxLength={100} onChange={e=>patch({offersTitle:e.target.value})}/></label>

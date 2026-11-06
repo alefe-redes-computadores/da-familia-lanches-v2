@@ -2,6 +2,7 @@
 import{useEffect,useMemo,useRef,useState}from"react";import{Save,Plus,Trash2,Bot,DoorOpen,DoorClosed,FlaskConical}from"lucide-react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
 import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,type DayKey,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
 import styles from"./StoreOperationAdmin.module.css";
+import { AdminChoiceSelect } from "./ui/AdminChoiceSelect";
 import { haptic } from "@/lib/haptics";
 import{useAdminStoreSettings}from"@/hooks/useAdminStoreSettings";
 import{useAdminConfirm}from"@/components/admin/ui/AdminExperienceProvider";
@@ -64,10 +65,10 @@ export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{sett
   <div className={styles.r98ScheduleTools}>
     <strong>Horários em lote</strong>
     <span>Escolha um dia aberto como referência. Só as horas dos outros dias ativos serão copiadas; você precisa salvar depois.</span>
-    <select className={styles.r276DaySelect} aria-label="Dia de referência para horários" value={scheduleSource ?? ""} disabled={busy || !scheduleSource} onChange={e=>setCopySourceDay(e.target.value as DayKey)}>
-      {!scheduleSource && <option value="">Nenhum dia ativo</option>}
-      {DAYS.filter(({key})=>s.schedule[key].enabled).map(({key,label})=><option key={key} value={key}>{label}</option>)}
-    </select>
+    <AdminChoiceSelect label="Dia de referência para horários" value={scheduleSource ?? ""} disabled={busy || !scheduleSource} onChange={(next:DayKey | "")=>{if(next)setCopySourceDay(next);}} options={[
+      ...(!scheduleSource?[{value:"" as const,label:"Nenhum dia ativo"}]:[]),
+      ...DAYS.filter(({key})=>s.schedule[key].enabled).map(({key,label})=>({value:key,label}))
+    ]}/>
     <button type="button" disabled={busy || !scheduleSource} onClick={() => {
       if (!scheduleSource) return;
       const nextSchedule = { ...s.schedule };

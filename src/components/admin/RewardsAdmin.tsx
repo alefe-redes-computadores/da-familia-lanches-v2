@@ -13,6 +13,7 @@ import {
 } from "@/lib/rewards";
 import { haptic } from "@/lib/haptics";
 import styles from "./RewardsAdmin.module.css";
+import { AdminChoiceSelect } from "./ui/AdminChoiceSelect";
 
 const numberValue = (value: string, fallback: number) => {
   const normalized = String(value ?? "").includes(",")
@@ -113,11 +114,10 @@ export function RewardsAdmin() {
 
         <div className={styles.grid}>
           <label><span>A cada quantos pedidos?</span><input value={everyOrders} onChange={(event) => setEveryOrders(event.target.value.replace(/\D/g, "").slice(0, 3))} inputMode="numeric" /></label>
-          <label><span>Tipo de benefício</span><select value={discountType} onChange={(event) => {
-            const next = event.target.value as RewardDiscountType;
+          <div><AdminChoiceSelect label="Tipo de benefício" value={discountType} onChange={(next:RewardDiscountType)=>{
             setDiscountType(next);
-            if (next === "fixed") setDiscountValue(moneyText(discountValue));
-          }}><option value="fixed">Valor em R$</option><option value="percent">Porcentagem</option></select></label>
+            if(next === "fixed") setDiscountValue(moneyText(discountValue));
+          }} options={[{value:"fixed",label:"Valor em R$"},{value:"percent",label:"Porcentagem"}]}/></div>
           <label><span>{discountType === "percent" ? "Desconto (%)" : "Desconto (R$)"}</span><input value={discountValue} onChange={(event) => setDiscountValue(discountType === "fixed" ? moneyTyping(event.target.value) : event.target.value.replace(/[^\d,.]/g, ""))} onBlur={() => discountType === "fixed" && setDiscountValue(moneyText(discountValue))} inputMode="decimal" /></label>
           <label><span>Pedido mínimo (R$)</span><input value={minOrder} onChange={(event) => setMinOrder(moneyTyping(event.target.value))} onBlur={() => setMinOrder(moneyText(minOrder))} inputMode="decimal" /></label>
           <label><span>Validade (dias)</span><input value={expiresDays} onChange={(event) => setExpiresDays(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" /></label>

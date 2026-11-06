@@ -17,6 +17,7 @@ import { useCatalogCategories } from "@/hooks/useCatalogCategories";
 import { CATALOG_ADDONS_COLLECTION, CATALOG_PRODUCTS_COLLECTION } from "@/lib/catalog";
 import { CATALOG_CATEGORIES_COLLECTION, type CatalogCategory } from "@/lib/catalogCategories";
 import styles from "./CatalogAdmin.module.css";
+import { AdminChoiceSelect as ChoicePicker } from "./ui/AdminChoiceSelect";
 import { CatalogOrganizerAdmin } from "./CatalogOrganizerAdmin";
 import { CatalogQualityPanel } from "./CatalogQualityPanel";
 import { CatalogConversionPulse } from "./CatalogConversionPulse";
@@ -75,37 +76,6 @@ type ProductEditorStep = "essencial" | "conteudo" | "venda" | "opcoes";
 function slugify(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
 }
-type ChoiceOption<T extends string> = { value: T; label: string };
-
-function ChoicePicker<T extends string>({ label, value, options, onChange }: {
-  label: string;
-  value: T;
-  options: Array<ChoiceOption<T>>;
-  onChange: (value: T) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const selected = options.find((option) => option.value === value)?.label ?? value;
-
-  return <>
-    <button type="button" className={styles.choiceButton} onClick={() => setOpen(true)}>
-      <span>{label}</span><strong>{selected}</strong><ChevronDown size={15}/>
-    </button>
-    {open && <div className={styles.choiceOverlay} onMouseDown={(event) => {
-      if (event.target === event.currentTarget) setOpen(false);
-    }}>
-      <section className={styles.choiceSheet}>
-        <div className={styles.choiceHead}><div><span>SELECIONE</span><strong>{label}</strong></div><button type="button" onClick={() => setOpen(false)} aria-label="Fechar"><X size={16}/></button></div>
-        <div className={styles.choiceList}>
-          {options.map((option) => <button type="button" key={option.value} data-active={option.value === value} onClick={() => {
-            onChange(option.value);
-            setOpen(false);
-          }}><span>{option.label}</span><i /></button>)}
-        </div>
-      </section>
-    </div>}
-  </>;
-}
-
 function nextId(name: string, used: Set<string>) {
   const base = slugify(name) || "produto";
   if (!used.has(base)) return base;
@@ -817,14 +787,10 @@ export function CatalogAdmin() {
         <button type="button" data-active={reviewFilter === "bundle"} aria-pressed={reviewFilter === "bundle"} onClick={() => { setReviewFilter("bundle"); setOpenAllGroups(true); setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); }}>Composição a revisar <b>{productsWithBundleIssues.size}</b></button>
         <button type="button" data-active={reviewFilter === "commercial"} aria-pressed={reviewFilter === "commercial"} onClick={() => { setReviewFilter("commercial"); setOpenAllGroups(true); setSearch(""); setCategoryFilter("all"); setAvailabilityFilter("all"); }}>Revisão comercial <b>{commercialIssueIds.size}</b></button>
       </div>
-      <label className={styles.r89Sort}>Ordenar produtos
-        <select value={listSort} onChange={(event) => setListSort(event.target.value as typeof listSort)}>
-          <option value="manual">Ordem do cardápio</option>
-          <option value="name">Nome (A–Z)</option>
-          <option value="priceAsc">Menor preço</option>
-          <option value="priceDesc">Maior preço</option>
-        </select>
-      </label>
+      <div className={styles.r89Sort}><ChoicePicker label="Ordenar produtos" value={listSort} onChange={setListSort} options={[
+        {value:"manual",label:"Ordem do cardápio"},{value:"name",label:"Nome (A–Z)"},
+        {value:"priceAsc",label:"Menor preço"},{value:"priceDesc",label:"Maior preço"}
+      ]}/></div>
       <button className={styles.r89Expand} type="button" onClick={() => setOpenAllGroups((value) => !value)} aria-pressed={openAllGroups}>{openAllGroups ? "Recolher categorias" : "Expandir categorias"}</button>
     </section>
 
@@ -884,17 +850,13 @@ export function CatalogAdmin() {
         <label className={styles.r91AddonSearch}>Buscar adicional
           <input type="search" value={addonSearch} onChange={(event) => setAddonSearch(event.target.value)} placeholder="Nome ou ID" autoComplete="off" />
         </label>
-        <label>Disponibilidade
-          <select value={addonFilter} onChange={(event) => setAddonFilter(event.target.value as typeof addonFilter)}>
-            <option value="all">Todos</option><option value="active">Disponíveis</option><option value="paused">Pausados</option>
-          </select>
-        </label>
-        <label>Organizar
-          <select value={addonSort} onChange={(event) => setAddonSort(event.target.value as typeof addonSort)}>
-            <option value="manual">Ordem do catálogo</option><option value="name">Nome (A–Z)</option>
-            <option value="priceAsc">Menor preço</option><option value="priceDesc">Maior preço</option>
-          </select>
-        </label>
+        <div className={styles.r292ChoiceField}><ChoicePicker label="Disponibilidade" value={addonFilter} onChange={setAddonFilter} options={[
+          {value:"all",label:"Todos"},{value:"active",label:"Disponíveis"},{value:"paused",label:"Pausados"}
+        ]}/></div>
+        <div className={styles.r292ChoiceField}><ChoicePicker label="Organizar adicionais" value={addonSort} onChange={setAddonSort} options={[
+          {value:"manual",label:"Ordem do catálogo"},{value:"name",label:"Nome (A–Z)"},
+          {value:"priceAsc",label:"Menor preço"},{value:"priceDesc",label:"Maior preço"}
+        ]}/></div>
         <div className={styles.r91AddonToolbarFooter}><span>{filteredAddons.length} de {allAddons.length} adicionais</span>
           {(addonSearch || addonFilter !== "all" || addonSort !== "manual") && <button type="button" onClick={() => { setAddonSearch(""); setAddonFilter("all"); setAddonSort("manual"); }}>Limpar filtros</button>}
         </div>
@@ -985,7 +947,7 @@ export function CatalogAdmin() {
           </div>
           <small>Confira também as opções e a composição. O servidor valida tudo antes de salvar.</small>
         </section>
-        <div className={styles.editorIntro} data-editor-step="essencial">Preencha o essencial primeiro. Ingredientes descrevem o lanche; componentes vinculados são os produtos entregues no combo.</div>
+        <div className={styles.editorIntro} data-editor-step="essencial"><details className={styles.r292Guide}><summary>Ingredientes ou produtos no combo?</summary><p>Preencha o essencial primeiro. Ingredientes descrevem o lanche; componentes vinculados são os produtos entregues no combo.</p></details></div>
         {productMode === "edit" && advancedProduct && <div className={styles.idBox} data-editor-step="opcoes"><span>ID permanente</span><strong>{productDraft.id}</strong></div>}
         <div className={styles.form}>
           <label className={styles.full} data-editor-step="essencial">Nome<input value={productDraft.name} onChange={(e) => setProductDraft({ ...productDraft, name: e.target.value })} placeholder="Ex.: Burger Mineirin" /></label>
@@ -1036,7 +998,7 @@ export function CatalogAdmin() {
               <small>Ingredientes são descrições. Os itens vinculados representam produtos completos na composição do pedido.</small>
             </div>
             {productDraft.bundleItems.length ? <div className={styles.bundleRows}>{productDraft.bundleItems.map((item,index)=><div className={styles.bundleRow} key={`${item.productId}-${index}`}>
-              <select value={item.productId} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],productId:e.target.value};setProductDraft({...productDraft,bundleItems:next});}}>{categories.map((category)=>{const options=products.filter((candidate)=>candidate.id!==productDraft.id&&candidate.category===category.id);return options.length?<optgroup key={category.id} label={category.label}>{options.map((candidate)=><option key={candidate.id} value={candidate.id}>{candidate.name}{candidate.disponivel===false?" · pausado":""}</option>)}</optgroup>:null;})}</select>
+              <ChoicePicker label="Produto incluído no combo" value={item.productId} onChange={(productId)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],productId};setProductDraft({...productDraft,bundleItems:next});}} options={categories.flatMap(category=>products.filter(candidate=>candidate.id!==productDraft.id&&candidate.category===category.id).map(candidate=>({value:candidate.id,label:`${candidate.name}${candidate.disponivel===false?" · pausado":""}`,group:category.label})))}/>
               <input aria-label="Qtd. inclusa" type="number" min="1" value={item.quantity} onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],quantity:Math.max(1,Number(e.target.value)||1)};setProductDraft({...productDraft,bundleItems:next});}} />
               <input aria-label="Observação do item" value={item.note} placeholder="Ex.: Brinde" onChange={(e)=>{const next=[...productDraft.bundleItems];next[index]={...next[index],note:e.target.value};setProductDraft({...productDraft,bundleItems:next});}} />
               <button type="button" aria-label="Remover item" onClick={()=>setProductDraft({...productDraft,bundleItems:productDraft.bundleItems.filter((_,i)=>i!==index)})}>×</button>
@@ -1045,7 +1007,9 @@ export function CatalogAdmin() {
           {advancedProduct && <div className={`${styles.full} ${styles.commercialBlock}`} data-editor-step="opcoes">
             <div className={styles.commercialHead}><div><span>UPSELL EXPLÍCITO</span><strong>Oferta vinculada</strong></div><small>Preço definido pela loja</small></div>
             <div className={styles.priceFields}>
-              <label>Produto adicional<select value={productDraft.upsellProductId} onChange={(e)=>setProductDraft({...productDraft,upsellProductId:e.target.value,upsellUnitPrice:e.target.value===productDraft.upsellProductId?productDraft.upsellUnitPrice:""})}><option value="">Sem upsell</option>{products.filter(p=>p.id!==productDraft.id&&p.disponivel!==false).map(p=><option key={p.id} value={p.id}>{p.name} · {money(p.price)}</option>)}</select></label>
+              <div className={styles.r292ChoiceField}><ChoicePicker label="Produto adicional" value={productDraft.upsellProductId} onChange={(upsellProductId)=>setProductDraft({...productDraft,upsellProductId,upsellUnitPrice:upsellProductId===productDraft.upsellProductId?productDraft.upsellUnitPrice:""})} options={[
+                {value:"",label:"Sem upsell"},...products.filter(candidate=>candidate.id!==productDraft.id&&candidate.disponivel!==false).map(candidate=>({value:candidate.id,label:`${candidate.name} · ${money(candidate.price)}`}))
+              ]}/></div>
               <label>Preço especial<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" disabled={!productDraft.upsellProductId} value={productDraft.upsellUnitPrice} aria-label="Preço especial do upsell" onChange={(e)=>setProductDraft({...productDraft,upsellUnitPrice:moneyTyping(e.target.value)})} onBlur={(e)=>setProductDraft({...productDraft,upsellUnitPrice:moneyDraft(e.target.value)})} placeholder="0,00" /></div></label>
             </div><p className={styles.promoHint}>Nunca calculado dividindo o combo. A API revalida a oferta no fechamento.</p>
           </div>}
@@ -1093,12 +1057,12 @@ export function CatalogAdmin() {
         {!productDraft.disponivel && products.some((item) => item.id !== productDraft.id && item.bundleItems?.some((component) => component.productId === productDraft.id)) &&
           <p className={styles.r98DependencyNotice} role="status">Atenção: este produto aparece na composição de {products.filter((item) => item.id !== productDraft.id && item.bundleItems?.some((component) => component.productId === productDraft.id)).length} combo(s). Pausar pode afetar a oferta desses combos.</p>}
         </div>
-        <div className={styles.editorActionsV86}>
+        <div className={styles.editorActionsV86} data-step={productStep}>
           <button type="button" className={styles.backAction} onClick={() => { haptic("step"); if (productStep === "essencial") { void closeProductEditor(); } else setProductStep(productStep === "conteudo" ? "essencial" : productStep === "venda" ? "conteudo" : "venda"); }}>{productStep === "essencial" ? "Cancelar" : "Voltar"}</button>
-          {productStep !== "opcoes" && <button type="button" className={styles.nextAction} onClick={() => { haptic("step"); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button>}
+          {productStep !== "opcoes" ? <button type="button" className={styles.nextAction} onClick={() => { haptic("step"); setProductStep(productStep === "essencial" ? "conteudo" : productStep === "conteudo" ? "venda" : "opcoes"); }}>Continuar</button> :
           <button type="button" className={styles.publishAction} onClick={() => void saveProduct()} disabled={busy.startsWith("product-") || imageUploading || saveProductBusy.current}>
             {busy.startsWith("product-") ? "Salvando..." : imageUploading ? "Aguarde a foto" : productMode === "create" ? "Criar produto" : "Salvar alterações"}
-          </button>
+          </button>}
         </div>
       </section>
     </div>}

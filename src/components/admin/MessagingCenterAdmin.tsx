@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Clock3, LockKeyhole, MessageSquareText, RefreshCw, Search, ShieldCheck, ChevronDown, Layers3, ListFilter, Store, Truck, Settings2 } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import styles from './MessagingCenterAdmin.module.css';
+import { AdminChoiceSelect } from './ui/AdminChoiceSelect';
 
 type MessageStatus = 'pending' | 'processing' | 'queued' | 'failed' | 'suppressed' | 'unknown';
 type MessageRow = {
@@ -251,10 +252,12 @@ export function MessagingCenterAdmin() {
     {data && <>
       <div className={styles.filters}>
         <label className={styles.search}><Search size={16} aria-hidden="true"/><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Pedido, nome ou final do telefone" aria-label="Pesquisar intenções" /></label>
-        <label>Status<select value={status} onChange={event => setStatus(event.target.value as MessageStatus | 'all')}>
-          <option value="all">Todos os estados</option>{(Object.keys(statusLabels) as MessageStatus[]).map(key => <option key={key} value={key}>{statusLabels[key]}</option>)}
-        </select></label>
-        <label>Origem<select value={source} onChange={event => setSource(event.target.value as 'all' | 'site' | 'entregas')}><option value="all">Ambas as origens</option><option value="site">Site</option><option value="entregas">Entregas</option></select></label>
+        <div><AdminChoiceSelect label="Status" value={status} onChange={(next:MessageStatus | 'all')=>setStatus(next)} options={[
+          {value:'all',label:'Todos os estados'},...(Object.keys(statusLabels) as MessageStatus[]).map(key=>({value:key,label:statusLabels[key]}))
+        ]}/></div>
+        <div><AdminChoiceSelect label="Origem" value={source} onChange={(next:'all' | 'site' | 'entregas')=>setSource(next)} options={[
+          {value:'all',label:'Ambas as origens'},{value:'site',label:'Site'},{value:'entregas',label:'Entregas'}
+        ]}/></div>
       </div>
       <p className={styles.results} role="status">{rows.length} de {data.rows.length} registros exibidos {data.truncated ? `· limite de ${data.limit}; não é o histórico completo` : ''}</p>
       <div className={styles.viewTabs} role="group" aria-label="Modo de visualização">

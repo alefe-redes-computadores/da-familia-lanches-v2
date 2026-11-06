@@ -872,3 +872,25 @@
 }
 @media(max-width:360px){.product{grid-template-columns:68px minmax(0,1fr);gap:8px}.product .r276Thumb{width:68px;height:68px}.editor .priceFields{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){.editor .r276ReviewDisclosure>summary{scroll-behavior:auto}}
+
+/* DFL-R292 — fechamento visual do catálogo (sem mudança comercial). */
+.r292ChoiceField{min-width:0;width:100%;align-self:stretch}
+.r89Sort{min-width:0;width:100%}
+.r89Sort>div{width:100%}
+.root .product .actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:stretch}
+.root .product .actions button{min-width:0;min-height:48px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:13px;line-height:1.25;font-size:13px}
+.root .product .actions .primary{grid-column:1/-1;background:#ffca28;color:#17130e;border-color:#e7b92e;font-weight:950}
+.root .product .productBottom{min-width:0;display:flex;align-items:flex-end;flex-wrap:wrap;gap:6px 10px}
+.root .product .productBottom>span{margin-left:auto;white-space:nowrap;font-size:11px}
+.root .product .adminPrice{min-width:0;display:flex;align-items:baseline;flex-wrap:wrap;gap:3px 8px}
+.root .product .adminPrice strong{font-size:clamp(17px,2.8vw,21px);font-weight:950;color:#ffe08b}
+.editor .editorIntro{padding:0;border:0;background:transparent;margin:4px 0 9px}
+.editor .r292Guide{width:100%;border:1px solid #35404b;border-radius:12px;background:#161d25;padding:0;color:#d5e0e7}
+.editor .r292Guide summary{cursor:pointer;min-height:43px;padding:11px 13px;color:#efd088;font-size:12px;font-weight:850;line-height:1.5}
+.editor .r292Guide p{margin:0;border-top:1px solid #35404b;padding:9px 13px;font-size:12px;color:#cad6df;line-height:1.5}
+.editor .editorActionsV86{display:grid!important;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)!important;align-items:stretch;gap:9px;min-width:0}
+.editor .editorActionsV86 :is(.backAction,.nextAction,.publishAction){min-width:0;width:100%;min-height:49px;grid-row:1!important;border-radius:13px;font-size:13px;line-height:1.2}
+.editor .editorActionsV86 .backAction{grid-column:1!important;background:#202630;color:#d5e0ea}
+.editor .editorActionsV86 :is(.nextAction,.publishAction){grid-column:2!important;background:#ffca28!important;color:#21160b!important;border-color:#ffca28!important;font-weight:950}
+@media(max-width:420px){.root .product .actions button{font-size:12px}.editor .editorActionsV86{gap:8px}}
+@media(prefers-reduced-motion:reduce){.root .product .actions button{transition:none!important}}

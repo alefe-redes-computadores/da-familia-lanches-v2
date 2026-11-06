@@ -10,6 +10,7 @@ import { haptic } from "@/lib/haptics";
 import { useAdminConfirm, useAdminFeedback } from "@/components/admin/ui/AdminExperienceProvider";
 import { AdminLoadingState } from "@/components/admin/ui/AdminState";
 import styles from "./CouponsAdmin.module.css";
+import { AdminChoiceSelect } from "./ui/AdminChoiceSelect";
 
 type Editor = {
   originalCode: string;
@@ -350,21 +351,9 @@ export function CouponsAdmin() {
               />
             </label>
 
-            <label>
-              <span>Tipo</span>
-              <select
-                value={editor.type}
-                onChange={(event) =>
-                  setEditor((state) => ({
-                    ...state,
-                    type: event.target.value as CouponDiscountType,
-                  }))
-                }
-              >
-                <option value="fixed">Valor em R$</option>
-                <option value="percent">Porcentagem</option>
-              </select>
-            </label>
+            <div><AdminChoiceSelect label="Tipo de desconto" value={editor.type} onChange={(type:CouponDiscountType)=>setEditor(state=>({...state,type}))} options={[
+              {value:"fixed",label:"Valor em R$"},{value:"percent",label:"Porcentagem"}
+            ]}/></div>
 
             <label>
               <span>{editor.type === "percent" ? "Desconto (%)" : "Desconto (R$)"}</span>
