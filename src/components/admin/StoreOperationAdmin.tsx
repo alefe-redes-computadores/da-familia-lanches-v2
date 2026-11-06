@@ -64,7 +64,7 @@ export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{sett
   <div className={styles.r98ScheduleTools}>
     <strong>Horários em lote</strong>
     <span>Escolha um dia aberto como referência. Só as horas dos outros dias ativos serão copiadas; você precisa salvar depois.</span>
-    <select aria-label="Dia de referência para horários" value={scheduleSource ?? ""} disabled={busy || !scheduleSource} onChange={e=>setCopySourceDay(e.target.value as DayKey)}>
+    <select className={styles.r276DaySelect} aria-label="Dia de referência para horários" value={scheduleSource ?? ""} disabled={busy || !scheduleSource} onChange={e=>setCopySourceDay(e.target.value as DayKey)}>
       {!scheduleSource && <option value="">Nenhum dia ativo</option>}
       {DAYS.filter(({key})=>s.schedule[key].enabled).map(({key,label})=><option key={key} value={key}>{label}</option>)}
     </select>

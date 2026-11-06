@@ -651,7 +651,8 @@
 .editorScroll .form{overflow:visible;padding-top:0}
 .editor [data-editor-step]{display:none}
 .editor[data-product-step=essencial] [data-editor-step=essencial],.editor[data-product-step=conteudo] [data-editor-step=conteudo],.editor[data-product-step=venda] [data-editor-step=venda],.editor[data-product-step=opcoes] [data-editor-step=opcoes]{display:flex}
-.editor[data-product-step=essencial] .formChoice,.editor[data-product-step=essencial] .photoUpload,.editor[data-product-step=essencial] .preview,.editor[data-product-step=venda] .commercialBlock,.editor[data-product-step=venda] .switches,.editor[data-product-step=venda] .addonPicker,.editor[data-product-step=conteudo] .bundleEditor,.editor[data-product-step=opcoes] .commercialBlock{display:block}
+.editor[data-product-step=essencial] .formChoice,.editor[data-product-step=essencial] .photoUpload,.editor[data-product-step=essencial] .preview,.editor[data-product-step=venda] .switches,.editor[data-product-step=venda] .addonPicker,.editor[data-product-step=conteudo] .bundleEditor{display:block}
+.editor[data-product-step=venda] .commercialBlock[data-editor-step=venda],.editor[data-product-step=opcoes] .commercialBlock[data-editor-step=opcoes]{display:block}
 .editor[data-product-step=opcoes] .advancedDisclosure{display:none}
 .editorIntro{margin-top:0}
 .message{display:grid;grid-template-columns:34px minmax(0,1fr) 38px;min-height:58px;padding:10px 10px 10px 12px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.42)}
@@ -821,3 +822,53 @@
 /* DFL-R101-PREOPENING-AUDIT — safe-area, viewport dinâmico e rolagem independente. */
 
 @media(max-width:620px){.editor{box-sizing:border-box;min-height:0;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 4px);overflow-x:hidden}.editorScroll{min-height:0;overscroll-behavior:contain;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}}
+
+/* DFL SITE R276 — catalogo premium: foto fiel, leitura comercial e formulario sem ruido. */
+.product{grid-template-columns:88px minmax(0,1fr);align-items:start;gap:12px}
+.product .r276Thumb{grid-column:1;grid-row:1;width:88px;height:88px;aspect-ratio:1;border:1px solid rgba(255,210,87,.18);border-radius:14px;overflow:hidden;background:#0b1016;display:grid;place-items:center;isolation:isolate}
+.product .r276Thumb img{display:block;width:100%;height:100%;min-width:0;max-height:100%;object-fit:contain;border-radius:0}
+.product .productInfo{min-width:0;display:grid;gap:5px}
+.product .productInfo>p{margin:2px 0 6px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.42;color:#b0bbc6}
+.product .productTitle{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+.product .productTitle>div:first-child{min-width:0}
+.product .productTitle strong{display:block;font-size:14px;line-height:1.25;color:#f7f9fa;overflow-wrap:anywhere}
+.product .productTitle span{font-size:10px;line-height:1.2;color:#84919e;overflow-wrap:anywhere}
+.product .productBadges{max-width:none;display:flex;flex-wrap:wrap;gap:5px}
+.product .productBadges b{min-height:22px;font-size:10px;line-height:1.2;padding:4px 7px}
+.product .productBottom{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding-top:8px}
+.product .adminPrice{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 9px;min-width:0;font-variant-numeric:tabular-nums}
+.product .adminPrice strong{font-size:18px;line-height:1.15;color:#ffdb76;font-weight:950}
+.product .adminPrice s{font-size:12px;line-height:1.2;color:#a4adb6;text-decoration-line:line-through;text-decoration-thickness:1.5px}
+.product .adminPrice b{font-size:10px;line-height:1.2}
+.product .actions{gap:8px}
+.product .actions .primary{border-color:#ffd052;background:#ffcb32;color:#16140e;font-weight:950}
+.editor .r276ReviewDisclosure{margin:8px 0;padding:0;border:1px solid #35404b;border-radius:14px;background:#141b22;color:#d7e2e9}
+.editor .r276ReviewDisclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:46px;padding:10px 13px;cursor:pointer;color:#f2d681;font-size:12px;font-weight:900;list-style:none}
+.editor .r276ReviewDisclosure>summary::-webkit-details-marker{display:none}
+.editor .r276ReviewDisclosure>summary span{font-size:10px;color:#a8b5c2;font-weight:800}
+.editor .r276ReviewDisclosure[open]>summary{border-bottom:1px solid #35404b}
+.editor .r276ReviewDisclosure :is(.r94EditorSummary,.r97Review){margin:8px 10px;padding:10px}
+.editor .r88Readiness{gap:6px;margin:2px 0 9px;padding:9px 10px}
+.editor .r88ReadinessItems button{min-height:36px;padding:4px 3px}
+.editor .editorLivePreview{margin:4px 0 10px;padding:9px;border-radius:14px}
+.editor .photoUpload{margin-block:6px 8px}
+.editor .photoButton{min-height:46px}
+.editor .priceFields{min-width:0}
+.editor .priceFields label{min-width:0;overflow-wrap:anywhere}
+.editor .moneyInput{border-color:#566273;background:#101820}
+.editor .moneyInput:focus-within{border-color:#ffca35;box-shadow:0 0 0 2px rgba(255,202,53,.16)}
+.editor .moneyInput input{font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;color:#ffe4a2}
+.editor .commercialHead strong{font-size:15px;color:#f5f7f9}
+.editor .promoPreview{border-color:rgba(255,210,95,.34)}
+.editor .promoPreview :is(strong,b){font-variant-numeric:tabular-nums}
+@media(max-width:620px){
+ .product{grid-template-columns:76px minmax(0,1fr);gap:10px;padding:10px}
+ .product .r276Thumb{width:76px;height:76px;border-radius:13px}
+ .product .productTitle strong{font-size:13px}
+ .product .productBottom{gap:6px}
+ .product .adminPrice strong{font-size:17px}
+ .product .actions button{min-height:44px}
+ .editor .r276ReviewDisclosure>summary{min-height:44px}
+}
+@media(max-width:360px){.product{grid-template-columns:68px minmax(0,1fr);gap:8px}.product .r276Thumb{width:68px;height:68px}.editor .priceFields{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.editor .r276ReviewDisclosure>summary{scroll-behavior:auto}}

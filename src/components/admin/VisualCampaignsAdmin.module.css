@@ -37,3 +37,18 @@
 .offerSelections label span{display:grid;gap:3px;min-width:0}.offerSelections strong{font-size:12px;overflow-wrap:anywhere}.offerSelections small{font-size:10px;color:#abb5bb;overflow-wrap:anywhere}
 .scopeDisclaimer{display:block;color:#aab8bf;font-size:11px;line-height:1.55}
 @media(max-width:760px){.offerSelections{grid-template-columns:1fr;max-height:320px}.offerSelectionHead button{flex:1 1 115px}}
+
+/* DFL SITE R276 — ordem comercial da vitrine, admin-only. */
+.r276OfferOrder{display:grid;gap:7px;min-width:0;border:1px solid rgba(250,204,55,.26);border-radius:15px;background:#111920;padding:11px}
+.r276OfferOrderHead{display:grid;gap:3px;padding:1px 2px 6px}
+.r276OfferOrderHead strong{font-size:13px;color:#ffe08a}
+.r276OfferOrderHead small{font-size:11px;line-height:1.4;color:#adbac5}
+.r276OfferOrderItem{display:grid;grid-template-columns:26px minmax(0,1fr) 42px 42px;align-items:center;gap:8px;min-width:0;padding:8px;border:1px solid #34414b;border-radius:12px;background:#1c252d}
+.r276OfferOrderItem>b{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:#45391f;color:#ffdf83;font-size:12px;font-variant-numeric:tabular-nums}
+.r276OfferOrderItem>span{display:grid;gap:3px;min-width:0}
+.r276OfferOrderItem>span strong{color:#f2f6f9;font-size:12px;overflow-wrap:anywhere}
+.r276OfferOrderItem>span small{color:#a4b2bd;font-size:11px}
+.r276OfferOrderItem button{width:42px;min-height:42px;display:grid;place-items:center;border:1px solid #53616d;border-radius:10px;background:#27333e;color:#ffdf86;font-size:20px;font-weight:900}
+.r276OfferOrderItem button:disabled{opacity:.32;cursor:not-allowed}
+.r276OfferOrderItem button:focus-visible{outline:2px solid #ffca28;outline-offset:2px}
+@media(max-width:390px){.r276OfferOrder{padding:8px}.r276OfferOrderItem{gap:5px;grid-template-columns:23px minmax(0,1fr) 40px 40px}.r276OfferOrderItem button{width:40px;min-height:40px}}

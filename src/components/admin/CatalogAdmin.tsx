@@ -491,7 +491,7 @@ export function CatalogAdmin() {
     if (oldPrice !== null && oldPrice < 0) { setProductStep("venda"); return setMessage("Preço anterior inválido."); }
     if (oldPrice !== null && oldPrice <= price) { setProductStep("venda"); return setMessage("Para criar promoção, o preço anterior precisa ser maior que o preço atual."); }
     if(productDraft.upsellProductId && (!products.some(p=>p.id===productDraft.upsellProductId)||productDraft.upsellProductId===productDraft.id)) return setMessage("Selecione um produto válido para o upsell.");
-    if(productDraft.upsellProductId && (upsellUnitPrice===null||upsellUnitPrice<0)) return setMessage("Informe o preço explícito do upsell.");
+    if(productDraft.upsellProductId && (upsellUnitPrice===null||upsellUnitPrice<0)) { setAdvancedProduct(true); setProductStep("opcoes"); return setMessage("Informe o preço especial do upsell na etapa 4 · Opções. Ou escolha Sem upsell."); }
     const bundleValidation = validateBundleItems(productDraft.bundleItems, new Set(products.map((item) => item.id)));
     if (!bundleValidation.valid) return setMessage(bundleValidation.errors[0] || "Revise a composição inclusa.");
     if (productDraft.bundleItems.some((item) => item.productId === productDraft.id)) return setMessage("O produto não pode incluir ele mesmo na composição.");
@@ -852,11 +852,11 @@ export function CatalogAdmin() {
         <summary><div><span>CATEGORIA</span><strong>{group.label}</strong></div><b>{group.items.length} produto{group.items.length===1?"":"s"}</b><ChevronDown size={16}/></summary>
         <div className={styles.products}>
           {group.items.map((product) => <article className={styles.product} key={product.id} data-off={product.disponivel === false}>
-            <CatalogImage src={product.image} alt="" sizes="76px" quality={65} />
+            <div className={styles.r276Thumb}><CatalogImage src={product.image} alt="" sizes="88px" quality={72} /></div>
             <div className={styles.productInfo}>
               <div className={styles.productTitle}><div><strong>{product.name}</strong><span>{product.id}</span></div><div className={styles.productBadges}>{product.isSuggestion && <b>Sugestão da casa</b>}{(product.promoPlacement === "home_showcase" || (product.promoPlacement == null && product.isSuggestion && typeof product.oldPrice === "number" && product.oldPrice > product.price)) && <b>Ofertas da Família</b>}</div></div>
               <p>{product.description}</p>
-              <div className={styles.productBottom}><div className={styles.adminPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <small>{money(product.oldPrice)}</small>}<strong>{money(product.price)}</strong>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <b>-{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%</b>}</div><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
+              <div className={styles.productBottom}><div className={styles.adminPrice}>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <s aria-label="Preço anterior">{money(product.oldPrice)}</s>}<strong>{money(product.price)}</strong>{typeof product.oldPrice === "number" && product.oldPrice > product.price && <b>-{Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}%</b>}</div><span data-active={product.disponivel}>{product.disponivel ? "Disponível" : "Pausado"}</span></div>
             </div>
             <div className={styles.actions}>
               <button onClick={() => toggleProduct(product)} disabled={busy === `toggle-${product.id}`}>{product.disponivel ? <><Pause size={14}/>Pausar</> : <><Play size={14}/>Reativar</>}</button>
@@ -990,6 +990,18 @@ export function CatalogAdmin() {
         <div className={styles.form}>
           <label className={styles.full} data-editor-step="essencial">Nome<input value={productDraft.name} onChange={(e) => setProductDraft({ ...productDraft, name: e.target.value })} placeholder="Ex.: Burger Mineirin" /></label>
           <label className={styles.full} data-editor-step="essencial">Descrição curta<textarea value={productDraft.description} onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })} placeholder="Texto curto para o card" /></label>
+          <div className={styles.formChoice} data-editor-step="essencial"><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={categoryOptions} /></div>
+          <div className={styles.photoUpload} data-editor-step="essencial">
+              <label className={styles.photoButton} data-busy={imageUploading}>
+                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={imageUploading} onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.currentTarget.value = "";
+                  if (file) void uploadProductImage(file);
+                }} />
+                {imageUploading ? "Enviando foto..." : productDraft.image ? "Trocar foto" : "Selecionar foto"}
+              </label>
+              <div><strong>Foto do produto</strong><small>JPG, PNG ou WebP · até 5 MB. A foto é otimizada automaticamente.</small></div>
+            </div>
           <label className={styles.full} data-editor-step="conteudo">Título dos detalhes<input value={productDraft.detailsTitle} onChange={(e) => setProductDraft({ ...productDraft, detailsTitle: e.target.value })} placeholder="Ex.: O que vem no Uai?" /></label>
           <label className={styles.full} data-editor-step="conteudo">Ingredientes / composição<textarea value={productDraft.detailsItems} onChange={(e) => setProductDraft({ ...productDraft, detailsItems: e.target.value })} placeholder={"Um item por linha\nPão\nHambúrguer\nBacon"} /></label>
           <div className={styles.full} data-editor-step="conteudo"><CatalogRemovalOptions detailsItems={productDraft.detailsItems} category={productDraft.category} hasBundle={productDraft.bundleItems.length>0} value={productDraft.removableIngredients} onChange={removableIngredients=>setProductDraft({...productDraft,removableIngredients})}/></div>
@@ -1033,31 +1045,19 @@ export function CatalogAdmin() {
           {advancedProduct && <div className={`${styles.full} ${styles.commercialBlock}`} data-editor-step="opcoes">
             <div className={styles.commercialHead}><div><span>UPSELL EXPLÍCITO</span><strong>Oferta vinculada</strong></div><small>Preço definido pela loja</small></div>
             <div className={styles.priceFields}>
-              <label>Produto adicional<select value={productDraft.upsellProductId} onChange={(e)=>setProductDraft({...productDraft,upsellProductId:e.target.value,upsellUnitPrice:e.target.value?productDraft.upsellUnitPrice:""})}><option value="">Sem upsell</option>{products.filter(p=>p.id!==productDraft.id&&p.disponivel!==false).map(p=><option key={p.id} value={p.id}>{p.name} · {money(p.price)}</option>)}</select></label>
-              <label>Preço especial<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" disabled={!productDraft.upsellProductId} value={productDraft.upsellUnitPrice} onChange={(e)=>setProductDraft({...productDraft,upsellUnitPrice:moneyTyping(e.target.value)})} onBlur={(e)=>setProductDraft({...productDraft,upsellUnitPrice:moneyDraft(e.target.value)})} placeholder="0,00" /></div></label>
+              <label>Produto adicional<select value={productDraft.upsellProductId} onChange={(e)=>setProductDraft({...productDraft,upsellProductId:e.target.value,upsellUnitPrice:e.target.value===productDraft.upsellProductId?productDraft.upsellUnitPrice:""})}><option value="">Sem upsell</option>{products.filter(p=>p.id!==productDraft.id&&p.disponivel!==false).map(p=><option key={p.id} value={p.id}>{p.name} · {money(p.price)}</option>)}</select></label>
+              <label>Preço especial<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" disabled={!productDraft.upsellProductId} value={productDraft.upsellUnitPrice} aria-label="Preço especial do upsell" onChange={(e)=>setProductDraft({...productDraft,upsellUnitPrice:moneyTyping(e.target.value)})} onBlur={(e)=>setProductDraft({...productDraft,upsellUnitPrice:moneyDraft(e.target.value)})} placeholder="0,00" /></div></label>
             </div><p className={styles.promoHint}>Nunca calculado dividindo o combo. A API revalida a oferta no fechamento.</p>
           </div>}
           <div className={`${styles.full} ${styles.commercialBlock}`} data-editor-step="venda">
             <div className={styles.commercialHead}><div><span>PREÇO & PROMOÇÃO</span><strong>Venda do produto</strong></div>{promoMetrics(productDraft.price, productDraft.oldPrice) ? <b>OFERTA ATIVA</b> : <small>Preço anterior é opcional</small>}</div>
             <div className={styles.priceFields}>
               <label>Preço atual<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={productDraft.price} onChange={(e) => setProductDraft({ ...productDraft, price: moneyTyping(e.target.value) })} onBlur={(e) => setProductDraft({ ...productDraft, price: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
-              <label>Preço anterior<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: moneyTyping(e.target.value) })} onBlur={(e) => setProductDraft({ ...productDraft, oldPrice: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
+              <label>Preço anterior · riscado no cardápio<div className={styles.moneyInput}><span>R$</span><input inputMode="decimal" value={productDraft.oldPrice} onChange={(e) => setProductDraft({ ...productDraft, oldPrice: moneyTyping(e.target.value) })} onBlur={(e) => setProductDraft({ ...productDraft, oldPrice: moneyDraft(e.target.value) })} placeholder="0,00" /></div></label>
             </div>
             {(() => { const promo=promoMetrics(productDraft.price,productDraft.oldPrice); return promo ? <div className={styles.promoPreview}><div><span>CLIENTE ECONOMIZA</span><strong>{money(promo.saving)}</strong></div><b>-{promo.percent}%</b><small>De {money(promo.oldPrice)} por {money(promo.price)}</small></div> : <p className={styles.promoHint}>Informe um preço anterior maior que o atual para ativar a apresentação promocional no cardápio.</p>; })()}
           </div>
 
-          <div className={styles.formChoice} data-editor-step="essencial"><ChoicePicker label="Categoria" value={productDraft.category} onChange={(category) => setProductDraft({ ...productDraft, category })} options={categoryOptions} /></div>
-          <div className={styles.photoUpload} data-editor-step="essencial">
-              <label className={styles.photoButton} data-busy={imageUploading}>
-                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={imageUploading} onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.currentTarget.value = "";
-                  if (file) void uploadProductImage(file);
-                }} />
-                {imageUploading ? "Enviando foto..." : productDraft.image ? "Trocar foto" : "Selecionar foto"}
-              </label>
-              <div><strong>Foto do produto</strong><small>JPG, PNG ou WebP · até 5 MB. A foto é otimizada automaticamente.</small></div>
-            </div>
             {advancedProduct && <label className={styles.full} data-editor-step="opcoes">Imagem / caminho<input value={productDraft.image} onChange={(e) => setProductDraft({ ...productDraft, image: e.target.value })} placeholder="/img/produto.png ou URL https://..." /><small>Você também pode informar um caminho ou URL de imagem.</small></label>}
         </div>
         {productDraft.image.trim() && <div className={styles.photoReady} data-editor-step="essencial" role="status">✓ Foto selecionada. Confira a prévia acima.</div>}
@@ -1079,6 +1079,8 @@ export function CatalogAdmin() {
            {showAddonChoices && <div className={styles.checks}>{addons.map((addon) => { const checked = productDraft.addonIds === undefined || productDraft.addonIds.includes(addon.id); return <label key={addon.id}><input type="checkbox" checked={checked} onChange={() => { const base = productDraft.addonIds === undefined ? addons.map((item) => item.id) : productDraft.addonIds; setProductDraft({ ...productDraft, addonIds: checked ? base.filter((id) => id !== addon.id) : [...base, addon.id] }); }} /><span>{addon.name}</span><small>{money(addon.price)}</small></label>; })}</div>}
         </div>}
         <button type="button" data-editor-step="opcoes" className={styles.advancedDisclosure} onClick={() => setAdvancedProduct(value => !value)}>{advancedProduct ? "Ocultar configurações avançadas" : "Configurações avançadas · link, upsell e caminho da foto"}</button>
+        <details className={styles.r276ReviewDisclosure}>
+          <summary>Revisão detalhada do cadastro <span>Expandir</span></summary>
         {/* DFL-R94-MACRO-360 — revisao comercial da configuracao local. */}
         <div className={styles.r94EditorSummary} role="status" aria-live="polite">
           <strong>Revisão antes de salvar</strong>
@@ -1086,6 +1088,7 @@ export function CatalogAdmin() {
           <span>{productDraft.bundleItems.length ? `${productDraft.bundleItems.length} componentes cadastrados no combo` : "Sem componentes de combo vinculados"}</span>
         </div>
         <div className={styles.r97Review} role="status" aria-live="polite"><strong>Revisão do cadastro</strong><span>{productDraft.disponivel ? "Será disponibilizado no cardápio" : "Permanecerá pausado"} · {productDraft.showInOffers ? "Em destaque nas ofertas" : "Sem destaque em ofertas"}</span><small>{productDraft.bundleItems.length} componente(s) vinculado(s) · {productDraft.addonIds === undefined ? "Adicionais permitidos conforme regras atuais" : `${productDraft.addonIds.length} adicionais selecionados`}. O servidor validará tudo ao salvar.</small></div>
+        </details>
         {/* DFL-R98-MACRO-FINAL: impacto da disponibilidade para produtos vinculados. */}
         {!productDraft.disponivel && products.some((item) => item.id !== productDraft.id && item.bundleItems?.some((component) => component.productId === productDraft.id)) &&
           <p className={styles.r98DependencyNotice} role="status">Atenção: este produto aparece na composição de {products.filter((item) => item.id !== productDraft.id && item.bundleItems?.some((component) => component.productId === productDraft.id)).length} combo(s). Pausar pode afetar a oferta desses combos.</p>}
