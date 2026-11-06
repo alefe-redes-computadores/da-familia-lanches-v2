@@ -45,6 +45,6 @@ const req=(b,valid=true)=>{const body=JSON.stringify(b),stamp=String(Date.now())
   global.fetchStub=async()=>{throw new Error('fixture timeout')};await check(obj('pilot_send'),'INGEST_UNAVAILABLE',503);
   const get=await route.GET();assert.equal(get.status,405);n++;
   assert.ok(!source.includes('DFL_MANUAL_MESSAGING_ENABLED'));n++;
-  assert.ok(!source.includes('DFL_MESSAGING_WORKER_URL'));n++;
+  assert.ok(source.includes('DFL_MESSAGING_WORKER_URL'));n++;
   console.log(`MSG-M6 SITE: ${n} verificações herméticas aprovadas. Zero rede real e zero WhatsApp.`);
 })().catch(e=>{console.error(e);process.exitCode=1});

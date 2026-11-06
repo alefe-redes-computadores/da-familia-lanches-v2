@@ -26,6 +26,27 @@ function testNumber() {
 }
 function digest(value: string) {return createHash('sha256').update(value).digest('hex');}
 
+/** MSG-M7 — fast lane oficial, acionada SOMENTE depois do ingest confirmar nova fila.
+ * O worker e compartilhado; sucesso do wake NAO comprova envio do evento piloto.
+ * Nunca tentamos um segundo wake automaticamente apos timeout incerto.
+ */
+async function wakeWorkerOnce(): Promise<'acknowledged'|'not_configured'|'rejected'|'inactive'|'uncertain'> {
+  const url=safeEndpoint(process.env.DFL_MESSAGING_WORKER_URL||'');
+  const token=process.env.DFL_MESSAGING_WORKER_TOKEN?.trim();
+  if(!url||!token)return 'not_configured';
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8500);
+  try {
+    const response=await fetch(url,{method:'POST',cache:'no-store',signal:controller.signal,
+      headers:{'content-type':'application/json','x-dfl-messaging-worker-token':token},
+      body:JSON.stringify({})});
+    const body=await response.json().catch(()=>null) as {ok?:unknown;active?:unknown}|null;
+    if(!response.ok||body?.ok!==true)return 'rejected';
+    if(body.active!==true)return 'inactive';
+    return 'acknowledged';
+  }catch{return 'uncertain';}
+  finally{clearTimeout(timer);}
+}
+
 export async function POST(req: NextRequest) {
   let body = '';
   try { body = await req.text(); } catch { return reply({ok:false,code:'INVALID_BODY'},400); }
@@ -80,9 +101,13 @@ export async function POST(req: NextRequest) {
       body:JSON.stringify(payload)});
     const result = await response.json().catch(() => null) as {ok?:unknown;queued?:unknown;duplicate?:unknown}|null;
     if (!response.ok || result?.ok !== true) return reply({ok:false,code:'INGEST_REJECTED',httpStatus:response.status},503);
-    return reply({ok:true,code:result.duplicate===true?'ALREADY_ENQUEUED':'TEST_ENQUEUED',
-      queued:result.queued===true,duplicate:result.duplicate===true,
-      providerDelivered:false,note:'Apenas fila Supabase; aguardar worker e verificar WhatsApp de teste.'});
+    const queued=result.queued===true,duplicate=result.duplicate===true;
+    // Uma unica passagem pela fast lane, nunca novo insert ou retry do evento.
+    const workerWake=queued&&!duplicate ? await wakeWorkerOnce() : 'not_applicable';
+    return reply({ok:true,code:duplicate?'ALREADY_ENQUEUED':'TEST_ENQUEUED',
+      queued,duplicate,workerWake,
+      providerDelivered:false,
+      note:'Fila aceita. Worker acionado quando configurado; confirme a outbox e o WhatsApp de teste.'});
   } catch { return reply({ok:false,code:'INGEST_UNAVAILABLE',deliveryUnknown:true},503); }
   finally {clearTimeout(timer);}
 }

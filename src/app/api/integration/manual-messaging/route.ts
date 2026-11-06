@@ -27,6 +27,13 @@ export async function POST(req:NextRequest){
   catch{return response({ok:false,error:'invalid_signature'},401);}
   const phone=String(data.customer_phone||'').trim(),name=String(data.customer_name||'').trim();
   if(!/^55[1-9]\d{9,10}$/.test(phone)||name.length>80||!/^[A-Za-z0-9_-]+$/.test(orderId.slice('entregas:'.length))){return response({ok:false,error:'invalid_contact_fields'},422);}
+  // Homologacao M7: mesmo com o flag ligado, nenhum numero fora da allowlist entra na fila.
+  // Para envio amplo sera necessario outro rollout aprovado, nao basta mudar uma flag.
+  const scope=process.env.DFL_MANUAL_MESSAGING_SCOPE?.trim();
+  const allowed=process.env.DFL_MESSAGING_PILOT_PHONE_E164?.trim()||'';
+  if(scope!=='canary'||!/^55[1-9]\d{9,10}$/.test(allowed))
+    return response({ok:false,error:'manual_canary_off'},403);
+  if(phone!==allowed)return response({ok:false,error:'manual_phone_not_allowlisted'},403);
   const content=data.payload;
   if(!content||typeof content!=='object'||Array.isArray(content))return response({ok:false,error:'invalid_payload'},422);
   const obj=content as Record<string,unknown>;
