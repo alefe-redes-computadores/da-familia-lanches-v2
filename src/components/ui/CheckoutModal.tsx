@@ -153,6 +153,8 @@ export function CheckoutModal() {
   const [method, setMethod] = useState<PaymentMethod>("pix");
   const [troco, setTroco] = useState("");
   const [orderObservation, setOrderObservation] = useState("");
+  // R12: opt-in por PEDIDO, sempre desmarcado; nao persistir no rascunho.
+  const [whatsappNotificationsConsent, setWhatsappNotificationsConsent] = useState(false);
   const [pixCopied, setPixCopied] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCouponCode, setAppliedCouponCode] = useState("");
@@ -896,6 +898,7 @@ export function CheckoutModal() {
           metodoPagamento: method, trocoPara: method === "dinheiro" ? (troco.trim() || null) : null, observacao: orderObservation.trim() || null,
           endereco: finalAddress, tipoEntrega: deliveryMode, status: isScheduledOrder ? "Agendado" : "Pendente", isAgendamento: isScheduledOrder,
           scheduledFor: isScheduledOrder ? selectedSchedule : null, scheduledLabel: isScheduledOrder ? scheduleHumanLabel(selectedSchedule) : null, scheduleWindowMinutes: isScheduledOrder ? 30 : null,
+          whatsappNotificationsConsent,
           sourceSystem: "dfl_site", orderSchemaVersion: 3, customerMode: "guest", checkoutChannel: "site", handoffChannel: "whatsapp", recoveredCheckout: draftRecovered,
           customerSnapshot: { id: "", name: customerName.trim() || "Cliente", email: "", phone: userPhone.trim(), phoneE164: `+55${phoneDigits}` },
           deliverySnapshot: isPickup ? null : { cep: cep.trim(), street: rua.trim(), number: numero.trim(), district: bairro.trim(), complement: complemento.trim(), reference: referencia.trim() },
@@ -952,6 +955,7 @@ export function CheckoutModal() {
         checkoutChannel: "site",
         handoffChannel: null,
         recoveredCheckout: draftRecovered,
+        whatsappNotificationsConsent,
         customerSnapshot: {
           id: currentUser.uid,
           name: customerName.trim() || currentUser?.displayName || "Cliente",
@@ -1418,8 +1422,13 @@ export function CheckoutModal() {
             {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Primeiro registraremos o pedido. Na tela seguinte você poderá copiar a chave, conferir o valor e enviar o comprovante.</span></div></div>}
             {method === "dinheiro" && <label className={styles.label}>Troco para quanto? <span>(opcional)</span><input className={styles.input} placeholder="Ex.: 100,00" value={troco} onChange={(event) => setTroco(event.target.value)} inputMode="decimal"/></label>}
             <label className={styles.label}>Observação do pedido <span>(opcional)</span><textarea className={`${styles.input} ${styles.orderObservation}`} placeholder="Ex.: tocar o interfone, retirar ingrediente de todos os itens…" value={orderObservation} onChange={(event) => setOrderObservation(event.target.value.slice(0, 300))} maxLength={300}/><small className={styles.counter}>{orderObservation.length}/300</small></label>
+            {/* R12: consentimento separado de telefone de contato e aceite da compra. */}
+            <label style={{display:"flex",gap:12,alignItems:"flex-start",padding:"14px",border:"1px solid var(--border, #494949)",borderRadius:14,background:"rgba(120,120,120,.06)",cursor:"pointer"}}>
+              <input type="checkbox" checked={whatsappNotificationsConsent} onChange={event=>setWhatsappNotificationsConsent(event.target.checked)} aria-label="Autorizar avisos automáticos deste pedido pelo WhatsApp" style={{width:20,height:20,marginTop:2,flexShrink:0,accentColor:"#e6b83a"}} />
+              <span style={{display:"grid",gap:5}}><strong>Receber avisos deste pedido pelo WhatsApp</strong><small>Opcional. Autoriza avisos de confirmação, preparo e pedido pronto; para entrega, também saída e conclusão. Para retirada, avisaremos quando estiver pronto para buscar. Você pode concluir sem autorizar. O acompanhamento pelo site continua disponível.</small></span>
+            </label>
             <div className={styles.actions}><button className={styles.secondary} type="button" onClick={() => { setErrorMessage(""); setStep(1); }} disabled={loading}>Voltar</button><button className={styles.primary} type="button" onClick={() => void finishOrder()} disabled={loading || !isOnline} aria-busy={loading}>{loading ? "Registrando pedido… não feche esta tela" : !isOnline ? "Reconecte para confirmar" : `Confirmar pedido · ${money(total)}`}</button></div>
-            <p className={styles.trust}>Seu WhatsApp fica salvo para as atualizações do pedido. Você também acompanha o andamento pelo site.</p>
+            <p className={styles.trust}>Usaremos seu número para contato sobre o pedido. Avisos automáticos por WhatsApp dependem da autorização opcional acima e da liberação do serviço. Acompanhe também pelo site.</p>
           </div>
         )}
       </div>

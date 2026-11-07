@@ -402,6 +402,10 @@ export async function POST(request: NextRequest) {
         checkoutChannel: "site",
         handoffChannel: decoded ? null : "whatsapp",
         recoveredCheckout: incoming.recoveredCheckout === true,
+        // R12: somente aceitação EXPLICITA no pedido; timestamp do servidor.
+        whatsappNotificationsConsent: incoming.whatsappNotificationsConsent === true,
+        whatsappNotificationsConsentAt: incoming.whatsappNotificationsConsent === true ? occurredAt : null,
+        whatsappNotificationsConsentSource: incoming.whatsappNotificationsConsent === true ? "checkout_r12_explicit" : null,
         customerSnapshot: { id: actorId, name: text(customer.name, 120) || text(incoming.userName, 120), email: decoded?.email || "", phone, phoneE164: `+55${phone.replace(/\D/g, "")}` },
         deliverySnapshot: deliveryMode === "pickup" ? null : { cep: text(delivery.cep, 20), street: text(delivery.street, 180), number: text(delivery.number, 30), district, complement: text(delivery.complement, 180), reference: text(delivery.reference, 240) },
       };
@@ -432,6 +436,7 @@ export async function POST(request: NextRequest) {
         source_event_type: event.event_type,
         messaging_event_type: "order.created",
         messaging_source: "site",
+        messaging_consent_recorded: incoming.whatsappNotificationsConsent === true,
         messaging_eligible: true,
         order_id: orderRef.id,
         customer_phone: `+55${phone.replace(/\D/g, "")}`,
