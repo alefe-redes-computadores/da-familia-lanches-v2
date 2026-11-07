@@ -6,7 +6,8 @@ export type R11Input = {
   order: Record<string, unknown>;
   env: Record<string, string | undefined>;
 };
-const validPhone = (p: string) => /^55[1-9]\d{9,10}$/.test(p);
+const normalizeR11Phone = (p: string) => p.trim().replace(/\D/g, "");
+const validPhone = (p: string) => /^55[1-9]\d{9,10}$/.test(normalizeR11Phone(p));
 const terminal = (s: unknown) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 export function r11SiteMessageGate({eventType,sourceEventType,phone,order,env}:R11Input): string | null {
   // Site exclusively owns pickup-ready messaging; reverse logistics owns tracking only.
@@ -21,7 +22,7 @@ export function r11SiteMessageGate({eventType,sourceEventType,phone,order,env}:R
   if (order.whatsappNotificationsConsent !== true || typeof order.whatsappNotificationsConsentAt !== 'string' || !Number.isFinite(Date.parse(order.whatsappNotificationsConsentAt))) return 'explicit_consent_missing';
   if (!validPhone(phone)) return 'invalid_phone';
   const phones=(env.DFL_MESSAGING_R11_APPROVED_PHONES_E164||'').split(',').map(v=>v.trim()).filter(Boolean);
-  if (!phones.length || phones.length > 12 || new Set(phones).size !== phones.length || phones.some(v=>!validPhone(v)) || !phones.includes(phone)) return 'not_in_approved_pilot';
+  if (!phones.length || phones.length > 12 || new Set(phones).size !== phones.length || phones.some(v=>!validPhone(v)) || !phones.includes(normalizeR11Phone(phone))) return 'not_in_approved_pilot';
   // An approved template catalog must be verified externally before enabling this flag.
   // This event allowlist is an *additional* gate, not proof of provider approval.
   const events=(env.DFL_MESSAGING_R11_APPROVED_EVENTS||'').split(',').map(v=>v.trim()).filter(Boolean);
