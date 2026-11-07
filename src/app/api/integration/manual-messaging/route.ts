@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { assertSignedIntegrationRequest } from '@/lib/integration/server/signature';
 
+
+// R8: autorização restrita. Nunca aceita uma flag generica como liberação ampla.
+function r8ApprovedNumbers(): Set<string> | null {
+  const raw = process.env.DFL_MANUAL_MESSAGING_APPROVED_PHONES_E164 || '';
+  const numbers = raw.split(',').map(v => v.trim()).filter(Boolean);
+  if (!numbers.length || numbers.length > 12 || new Set(numbers).size !== numbers.length ||
+      numbers.some(v => !/^55[1-9]\d{9,10}$/.test(v))) return null;
+  return new Set(numbers);
+}
+function r8Authorized(phone: string, payload: Record<string,unknown>): boolean {
+  if (process.env.DFL_MANUAL_MESSAGING_KILL_SWITCH === 'true') return false;
+  const scope=process.env.DFL_MANUAL_MESSAGING_SCOPE?.trim();
+  if (scope === 'canary') {
+    const pilot=process.env.DFL_MESSAGING_PILOT_PHONE_E164?.trim();
+    return Boolean(pilot && /^55[1-9]\d{9,10}$/.test(pilot) && phone === pilot);
+  }
+  if (scope !== 'authorized_clients' ||
+      process.env.DFL_MANUAL_MESSAGING_ROLLOUT_APPROVED !== 'true' ||
+      payload.manual_messaging_opt_in_v1 !== true) return false;
+  const allowed=r8ApprovedNumbers();
+  return Boolean(allowed?.has(phone));
+}
+
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 const EVENTS=new Set(['order.created','delivery.started','delivery.completed']);
@@ -27,16 +50,11 @@ export async function POST(req:NextRequest){
   catch{return response({ok:false,error:'invalid_signature'},401);}
   const phone=String(data.customer_phone||'').trim(),name=String(data.customer_name||'').trim();
   if(!/^55[1-9]\d{9,10}$/.test(phone)||name.length>80||!/^[A-Za-z0-9_-]+$/.test(orderId.slice('entregas:'.length))){return response({ok:false,error:'invalid_contact_fields'},422);}
-  // Homologacao M7: mesmo com o flag ligado, nenhum numero fora da allowlist entra na fila.
-  // Para envio amplo sera necessario outro rollout aprovado, nao basta mudar uma flag.
-  const scope=process.env.DFL_MANUAL_MESSAGING_SCOPE?.trim();
-  const allowed=process.env.DFL_MESSAGING_PILOT_PHONE_E164?.trim()||'';
-  if(scope!=='canary'||!/^55[1-9]\d{9,10}$/.test(allowed))
-    return response({ok:false,error:'manual_canary_off'},403);
-  if(phone!==allowed)return response({ok:false,error:'manual_phone_not_allowlisted'},403);
   const content=data.payload;
   if(!content||typeof content!=='object'||Array.isArray(content))return response({ok:false,error:'invalid_payload'},422);
   const obj=content as Record<string,unknown>;
+  // Dual server gate: signed event, opt-in and restrictive approved numbers.
+  if(!r8Authorized(phone,obj))return response({ok:false,error:'manual_recipient_not_authorized'},403);
   if(obj.delivery_id!==orderId.slice('entregas:'.length)||obj.fulfillment_mode!=='delivery')return response({ok:false,error:'invalid_payload_identity'},422);
   const ingest=safeEndpoint(process.env.DFL_MESSAGING_INGEST_URL||''),token=process.env.DFL_MESSAGING_INGEST_TOKEN?.trim();
   if(!ingest||!token)return response({ok:false,error:'messaging_not_configured'},503);
