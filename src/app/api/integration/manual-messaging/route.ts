@@ -61,10 +61,24 @@ export async function POST(req:NextRequest){
   try{
     const result=await postJson(ingest,token,'x-dfl-messaging-token',{source:'manual',source_event_id:eventId,event_type:eventType,order_id:orderId,customer_phone:phone,customer_name:name,payload:obj});
     if(!result.ok||result.body.ok!==true)return response({ok:false,error:'ingest_rejected',code:result.code},503);
+    // R15-R2: wake somente para uma nova entrada.
     const worker=safeEndpoint(process.env.DFL_MESSAGING_WORKER_URL||''),workerToken=process.env.DFL_MESSAGING_WORKER_TOKEN?.trim();
-    if(worker&&workerToken&&result.body.duplicate!==true){
-      try{await postJson(worker,workerToken,'x-dfl-messaging-worker-token',{},1300);}catch{/* Fila persistida; cron/worker pode processar depois. */}
+    let workerWake: 'not_applicable'|'not_configured'|'acknowledged'|'inactive'|'rejected'|'uncertain' = 'not_applicable';
+    if(result.body.queued===true && result.body.duplicate!==true){
+      if(!worker||!workerToken){
+        workerWake='not_configured';
+      }else{
+        try{
+          const wake=await postJson(worker,workerToken,'x-dfl-messaging-worker-token',{},4500);
+          workerWake=!wake.ok||wake.body.ok!==true?'rejected':wake.body.active===true?'acknowledged':'inactive';
+        }catch{
+          workerWake='uncertain';
+        }
+      }
+      if(workerWake!=='acknowledged'){
+        console.warn('[integration/manual-messaging] wake nao confirmado; fila preservada',{workerWake,eventType});
+      }
     }
-    return response({ok:true,queued:result.body.queued===true,duplicate:result.body.duplicate===true,deliveryVerified:false});
+    return response({ok:true,queued:result.body.queued===true,duplicate:result.body.duplicate===true,workerWake,deliveryVerified:false});
   }catch{return response({ok:false,error:'messaging_ingest_unavailable'},503);}
 }
