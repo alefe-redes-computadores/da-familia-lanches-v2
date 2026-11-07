@@ -17,6 +17,13 @@ function r8Authorized(phone: string, payload: Record<string,unknown>): boolean {
     const pilot=process.env.DFL_MESSAGING_PILOT_PHONE_E164?.trim();
     return Boolean(pilot && /^55[1-9]\d{9,10}$/.test(pilot) && phone === pilot);
   }
+  // R19: compartilhamos com o Entregas o escopo consented_customers.
+  // Assinatura HMAC e opt-in individual continuam obrigatorios.
+  if (scope === 'consented_customers') {
+    return process.env.DFL_MANUAL_MESSAGING_ROLLOUT_APPROVED === 'true' &&
+      payload.manual_messaging_opt_in_v1 === true &&
+      /^55[1-9]\d{9,10}$/.test(phone);
+  }
   if (scope !== 'authorized_clients' ||
       process.env.DFL_MANUAL_MESSAGING_ROLLOUT_APPROVED !== 'true' ||
       payload.manual_messaging_opt_in_v1 !== true) return false;
