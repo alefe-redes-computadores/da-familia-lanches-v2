@@ -85,7 +85,7 @@ function commercialType(event: IntegrationEventEnvelope): DflMessagingEventType 
   // ao Entregas e poderia acionar template/logística incorretos.
   // Um eventual aviso de "retirado" exige template próprio homologado.
   if (n === "finalizado" && text(payload.tipoEntrega) === "pickup") {
-    return null;
+    return "delivery.completed";
   }
 
   if (n.includes("cancel")) return "order.cancelled";
@@ -448,6 +448,7 @@ async function hydrate(docId:string, data:Record<string,unknown>):Promise<Projec
       delivery_id:data.delivery_id??null,
       stops_ahead:data.stops_ahead??null,
       is_next_stop:data.is_next_stop===true,
+      previous_stop_completed:data.previous_stop_completed===true,
     },
   };
 }
@@ -479,6 +480,17 @@ async function claimRawCandidate(docId:string, workerId:string):Promise<ClaimedR
         processed_at:new Date().toISOString(),updated_at:new Date().toISOString(),
         locked_by:null,locked_at:null});
       return null;
+    }
+    // R18: nunca reanimar backlog anterior a liberacao comercial.
+    if (process.env.DFL_MESSAGING_R11_SCOPE === 'consented_customers') {
+      const started=Date.parse(process.env.DFL_MESSAGING_R11_ACTIVATED_AT || '');
+      const created=millis(data.created_at);
+      if (!Number.isFinite(started) || created === null || created < started) {
+        tx.update(ref,{status:'suppressed',messaging_eligible:false,
+          suppressed_reason:'predates_rollout',processed_at:new Date().toISOString(),
+          updated_at:new Date().toISOString(),locked_by:null,locked_at:null});
+        return null;
+      }
     }
     const now = new Date().toISOString();
     tx.update(ref,{

@@ -13,7 +13,7 @@ export function r11SiteMessageGate({eventType,sourceEventType,phone,order,env}:R
   // Site exclusively owns pickup-ready messaging; reverse logistics owns tracking only.
   if (sourceEventType === 'delivery.pickup_ready') return 'pickup_ready_site_authority';
   const mode = order.tipoEntrega === 'pickup' ? 'pickup' : 'delivery';
-  if (mode === 'pickup' && eventType.startsWith('delivery.')) return 'pickup_logistics_suppressed';
+  if (mode === 'pickup' && eventType.startsWith('delivery.') && !(eventType === 'delivery.completed' && sourceEventType === 'order.updated')) return 'pickup_logistics_suppressed';
   if (mode === 'delivery' && eventType === 'delivery.completed' && sourceEventType === 'order.updated') return 'site_delivery_completion_suppressed';
   const st = terminal(order.status);
   if ((st === 'cancelado' || st === 'finalizado') && (eventType === 'order.production' || eventType === 'order.ready')) return 'obsolete_commercial_stage';
@@ -22,7 +22,12 @@ export function r11SiteMessageGate({eventType,sourceEventType,phone,order,env}:R
   if (order.whatsappNotificationsConsent !== true || typeof order.whatsappNotificationsConsentAt !== 'string' || !Number.isFinite(Date.parse(order.whatsappNotificationsConsentAt))) return 'explicit_consent_missing';
   if (!validPhone(phone)) return 'invalid_phone';
   const phones=(env.DFL_MESSAGING_R11_APPROVED_PHONES_E164||'').split(',').map(v=>v.trim()).filter(Boolean);
-  if (!phones.length || phones.length > 12 || new Set(phones).size !== phones.length || phones.some(v=>!validPhone(v)) || !phones.includes(normalizeR11Phone(phone))) return 'not_in_approved_pilot';
+  const scope=env.DFL_MESSAGING_R11_SCOPE || 'canary';
+  if (scope === 'consented_customers') {
+    if (env.DFL_MESSAGING_R11_ROLLOUT_APPROVED !== 'true') return 'rollout_not_approved';
+  } else if (scope === 'canary') {
+    if (!phones.length || phones.length > 12 || new Set(phones).size !== phones.length || phones.some(v=>!validPhone(v)) || !phones.includes(normalizeR11Phone(phone))) return 'not_in_approved_pilot';
+  } else return 'invalid_rollout_scope';
   // An approved template catalog must be verified externally before enabling this flag.
   // This event allowlist is an *additional* gate, not proof of provider approval.
   const events=(env.DFL_MESSAGING_R11_APPROVED_EVENTS||'').split(',').map(v=>v.trim()).filter(Boolean);

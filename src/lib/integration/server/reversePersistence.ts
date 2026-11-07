@@ -30,6 +30,7 @@ type ReversePayload = {
   stopsAhead?: number | null;
   totalStops?: number | null;
   nextStop?: boolean;
+  previousStopCompleted?: boolean;
   completedAt?: string | null;
   failedReason?: string | null;
   recoveryReplay?: boolean;
@@ -384,6 +385,7 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
           delivery_id: event.payload.deliveryId,
           stops_ahead: event.payload.stopsAhead ?? null,
           is_next_stop: event.payload.nextStop === true,
+          previous_stop_completed: event.payload.previousStopCompleted === true,
           status: "pending",
           messaging_eligible: true,
           schema_version: 1,
