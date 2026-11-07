@@ -78,17 +78,13 @@ function commercialType(event: IntegrationEventEnvelope): DflMessagingEventType 
   if (n.includes("producao")) return "order.production";
   if (n === "pronto") return "order.ready";
 
-  // Finalização feita diretamente no Site só representa conclusão
-  // comercial quando o pedido é RETIRADA.
-  //
-  // Pedidos de entrega continuam sob autoridade logística do
-  // DFL Entregas, que projeta delivery.completed separadamente.
-  // Isso evita mensagem duplicada e preserva o contrato de status.
-  if (
-    n === "finalizado" &&
-    text(payload.tipoEntrega) === "pickup"
-  ) {
-    return "delivery.completed";
+  // R9: retirada finalizada no balcão NÃO é entrega concluída.
+  // A etapa de retirada já utiliza order.ready ("Pronto para retirada").
+  // Não converter "retirado" em delivery.completed: esse evento pertence
+  // ao Entregas e poderia acionar template/logística incorretos.
+  // Um eventual aviso de "retirado" exige template próprio homologado.
+  if (n === "finalizado" && text(payload.tipoEntrega) === "pickup") {
+    return null;
   }
 
   if (n.includes("cancel")) return "order.cancelled";
@@ -143,12 +139,16 @@ export async function ensureCommercialMessagingIntent(event: IntegrationEventEnv
         ? currentOrder.data() as Record<string, unknown>
         : {};
 
+    const terminalStatus = text(current.status).normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const pickupTerminal = text(current.tipoEntrega) === "pickup" &&
+      (terminalStatus === "finalizado" || terminalStatus === "cancelado");
     const deliveryCompleted =
       current.deliveryOperationalCompleted === true ||
       Boolean(text(current.deliveryOperationalCompletedAt)) ||
       text(current.deliveryTrackingEvent) === "delivery.completed";
 
-    if (deliveryCompleted) {
+    if (deliveryCompleted || pickupTerminal) {
       try {
         await ref.create({
           intent_id:`intent-msg-v1__${event.event_id}`,
