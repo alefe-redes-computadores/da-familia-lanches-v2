@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import type { IntegrationEventEnvelope } from "../contracts";
 import { adminDb } from "./admin";
+import { r11SiteMessageGate } from "./messagingR11Policy";
 
 export type DflMessagingEventType =
   | "order.created" | "order.production" | "order.ready" | "order.cancelled"
@@ -463,6 +464,22 @@ async function claimRawCandidate(docId:string, workerId:string):Promise<ClaimedR
     const stale = status === "processing" && lockedAt !== null &&
       Date.now() - lockedAt >= LOCK_TTL_MS;
     if (status !== "pending" && !stale) return null;
+    // R11: atomic suppression before claiming/forwarding to the real provider.
+    // Existing queued/sent messages are never replayed here.
+    const orderId = text(data.order_id);
+    const orderSnapshot = orderId ? await tx.get(adminDb.collection("Pedidos").doc(orderId)) : null;
+    const order = orderSnapshot?.exists ? orderSnapshot.data() as Record<string,unknown> : {};
+    const customer = obj(order.customerSnapshot);
+    const phone = text(data.customer_phone) || text(customer.phoneE164) || text(customer.phone) || text(order.userPhone);
+    const eventType = text(data.messaging_event_type) || reverseType(data.intent_type) || '';
+    const reason = r11SiteMessageGate({eventType,sourceEventType:text(data.source_event_type),phone,order,env:process.env});
+    if (reason === 'r11_site_gate_off' || reason === 'r11_kill_switch') return null;
+    if (reason) {
+      tx.update(ref,{status:"suppressed",messaging_eligible:false,suppressed_reason:reason,
+        processed_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+        locked_by:null,locked_at:null});
+      return null;
+    }
     const now = new Date().toISOString();
     tx.update(ref,{
       status:"processing", locked_by:workerId, locked_at:now,
