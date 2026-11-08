@@ -26,7 +26,7 @@ assert(float.includes('sessionStorage.getItem(sessionKey)') && float.includes('s
 assert(float.includes('prefers-reduced-motion') && float.includes('setPhase("typing")'), 'motion de acordo com preferencia');
 assert(float.includes('Boolean(activeModal)') && float.includes('pathname !== "/"'), 'nunca cobre modal ou rota secundaria');
 assert(float.includes('window.dispatchEvent(new Event("dfl:assist-open"))'), 'aciona assistente ja existente');
-assert(float.includes('setDismissed(true)') && float.includes('sessionStorage.setItem(dismissKey'), 'CTA dispensavel e respeita sessao');
+assert(float.includes('setDismissed(true)') && float.includes('localStorage.getItem(dismissKey)') && float.includes('localStorage.setItem(dismissKey'), 'CTA dispensavel com recusa persistente');
 assert(float.includes('focusin') && float.includes('inputActive'), 'CTA nao atrapalha teclado e inputs');
 assert(floatCss.includes('env(safe-area-inset-bottom') && floatCss.includes('prefers-reduced-motion') && floatCss.includes('conic-gradient') && floatCss.includes('focus-visible'), 'contorno animado pontual e acessivel');
 assert(help.includes('getDFLHelpAnswer') && help.includes('role="status"'), 'orientacao deterministica');

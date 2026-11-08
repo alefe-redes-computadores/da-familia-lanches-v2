@@ -16,6 +16,7 @@ import { ActiveOrderBanner } from "@/components/ui/ActiveOrderBanner";
 import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
 import { CustomerExperiencePrompt } from "@/components/home/CustomerExperiencePrompt";
+import { CustomerPwaInvite } from "@/components/home/CustomerPwaInvite";
 import { CATALOG_SEARCH_EVENT, rankCatalogProducts } from "@/lib/catalogSearch";
 import { suggestCatalogQueries } from "@/lib/catalogSearchRecovery";
 import { readRecentProductIds, rememberRecentProductId } from "@/lib/recentProductViews";
@@ -31,41 +32,44 @@ function normalize(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
+const R20_SEARCH_HINTS = ["Buscar lanche…", "Buscar combo…", "Buscar bebida…"] as const;
+
 export default function Home() {
   const campaign = useVisualCampaign();
   const openModal = useUIStore((s) => s.openModal);
   const activeModal = useUIStore((s) => s.activeModal);
   const mobileMenuOpen = useUIStore((s) => s.isMobileMenuOpen);
-  const [showAssistShortcut, setShowAssistShortcut] = useState(false);
-  const [assistFirstHint, setAssistFirstHint] = useState(false);
-  useEffect(() => {
-    if (!showAssistShortcut || assistFirstHint) return;
-    try {
-      if (localStorage.getItem("dfl-assist-first-hint-r103") === "1") return;
-      localStorage.setItem("dfl-assist-first-hint-r103", "1");
-      setAssistFirstHint(true);
-    } catch { /* Sem armazenamento: sem animação promocional. */ }
-  }, [showAssistShortcut, assistFirstHint]);
-  useEffect(() => {
-    if (!assistFirstHint) return;
-    const timer = window.setTimeout(() => setAssistFirstHint(false), 1800);
-    return () => window.clearTimeout(timer);
-  }, [assistFirstHint]);
-  const [catalogSearchFocused, setCatalogSearchFocused] = useState(false); // R102: nao obstruir a busca no celular
-  useEffect(() => {
-    // DFL-R71-ASSIST-SCROLL: scroll passive, sem observar pixels ou consultar Firebase.
-    const sync = () => setShowAssistShortcut(window.scrollY > 470);
-    sync();
-    window.addEventListener("scroll", sync, { passive: true });
-    window.addEventListener("resize", sync);
-    return () => { window.removeEventListener("scroll", sync); window.removeEventListener("resize", sync); };
-  }, []);
+  const [catalogSearchFocused, setCatalogSearchFocused] = useState(false);
   const currentUser = useAuthStore((s) => s.currentUser);
   const shopStatus = useShopStatus();
   const { products, loading: catalogLoading, error: catalogError, reload: reloadCatalog } = useCatalog();
   const [isOnline, setIsOnline] = useState(true);
   const { activeCategories: categories } = useCatalogCategories();
   const [search, setSearch] = useState("");
+  // R20: anima apenas o placeholder; nunca modifica a busca escrita pelo cliente.
+  const [hintIndex, setHintIndex] = useState(0);
+  const [hintLength, setHintLength] = useState(0);
+  const [reducedSearchMotion, setReducedSearchMotion] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReducedSearchMotion(media.matches);
+    sync();
+    media.addEventListener?.("change", sync);
+    return () => media.removeEventListener?.("change", sync);
+  }, []);
+  useEffect(() => {
+    if (search || catalogSearchFocused || reducedSearchMotion) return;
+    const full = R20_SEARCH_HINTS[hintIndex];
+    const complete = hintLength >= full.length;
+    const timer = window.setTimeout(() => {
+      if (complete) {
+        setHintIndex((value) => (value + 1) % R20_SEARCH_HINTS.length);
+        setHintLength(0);
+      } else setHintLength((value) => Math.min(full.length, value + 1));
+    }, complete ? 1500 : 100);
+    return () => window.clearTimeout(timer);
+  }, [search, catalogSearchFocused, reducedSearchMotion, hintIndex, hintLength]);
+  const searchHint = reducedSearchMotion ? "Buscar no cardápio" : R20_SEARCH_HINTS[hintIndex].slice(0, hintLength) || "Buscar";
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
@@ -262,13 +266,6 @@ export default function Home() {
 
   return (
     <div className={styles.page} data-dfl-campaign-home="true">
-      {showAssistShortcut && !showAllOffers && !search.trim() && !catalogSearchFocused && !activeModal && !mobileMenuOpen && (
-        <button type="button" className={styles.r71AssistShortcut} data-first-hint={assistFirstHint}
-          onClick={() => window.dispatchEvent(new Event("dfl:assist-open"))}
-          aria-label="Abrir DFL Assist para ajudar a escolher um produto">
-          <span aria-hidden="true">✦</span> Precisa de ajuda?
-        </button>
-      )}
       <section className={styles.hero}>
         <div className={styles.heroGlow} />
         <div className={styles.heroInner}>
@@ -276,7 +273,7 @@ export default function Home() {
 
           <label className={styles.searchBox}>
             <span aria-hidden="true">⌕</span>
-            <input ref={searchInputRef} aria-keyshortcuts="Control+K Meta+K" value={search} onFocus={() => setCatalogSearchFocused(true)} onBlur={() => setCatalogSearchFocused(false)} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setActiveCategory("todos"); }} placeholder="Buscar lanche, combo ou bebida" aria-label="Buscar no cardápio" /><kbd className={styles.searchShortcut} aria-hidden="true">Ctrl K</kbd>
+            <input ref={searchInputRef} aria-keyshortcuts="Control+K Meta+K" value={search} onFocus={() => setCatalogSearchFocused(true)} onBlur={() => setCatalogSearchFocused(false)} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setActiveCategory("todos"); }} placeholder={search || catalogSearchFocused ? "Buscar no cardápio" : searchHint} aria-label="Buscar no cardápio" /><kbd className={styles.searchShortcut} aria-hidden="true">Ctrl K</kbd>
             {search && <button type="button" onClick={() => setSearch("")} aria-label="Limpar busca">×</button>}
           </label>
         </div>
@@ -303,6 +300,7 @@ export default function Home() {
           {!currentUser && guestLastOrder && <button type="button" className={styles.guestOrderCard} onClick={()=>openModal("orders")}><span>SEU PEDIDO NESTE APARELHO</span><strong>{guestLastOrder.status === "Agendado" ? "Seu pedido está agendado" : `Seu pedido está ${guestLastOrder.status.toLowerCase()}`}</strong><small>{guestLastOrder.scheduledLabel ? `${guestLastOrder.scheduledLabel} · Ver detalhes do pedido` : "Ver detalhes do pedido"}</small></button>}
         </div>
         {!currentUser && guestLastOrder && <CustomerExperiencePrompt />}
+        {!activeModal && <CustomerPwaInvite />}
         {catalogLoading && <section className={styles.catalogSkeleton} aria-label="Carregando cardápio" aria-busy="true"><div className={styles.skeletonTitle}/><div className={styles.skeletonGrid}>{[0,1,2,3].map((item)=><div className={styles.skeletonCard} key={item}><i/><span/><b/></div>)}</div></section>}
         {activeCategory === "todos" && !search.trim() && showcaseProducts.length > 0 && (
           <section className={styles.promoShowcase} id="dfl-family-offers" data-dfl-campaign-offers="true" data-highlight={highlightOffers?"true":"false"} aria-label="Ofertas da Família">

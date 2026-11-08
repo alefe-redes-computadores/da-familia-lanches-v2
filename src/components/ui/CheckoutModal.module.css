@@ -818,3 +818,48 @@
 .addressForm .streetCompletionHint{display:block;color:#71460f;font-size:12px;font-weight:750;line-height:1.5;overflow-wrap:anywhere}
 .addressForm .streetCompletionPanel button{min-height:44px;border:1px solid #bd8a2b;border-radius:10px;padding:9px 12px;background:#fff;color:#583c12;font-size:12px;font-weight:850;text-align:left;cursor:pointer}
 .addressForm .streetCompletionPanel button:focus-visible{outline:3px solid #bd8a2b;outline-offset:2px}
+
+/* DFL-R20-COMPRAR-FACIL-20261108 — checkout de baixa friccao */
+.editAddress,.confirmAddress,.mapToggle{width:100%;min-height:44px;border-radius:12px;font-size:12px;font-weight:850;cursor:pointer;touch-action:manipulation}
+.editAddress{border:1px solid #b78b24;background:#fff8e1;color:#4e3710}
+.confirmAddress{border:0;background:#1d6a37;color:#fff}
+.mapToggle{border:1px dashed #cabb9b;background:#fff;color:#63502f}
+.addressHelpDisclosure{border-top:1px solid #ebe5dc;margin-top:2px;padding-top:9px}
+.addressHelpDisclosure>summary{font-weight:750;font-size:12px;color:#695632;min-height:36px;cursor:pointer}
+.addressHelpDisclosure[open] .addressHelpActions{margin-top:8px}
+.addressMapOptional{display:grid;gap:6px}
+.addressMapOptional>button{min-height:44px;border:1px solid #d3c9b6;border-radius:10px;background:#fff}
+.scheduleCard{color:#fff5d7}
+.scheduleSelected{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #705c2d;border-radius:12px;background:#302713}
+.scheduleSelected>strong{font-size:14px;color:#fff4c3;line-height:1.5}
+.scheduleSelected>button,.scheduleNow{min-height:44px;border:1px solid #ac8a36;border-radius:10px;padding:8px 11px;background:#fff4cf;color:#382a0d;font-size:12px;font-weight:850;cursor:pointer}
+.scheduleNow{width:100%;background:transparent;color:#f7e7ad}
+.observationFirst{display:grid;gap:7px;color:#302714;font-size:13px;font-weight:850}
+.observationFirst>span{color:#8c7a5c;font-size:11px}
+.observationFirst .orderObservation{min-height:76px}
+.checkoutBottomAction{position:sticky;bottom:0;z-index:5;background:linear-gradient(180deg,rgba(247,245,241,0),#f7f5f1 18%);padding:10px 0 max(10px,env(safe-area-inset-bottom,0px))}
+.checkoutBottomAction>.primary{min-height:52px;font-size:14px;box-shadow:0 8px 22px rgba(0,0,0,.16)}
+@media(max-width:540px){
+  .body{padding:12px 13px;scroll-padding-bottom:90px}
+  .stack{gap:9px}
+  .stepCaption{margin:6px 0 8px}
+  .profileHint{padding:8px 10px}
+  .profileHint span{font-size:10px}
+  .checkoutReadiness{gap:6px;padding:9px 10px;margin:0 0 5px}
+  .checkoutReadinessTags,.r35CheckoutReminder{display:none}
+  .checkoutReadiness p{font-size:11px}
+  .newAddressIntro{padding:9px 11px;border-radius:12px}
+  .newAddressIntro strong{font-size:12px}
+  .newAddressIntro span{font-size:11px}
+  .addressChoice{padding:10px;gap:8px}
+  .addressForm{gap:9px}
+  .addressLiveSummary{padding:9px 11px;gap:8px}
+  .addressLiveSteps{display:none}
+  .districtExample{font-size:10px;line-height:1.35}
+  .scheduleCard{padding:11px;gap:8px}
+  .scheduleSelected{padding:9px;flex-wrap:wrap}
+  .scheduleSelected>button{flex:1 0 120px}
+  .actions{position:sticky;bottom:0;z-index:5;padding:10px 0 max(10px,env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(247,245,241,0),#f7f5f1 18%)}
+  .actions>.primary{min-height:52px;font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.checkoutBottomAction,.scheduleSelected{scroll-behavior:auto}}

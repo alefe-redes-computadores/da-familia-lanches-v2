@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ModalBase } from "./ModalBase";
 import { useUIStore } from "@/store/ui";
 import { useCartStore } from "@/store/cart.store";
@@ -34,6 +34,21 @@ export function OrderSuccessModal() {
   const [copied, setCopied] = useState(false);
   const [cartCleared, setCartCleared] = useState(false);
   const [clearArmed, setClearArmed] = useState(false);
+  // R20: o convite de PWA so aparece apos dois pedidos realmente registrados
+  // neste aparelho, nunca durante checkout ou enquanto o sucesso esta aberto.
+  useEffect(() => {
+    if (!data.orderId) return;
+    try {
+      const key = "dfl:customer-pwa-count-v1";
+      const lastKey = "dfl:customer-pwa-last-confirmed-v1";
+      if (localStorage.getItem(lastKey) !== data.orderId) {
+        const oldCount = Number(localStorage.getItem(key)) || 0;
+        localStorage.setItem(key, String(Math.min(20, oldCount + 1)));
+        localStorage.setItem(lastKey, data.orderId);
+      }
+      window.dispatchEvent(new Event("dfl:pwa-order-confirmed"));
+    } catch { /* armazenamento opcional */ }
+  }, [data.orderId]);
 
   const ref = data.orderId
     ? `#${data.orderId.slice(-8).toUpperCase()}`

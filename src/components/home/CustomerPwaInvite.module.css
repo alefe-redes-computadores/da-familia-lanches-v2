@@ -1,0 +1,8 @@
+/* DFL-R20-COMPRAR-FACIL-20261108 — convite contextual sem overlay */
+.invite{display:grid;gap:10px;margin:12px 0;padding:14px;border:1px solid #dbc68f;border-radius:16px;background:#fff8e9;color:#292013}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.top>div{min-width:0}.top strong{font-size:14px;line-height:1.4}.top p{margin:4px 0 0;color:#6b5d3e;font-size:12px;line-height:1.5}
+.close{flex:0 0 36px;min-height:36px;border:0;border-radius:10px;background:#f2e6c9;color:#453315;font-size:22px;cursor:pointer}
+.actions{display:flex;flex-wrap:wrap;gap:8px}.actions>button{min-height:44px;border:1px solid #281f12;border-radius:11px;padding:9px 14px;background:#24201b;color:#fff3d6;font-size:12px;font-weight:850;cursor:pointer}.actions>button+button{background:#fff;border-color:#d7c6a3;color:#5a4522}
+.instructions{margin:0;padding:9px 10px;border-radius:10px;background:#fff;color:#51402b;font-size:12px;line-height:1.6}
+@media(max-width:370px){.invite{padding:11px}.actions>button{flex:1}}

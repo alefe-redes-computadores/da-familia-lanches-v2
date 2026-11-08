@@ -169,6 +169,8 @@ export function CheckoutModal() {
   const [shopClosed, setShopClosed] = useState(false);
   const [scheduleSlots, setScheduleSlots] = useState<OrderScheduleSlot[]>([]);
   const [scheduledFor, setScheduledFor] = useState("");
+  const [scheduleExpanded, setScheduleExpanded] = useState(false);
+  const [showAddressMap, setShowAddressMap] = useState(false);
   const [wantsSchedule, setWantsSchedule] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [scheduleError, setScheduleError] = useState("");
@@ -473,7 +475,7 @@ export function CheckoutModal() {
       if (recovered && inspectDistrict(recovered, configuredDistricts).valid) {
         setBairro(recovered);
         setManualMode(true);
-        setAddressEditorOpen(false);
+        // R20: hidratacao tardia nao fecha o formulario enquanto usuario edita.
         void calculateDeliveryFee(recovered);
       }
       return;
@@ -1227,7 +1229,8 @@ export function CheckoutModal() {
             {/* DFL R293: acesso ao agendamento visivel antes de preencher o endereco. */}
             <button type="button" className={styles.cepToggle} onClick={() => {
               if (!shopClosed) setWantsSchedule(true);
-              window.requestAnimationFrame(() => scheduleSectionRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+              setScheduleExpanded(true);
+              window.setTimeout(() => scheduleSectionRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }), 0);
             }}>{shopClosed ? "Ver horários para agendar" : wantsSchedule ? "Ver horários de agendamento" : "Agendar para mais tarde"}</button>
             <div className={styles.profileHint} data-loaded={Boolean(profile)}><div><strong>{profile ? "Dados carregados da sua conta" : "Seus dados de entrega"}</strong><span>{profile ? "Você pode alterar aqui. Salvamos a atualização depois do pedido." : "Preencha uma vez e os próximos pedidos ficam mais rápidos."}</span></div>{profileLoading && <b>Carregando…</b>}</div>
             <label className={styles.label}>Nome para o pedido<input ref={r35NameRef} className={styles.input} data-invalid={Boolean(customerName && !nameReady)} placeholder="Seu nome" value={customerName} onChange={(event) => { customerEditingRef.current = true; setCustomerName(event.target.value); }} autoComplete="name" /></label>
@@ -1244,6 +1247,11 @@ export function CheckoutModal() {
                     <span className={styles.locationMark} aria-hidden="true">⌂</span>
                     <div><span className={styles.addressLabelRow}><b>{selectedSavedAddress?.label || "Endereço"}</b>{selectedSavedAddress?.isDefault && <em>Padrão</em>}</span><strong>{rua}, {numero}</strong><span>{bairro}{cep ? ` · CEP ${cep}` : ""}</span>{complemento && <small>{complemento}</small>}</div>
                   </div>
+                  <button className={styles.editAddress} type="button" onClick={() => {
+                    customerEditingRef.current = true;
+                    setAddressPickerOpen(false);
+                    setAddressEditorOpen(true);
+                  }}>Editar este endereço</button>
                   <button className={styles.changeAddress} type="button" onClick={()=>setAddressPickerOpen(true)}><span><strong>Receber em outro endereço</strong><small>Escolha outro endereço salvo ou cadastre um novo</small></span><b aria-hidden="true">›</b></button>
                 </>}
                 {addressPickerOpen && <div className={styles.addressSheet} role="dialog" aria-modal="true" aria-label="Escolha um endereço">
@@ -1256,10 +1264,6 @@ export function CheckoutModal() {
                 {(!addressReady || addressEditorOpen) && <div className={styles.addressForm}>
                   <div className={styles.newAddressIntro}><strong>{rua.trim() && numero.trim() && !bairro.trim() ? "Complete o endereço" : savedAddresses.length ? "Novo endereço" : "Seu primeiro endereço"}</strong><span>Escolha o bairro, informe a rua e o número. O CEP é opcional.</span></div>
                   {cepExpanded&&<div className={styles.cepAuto}><label><span>CEP</span><input className={styles.input} placeholder="00000-000" value={cep} onChange={e=>{customerEditingRef.current=true;cepRequestRef.current+=1;cepLookupRef.current="";setCep(formatCEPBR(e.target.value));if(!submittingRef.current)setLoading(false)}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();cepLookupRef.current="";void handleSearchCep()}}} inputMode="numeric" autoComplete="postal-code"/></label><small>{loading?"Buscando endereço…":"O CEP é opcional. Consulte para preencher automaticamente."}</small><button className={styles.cepSearchAction} type="button" onClick={()=>void handleSearchCep()} disabled={loading || cep.replace(/\D/g,"").length!==8}>Buscar endereço pelo CEP</button></div>}
-                  <div className={styles.addressFirstGuide} role="note">
-                    <strong>Endereço em 3 passos</strong>
-                    <small>1. Escolha o bairro · 2. Digite a rua · 3. Informe o número. Se preferir, utilize a busca opcional por CEP.</small>
-                  </div>
                   <label className={styles.addressFirstField}><span>1 · Bairro</span><input ref={districtInputRef} className={styles.input} placeholder="Ex.: Quebec, América, São José" aria-label="Bairro da entrega" aria-invalid={!isPickup && !districtInspection.valid && Boolean(rua.trim() && numero.trim())} value={bairro} onChange={e=>{customerEditingRef.current=true;districtManuallyEditedRef.current=true;setBairro(e.target.value);deliveryFeeRequestRef.current += 1;setDeliveryStatus("")}} onBlur={()=>{if(manualMode&&bairro.trim()&&districtInspection.valid&&districtSuggestions.length===0)void calculateDeliveryFee(bairro);}} /></label>
                    <small className={styles.districtExample}>Pode digitar só parte do nome. Exemplo: “Quebec” → selecione “Jardim Quebec” na lista. Também funciona com “América”, “São José” e “Nossa Senhora”.</small>
                     {/* DFL-R38-ADDRESS-CATALOG: fonte cadastrada quando disponivel, sem alterar calculo de frete */}
@@ -1277,7 +1281,7 @@ export function CheckoutModal() {
                    {manualMode && districtInspection.valid && <StreetSuggestions street={rua} district={bairro} onSelect={name => { customerEditingRef.current=true; setRua(name); }} />}
                   <label className={styles.addressFirstField}><span>3 · Número</span><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/></label>
                   {/* DFL-R22:ADDRESS-SUMMARY */}
-                  <div className={styles.addressLiveSummary}
+                  {!addressReady && <div className={styles.addressLiveSummary}
                     data-ready={districtInspection.valid && rua.trim().length >= 4 && !streetNeedsClarification(rua) && Boolean(numero.trim()) && (cep.replace(/\\D/g, "").length === 0 || cep.replace(/\\D/g, "").length === 8)}
                     aria-label="Resumo do endereço">
                     <div className={styles.addressLiveTop}>
@@ -1296,7 +1300,7 @@ export function CheckoutModal() {
                     </div>
                     {!districtInspection.valid && bairro.trim() && <small className={styles.addressLiveHint}>Confira o nome completo do bairro ou escolha uma sugestão.</small>}
                     {cep.replace(/\\D/g, "").length > 0 && cep.replace(/\\D/g, "").length !== 8 && <small className={styles.addressLiveHint}>O CEP é opcional. Se preencher, informe os 8 números.</small>}
-                  </div>
+                  </div>}
                   <div className={styles.districtHelper} aria-live="polite" data-invalid={(!districtInspection.valid && Boolean(rua.trim() && numero.trim())) || (Boolean(rua.trim()) && rua.trim().length < 4)}>
                     {Boolean(rua.trim() && numero.trim() && !bairro.trim()) && <strong>Falta informar o bairro da entrega. Toque no campo Bairro para completar.</strong>}{Boolean(bairro.trim()) && !districtInspection.valid && <strong>Confira o bairro: use o nome completo, não apenas a inicial.</strong>}
                     {Boolean(rua.trim()) && rua.trim().length < 4 && <strong>Confira a rua: informe o nome completo, não apenas uma letra.</strong>}
@@ -1304,36 +1308,48 @@ export function CheckoutModal() {
                     {districtSuggestions.length > 0 && manualMode && <div className={styles.districtSuggestions} aria-label="Sugestões de bairros"><small>Você quis dizer:</small>{districtSuggestions.map(name=><button type="button" key={name} onClick={()=>{setBairro(name);setDeliveryStatus(`Bairro escolhido: ${name}. Confira rua e número.`);void calculateDeliveryFee(name);}}>{name}</button>)}</div>}
                   </div>
                   <input className={styles.input} placeholder="Complemento (opcional)" value={complemento} onChange={e=>{customerEditingRef.current=true;setComplemento(e.target.value)}} autoComplete="address-line2"/><input className={styles.input} placeholder="Referência (opcional)" value={referencia} onChange={e=>{customerEditingRef.current=true;setReferencia(e.target.value)}}/>{matchingSavedAddress && addressEditorOpen && <div className={styles.info} role="status">Esse endereço já está salvo. Ao finalizar, usaremos o cadastro existente em vez de duplicá-lo. <button type="button" onClick={() => selectSavedAddress(matchingSavedAddress)}>Usar endereço salvo</button></div>}{deliveryStatus&&<div className={styles.info} role="status" aria-live="polite">{deliveryStatus}</div>}
-                   <div className={styles.addressHelpActions}>
+                   <details className={styles.addressHelpDisclosure}>
+                     <summary>Precisa de ajuda com o endereço?</summary>
+                     <div className={styles.addressHelpActions}>
                      {bairro.trim() && districtInspection.valid && <button type="button" onClick={() => void calculateDeliveryFee(bairro)} disabled={loading} aria-label="Consultar novamente a taxa para o bairro informado">Consultar taxa deste bairro</button>}
                       {!bairro.trim() && <a href={businessWhatsAppUrl("Olá! Preciso de ajuda para identificar meu bairro ou preencher o endereço no site. Esta mensagem é somente um pedido de orientação; não estou enviando nem confirmando uma compra.")} target="_blank" rel="noopener noreferrer">Não encontrou seu bairro? Pedir ajuda</a>}
                       {bairro.trim() && <a href={businessWhatsAppUrl(buildDistrictSupportMessage(bairro))} target="_blank" rel="noopener noreferrer">Conferir este bairro com atendimento</a>}
                      <small>Você pode continuar preenchendo manualmente. O WhatsApp acima é só atendimento: não envia carrinho nem registra pedido.</small>
-                   </div>
+                     </div>
+                   </details>
                    {/* DFL-R39-GEOAPIFY-ON-DEMAND: nunca substitui a tabela de frete ou o envio da compra. */}
-                   <AddressMapPreview district={bairro} street={rua} number={numero} />
+                   {showAddressMap ? (
+                     <div className={styles.addressMapOptional}>
+                       <AddressMapPreview district={bairro} street={rua} number={numero} />
+                       <button type="button" onClick={() => setShowAddressMap(false)}>Ocultar mapa</button>
+                     </div>
+                   ) : <button className={styles.mapToggle} type="button" onClick={() => setShowAddressMap(true)}>Conferir no mapa (opcional)</button>}
+                   {addressReady && <button className={styles.confirmAddress} type="button" onClick={() => {
+                     // Fecha apenas a edicao visual; cadastro persiste depois de confirmar a compra.
+                     setAddressEditorOpen(false);
+                     setAddressPickerOpen(false);
+                   }}>Usar este endereço ✓</button>}
                    <div className={styles.addressFormActions}><button className={styles.cepToggle} type="button" aria-expanded={cepExpanded} onClick={()=>{setCepExpanded(v=>!v);setManualMode(true);}}>{cepExpanded?"Ocultar busca pelo CEP":"Prefiro buscar pelo CEP (opcional)"}</button>{savedAddresses.length>0&&<button className={styles.linkButton} type="button" onClick={()=>{const fallback=savedAddresses.find(a=>a.isDefault)||savedAddresses[0];if(fallback)selectSavedAddress(fallback);}}>Cancelar</button>}</div>
                 </div>}
               </section>
               {!isPickup && freeThreshold !== null && !hasFreeDelivery && <div className={styles.freightProgress}>Faltam <strong>{money(missingForFreeDelivery)}</strong> para ganhar entrega grátis.</div>}{hasFreeDelivery && <div className={styles.successHint}>Entrega grátis aplicada neste pedido. Taxa de referência {money(deliveryFee)}; taxa cobrada {money(0)}. Benefício conforme as regras comerciais para seu bairro e valor do carrinho.</div>}
             </> : <div className={styles.pickupCard}><strong>Retirada no balcão</strong><span>Sem taxa de entrega. O pedido ficará identificado pelo seu nome e referência.</span></div>}
-            {!shopClosed && (
-                <button className={styles.cepToggle} type="button" aria-expanded={wantsSchedule}
-                  onClick={() => { setWantsSchedule(previous => { if (previous) setScheduledFor(""); return !previous; }); }}>
-                  {wantsSchedule ? "Pedir agora (sem agendamento)" : "Prefiro agendar para mais tarde"}
-                </button>
-            )}
             {(shopClosed || wantsSchedule) && (
               <section ref={scheduleSectionRef} className={styles.scheduleCard}>
                 <div>
                   <span>{shopClosed ? "LOJA FECHADA AGORA" : "AGENDAMENTO OPCIONAL"}</span>
-                  <strong>Escolha quando quer receber</strong>
+                  <strong>{scheduledFor ? "Seu horário agendado" : "Escolha quando quer receber"}</strong>
                   <small>
-                    O próximo horário é apenas uma sugestão. Seu pedido só será agendado depois que você escolher.
+                    {scheduledFor ? "Você pode alterar o horário antes de confirmar o pedido." : "Escolha um horário disponível para agendar."}
                   </small>
                 </div>
 
-                {scheduleLoading ? (
+                {scheduledFor && !scheduleExpanded ? (
+                  <div className={styles.scheduleSelected} role="status" aria-label="Horario do pedido selecionado">
+                    <strong>✓ {scheduleHumanLabel(scheduledFor)}</strong>
+                    <button type="button" onClick={() => setScheduleExpanded(true)}>Alterar horário</button>
+                  </div>
+                ) : scheduleLoading ? (
                   <p>Carregando horários…</p>
                 ) : scheduleGroups.length ? (
                   <div className={styles.scheduleDays}>
@@ -1376,11 +1392,7 @@ export function CheckoutModal() {
                                   scheduledFor ===
                                   slot.value
                                 }
-                                onClick={() =>
-                                  setScheduledFor(
-                                    slot.value,
-                                  )
-                                }
+                                onClick={() => { setScheduledFor(slot.value); setScheduleExpanded(false); }}
                               >
                                 <strong>
                                   {slot.time}
@@ -1404,9 +1416,20 @@ export function CheckoutModal() {
                       "Nenhum horário disponível nos próximos dias."}
                   </p>
                 )}
+                {!shopClosed && <button type="button" className={styles.scheduleNow} onClick={() => {
+                  setWantsSchedule(false); setScheduledFor(""); setScheduleExpanded(false);
+                }}>Prefiro pedir agora</button>}
               </section>
             )}
+            <label className={styles.observationFirst}>Observações do pedido <span>(opcional)</span>
+              <textarea className={`${styles.input} ${styles.orderObservation}`} rows={2}
+                placeholder="Ex.: tocar a campainha, retirar ingrediente, ponto de referência…"
+                value={orderObservation} maxLength={300}
+                onChange={event => setOrderObservation(event.target.value.slice(0, 300))} />
+            </label>
+            <div className={styles.checkoutBottomAction}>
             <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance && (!(shopClosed || wantsSchedule) || Boolean(scheduledFor))) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : !addressReady ? (!isPickup && !bairro.trim() ? "Falta informar o bairro da entrega. Preencha o campo Bairro." : !districtInspection.valid && !isPickup ? "Informe o nome completo do bairro e confira o endereço." : "Complete o endereço para continuar.") : "Escolha um horário disponível para o agendamento."); if (!isPickup && !addressReady && !districtInspection.valid) { setManualMode(true); setAddressEditorOpen(true); focusCheckoutIssue("district"); } }}>Continuar</button>
+            </div>
           </div>
         ) : (
           <div className={styles.stack}>

@@ -416,3 +416,8 @@
 :global(html[data-dfl-footer-near="true"]) .r71AssistShortcut{
   opacity:0;visibility:hidden;pointer-events:none;
 }
+
+/* DFL-R20-COMPRAR-FACIL-20261108 — busca legivel sem competir com carrinho */
+.searchBox{width:100%;min-width:0;box-sizing:border-box}
+.searchBox input{flex:1 1 0;min-width:0;max-width:100%;text-overflow:ellipsis}
+@media(max-width:420px){.searchBox{gap:8px;padding-inline:12px}.searchBox input{font-size:16px}}
