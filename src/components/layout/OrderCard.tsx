@@ -30,6 +30,8 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const [pauseSelected, setPauseSelected] = useState<string[]>([]);
   const isExpanded = forceExpanded || expanded;
   const statusAtual = normalizarStatus(pedido.status);
+  const accepted = (statusAtual === "Pendente" || statusAtual === "Agendado") &&
+    typeof pedido.acceptedAt === "string" && Number.isFinite(Date.parse(pedido.acceptedAt));
   const terminal = statusAtual === "Finalizado" || statusAtual === "Cancelado";
   const terminalTone = statusAtual === "Finalizado" ? "success" : statusAtual === "Cancelado" ? "danger" : "active";
   const itens = getOrderItems(pedido);
@@ -166,7 +168,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   };
 
   const next =
-    statusAtual === "Pendente" || statusAtual === "Agendado" ? ["Em Produção", "Aceitar", "warm"] :
+    statusAtual === "Pendente" || statusAtual === "Agendado" ? (accepted ? ["Em Produção", "Iniciar preparo", "warm"] : ["Aceito", "Aceitar pedido", "warm"]) :
     statusAtual === "Em Produção" ? ["Pronto", "Marcar pronto", "green"] :
     statusAtual === "Pronto" && !pickup ? ["Saiu para Entrega", "Despachar", "blue"] :
     (statusAtual === "Saiu para Entrega" || (statusAtual === "Pronto" && pickup)) ? ["Finalizado", "Concluir entrega", "green"] :
@@ -236,7 +238,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     >
       <div className={styles.top}>
         <div>
-          <div className={styles.status}><span className={styles.statusDot} aria-hidden="true" />{statusAtual === "Finalizado" ? "Pedido entregue" : statusAtual === "Cancelado" ? "Pedido cancelado" : statusTitle(pedido.status, pickup)}</div>
+          <div className={styles.status}><span className={styles.statusDot} aria-hidden="true" />{statusAtual === "Finalizado" ? "Pedido entregue" : statusAtual === "Cancelado" ? "Pedido cancelado" : accepted ? (statusAtual === "Agendado" ? "Agendado e aceito" : "Aceito · aguardando preparo") : statusTitle(pedido.status, pickup)}</div>
           <div className={styles.orderIdRow}>
             <div className={styles.orderId}>#{shortOrderId}</div>
             {inspector && <button
@@ -436,7 +438,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
               </div>
               <div className={styles.inspectorMini}>
                 <span className={styles.inspectorMiniIcon}><PackageCheck size={16} /></span>
-                <div><small>Etapa atual</small><strong>{statusTitle(pedido.status, pickup)}</strong><span>{ageLabel(pedido)}</span></div>
+                <div><small>Etapa atual</small><strong>{accepted ? "Aceito · aguardando preparo" : statusTitle(pedido.status, pickup)}</strong><span>{ageLabel(pedido)}</span></div>
               </div>
               <div className={styles.inspectorMini}>
                 <span className={styles.inspectorMiniIcon}><ShoppingBag size={16} /></span>

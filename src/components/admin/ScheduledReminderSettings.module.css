@@ -1,0 +1,16 @@
+/* R21: configuracao discreta, sem alterar a hierarquia operacional do Admin. */
+.panel{margin:10px 0 12px;padding:0;border:1px solid rgba(247,197,78,.30);border-radius:15px;background:rgba(255,202,40,.06);color:inherit;overflow:hidden}
+.panel summary{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;min-height:48px;padding:12px 14px;cursor:pointer;list-style:none}
+.panel summary::-webkit-details-marker{display:none}
+.panel summary:focus-visible{outline:3px solid #ffca28;outline-offset:-3px}
+.heading{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:850}
+.panel summary small{font-size:11px;opacity:.78}
+.content{display:grid;gap:12px;padding:12px 14px 14px;border-top:1px solid rgba(247,197,78,.22)}
+.content p{margin:0;font-size:12px;line-height:1.5;opacity:.8}
+.check{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;min-height:38px}
+.check input{accent-color:#e5b72a;width:19px;height:19px;flex:0 0 auto}
+.row{display:grid;gap:6px;font-size:12px;font-weight:750}
+.row select{min-height:44px;border:1px solid rgba(210,177,83,.6);background:#fff;color:#161616;border-radius:10px;padding:8px 11px;font-size:14px}
+.foot{display:flex;align-items:start;gap:8px;font-size:11px;line-height:1.5;opacity:.78}
+@media(max-width:380px){.panel summary{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.panel *{animation:none;transition:none}}

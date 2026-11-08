@@ -164,6 +164,23 @@ export async function updateOrderStatus(input: {
         : undefined,
     );
     const next = normalizarStatus(input.nextStatus);
+    // R21: aceitar NAO inicia preparo. Gravar apenas o aceite idempotente.
+    // O status canonico fica Pendente/Agendado; somente "Iniciar preparo"
+    // avanca a Em Producao e emite o respectivo evento comercial.
+    if (input.nextStatus === "Aceito") {
+      if (current !== "Pendente" && current !== "Agendado") {
+        throw new Error(`ORDER_STATUS_CONFLICT:${current}->Aceito`);
+      }
+      if (orderData.acceptedAt) {
+        return { changed: false, status: current, rewardAwarded: false };
+      }
+      transaction.update(orderRef, {
+        acceptedAt: occurredAt,
+        acceptedBy: "admin",
+        acceptedStageAt: now,
+      });
+      return { changed: true, status: current, rewardAwarded: false };
+    }
     const cancellation = next === "Cancelado" ? input.cancellation : null;
     const cancellationPatch = cancellation ? {
       cancelReasonCode: cancellation.reasonCode,

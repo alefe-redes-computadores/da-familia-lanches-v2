@@ -27,6 +27,7 @@ import { imprimirPedido } from "@/lib/printOrder";
 import { adminOrderSearchText, compareOperationalOrders, ageLabel, operationalAttention, orderAgeMinutes } from "@/lib/adminOrders";
 import { orderMatchesStageFocus, stageFocusForTab, type StageFocus } from "@/lib/adminOrderStageFocus";
 import { isOverdueScheduledOrder } from "@/lib/scheduledOrderFocus";
+import { ScheduledReminderSettings } from "@/components/admin/ScheduledReminderSettings";
 import styles from "./admin.module.css";
 import { haptic } from "@/lib/haptics";
 import { AdminAuthGate } from "@/components/admin/AdminAuthGate";
@@ -261,7 +262,7 @@ function AdminPageContent() {
     if (locks.has(id)) return;
     locks.add(id);
 
-    const nextLabel = normalizarStatus(status);
+    const nextLabel = status === "Aceito" ? "Aceito" : normalizarStatus(status);
     const previousLabel = normalizarStatus(
       typeof pedido?.status === "string"
         ? pedido.status
@@ -270,6 +271,7 @@ function AdminPageContent() {
 
     if (
       pedido &&
+      status !== "Aceito" &&
       previousLabel !== nextLabel
     ) {
       setOptimisticStatuses((current) => ({
@@ -293,7 +295,7 @@ function AdminPageContent() {
       key: statusFeedbackKey,
       tone: "progress",
       title: "Atualizando pedido",
-      message: `Movendo o pedido para ${nextLabel}…`,
+      message: status === "Aceito" ? "Registrando aceite; preparo ainda nao iniciado…" : `Movendo o pedido para ${nextLabel}…`,
     });
     // R101: a acao aparece imediatamente na fila; nunca anunciar sucesso
     // antes do commit. A mensagem de espera nao faz consultas extras.
@@ -338,7 +340,7 @@ function AdminPageContent() {
         message: result.rewardAwarded
           ? "Pedido concluído e benefício de fidelidade liberado."
           : result.changed
-            ? `Pedido atualizado para ${nextLabel}.`
+            ? (status === "Aceito" ? "Pedido aceito. Toque em Iniciar preparo quando a cozinha comecar." : `Pedido atualizado para ${nextLabel}.`)
             : "Este pedido já estava nesta etapa.",
       });
 
@@ -888,6 +890,10 @@ function AdminPageContent() {
           </div>
         </section>
 
+        {/* R21: painel montado em todas as abas para nao perder os avisos internos. */}
+        <ScheduledReminderSettings orders={operationalPedidos} onOpenSchedules={() => {
+          setTab("agendados"); setAttentionOnly(false); setScheduledOverdueOnly(false);
+        }} />
         {overdueScheduledCount > 0 && (
           <section className={styles.scheduledPriorityBanner} role="status" aria-label="Agendamentos que chegaram ao horário">
             <div><strong>{overdueScheduledCount} {overdueScheduledCount === 1 ? "agendamento precisa de conferência" : "agendamentos precisam de conferência"}</strong><span>O horário previsto chegou. Confira a fila para iniciar o preparo quando apropriado.</span></div>
