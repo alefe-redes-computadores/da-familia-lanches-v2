@@ -108,9 +108,7 @@ async function relayOrderStatusEvent(
     );
 
     try {
-      await fetch(
-        "/api/admin/orders/relay",
-        {
+      await fetch("/api/admin/orders/relay", {
           method: "POST",
           headers: {
             "content-type":
@@ -149,6 +147,25 @@ export async function updateOrderStatus(input: {
     itemProductIds?: string[];
   } | null;
 }) {
+  // R23: somente o servidor pode atestar aceite e criar a fila atomica.
+  if (input.nextStatus === "Aceito") {
+    const user = auth.currentUser;
+    if (!user) throw new Error("AUTH_REQUIRED");
+    const token = await user.getIdToken();
+    const response = await fetch("/api/admin/orders/accept", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ orderId: input.orderId }),
+      signal: AbortSignal.timeout(10000),
+      cache: "no-store",
+    });
+    const data = await response.json().catch(() => null) as
+      {ok?:boolean;changed?:boolean;status?:string;rewardAwarded?:boolean;error?:string}|null;
+    if (!response.ok || data?.ok !== true || typeof data.status !== "string") {
+      throw new Error(data?.error || "ACCEPTANCE_UNAVAILABLE");
+    }
+    return { changed: data.changed === true, status: data.status, rewardAwarded: false };
+  }
   const orderRef = doc(db, "Pedidos", input.orderId);
   const now = Timestamp.now();
   const occurredAt = now.toDate().toISOString();
@@ -164,23 +181,7 @@ export async function updateOrderStatus(input: {
         : undefined,
     );
     const next = normalizarStatus(input.nextStatus);
-    // R21: aceitar NAO inicia preparo. Gravar apenas o aceite idempotente.
-    // O status canonico fica Pendente/Agendado; somente "Iniciar preparo"
-    // avanca a Em Producao e emite o respectivo evento comercial.
-    if (input.nextStatus === "Aceito") {
-      if (current !== "Pendente" && current !== "Agendado") {
-        throw new Error(`ORDER_STATUS_CONFLICT:${current}->Aceito`);
-      }
-      if (orderData.acceptedAt) {
-        return { changed: false, status: current, rewardAwarded: false };
-      }
-      transaction.update(orderRef, {
-        acceptedAt: occurredAt,
-        acceptedBy: "admin",
-        acceptedStageAt: now,
-      });
-      return { changed: true, status: current, rewardAwarded: false };
-    }
+    // R23: aceite confirmado pelo servidor antes de chegar a esta transaction.
     const cancellation = next === "Cancelado" ? input.cancellation : null;
     const cancellationPatch = cancellation ? {
       cancelReasonCode: cancellation.reasonCode,
