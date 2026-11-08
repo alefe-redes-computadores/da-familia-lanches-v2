@@ -5,9 +5,9 @@ import {auth} from '@/lib/firebase';
 import styles from './Dfl360OperationsCard.module.css';
 
 type Counts={pending:number;processing:number;acknowledged:number;review:number;suppressed:number;queued:number;other:number};
-type Lane={available:boolean;sample:number;truncated:boolean;counts:Counts};
+type Lane={available:boolean;sample:number;truncated:boolean;counts:Counts;staleProcessing:number};
 type Snapshot={ok:true;checkedAt:string;sampleLimit:number;degraded:boolean;
-  lanes:{messages:Lane;acceptances:Lane;tracking_links:Lane};
+  lanes:{messages:Lane;acceptances:Lane;tracking_links:Lane;automatic_delivery:Lane};transportReady:boolean;
   flags:{publicTracking:boolean;siteAcceptance:boolean;initialIssue:boolean;providerCertified:boolean;manualMessaging:boolean;messageWorkerConfigured:boolean};
   certification:'requires_end_to_end_homologation';providerDeliveryVerified:false;note:string};
 const fmt=(n:number)=>new Intl.NumberFormat('pt-BR').format(n);
@@ -15,6 +15,7 @@ const lanes=[
   {key:'messages',label:'Avisos',subtitle:'Fila de comunicação',icon:ClipboardList},
   {key:'acceptances',label:'Aceites',subtitle:'Site → Entregas',icon:Truck},
   {key:'tracking_links',label:'Acompanhamento',subtitle:'Links iniciais P9',icon:ShieldCheck},
+  {key:'automatic_delivery',label:'Envio protegido',subtitle:'Fila inicial R27 · sem reenvio incerto',icon:ShieldCheck},
 ] as const;
 export function Dfl360OperationsCard(){
   const [snapshot,setSnapshot]=useState<Snapshot|null>(null);
@@ -66,6 +67,7 @@ export function Dfl360OperationsCard(){
               </div>
               <small>Amostra: {lane.sample}/{snapshot.sampleLimit}{lane.truncated?' · há mais registros':''}
                 {c.suppressed>0?` · ${c.suppressed} bloqueados`:''}</small>
+              {key==='automatic_delivery'&&lane.staleProcessing>0&&<p className={styles.bad}>Em processamento há mais de 5 min: {lane.staleProcessing}. Exige revisão.</p>}
             </>}
           </div>;
         })}
@@ -75,6 +77,7 @@ export function Dfl360OperationsCard(){
           <span>Consulta somente leitura · {new Date(snapshot.checkedAt).toLocaleString('pt-BR')}</span></div>
         <p><strong>WhatsApp automático:</strong> {snapshot.flags.publicTracking&&snapshot.flags.siteAcceptance&&snapshot.flags.initialIssue&&snapshot.flags.providerCertified?'Flags do Site configuradas — homologação real ainda necessária':'Etapas automáticas desabilitadas ou incompletas no Site'}.
           {' '}Recibo do provedor não prova entrega ao cliente.</p>
+        <p><strong>Transporte P9:</strong> {snapshot.transportReady?'Configurado no Site; ainda requer certificação comprovada do receptor e do canal':'OFF / incompleto. Nenhum envio novo autorizado por esta tela'}. {' '}Falhas incertas exigem revisão; nunca repetir automaticamente.</p>
         {snapshot.degraded&&<p className={styles.bad}>Uma ou mais filas não puderam ser consultadas. Os números disponíveis são parciais.</p>}
       </div>
     </>}

@@ -4,6 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { adminDb } from '@/lib/integration/server/admin';
 import { callEntregas } from '@/lib/tracking/server';
 import { acceptedOrderCanNotify, AUTO_ACCEPT_COLLECTION, AUTO_ACCEPT_PATH, terminalOrDifferentAcceptance } from './automaticAcceptancePolicy';
+import { R27_COLLECTION, r27ShouldEnqueue } from './r27ProviderPolicy';
 
 type Raw = Record<string, unknown>;
 const text = (v: unknown): string => typeof v === 'string' ? v.trim() : '';
@@ -76,12 +77,22 @@ export async function drainAutoAcceptances(limit=5) {
     const next= new Date(Date.now()+Math.min(30,2**claim.attempts)*60_000).toISOString();
     // R26: stale workers cannot overwrite a newer lease/acknowledgement.
     const settled=await adminDb.runTransaction(async tx=>{
+      // R27: enqueue once AT THE SAME TX as commercial ACK; no old backlog.
+      // Read every document before the first write (Firestore transaction rule).
+      const enqueue=state==='acknowledged'&&r27ShouldEnqueue(process.env,claim.acceptedAt);
+      const jobRef=enqueue?adminDb.collection(R27_COLLECTION).doc(claim.orderId):null;
       const fresh=await tx.get(doc.ref);
+      const jobSnap=jobRef?await tx.get(jobRef):null;
       const live=(fresh.data()||{}) as Raw;
       if(!fresh.exists||text(live.state)!=='processing'||text(live.locked_by)!==lock)return false;
       tx.update(doc.ref,{state,locked_at:null,locked_by:null,updated_at:new Date().toISOString(),
         last_error_code:code,...(state==='pending'?{retry_at:next}:{}),
         ...(state==='acknowledged'?{acknowledged_at:new Date().toISOString()}:{}),});
+      if(jobRef&&jobSnap&&!jobSnap.exists){
+        const stamp=new Date().toISOString();
+        tx.create(jobRef,{order_id:claim.orderId,accepted_at:claim.acceptedAt,
+          state:'pending',attempts:0,created_at:stamp,updated_at:stamp});
+      }
       return true;
     });
     if(!settled){result.deferred++;continue;}
