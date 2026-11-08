@@ -1,6 +1,7 @@
 /** R29 — admin-only, read-only, one-shot preflight. No customer data or order IDs. */
 import 'server-only';
 import {r27ProviderConfig} from './r27ProviderPolicy';
+import {r30AssessRelease} from './r30ReleasePolicy';
 import {R29_PREFLIGHT,R29_URL,r29Checks,r29NoSends,r29ValidPreflight,type R29Remote} from './r29CertificationPolicy';
 const EMPTY:R29Remote={state:'not_checked',providerConfigured:null,deliveryEnabled:null};
 
@@ -31,9 +32,10 @@ async function probeOnce():Promise<R29Remote> {
 }
 export async function r29ReadCertification(probe=false){
   const valid=Boolean(r27ProviderConfig(process.env));
+  const checks=r29Checks(process.env,valid);
+  const receiver=probe?await probeOnce():EMPTY;
   return {ok:true as const,checkedAt:new Date().toISOString(),
-    checks:r29Checks(process.env,valid),
-    receiver:probe?await probeOnce():EMPTY,
+    checks,receiver,releaseGate:r30AssessRelease(checks,receiver),
     ...r29NoSends,
     release:'requires_end_to_end_canary_homologation' as const,
     note:'Pré-voo sem pedido, telefone, token, gravação, mensagem ou ativação. HTTP 405 só confirma a presença do receptor; credenciais e entrega real são provas distintas.',

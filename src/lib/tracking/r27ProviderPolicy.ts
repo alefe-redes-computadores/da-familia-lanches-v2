@@ -52,7 +52,7 @@ export function r27DispatchConfigured(env:Record<string,string|undefined>):boole
     env.DFL_SITE_TRACKING_AUTO_PROVIDER_CERTIFIED==='1'&&
     env.DFL_SITE_TRACKING_PROVIDER_TRANSPORT_CERTIFIED==='1'&&
     env.DFL_SITE_TRACKING_AUTO_WORKER_ENABLED==='1'&&
-    env.DFL_SITE_TRACKING_AUTO_KILL_SWITCH!=='true'&&
+    env.DFL_SITE_TRACKING_AUTO_KILL_SWITCH==='false'&&
     r27ValidActivation(env.DFL_SITE_TRACKING_AUTO_ACTIVATED_AT)&&
     r27ProviderConfig(env)!==null;
 }

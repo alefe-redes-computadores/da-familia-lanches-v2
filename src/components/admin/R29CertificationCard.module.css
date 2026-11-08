@@ -17,3 +17,15 @@
 .error{display:flex;align-items:center;gap:7px;font-size:11px;color:#f1a49c;margin:0}
 @media(max-width:720px){.checks{grid-template-columns:1fr}.head button{width:100%;justify-content:center}}
 @media(prefers-reduced-motion:reduce){.root *{transition:none!important;animation:none!important}}
+
+/* R30: progress of controlled certification, not a production activation badge. */
+.release{display:grid;gap:8px;border:1px solid #465363;background:#111b24;border-radius:14px;padding:13px;min-width:0}
+.release>strong{font-size:12px;color:#e9be7b;line-height:1.4}
+.release>span,.release>small{font-size:11px;color:#b9c6cf;line-height:1.5}
+.release[data-gate='unsafe_remote_enabled']{border-color:#d6746d;background:#331b1a}
+.release[data-gate='unsafe_remote_enabled']>strong{color:#f8aca6}
+.release[data-gate='ready_for_isolated_canary']{border-color:#577c66}
+.releaseSteps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.releaseSteps span{display:block;min-width:0;padding:8px;border:1px solid #354656;border-radius:9px;font-size:10px;color:#c3d4df;overflow-wrap:anywhere}
+.release ul{margin:2px 0 0;padding-left:18px;display:grid;gap:4px;color:#e3c2a5;font-size:11px;line-height:1.5}
+@media(max-width:720px){.releaseSteps{grid-template-columns:1fr}}

@@ -34,11 +34,18 @@ export function r29Checks(env:Record<string,string|undefined>,configValid:boolea
     check('transport','Transporte certificado no Site',enabled('DFL_SITE_TRACKING_PROVIDER_TRANSPORT_CERTIFIED')),
     check('worker','Worker automático',enabled('DFL_SITE_TRACKING_AUTO_WORKER_ENABLED')),
     check('endpoint','Credenciais e destino HTTPS do Site',configValid),
-    check('activation','Marco de ativação definido',Boolean(env.DFL_SITE_TRACKING_AUTO_ACTIVATED_AT?.trim())),
-    check('kill','Interruptor de emergência liberado',env.DFL_SITE_TRACKING_AUTO_KILL_SWITCH!=='true'),
+    check('activation','Marco UTC válido',r29ValidActivation(env.DFL_SITE_TRACKING_AUTO_ACTIVATED_AT)),
+    check('kill','Envio liberado pelo interruptor',env.DFL_SITE_TRACKING_AUTO_KILL_SWITCH==='false'),
     {id:'entregas',label:'Entregas: capability e aceite real',state:'unknown'},
     {id:'supabase',label:'Supabase: segredos e Evolution certificados',state:'unknown'},
     {id:'customer',label:'Mensagem recebida pelo canário',state:'unknown'},
   ];
 }
+/** Real timestamp, no empty or fabricated activation gate. */
+export function r29ValidActivation(value:unknown,now=Date.now()):boolean {
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value))return false;
+  const millis=Date.parse(value);
+  return Number.isFinite(millis)&&millis<=now+120_000&&millis>=Date.UTC(2026,0,1);
+}
+
 export const r29NoSends = {orderRead:false,tokenIssued:false,providerSend:false,dbWrite:false,customerDeliveryVerified:false} as const;

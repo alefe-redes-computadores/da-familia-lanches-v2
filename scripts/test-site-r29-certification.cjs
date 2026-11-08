@@ -39,7 +39,7 @@ ok(checks.length===12,'complete checklist');
 ok(checks.find(x=>x.id==='endpoint').state==='off','missing secrets are OFF');
 ok(checks.find(x=>x.id==='entregas').state==='unknown','Entregas not incorrectly certified');
 ok(checks.find(x=>x.id==='customer').state==='unknown','WhatsApp receipt not assumed');
-ok(checks.find(x=>x.id==='kill').state==='configured','kill switch represents current flag, not certification');
+ok(checks.find(x=>x.id==='kill').state==='off','kill switch missing is OFF and cannot authorize sending');
 ok(policy.r29NoSends.providerSend===false && policy.r29NoSends.tokenIssued===false && policy.r29NoSends.dbWrite===false,'no side effects contract');
 const route=read('src/app/api/admin/dfl360-certification/route.ts');
 ok(route.includes('verifyIdToken(bearer,true)')&&route.includes('isAdminEmail(claims.email)'),'admin Firebase revocation check');

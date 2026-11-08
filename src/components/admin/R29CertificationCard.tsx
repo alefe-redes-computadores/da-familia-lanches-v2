@@ -5,7 +5,11 @@ import {Activity,CheckCircle2,LockKeyhole,RefreshCw,ShieldAlert} from 'lucide-re
 import {auth} from '@/lib/firebase';
 import styles from './R29CertificationCard.module.css';
 type Check={id:string;label:string;state:'configured'|'off'|'unknown'};
-type Snapshot={ok:true;checkedAt:string;checks:Check[];
+type ReleaseGate={status:'blocked'|'ready_for_isolated_canary'|'unsafe_remote_enabled';
+  transportAuthenticated:boolean;providerConfigured:boolean;remoteSendDisabled:boolean;
+  siteWorkerDisabled:boolean;customerDeliveryVerified:false;siteDispatchAuthorized:false;
+  blockers:{code:string;label:string}[];nextAction:string};
+type Snapshot={ok:true;checkedAt:string;checks:Check[];releaseGate:ReleaseGate;
   receiver:{state:'not_checked'|'reachable'|'authenticated'|'unauthorized'|'unavailable'|'invalid_reply';providerConfigured:boolean|null;deliveryEnabled:boolean|null};
   orderRead:false;tokenIssued:false;providerSend:false;dbWrite:false;customerDeliveryVerified:false;
   release:'requires_end_to_end_canary_homologation';note:string};
@@ -31,7 +35,7 @@ export function R29CertificationCard(){
         headers:{Authorization:`Bearer ${jwt}`},
       });
       const json=await res.json().catch(()=>null) as Snapshot|null;
-      if(!res.ok||json?.ok!==true||!Array.isArray(json.checks))throw new Error('Pré-voo indisponível. Confira o acesso ao servidor.');
+      if(!res.ok||json?.ok!==true||!Array.isArray(json.checks)||!json.releaseGate)throw new Error('Pré-voo indisponível. Confira o acesso ao servidor.');
       setData(json);
     }catch(e){setError(e instanceof Error&&e.name==='AbortError'?'Consulta excedeu o prazo; nenhum envio foi iniciado.':e instanceof Error?e.message:'Falha na consulta.');}
     finally{window.clearTimeout(timer);setBusy(false);}
@@ -48,6 +52,19 @@ export function R29CertificationCard(){
     {error&&<p role="alert" className={styles.error}><ShieldAlert size={15}/>{error}</p>}
     {data?<>
       <p className={styles.info} role="status"><LockKeyhole size={15}/>Receptor: {receiverLabel[data.receiver.state]}. {data.receiver.providerConfigured===true?'Evolution configurada no receptor.':data.receiver.providerConfigured===false?'Evolution incompleta no receptor.':''}</p>
+      <section className={styles.release} aria-label="Situação para homologação" data-gate={data.releaseGate.status}>
+        <strong>{data.releaseGate.status==='unsafe_remote_enabled'?'Atenção: receptor habilitado sem certificação':
+          data.releaseGate.status==='ready_for_isolated_canary'?'Transporte preparado para canário isolado':'Automação bloqueada até completar a homologação'}</strong>
+        <span>{data.releaseGate.nextAction}</span>
+        <div className={styles.releaseSteps}>
+          <span>Conexão S2S: {data.releaseGate.transportAuthenticated?'Autenticada':'Pendente'}</span>
+          <span>API Evolution: {data.releaseGate.providerConfigured?'Configurada':'Não comprovada'}</span>
+          <span>Disparos do Site: {data.releaseGate.siteWorkerDisabled?'OFF':'Revisar flags'}</span>
+          <span>Envio do receptor: {data.releaseGate.remoteSendDisabled?'OFF confirmado':'Não comprovado / atenção'}</span>
+        </div>
+        <ul>{data.releaseGate.blockers.slice(0,6).map(x=><li key={x.code}>{x.label}</li>)}</ul>
+        <small>Sem certificação de cliente, sem emissão de token e sem autorização para disparos.</small>
+      </section>
       <div className={styles.checks}>
         {data.checks.map(x=><div className={styles.check} key={x.id}>
           <span>{x.label}</span><strong data-state={x.state}>{x.state==='configured'?'Configurado':x.state==='unknown'?'A homologar':'OFF / pendente'}</strong>
