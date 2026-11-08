@@ -13,7 +13,7 @@ export function r11SiteMessageGate({eventType,sourceEventType,phone,order,env}:R
   // Site exclusively owns pickup-ready messaging; reverse logistics owns tracking only.
   if (sourceEventType === 'delivery.pickup_ready') return 'pickup_ready_site_authority';
   const mode = order.tipoEntrega === 'pickup' ? 'pickup' : 'delivery';
-  if (mode === 'pickup' && eventType.startsWith('delivery.') && !(eventType === 'delivery.completed' && sourceEventType === 'order.updated')) return 'pickup_logistics_suppressed';
+  if (mode === 'pickup' && eventType.startsWith('delivery.')) return 'pickup_logistics_suppressed';
   if (mode === 'delivery' && eventType === 'delivery.completed' && sourceEventType === 'order.updated') return 'site_delivery_completion_suppressed';
   const st = terminal(order.status);
   if ((st === 'cancelado' || st === 'finalizado') && (eventType === 'order.production' || eventType === 'order.ready')) return 'obsolete_commercial_stage';

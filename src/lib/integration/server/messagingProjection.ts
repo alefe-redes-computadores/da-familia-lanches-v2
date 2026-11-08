@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { IntegrationEventEnvelope } from "../contracts";
 import { adminDb } from "./admin";
 import { r11SiteMessageGate } from "./messagingR11Policy";
+import { r24MessageStateGuard } from "./r24MessageStateGuard";
 
 export type DflMessagingEventType =
   | "order.created" | "order.production" | "order.ready" | "order.cancelled"
@@ -85,7 +86,8 @@ function commercialType(event: IntegrationEventEnvelope): DflMessagingEventType 
   // ao Entregas e poderia acionar template/logística incorretos.
   // Um eventual aviso de "retirado" exige template próprio homologado.
   if (n === "finalizado" && text(payload.tipoEntrega) === "pickup") {
-    return "delivery.completed";
+    // R24: retirada finalizada nao e conclusao de entrega; sem mensagem logistico-falsa.
+    return null;
   }
 
   if (n.includes("cancel")) return "order.cancelled";
@@ -149,7 +151,12 @@ export async function ensureCommercialMessagingIntent(event: IntegrationEventEnv
       Boolean(text(current.deliveryOperationalCompletedAt)) ||
       text(current.deliveryTrackingEvent) === "delivery.completed";
 
-    if (deliveryCompleted || pickupTerminal) {
+    // R24: rejeita um estagio obsoleto antes mesmo de enfileirar.
+    // Se ainda nao ha snapshot, mantem a recuperacao existente no claim.
+    const r24Reason = currentOrder.exists
+      ? r24MessageStateGuard(eventType, current, event.event_type)
+      : null;
+    if (deliveryCompleted || pickupTerminal || r24Reason) {
       try {
         await ref.create({
           intent_id:`intent-msg-v1__${event.event_id}`,
@@ -166,7 +173,7 @@ export async function ensureCommercialMessagingIntent(event: IntegrationEventEnv
           status:"suppressed",
           schema_version:3,
           monotonic_protocol:"customer-stage-v1",
-          suppressed_reason:"commercial_stage_after_delivery_completed",
+          suppressed_reason:deliveryCompleted ? "commercial_stage_after_delivery_completed" : (r24Reason || "r24_pickup_terminal"),
           processed_at:now,
           created_at:now,
           updated_at:now,
@@ -473,7 +480,13 @@ async function claimRawCandidate(docId:string, workerId:string):Promise<ClaimedR
     const customer = obj(order.customerSnapshot);
     const phone = text(data.customer_phone) || text(customer.phoneE164) || text(customer.phone) || text(order.userPhone);
     const eventType = text(data.messaging_event_type) || reverseType(data.intent_type) || '';
-    const reason = r11SiteMessageGate({eventType,sourceEventType:text(data.source_event_type),phone,order,env:process.env});
+    // R24 P0: o pedido autoritativo e revalidado DENTRO do claim transacional.
+    // Mensagens antigas nao devem ser disparadas apos cancelamento, conclusao
+    // ou avancos de etapa; nenhuma consulta de rede adicional e criada.
+    const r24Reason = orderSnapshot?.exists
+      ? r24MessageStateGuard(eventType, order, text(data.source_event_type))
+      : null;
+    const reason = r24Reason || r11SiteMessageGate({eventType,sourceEventType:text(data.source_event_type),phone,order,env:process.env});
     if (reason === 'r11_site_gate_off' || reason === 'r11_kill_switch') return null;
     if (reason) {
       tx.update(ref,{status:"suppressed",messaging_eligible:false,suppressed_reason:reason,
