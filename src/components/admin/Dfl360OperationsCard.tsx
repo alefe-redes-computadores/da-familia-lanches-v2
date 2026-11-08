@@ -3,6 +3,7 @@ import {useState} from 'react';
 import {AlertTriangle,CheckCircle2,ClipboardList,RefreshCw,ShieldCheck,Truck} from 'lucide-react';
 import {auth} from '@/lib/firebase';
 import styles from './Dfl360OperationsCard.module.css';
+import {R29CertificationCard} from './R29CertificationCard';
 
 type Counts={pending:number;processing:number;acknowledged:number;review:number;suppressed:number;queued:number;other:number};
 type Lane={available:boolean;sample:number;truncated:boolean;counts:Counts;staleProcessing:number};
@@ -81,5 +82,6 @@ export function Dfl360OperationsCard(){
         {snapshot.degraded&&<p className={styles.bad}>Uma ou mais filas não puderam ser consultadas. Os números disponíveis são parciais.</p>}
       </div>
     </>}
+    <R29CertificationCard />
   </section>;
 }
