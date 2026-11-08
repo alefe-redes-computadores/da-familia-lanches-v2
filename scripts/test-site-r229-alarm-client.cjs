@@ -17,7 +17,7 @@ const checks=[
   ['Tem limite de toque por lote',hook.includes('}, 35000)')],
   ['Timer sempre cancelado ao silenciar',hook.includes('clearTimeout(alarmTimeoutRef.current)')],
   ['Vibracao cancelada ao aceitar',hook.includes('navigator.vibrate?.(0)')],
-  ['Push ja aceito nao reativa',hook.includes('if (known && normalizarStatus(known.status) !== "Pendente") return')],
+  ['Push ja aceito nao reativa',hook.includes('if (!known || !isAwaitingCommercialAcceptance(known)) return') && hook.includes('isAwaitingCommercialAcceptance')],
   ['Um unico listener Firestore', (hook.match(/onSnapshot\s*\(/g)||[]).length===1],
   ['Service worker fecha notificacao por pedido',sw.includes('DFL_ADMIN_ACK_ORDER')&&sw.includes('getNotifications({tag:`new-order-${id}`})')],
   ['FCM continua ativo',sw.includes('messaging.onBackgroundMessage')],

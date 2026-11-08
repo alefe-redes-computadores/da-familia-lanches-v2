@@ -15,9 +15,9 @@ const messaging = read("src/lib/integration/server/messagingProjection.ts");
 const reverse = read("src/lib/integration/server/reversePersistence.ts");
 
 ok(api.includes('mode === "history"'), "API possui modo histórico");
-ok(api.includes("FieldPath.documentId()"), "histórico independe da data legado");
+ok(api.includes('const HISTORY_SNAPSHOT_LIMIT = 500') && api.includes('adminDb.collection(\"Pedidos\").limit(HISTORY_SNAPSHOT_LIMIT).get()') && api.includes('terminal.sort((a,b)=>') && api.includes('terminalMillis(a.data() as Raw)'), "histórico independe da data legado");
 ok(api.includes("historyCursor"), "histórico possui cursor");
-ok(api.includes("HISTORY_MAX_SCAN_PAGES"), "scan histórico é limitado");
+ok(api.includes('truncated:snap.size>=HISTORY_SNAPSHOT_LIMIT') && api.includes('encodeHistoryCursor(nextOffset)') && api.includes('decodeHistoryCursor(cursorValue)'), "scan histórico é limitado");
 
 ok(
   hook.includes('where("status", "in", [...ACTIVE_QUERY_STATUSES])'),
@@ -28,7 +28,7 @@ ok(
   "listeners por status removidos",
 );
 ok(hook.includes("loadMoreHistory"), "hook pagina histórico");
-ok(page.includes("Carregar pedidos mais antigos"), "admin expõe paginação");
+ok(page.includes("Carregar mais 20 pedidos") && page.includes("loadMoreHistory()"), "admin expõe paginação");
 
 ok(
   admin.includes("Aguardando aceite há mais de 30 min"),

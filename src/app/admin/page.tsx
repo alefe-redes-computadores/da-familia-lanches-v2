@@ -24,7 +24,7 @@ import { evaluateStoreStatus } from "@/lib/storeSchedule";
 import { useAdminStoreSettings } from "@/hooks/useAdminStoreSettings";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { imprimirPedido } from "@/lib/printOrder";
-import { adminOrderSearchText, compareOperationalOrders, ageLabel, operationalAttention, orderAgeMinutes } from "@/lib/adminOrders";
+import { adminOrderSearchText, compareOperationalOrders, ageLabel, operationalAttention, orderAgeMinutes, isAwaitingCommercialAcceptance } from "@/lib/adminOrders";
 import { orderMatchesStageFocus, stageFocusForTab, type StageFocus } from "@/lib/adminOrderStageFocus";
 import { isOverdueScheduledOrder } from "@/lib/scheduledOrderFocus";
 import { ScheduledReminderSettings } from "@/components/admin/ScheduledReminderSettings";
@@ -424,9 +424,7 @@ function AdminPageContent() {
 
   const overdueScheduledCount = useMemo(() => operationalPedidos.filter((p) => isOverdueScheduledOrder(normalizarStatus(p.status), p.scheduledFor, now)).length, [operationalPedidos, now]);
   const counts = useMemo(() => ({
-    pendentes: operationalPedidos.filter(
-      (p) => normalizarStatus(p.status) === "Pendente",
-    ).length,
+    pendentes: operationalPedidos.filter(isAwaitingCommercialAcceptance).length,
     producao: operationalPedidos.filter(
       (p) => normalizarStatus(p.status) === "Em Produção",
     ).length,

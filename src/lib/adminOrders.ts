@@ -62,18 +62,28 @@ export function ageLabel(order: AdminOrder, now = Date.now()) {
   return `há ${days} dia${days === 1 ? "" : "s"}`;
 }
 
+/** R22: o aceite R21 e duravel sem mudar o estado canonico Pendente. */
+export function isAwaitingCommercialAcceptance(order: AdminOrder): boolean {
+  return normalizarStatus(order.status) === "Pendente" &&
+    !(typeof order.acceptedAt === "string" && Number.isFinite(Date.parse(order.acceptedAt)));
+}
+
 export function operationalAttention(order: AdminOrder, now = Date.now()) {
   const status = normalizarStatus(order.status);
   if (status === "Agendado" || status === "Finalizado" || status === "Cancelado") return null;
-  const minutes = orderAgeMinutes(order, now);
+  const acceptedAtMs = status === "Pendente" && !isAwaitingCommercialAcceptance(order)
+    ? Date.parse(String(order.acceptedAt)) : Number.NaN;
+  const minutes = Number.isFinite(acceptedAtMs)
+    ? Math.max(0, Math.floor((now - acceptedAtMs) / 60_000))
+    : orderAgeMinutes(order, now);
   if (minutes == null || minutes < 30) return null;
 
   if (status === "Pendente") {
     return {
       level: minutes >= 60 ? "high" : "medium",
-      label: minutes >= 60
-        ? "Aguardando aceite há mais de 1h"
-        : "Aguardando aceite há mais de 30 min",
+      label: !isAwaitingCommercialAcceptance(order)
+        ? (minutes >= 60 ? "Aceito, aguardando preparo há mais de 1h" : "Aceito, aguardando preparo há mais de 30 min")
+        : (minutes >= 60 ? "Aguardando aceite há mais de 1h" : "Aguardando aceite há mais de 30 min"),
     } as const;
   }
 
@@ -134,6 +144,12 @@ const priority: Record<string, number> = {
 export function compareOperationalOrders(a: AdminOrder, b: AdminOrder) {
   const sa = normalizarStatus(a.status);
   const sb = normalizarStatus(b.status);
+  // Pedidos sem aceite primeiro; pedidos aceitos ficam na mesma fila de cozinha.
+  if (sa === "Pendente" && sb === "Pendente") {
+    const aa = isAwaitingCommercialAcceptance(a);
+    const bb = isAwaitingCommercialAcceptance(b);
+    if (aa !== bb) return aa ? -1 : 1;
+  }
   const pa = priority[sa] ?? 99;
   const pb = priority[sb] ?? 99;
   if (pa !== pb) return pa - pb;

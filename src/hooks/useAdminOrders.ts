@@ -11,7 +11,7 @@ import {
 import { db } from "@/lib/firebase";
 import { normalizarStatus } from "@/lib/orderUtils";
 import { orderDateToMillis } from "@/lib/orderCompat";
-import { orderHistoryTimestamp, type AdminOrder } from "@/lib/adminOrders";
+import { orderHistoryTimestamp, isAwaitingCommercialAcceptance, type AdminOrder } from "@/lib/adminOrders";
 import { recordFirestoreReadEstimate } from "@/lib/firestoreReadBudget";
 import { adminNotificationPrefEnabled } from "@/lib/adminNotificationPrefs";
 
@@ -199,7 +199,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       realtimeOrdersRef.current.get(cleanId) ??
       authoritativeOrdersRef.current.get(cleanId);
 
-    if (order && normalizarStatus(order.status) === "Pendente") {
+    if (order && isAwaitingCommercialAcceptance(order)) {
       raiseAdminAlarm([alarmCandidate(order)]);
     }
   }, [raiseAdminAlarm]);
@@ -345,7 +345,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
         raiseAdminAlarm(
           payload.orders
-            .filter((order) => normalizarStatus(order.status) === "Pendente")
+            .filter(isAwaitingCommercialAcceptance)
             .map(alarmCandidate),
         );
 
@@ -406,7 +406,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
 
         const pendingOrders =
           [...realtime.values()].filter(
-            (order) => normalizarStatus(order.status) === "Pendente",
+            isAwaitingCommercialAcceptance,
           );
 
         raiseAdminAlarm(pendingOrders.map(alarmCandidate));
@@ -433,7 +433,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
         window.dispatchEvent(new CustomEvent("dfl:admin-badge", {
           detail: {
             count: [...realtime.values()].filter((order) =>
-              ["Pendente", "Pronto"].includes(normalizarStatus(order.status)),
+              isAwaitingCommercialAcceptance(order) || normalizarStatus(order.status) === "Pronto",
             ).length,
           },
         }));
@@ -468,7 +468,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       // Push atrasado nao pode rearmar um pedido ja aceito no snapshot.
       const known = realtimeOrdersRef.current.get(detail.orderId) ??
         authoritativeOrdersRef.current.get(detail.orderId);
-      if (known && normalizarStatus(known.status) !== "Pendente") return;
+      if (!known || !isAwaitingCommercialAcceptance(known)) return;
 
       raiseAdminAlarm([{
         id: detail.orderId,
