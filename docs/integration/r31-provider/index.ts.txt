@@ -1,0 +1,177 @@
+/** DFL SITE R31 — existing messaging HMAC + R29 authenticated no-send preflight + R28 ephemeral P9 WhatsApp handoff. OFF unless explicitly certified.
+ * Site R27 is the only caller. No outbox, replay, token persistence, or retries.
+ * IMPORTANT: Never log the body, recipient, token, text, auth header or Evolution reply.
+ */
+import {createClient} from 'npm:@supabase/supabase-js@2.75.0';
+import {evolutionEndpoint,parseP9Request,p9Receipt,trustedEvolutionMessageId} from './policy.ts';
+
+const HEADERS={
+  'content-type':'application/json; charset=utf-8',
+  'cache-control':'private, no-store, max-age=0',
+  'pragma':'no-cache',
+  'referrer-policy':'no-referrer',
+  'x-content-type-options':'nosniff',
+};
+const json=(v:unknown,status=200)=>new Response(JSON.stringify(v),{status,headers:HEADERS});
+const error=(status=503)=>json({ok:false,code:'DFL_TRACKING_HANDOFF_UNAVAILABLE'},status);
+const env=(k:string)=>String(Deno.env.get(k)||'').trim();
+const encoder=new TextEncoder();
+/** Fixed-shape hash comparison, without leaking a raw secret or an equality timing prefix. */
+async function sameSecret(actual:string,expected:string) {
+  if(actual.length>1024||expected.length>1024)return false;
+  const [a,b]=await Promise.all([
+    crypto.subtle.digest('SHA-256',encoder.encode(actual)),
+    crypto.subtle.digest('SHA-256',encoder.encode(expected)),
+  ]);
+  const aa=new Uint8Array(a),bb=new Uint8Array(b);
+  let diff=actual.length^expected.length;
+  for(let i=0;i<aa.length;i++)diff|=aa[i]^bb[i];
+  return diff===0;
+}
+async function r31HmacHex(message:string,secret:string){
+  const k=await crypto.subtle.importKey('raw',encoder.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const digest=await crypto.subtle.sign('HMAC',k,encoder.encode(message));
+  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function keyForOrder(orderKey:string,secret:string) {
+  const key=await crypto.subtle.importKey('raw',encoder.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const digest=await crypto.subtle.sign('HMAC',key,encoder.encode('r28|'+orderKey));
+  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+}
+/** Read a public, unauthenticated request with a strict byte cap. Never log bytes. */
+async function r31ReadSmallJson(req:Request,limit=2048):Promise<string|null> {
+  const stream=req.body;
+  if(!stream)return null;
+  const reader=stream.getReader();
+  let total=0;const chunks:Uint8Array[]=[];
+  try {
+    for(;;) {
+      const item=await reader.read();
+      if(item.done)break;
+      total+=item.value.byteLength;
+      if(total>limit){await reader.cancel();return null;}
+      chunks.push(item.value);
+    }
+    const bytes=new Uint8Array(total);let offset=0;
+    for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+    return new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+  } catch {try{await reader.cancel();}catch{/* closed */}return null;}
+  finally{try{reader.releaseLock();}catch{/* closed */}}
+}
+const correlation=()=> 'r28-'+crypto.randomUUID().replace(/-/g,'');
+
+Deno.serve(async(req:Request)=>{
+  if(req.method!=='POST')return error(405);
+  // Readiness probe R29 is authenticated and NEVER sends, stores or issues links.
+  // The live send branch remains OFF unless two separate switches authorize it.
+  const shared=env('DFL_TRACKING_HANDOFF_SHARED_SECRET');
+  const allowedKey=env('DFL_TRACKING_HANDOFF_SITE_APIKEY');
+  const ingestion=env('DFL_MESSAGING_INGEST_TOKEN');
+  const worker=env('DFL_MESSAGING_WORKER_TOKEN');
+  // A bounded body is required for HMAC verification; no parsing before authorization.
+  if(!(req.headers.get('content-type')||'').startsWith('application/json'))return error(415);
+  const announced=Number(req.headers.get('content-length')||0);
+  if(!Number.isFinite(announced)||announced<0||announced>2048)return error(413);
+  const rawBody=await r31ReadSmallJson(req);
+  if(rawBody===null)return error(413);
+  const dedicatedConfigured=shared.length>=32&&shared.length<=512&&allowedKey.startsWith('sb_secret_')&&allowedKey.length>=35;
+  const dedicated=dedicatedConfigured&&
+    await sameSecret(req.headers.get('x-dfl-tracking-provider-secret')||'',shared)&&
+    await sameSecret(req.headers.get('apikey')||'',allowedKey);
+  // Read-only preflight and (only when separately enabled) send can reuse the
+  // already working messaging credentials without sending their raw values.
+  const existingConfigured=ingestion.length>=24&&ingestion.length<=512&&
+    worker.length>=24&&worker.length<=512&&ingestion!==worker;
+  let existing=false;
+  if(existingConfigured) {
+    const stamp=req.headers.get('x-dfl-p9-timestamp')||'';
+    if(/^\d{13}$/.test(stamp)&&Math.abs(Date.now()-Number(stamp))<=90_000) {
+      const message=`DFL-P9-R31\n${stamp}\n${rawBody}`;
+      const [sigA,sigB]=await Promise.all([r31HmacHex(message,ingestion),r31HmacHex(message,worker)]);
+      const a=req.headers.get('x-dfl-p9-signature-a')||'';
+      const b=req.headers.get('x-dfl-p9-signature-b')||'';
+      existing=/^[a-f0-9]{64}$/.test(a)&&/^[a-f0-9]{64}$/.test(b)&&
+        await sameSecret(a,sigA)&&await sameSecret(b,sigB);
+    }
+  }
+  if(!dedicated&&!existing)return error(dedicatedConfigured||existingConfigured?401:503);
+  // A separate, signed server-side preflight: no order, customer or token allowed.
+  // It works while dispatch is OFF. This is NOT a send or a certification claim.
+  if(req.headers.get('x-dfl-tracking-preflight')==='1') {
+    let body:unknown;
+    try {
+      if(rawBody.length<30||rawBody.length>180)return error(413);
+      body=JSON.parse(rawBody);
+    } catch {return error(422);}
+    if(!body||typeof body!=='object'||Array.isArray(body))return error(422);
+    const p=body as Record<string,unknown>;
+    const keys=Object.keys(p);
+    if(keys.length!==3||!keys.every(k=>['contract','version','action'].includes(k))||
+      p.contract!=='dfl.tracking.provider.preflight.v1'||p.version!==1||p.action!=='preflight')return error(422);
+    const evolutionUrl=env('DFL_EVOLUTION_API_URL')||env('EVOLUTION_API_URL');
+    const instance=env('DFL_EVOLUTION_INSTANCE')||env('EVOLUTION_INSTANCE');
+    const apiKey=env('DFL_EVOLUTION_API_KEY')||env('EVOLUTION_API_KEY');
+    const configured=Boolean(evolutionEndpoint(evolutionUrl,instance)&&apiKey);
+    return json({contract:'dfl.tracking.provider.preflight.v1',version:1,action:'preflight',
+      auth_verified:true,provider_configured:configured,
+      delivery_enabled:env('DFL_TRACKING_HANDOFF_ENABLED')==='true'&&env('DFL_TRACKING_HANDOFF_KILL_SWITCH')==='false',
+      sends_attempted:0,customer_delivery_confirmed:false});
+  }
+  if(env('DFL_TRACKING_HANDOFF_ENABLED')!=='true'||env('DFL_TRACKING_HANDOFF_KILL_SWITCH')!=='false')return error();
+  let body:unknown;
+  try{
+    if(rawBody.length<100||rawBody.length>2048)return error(413);
+    body=JSON.parse(rawBody);
+  }catch{return error(422);}
+  const input=parseP9Request(body);
+  if(!input)return error(422);
+  const evolutionUrl=env('DFL_EVOLUTION_API_URL')||env('EVOLUTION_API_URL');
+  const evolutionInstance=env('DFL_EVOLUTION_INSTANCE')||env('EVOLUTION_INSTANCE');
+  const evolutionKey=env('DFL_EVOLUTION_API_KEY')||env('EVOLUTION_API_KEY');
+  const target=evolutionEndpoint(evolutionUrl,evolutionInstance);
+  if(!target||!evolutionKey)return error();
+  const projectUrl=env('SUPABASE_URL'),serviceRole=env('SUPABASE_SERVICE_ROLE_KEY');
+  if(!projectUrl||!serviceRole)return error();
+
+  // Reserve the order BEFORE ever calling Evolution. On network failure, the
+  // reservation remains and ANY replay fails closed, including after a crash.
+  const db=createClient(projectUrl,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
+  const orderHash=await keyForOrder(input.canonical_order_key,worker.length>=24?worker:shared);
+  const {error:reservedError}=await db.from('dfl_tracking_provider_attempts_v1').insert({
+    order_key_hmac:orderHash,state:'reserved',requested_at:new Date().toISOString(),
+  });
+  if(reservedError)return error(reservedError.code==='23505'?409:503);
+
+  let result:'accepted_by_provider'|'delivery_uncertain'|'rejected_by_provider'='delivery_uncertain';
+  let providerId=correlation();
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),5500);
+  try {
+    const reply=await fetch(target,{
+      method:'POST',redirect:'error',cache:'no-store',credentials:'omit',signal:controller.signal,
+      headers:{'content-type':'application/json','accept':'application/json','apikey':evolutionKey},
+      // The token appears ONLY in this request body to the approved provider.
+      body:JSON.stringify({number:input.recipient_e164.slice(1),
+        text:'Seu pedido está em acompanhamento. Acesse o link seguro para ver as etapas:\n'+input.tracking_link+'\nO link expira em até 45 minutos.',
+      }),
+    });
+    if(reply.ok) {
+      const raw=await reply.text();
+      if(raw.length>0&&raw.length<=4096){
+        try {
+          const id=trustedEvolutionMessageId(JSON.parse(raw));
+          if(id){providerId=id;result='accepted_by_provider';}
+        }catch{/* An HTTP success without a valid receipt is uncertain. */}
+      }
+    } else if([400,401,403,404,422].includes(reply.status)) {
+      // Definitive provider rejection. Still no retry or new grant.
+      result='rejected_by_provider';
+    }
+  } catch {/* Timeout, transport interruption or redirect => uncertain forever. */}
+  finally{clearTimeout(timer);}
+  // Never store URL, token, phone, raw response or full message in Supabase.
+  const {error:settleError}=await db.from('dfl_tracking_provider_attempts_v1')
+    .update({state:result,updated_at:new Date().toISOString()}).eq('order_key_hmac',orderHash).eq('state','reserved');
+  if(settleError)return error();
+  return json(p9Receipt(result,providerId));
+});

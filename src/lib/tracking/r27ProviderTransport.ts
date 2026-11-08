@@ -3,11 +3,13 @@
  * existing Supabase messaging ingest: its durable outbox could store the token.
  */
 import 'server-only';
-import {r27ProviderConfig,r27ValidHandoffInput,r27ValidProviderReply,type R27HandoffInput,type R27ProviderReceipt} from './r27ProviderPolicy';
+import {r27ProviderConfig,r31ExistingMessagingConfig,r27ValidHandoffInput,r27ValidProviderReply,type R27HandoffInput,type R27ProviderReceipt} from './r27ProviderPolicy';
+import {r31SignedHeaders} from './r31MessagingAuthentication';
 
 export async function r27SendToProvider(input:R27HandoffInput):Promise<R27ProviderReceipt> {
   const conf=r27ProviderConfig(process.env);
-  if(!conf||!r27ValidHandoffInput(input))throw new Error('R27_HANDOFF_NOT_READY');
+  const existing=conf?null:r31ExistingMessagingConfig(process.env);
+  if((!conf&&!existing)||!r27ValidHandoffInput(input))throw new Error('R27_HANDOFF_NOT_READY');
   // Only the trusted Edge Function may receive the ephemeral token fragment.
   const body=JSON.stringify({
     contract:'dfl.tracking.provider.v1',version:1,action:'send_tracking_initial',
@@ -16,11 +18,14 @@ export async function r27SendToProvider(input:R27HandoffInput):Promise<R27Provid
   });
   let reply:Response;
   try {
-    reply=await fetch(conf.url,{
+    const target=conf?conf.url:existing!.url;
+    const headers:Record<string,string>=conf?{'content-type':'application/json','accept':'application/json',
+      'apikey':conf.apikey,'x-dfl-tracking-provider-secret':conf.transportSecret}:
+      {'content-type':'application/json','accept':'application/json',...r31SignedHeaders(body,existing!)};
+    reply=await fetch(target,{
       method:'POST',cache:'no-store',redirect:'error',credentials:'omit',
       signal:AbortSignal.timeout(6500),
-      headers:{'content-type':'application/json','accept':'application/json',
-        'apikey':conf.apikey,'x-dfl-tracking-provider-secret':conf.transportSecret},
+      headers,
       body,
     });
   } catch {

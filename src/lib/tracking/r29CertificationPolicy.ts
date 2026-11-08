@@ -33,7 +33,7 @@ export function r29Checks(env:Record<string,string|undefined>,configValid:boolea
     check('provider','Certificação declarada no Site',enabled('DFL_SITE_TRACKING_AUTO_PROVIDER_CERTIFIED')),
     check('transport','Transporte certificado no Site',enabled('DFL_SITE_TRACKING_PROVIDER_TRANSPORT_CERTIFIED')),
     check('worker','Worker automático',enabled('DFL_SITE_TRACKING_AUTO_WORKER_ENABLED')),
-    check('endpoint','Credenciais e destino HTTPS do Site',configValid),
+    check('endpoint','Ponte P9: HTTPS e autenticação do Site',configValid),
     check('activation','Marco UTC válido',r29ValidActivation(env.DFL_SITE_TRACKING_AUTO_ACTIVATED_AT)),
     check('kill','Envio liberado pelo interruptor',env.DFL_SITE_TRACKING_AUTO_KILL_SWITCH==='false'),
     {id:'entregas',label:'Entregas: capability e aceite real',state:'unknown'},

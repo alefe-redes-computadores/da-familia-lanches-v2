@@ -22,7 +22,7 @@ export function r30AssessRelease(checks:R30Check[],remote:R30Remote):R30ReleaseA
   const siteWorkerDisabled=off('worker');
   const emergencyEngaged=off('kill');
   const blockers:{code:string;label:string}[]=[];
-  if(!good('endpoint'))blockers.push({code:'site_endpoint',label:'Configurar destino HTTPS e credenciais privadas do Site'});
+  if(!good('endpoint'))blockers.push({code:'site_endpoint',label:'Verificar ponte HTTPS e credenciais existentes do Site'});
   if(!authenticated)blockers.push({code:'s2s_auth',label:remote.state==='unauthorized'?'Corrigir autenticação S2S entre Site e Supabase':'Validar autenticação S2S no pré-voo'});
   if(authenticated&&!providerConfigured)blockers.push({code:'provider_env',label:'Conferir Evolution API no receptor Supabase'});
   if(!siteWorkerDisabled)blockers.push({code:'site_worker',label:'Manter worker automático OFF durante a homologação isolada'});

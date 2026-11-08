@@ -97,7 +97,8 @@ ok(!flow.includes('setTimeout(')&&!flow.includes('retry_at')&&!flow.includes('op
 const transport=read('src/lib/tracking/r27ProviderTransport.ts');
 ok(transport.includes("import 'server-only'")&&transport.includes("redirect:'error'")&&transport.includes("cache:'no-store'")&&transport.includes('AbortSignal.timeout'),'transporte server-only no-redirect');
 ok(!transport.includes('console.log')&&!transport.includes('console.error')&&!transport.includes('integration_notification_intents'),'sem logs nem outbox persistente');
-const providerDependencies={'server-only':{},'./r27ProviderPolicy':pure};
+const providerDependencies={'server-only':{},'./r27ProviderPolicy':pure,
+ './r31MessagingAuthentication':{r31SignedHeaders:()=>({})}};
 const good=load('src/lib/tracking/r27ProviderTransport.ts',providerDependencies,{process:{env:conf},fetch:async(url,params)=>{
  ok(url===conf.DFL_SITE_TRACKING_PROVIDER_HANDOFF_URL,'chama somente origem fixada');
  ok(params.redirect==='error'&&params.cache==='no-store'&&params.method==='POST','POST seguro');

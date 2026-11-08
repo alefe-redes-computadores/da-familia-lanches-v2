@@ -10,6 +10,7 @@ type ReleaseGate={status:'blocked'|'ready_for_isolated_canary'|'unsafe_remote_en
   siteWorkerDisabled:boolean;customerDeliveryVerified:false;siteDispatchAuthorized:false;
   blockers:{code:string;label:string}[];nextAction:string};
 type Snapshot={ok:true;checkedAt:string;checks:Check[];releaseGate:ReleaseGate;
+  bridgeMode:'dedicated'|'existing_messaging'|'unconfigured';
   receiver:{state:'not_checked'|'reachable'|'authenticated'|'unauthorized'|'unavailable'|'invalid_reply';providerConfigured:boolean|null;deliveryEnabled:boolean|null};
   orderRead:false;tokenIssued:false;providerSend:false;dbWrite:false;customerDeliveryVerified:false;
   release:'requires_end_to_end_canary_homologation';note:string};
@@ -51,7 +52,7 @@ export function R29CertificationCard(){
     </div>
     {error&&<p role="alert" className={styles.error}><ShieldAlert size={15}/>{error}</p>}
     {data?<>
-      <p className={styles.info} role="status"><LockKeyhole size={15}/>Receptor: {receiverLabel[data.receiver.state]}. {data.receiver.providerConfigured===true?'Evolution configurada no receptor.':data.receiver.providerConfigured===false?'Evolution incompleta no receptor.':''}</p>
+      <p className={styles.info} role="status"><LockKeyhole size={15}/>Ponte: {data.bridgeMode==='existing_messaging'?'credenciais de mensageria já existentes, com dupla assinatura HMAC':data.bridgeMode==='dedicated'?'credenciais P9 dedicadas':'autenticação indisponível'} · Receptor: {receiverLabel[data.receiver.state]}. {data.receiver.providerConfigured===true?'Evolution configurada no receptor.':data.receiver.providerConfigured===false?'Evolution incompleta no receptor.':''}</p>
       <section className={styles.release} aria-label="Situação para homologação" data-gate={data.releaseGate.status}>
         <strong>{data.releaseGate.status==='unsafe_remote_enabled'?'Atenção: receptor habilitado sem certificação':
           data.releaseGate.status==='ready_for_isolated_canary'?'Transporte preparado para canário isolado':'Automação bloqueada até completar a homologação'}</strong>

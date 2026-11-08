@@ -44,6 +44,20 @@ export function r27ProviderConfig(env:Record<string,string|undefined>):R27Config
     return {url:raw,apikey,transportSecret};
   } catch {return null;}
 }
+/** R31: reuse two EXISTING independent messaging tokens from Site/Supabase.
+ * Signed HMAC requests never disclose tokens or contact the durable messaging outbox.
+ * Fixed allowlisted origin. This is only a credential check, NOT certification.
+ */
+export function r31ExistingMessagingConfig(env:Record<string,string|undefined>):{
+  url:string;ingestToken:string;workerToken:string
+}|null {
+  const ingestToken=string(env.DFL_MESSAGING_INGEST_TOKEN);
+  const workerToken=string(env.DFL_MESSAGING_WORKER_TOKEN);
+  if(ingestToken.length<24||ingestToken.length>512||workerToken.length<24||workerToken.length>512||
+     ingestToken===workerToken)return null;
+  return {url:'https://bwggczkzsqcdeayyysmx.supabase.co/functions/v1/dfl-tracking-provider-handoff',
+    ingestToken,workerToken};
+}
 /** OFF by default. Every bit must be deliberately certified AND the adapter configured. */
 export function r27DispatchConfigured(env:Record<string,string|undefined>):boolean {
   return env.DFL_SITE_TRACKING_ENABLED==='1'&&
@@ -54,7 +68,7 @@ export function r27DispatchConfigured(env:Record<string,string|undefined>):boole
     env.DFL_SITE_TRACKING_AUTO_WORKER_ENABLED==='1'&&
     env.DFL_SITE_TRACKING_AUTO_KILL_SWITCH==='false'&&
     r27ValidActivation(env.DFL_SITE_TRACKING_AUTO_ACTIVATED_AT)&&
-    r27ProviderConfig(env)!==null;
+    (r27ProviderConfig(env)!==null||r31ExistingMessagingConfig(env)!==null);
 }
 
 /** Prevent pre-rollout R23 backlog from becoming customer notifications. */
