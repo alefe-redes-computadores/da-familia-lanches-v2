@@ -5,6 +5,8 @@ import type { NextRequest } from 'next/server';
 const ACCESS_PATH = '/api/integration/tracking/v1/authorize';
 const STATUS_PATH = '/api/integration/tracking/v1/status';
 const AUTO_ACCEPT_PATH = '/api/integration/tracking/v1/auto/accept';
+const AUTO_ISSUE_PATH = '/api/integration/tracking/v1/auto/issue';
+const AUTO_RECEIPT_PATH = '/api/integration/tracking/v1/auto/receipt';
 const COOKIE_NAME = '__Secure-dfl-tracking-session';
 const TTL_SECONDS = 30 * 60;
 export const trackingCookieName = COOKIE_NAME;
@@ -46,7 +48,7 @@ export function isSafeTrackingRequest(request: NextRequest, write: boolean) {
   return true;
 }
 const sha = (raw: string) => createHash('sha256').update(raw, 'utf8').digest('hex');
-export async function callEntregas(path: typeof ACCESS_PATH | typeof STATUS_PATH | typeof AUTO_ACCEPT_PATH, body: Record<string, unknown>) {
+export async function callEntregas(path: typeof ACCESS_PATH | typeof STATUS_PATH | typeof AUTO_ACCEPT_PATH | typeof AUTO_ISSUE_PATH | typeof AUTO_RECEIPT_PATH, body: Record<string, unknown>) {
   const conf = configuration();
   if (!conf) return { ok: false as const, status: 503, data: null };
   const raw = JSON.stringify(body);
