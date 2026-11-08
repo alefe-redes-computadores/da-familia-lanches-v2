@@ -6,6 +6,7 @@ import { auth } from '@/lib/firebase';
 import styles from './MessagingCenterAdmin.module.css';
 import { AdminChoiceSelect } from './ui/AdminChoiceSelect';
 import { Dfl360OperationsCard } from './Dfl360OperationsCard';
+import { R32ReadyAuditCard } from './R32ReadyAuditCard';
 
 type MessageStatus = 'pending' | 'processing' | 'queued' | 'failed' | 'suppressed' | 'unknown';
 type MessageRow = {
@@ -232,6 +233,7 @@ export function MessagingCenterAdmin() {
       <div className={styles.advancedBody}>
         <p>Os testes de assinatura e os bloqueios de integração ficam aqui, fora da operação diária. Não há envio ao clicar em diagnosticar.</p>
         <Dfl360OperationsCard />
+        <R32ReadyAuditCard />
         <div className={styles.advancedControls}>
           <button type="button" disabled={bridgeBusy} onClick={() => void inspectBridges()}><ShieldCheck size={16} aria-hidden="true"/>{bridgeBusy ? 'Analisando…' : 'Diagnosticar pontes'}</button>
           <span>Mensageria manual: {data?.manualBridgeEnabled ? 'habilitada pelo servidor' : 'desativada'}.</span>

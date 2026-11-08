@@ -52,7 +52,11 @@ export async function POST(req:NextRequest){
   let data:Record<string,unknown>;
   try{const parsed:unknown=JSON.parse(raw);if(!parsed||Array.isArray(parsed)||typeof parsed!=='object')return response({ok:false,error:'invalid_json'},400);data=parsed as Record<string,unknown>;}catch{return response({ok:false,error:'invalid_json'},400);}
   const eventId=String(data.event_id||''), eventType=String(data.event_type||''),orderId=String(data.order_id||'');
-  if(data.source!=='manual'||!EVENTS.has(eventType)||!/^entregas:dfl-[A-Za-z0-9-]{12,120}$/.test(orderId)||eventId!==`manual-msg-v1__${eventType}__${orderId.slice('entregas:'.length)}`){return response({ok:false,error:'invalid_manual_envelope'},422);}
+  const r32NextStop=eventType==='delivery.next_stop';
+  const legacyEnvelope=EVENTS.has(eventType)&&eventId===`manual-msg-v1__${eventType}__${orderId.slice('entregas:'.length)}`;
+  // v2 identity must be tied to one prior physical stop completion, never to route start.
+  const nextStopEnvelope=r32NextStop&&/^manual-msg-v2__delivery\.next_stop__dfl-[A-Za-z0-9-]{12,120}__[a-f0-9]{64}$/.test(eventId);
+  if(data.source!=='manual'||!/^entregas:dfl-[A-Za-z0-9-]{12,120}$/.test(orderId)||!(legacyEnvelope||nextStopEnvelope)){return response({ok:false,error:'invalid_manual_envelope'},422);}
   try{assertSignedIntegrationRequest({body:raw,timestamp:req.headers.get('x-dfl-timestamp'),signature:req.headers.get('x-dfl-signature'),eventId:req.headers.get('x-dfl-event-id'),expectedEventId:eventId});}
   catch{return response({ok:false,error:'invalid_signature'},401);}
   const phone=String(data.customer_phone||'').trim(),name=String(data.customer_name||'').trim();
@@ -63,6 +67,13 @@ export async function POST(req:NextRequest){
   // Dual server gate: signed event, opt-in and restrictive approved numbers.
   if(!r8Authorized(phone,obj))return response({ok:false,error:'manual_recipient_not_authorized'},403);
   if(obj.delivery_id!==orderId.slice('entregas:'.length)||obj.fulfillment_mode!=='delivery')return response({ok:false,error:'invalid_payload_identity'},422);
+  // R32 manual next stop: additional independent canary + exact physical transition.
+  // Deliberately loaded only for v2: legacy manual routes and tests remain unchanged.
+  if(r32NextStop){
+    const {r32ManualNextStopCanary,r32ValidManualNextStop}=await import('@/lib/messaging/r32ManualNextStopPolicy');
+    if(!r32ValidManualNextStop(data))return response({ok:false,error:'invalid_manual_next_stop_v2'},422);
+    if(!r32ManualNextStopCanary(process.env,phone))return response({ok:false,error:'manual_next_stop_off'},403);
+  }
   const ingest=safeEndpoint(process.env.DFL_MESSAGING_INGEST_URL||''),token=process.env.DFL_MESSAGING_INGEST_TOKEN?.trim();
   if(!ingest||!token)return response({ok:false,error:'messaging_not_configured'},503);
   try{
