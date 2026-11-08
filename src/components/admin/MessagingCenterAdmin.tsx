@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, Clock3, LockKeyhole, MessageSquareText, Refr
 import { auth } from '@/lib/firebase';
 import styles from './MessagingCenterAdmin.module.css';
 import { AdminChoiceSelect } from './ui/AdminChoiceSelect';
+import { Dfl360OperationsCard } from './Dfl360OperationsCard';
 
 type MessageStatus = 'pending' | 'processing' | 'queued' | 'failed' | 'suppressed' | 'unknown';
 type MessageRow = {
@@ -230,6 +231,7 @@ export function MessagingCenterAdmin() {
       <summary><span><Settings2 size={17}/> Ferramentas avançadas</span><span>Diagnóstico técnico <ChevronDown size={16}/></span></summary>
       <div className={styles.advancedBody}>
         <p>Os testes de assinatura e os bloqueios de integração ficam aqui, fora da operação diária. Não há envio ao clicar em diagnosticar.</p>
+        <Dfl360OperationsCard />
         <div className={styles.advancedControls}>
           <button type="button" disabled={bridgeBusy} onClick={() => void inspectBridges()}><ShieldCheck size={16} aria-hidden="true"/>{bridgeBusy ? 'Analisando…' : 'Diagnosticar pontes'}</button>
           <span>Mensageria manual: {data?.manualBridgeEnabled ? 'habilitada pelo servidor' : 'desativada'}.</span>

@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+'use strict';
+/** R26 hermetic checks; never calls network, Firestore or WhatsApp. */
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const ts=require('typescript');
+const read=p=>fs.readFileSync(p,'utf8');
+let count=0;function ok(x,name){assert.ok(x,name);count++;}
+const tracked=['src/lib/tracking/automaticAcceptance.ts','src/components/admin/MessagingCenterAdmin.tsx'];
+const added=['src/lib/tracking/r26OperationalPolicy.ts','src/lib/tracking/r26OperationsServer.ts','src/app/api/admin/dfl360-operations/route.ts','src/components/admin/Dfl360OperationsCard.tsx'];
+for(const p of [...tracked,...added]){
+ const parsed=ts.createSourceFile(p,read(p),ts.ScriptTarget.Latest,true,p.endsWith('.tsx')?ts.ScriptKind.TSX:ts.ScriptKind.TS);
+ ok(parsed.parseDiagnostics.length===0,`TS parse ${p}`);
+}
+const pure=read('src/lib/tracking/r26OperationalPolicy.ts');
+const code=ts.transpileModule(pure,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const exp={};vm.runInNewContext(code,{exports:exp});
+const c=(lane,state)=>exp.r26StatusBucket(lane,state);
+ok(c('messages','pending')==='pending','aviso pendente');
+ok(c('messages','queued')==='queued','na fila nao significa entregue');
+ok(c('messages','failed')==='review','aviso falho pede revisao');
+ok(c('messages','suppressed')==='suppressed','mensagem suprimida isolada');
+ok(c('acceptances','acknowledged')==='acknowledged','aceite S2S confirmado');
+ok(c('acceptances','blocked')==='review','aceite bloqueado pede revisao');
+ok(c('tracking_links','reserved')==='processing','reserva nao equivale envio');
+ok(c('tracking_links','issuing')==='processing','emissao nao equivale envio');
+ok(c('tracking_links','issued_pending_provider')==='processing','token nao equivale envio');
+ok(c('tracking_links','provider_accepted')==='acknowledged','API do provedor aceita somente seu pedido');
+ok(c('tracking_links','review_required')==='review','incerteza exige humano');
+ok(c('tracking_links','delivered')==='other','nao inferir entregue');
+const all=exp.r26Summarize('tracking_links',[{status:'reserved',phone:'SENSITIVE'},{status:'review_required',token:'SECRET'},{status:'provider_accepted'}],3);
+ok(all.sample===3&&all.truncated===true,'amostra limitada e sinalizada');
+ok(all.counts.processing===1&&all.counts.review===1&&all.counts.acknowledged===1,'estados contabilizados');
+ok(!JSON.stringify(all).includes('SENSITIVE')&&!JSON.stringify(all).includes('SECRET'),'dados sensiveis descartados');
+ok(exp.r26Unavailable().available===false,'degradacao explicita');
+const off=exp.r26Flags({});
+ok(exp.r26AutoSiteConfigured(off)===false,'flags OFF por padrao');
+ok(off.messageWorkerConfigured===false,'worker sem env nao configurado');
+ok(exp.r26AutoSiteConfigured(exp.r26Flags({DFL_SITE_TRACKING_ENABLED:'1',DFL_SITE_TRACKING_AUTO_ACCEPT_ENABLED:'1',DFL_SITE_TRACKING_AUTO_ISSUE_ENABLED:'1'}))===false,'certificacao provider separada');
+const srv=read('src/lib/tracking/r26OperationsServer.ts');
+ok(srv.includes("import 'server-only'")&&srv.includes('Promise.allSettled')&&srv.includes('.limit(R26_SAMPLE_LIMIT).get()'),'snapshot delimitado e fail-partial');
+ok(!srv.includes('customer_phone')&&!srv.includes('opaque_token')&&!srv.includes('phoneE164'),'nenhum PII na resposta');
+const route=read('src/app/api/admin/dfl360-operations/route.ts');
+ok(route.includes('verifyIdToken(token,true)')&&route.includes('isAdminEmail(claims.email)'),'consulta somente admin autenticado/revogado');
+ok(route.includes('no-store')&&route.includes('export async function GET')&&!route.includes('export async function POST'),'GET sem cache nem escrita');
+const ui=read('src/components/admin/Dfl360OperationsCard.tsx');
+ok(ui.includes("auth.currentUser")&&ui.includes('getIdToken()')&&ui.includes("fetch('/api/admin/dfl360-operations'"),'UI autentica consulta');
+ok(!/useEffect\s*\(|setInterval\s*\(|onSnapshot\s*\(/.test(ui),'sem polling ou listener');
+ok(ui.includes('Conferir filas')&&ui.includes('snapshot.degraded')&&ui.includes('snapshot.flags'),'interface comunica limites e flags');
+const center=read('src/components/admin/MessagingCenterAdmin.tsx');
+ok(center.includes("import { Dfl360OperationsCard }")&&center.includes('<Dfl360OperationsCard />')&&center.includes('Ferramentas avançadas'),'console integrado na central existente');
+const acceptance=read('src/lib/tracking/automaticAcceptance.ts');
+ok(acceptance.includes("const settled=await adminDb.runTransaction(async tx=>")&&acceptance.includes("text(live.locked_by)!==lock")&&acceptance.includes('if(!settled){result.deferred++;continue;}'),'lease validada antes da liquidacao');
+ok(acceptance.includes(".where('state','in',['pending','processing'])")&&acceptance.includes('callEntregas(AUTO_ACCEPT_PATH,payload)'),'resiliencia e endpoint antigos preservados');
+const r25=read('src/lib/tracking/automaticInitialHandoff.ts');
+ok(r25.includes("r25SendInitialOnce")&&r25.includes('No stale-lock rescue')&&r25.includes('provider_transport_uncertain'),'reserva inicial e quarentena mantidas');
+ok(!route.includes('r25SendInitialOnce')&&!srv.includes('r25SendInitialOnce'),'R26 nao ativa envio ou emissao de link');
+const css=read('src/components/admin/Dfl360OperationsCard.module.css');
+ok(css.includes('min-width:0')&&css.includes('max-width:800px')&&css.includes('prefers-reduced-motion'),'mobile premium e acessibilidade');
+console.log(`R26 OPERACAO 360: ${count} verificacoes hermeticas OK; 0 Firestore/WhatsApp/rede reais.`);

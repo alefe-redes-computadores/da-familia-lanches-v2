@@ -74,9 +74,17 @@ export async function drainAutoAcceptances(limit=5) {
     } catch { code='TRANSPORT_UNCERTAIN'; }
     if(state==='pending' && claim.attempts>=MAX_ATTEMPTS){state='blocked';code='MAX_ATTEMPTS';}
     const next= new Date(Date.now()+Math.min(30,2**claim.attempts)*60_000).toISOString();
-    await doc.ref.update({state,locked_at:null,locked_by:null,updated_at:new Date().toISOString(),
-      last_error_code:code,...(state==='pending'?{retry_at:next}:{}),
-      ...(state==='acknowledged'?{acknowledged_at:new Date().toISOString()}:{}),});
+    // R26: stale workers cannot overwrite a newer lease/acknowledgement.
+    const settled=await adminDb.runTransaction(async tx=>{
+      const fresh=await tx.get(doc.ref);
+      const live=(fresh.data()||{}) as Raw;
+      if(!fresh.exists||text(live.state)!=='processing'||text(live.locked_by)!==lock)return false;
+      tx.update(doc.ref,{state,locked_at:null,locked_by:null,updated_at:new Date().toISOString(),
+        last_error_code:code,...(state==='pending'?{retry_at:next}:{}),
+        ...(state==='acknowledged'?{acknowledged_at:new Date().toISOString()}:{}),});
+      return true;
+    });
+    if(!settled){result.deferred++;continue;}
     if (state==='acknowledged') result.acknowledged++;
     else if (state==='blocked') result.blocked++;
     else result.deferred++;
