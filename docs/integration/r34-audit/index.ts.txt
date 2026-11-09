@@ -1,0 +1,84 @@
+/** DFL 360 R34: read-only, order-scoped Supabase messaging audit.
+ * Never expose phone, name, payload, token, provider ID or raw provider errors.
+ * Worker token is reused as a server-only S2S credential; no new secret needed.
+ */
+import {createClient} from 'npm:@supabase/supabase-js@2.75.0';
+const SECRET='DFL_MESSAGING_WORKER_TOKEN';
+const allowedSource=new Set(['site','entregas','manual']);
+const allowedTypes=new Set(['all','order.created','order.production','order.ready','order.cancelled','delivery.started','delivery.next_stop','delivery.position_changed','delivery.completed','delivery.failed']);
+const statuses=new Set(['pending','processing','sent','failed','dead_letter','suppressed']);
+const enc=new TextEncoder();
+const HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'private, no-store, max-age=0','pragma':'no-cache','referrer-policy':'no-referrer','x-content-type-options':'nosniff'};
+const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:HEADERS});
+const error=(status=503)=>json({ok:false,code:'DFL_MESSAGING_AUDIT_UNAVAILABLE'},status);
+const obj=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);
+async function equal(a:string,b:string) {
+ if(a.length>512||b.length>512)return false;
+ const [one,two]=await Promise.all([crypto.subtle.digest('SHA-256',enc.encode(a)),crypto.subtle.digest('SHA-256',enc.encode(b))]);
+ const x=new Uint8Array(one),y=new Uint8Array(two);let delta=a.length^b.length;
+ for(let n=0;n<x.length;n++)delta|=x[n]^y[n];
+ return delta===0;
+}
+async function boundedText(req:Request,limit=512){
+ const reader=req.body?.getReader();if(!reader)return null;
+ let count=0;const chunks:Uint8Array[]=[];
+ try{
+  for(;;){const item=await reader.read();if(item.done)break;count+=item.value.byteLength;
+   if(count>limit){await reader.cancel();return null;}chunks.push(item.value);}
+  const out=new Uint8Array(count);let offset=0;
+  for(const chunk of chunks){out.set(chunk,offset);offset+=chunk.byteLength;}
+  return new TextDecoder('utf-8',{fatal:true}).decode(out);
+ }catch{try{await reader.cancel();}catch{/* stream closed */}return null;}
+ finally{try{reader.releaseLock();}catch{/* stream closed */}}
+}
+const iso=(v:unknown)=>{
+ if(typeof v!=='string')return null;
+ const d=Date.parse(v);return Number.isFinite(d)&&v.length<=40?new Date(d).toISOString():null;
+};
+const failure=(v:unknown)=>{
+ const value=typeof v==='string'?v.trim():'';
+ return /^[A-Z][A-Z0-9_]{2,80}$/.test(value)?value:(value?'REDACTED_PROVIDER_ERROR':null);
+};
+async function fingerprint(v:unknown){
+ const digest=await crypto.subtle.digest('SHA-256',enc.encode(typeof v==='string'?v:''));
+ return Array.from(new Uint8Array(digest).slice(0,8),x=>x.toString(16).padStart(2,'0')).join('');
+}
+Deno.serve(async(req:Request)=>{
+ if(req.method!=='POST')return error(405);
+ const expected=(Deno.env.get(SECRET)||'').trim();
+ if(expected.length<24||expected.length>512)return error();
+ const supplied=req.headers.get('x-dfl-messaging-worker-token')||'';
+ if(!await equal(supplied,expected))return error(401);
+ if(!(req.headers.get('content-type')||'').startsWith('application/json'))return error(415);
+ const contentLength=Number(req.headers.get('content-length')||0);
+ if(!Number.isFinite(contentLength)||contentLength<0||contentLength>512)return error(413);
+ const raw=await boundedText(req);if(!raw||raw.length>512)return error(413);
+ let p:unknown;try{p=JSON.parse(raw)}catch{return error(422)}
+ if(!obj(p)||Object.keys(p).length!==5||!Object.keys(p).every(k=>['contract','version','source','order_id','event_type'].includes(k))||
+   p.contract!=='dfl.messaging.audit.v1'||p.version!==1||!allowedSource.has(String(p.source))||!allowedTypes.has(String(p.event_type)))return error(422);
+ const source=String(p.source),orderId=String(p.order_id||''),type=String(p.event_type);
+ if(source==='manual'?!/^entregas:dfl-[A-Za-z0-9-]{12,120}$/.test(orderId):!/^[A-Za-z0-9_-]{8,120}$/.test(orderId))return error(422);
+ const url=Deno.env.get('SUPABASE_URL')||'',service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
+ if(!url||!service)return error();
+ const db=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
+ try{
+  // Exactly one indexed, bounded, order-scoped SELECT. No writes or notifications.
+  let query=db.from('dfl_messaging_outbox')
+   .select('source_event_id,event_type,status,created_at,sent_at,provider_message_id,last_error')
+   .eq('source',source).eq('order_id',orderId);
+  if(type!=='all')query=query.eq('event_type',type);
+  const {data, error:dbError}=await query.order('created_at',{ascending:false}).limit(25);
+  if(dbError||!Array.isArray(data))return error();
+  const rows=data.slice(0,24);
+  const records=await Promise.all(rows.map(async(row:Record<string,unknown>)=>({
+   eventType:allowedTypes.has(String(row.event_type))?String(row.event_type):'unknown',
+   state:statuses.has(String(row.status))?String(row.status):'unknown',
+   fingerprint:await fingerprint(row.source_event_id),
+   createdAt:iso(row.created_at),sentAt:iso(row.sent_at),
+   providerAccepted:typeof row.provider_message_id==='string'&&row.provider_message_id.length>0&&row.status==='sent',
+   failureCode:failure(row.last_error),
+  })));
+  return json({contract:'dfl.messaging.audit.v1',version:1,ok:true,source,orderId,eventType:type,
+   checkedAt:new Date().toISOString(),records,sampleLimited:data.length>24,customerDeliveryVerified:false});
+ }catch{return error();}
+});

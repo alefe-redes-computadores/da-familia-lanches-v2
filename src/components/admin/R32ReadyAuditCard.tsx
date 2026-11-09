@@ -4,6 +4,7 @@ import {useState} from 'react';
 import {AlertCircle,Search,ShieldCheck} from 'lucide-react';
 import {auth} from '@/lib/firebase';
 import styles from './R32ReadyAuditCard.module.css';
+import {R34MessagingAuditCard} from './R34MessagingAuditCard';
 type Entry={eventRef:string|null;sourceEventRef?:string|null;state?:string;eventType?:string;reason?:string|null;stage?:string;occurredAt?:string|null};
 type Snapshot={ok:true;orderId:string;commercialStatus:string|null;orderExists:boolean;fulfillment:string;
   consentGranted:boolean;consentTimestampPresent:boolean;phonePresent:boolean;gateReason:string|null;
@@ -26,7 +27,7 @@ export function R32ReadyAuditCard(){
    }catch(e){setError(e instanceof Error&&e.name==='AbortError'?'Tempo esgotado. Dados anteriores preservados.':e instanceof Error?e.message:'Falha na consulta.');}
    finally{window.clearTimeout(timer);setBusy(false);}
  };
- return <section className={styles.root} aria-label="Auditoria do aviso Pedido Pronto">
+ return <><section className={styles.root} aria-label="Auditoria do aviso Pedido Pronto">
   <div className={styles.header}><div><strong>Pedido pronto · rastreio de eventos</strong><p>Por ID interno, confira o pedido, o evento e o motivo do aviso não ter chegado à fila.</p></div><ShieldCheck size={19} aria-hidden="true"/></div>
   <form className={styles.form} onSubmit={e=>{e.preventDefault();void run();}}>
    <label htmlFor="r32-order-id">ID interno do pedido</label><div className={styles.controls}>
@@ -48,5 +49,5 @@ export function R32ReadyAuditCard(){
    </div>
    <p className={styles.footnote}>{state.sampleLimited?'Amostra limitada: existem outros registros. ':''}Queued não significa entregue. Este painel não envia mensagens nem revela números de telefone.</p>
   </div>}
- </section>;
+ </section><R34MessagingAuditCard /></>;
 }
