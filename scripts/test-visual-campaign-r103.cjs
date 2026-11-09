@@ -26,16 +26,24 @@ const upload=read('src/app/api/admin/visual-campaign-image/route.ts');
 const publicRoute=read('src/app/api/public/visual-campaigns/route.ts');
 const home=read('src/app/page.tsx');
 const shell=read('src/components/layout/AppShell.tsx');
+const nudge=read('src/components/layout/DFLAssistFloatingNudge.tsx');
+const nudgeCss=read('src/components/layout/DFLAssistFloatingNudge.module.css');
+const invitation=read('src/components/layout/DFLAssistInvitation.tsx');
 const checkout=read('src/components/ui/CheckoutModal.tsx');
 const orderApi=read('src/app/api/orders/route.ts');
 check('Admin exige token validado e lista de permissao',()=>{for(const s of [admin,upload])assert(s.includes('verifyIdToken')&&s.includes('isAdminEmail'))});
 check('API publica tem cache e fallback sem mutacao',()=>{assert(publicRoute.includes('unstable_cache')&&publicRoute.includes('revalidate: 120'));assert(!/setDoc\(|\.set\(/.test(publicRoute))});
 check('Banner e tema exclusivamente visuais, sem preco artificial',()=>{assert(home.includes('campaignMatchesCatalogOffer'));assert(home.includes('campaign.scopes.includes("home")'));assert(home.includes('VisualCampaignBanner'));assert(shell.includes('VisualCampaignProvider'));assert(!/createCustomerOrder|updateOrderStatus|addDoc\(|setDoc\(/.test(read('src/components/layout/VisualCampaignBanner.tsx')))});
-check('Banner tem prioridade e Assist na Home nao duplica chamada',()=>{
+check('Banner tem prioridade e Assist R251 nao duplica chamada na Home',()=>{
  assert(!home.includes('className={styles.r102AssistEntry}'));
- assert(home.includes('data-first-hint={assistFirstHint}'));
- assert(home.includes('dfl-assist-first-hint-r103'));
- assert(read('src/app/page.module.css').includes('dflAssistWelcomeR103'));
+ assert(home.includes('VisualCampaignBanner show={bannerEligible}'));
+ assert(shell.includes('<DFLAssistFloatingNudge />') && shell.includes('<DFLAssistInvitation />'));
+ assert(nudge.includes('pathname !== "/"') && nudge.includes('Boolean(activeModal)'));
+ assert(nudge.includes('dismissed || inputActive || footerNear'));
+ assert(nudge.includes('sessionStorage.getItem(sessionKey)') && nudge.includes('sessionStorage.setItem(sessionKey'));
+ assert(nudge.includes('setPhase("typing")') && nudge.includes('prefers-reduced-motion'));
+ assert(nudgeCss.includes('prefers-reduced-motion') && nudgeCss.includes('focus-visible'));
+ assert(invitation.includes('localStorage.getItem(inviteKey)') && invitation.includes('window.scrollY < 100'));
  assert(read('src/app/page.module.css').includes('prefers-reduced-motion:reduce'));
 });
 check('Carrossel de ofertas permanece sem duplicacao',()=>{assert(home.includes('showcaseProducts.slice(0,2)'));assert(home.includes('exclusive?showcaseProducts:promoProducts'))});
