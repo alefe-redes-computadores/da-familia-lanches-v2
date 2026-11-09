@@ -101,7 +101,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
   const orderBadges = [
     { key: "origin", label: checkoutChannel === "site" || pedido.sourceSystem === "dfl_site" ? "SITE" : originLabel.toUpperCase(), tone: "site" },
     { key: "customer", label: customerMode === "google" ? "GOOGLE" : customerMode === "guest" ? "CONVIDADO" : "", tone: customerMode === "google" ? "google" : "guest" },
-    { key: "handoff", label: handoffChannel === "whatsapp" ? "WHATSAPP" : "", tone: "whatsapp" },
+    { key: "handoff", label: handoffChannel === "whatsapp" ? "CANAL WHATSAPP" : "", tone: "whatsapp" },
     { key: "recovered", label: pedido.recoveredCheckout === true ? "RECUPERADO" : "", tone: "recovered" },
   ].filter((badge) => badge.label);
 

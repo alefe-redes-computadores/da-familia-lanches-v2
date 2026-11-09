@@ -744,7 +744,7 @@ function AdminPageContent() {
         </button>
       </aside>
 
-      <div className={styles.workspace} data-mode={isOrderTab ? "operation" : "management"}>
+      <div className={styles.workspace} data-mode={isOrderTab ? "operation" : "management"} data-r37-stage={tab}>
         {alarmeAtivo && (
           <button className={styles.alarm} onClick={pararAlarme}>
             NOVO PEDIDO <span>toque para silenciar</span>

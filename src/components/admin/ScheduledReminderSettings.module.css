@@ -25,3 +25,13 @@
 .panel[data-pending="true"]{border-color:rgba(247,197,78,.34);background:rgba(255,202,40,.055)}
 .panel summary:focus-visible{outline:3px solid #ffca28;outline-offset:-3px}
 @media(max-width:420px){.panel summary{flex-direction:row;align-items:center;gap:8px}.panel summary small{font-size:10px;white-space:normal;text-align:right}}
+
+/* R37: reminder controls are secondary to live orders until a real due event. */
+.panel{border-radius:14px!important;box-shadow:none!important}
+.panel:not([open])[data-pending="false"]{border:1px solid rgba(161,177,191,.10)!important;background:rgba(255,255,255,.008)!important}
+.panel:not([open])[data-pending="false"] summary{min-height:40px!important;padding:8px 11px!important}
+.panel:not([open])[data-pending="false"] .heading{font-size:11px!important;font-weight:730!important;color:#99a9b6!important}
+.panel:not([open])[data-pending="false"] summary small{font-size:10px!important;color:#94a2af!important}
+.panel[open]{border-color:rgba(242,195,77,.29)!important;background:#141b22!important}
+.panel[data-pending="true"]{border-color:rgba(242,195,77,.43)!important}
+@media(max-width:380px){.panel summary small{line-height:1.3!important;max-width:45%!important}}
