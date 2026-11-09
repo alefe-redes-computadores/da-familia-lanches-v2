@@ -945,3 +945,39 @@
 .cancelIntelligence{box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
 .cancelSheet{box-sizing:border-box;min-width:0;max-width:100%;overscroll-behavior:contain;overflow-x:hidden;overflow-wrap:anywhere}
 @media(max-width:520px){.cancelIntelligence{padding-top:env(safe-area-inset-top,0px)}.cancelSheet{max-height:calc(100dvh - env(safe-area-inset-top,0px) - 5px);padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}}
+
+/* R36 — operação premium: prioridade real ao pedido, logística de apoio. */
+.card:not([data-inspector="true"]){border-radius:19px!important;box-shadow:0 8px 26px rgba(0,0,0,.14)!important}
+.card:not([data-inspector="true"]) .top{gap:12px!important;align-items:flex-start!important}
+.card:not([data-inspector="true"]) .status{font-size:12px!important;line-height:1.35!important;letter-spacing:0!important}
+.card:not([data-inspector="true"]) .orderId{font-size:15px!important;letter-spacing:.015em!important}
+.card:not([data-inspector="true"]) .time{min-width:94px;text-align:right}
+.card:not([data-inspector="true"]) .time span{font-size:11px!important}
+.card:not([data-inspector="true"]) .time b{font-size:11px!important;white-space:normal!important}
+.card:not([data-inspector="true"]) .summaryMain h3{font-size:17px!important;line-height:1.25!important;font-weight:800!important}
+.card:not([data-inspector="true"]) .summaryMeta span,.card:not([data-inspector="true"]) .summaryMeta b{font-size:10px!important;letter-spacing:.035em!important}
+.card:not([data-inspector="true"]) .queuePreview b{font-size:12px!important;line-height:1.4!important}
+.card:not([data-inspector="true"]) .queueAddress{font-size:12px!important;line-height:1.5!important;color:#9faab3!important}
+.card:not([data-inspector="true"]) .summaryTotal{font-variant-numeric:tabular-nums!important}
+.card:not([data-inspector="true"]) .orderBadges{gap:6px!important;margin-top:10px!important}
+.card:not([data-inspector="true"]) .orderBadges>span{font-size:9px!important;padding:5px 7px!important;letter-spacing:.01em!important}
+.card:not([data-inspector="true"]) .logisticsMini{margin-top:12px!important;padding:11px 12px!important;gap:10px!important;align-items:center!important;border-radius:14px!important;background:#111922!important;border:1px solid rgba(120,155,184,.18)!important;box-shadow:none!important}
+.card:not([data-inspector="true"]) .logisticsMiniCopy{min-width:0!important;gap:3px!important}
+.card:not([data-inspector="true"]) .logisticsMiniCopy span{font-size:10px!important;letter-spacing:.065em!important;color:#91a7be!important}
+.card:not([data-inspector="true"]) .logisticsMiniCopy strong{font-size:12px!important;line-height:1.4!important;color:#e1e9f1!important;overflow-wrap:anywhere!important}
+.card:not([data-inspector="true"]) .logisticsMiniCopy small{font-size:10px!important;opacity:.75}
+.card:not([data-inspector="true"]) .bridgeAction{min-height:42px!important;padding:8px 11px!important;border-radius:11px!important;font-size:11px!important;font-weight:800!important;white-space:normal!important;line-height:1.25!important;box-shadow:none!important}
+.card:not([data-inspector="true"]) .actions button{min-height:46px!important;font-size:12px!important;font-weight:850!important;border-radius:12px!important;line-height:1.3!important}
+.card:not([data-inspector="true"]) :is(.summary,.actions button,.bridgeAction):focus-visible{outline:3px solid #ffca28!important;outline-offset:3px!important}
+@media(max-width:430px){
+ .card:not([data-inspector="true"]){padding:14px 13px 15px!important}
+ .card:not([data-inspector="true"]) .logisticsMini{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important}
+ .card:not([data-inspector="true"]) .bridgeAction{max-width:132px!important}
+ .card:not([data-inspector="true"]) .actions{gap:6px!important}
+ .card:not([data-inspector="true"]) .actions button{padding:9px 7px!important;font-size:11px!important}
+}
+@media(max-width:360px){
+ .card:not([data-inspector="true"]) .logisticsMini{grid-template-columns:minmax(0,1fr)!important}
+ .card:not([data-inspector="true"]) .bridgeAction{max-width:100%!important;width:100%!important}
+}
+@media(prefers-reduced-motion:reduce){.card:not([data-inspector="true"]) *{scroll-behavior:auto!important}}

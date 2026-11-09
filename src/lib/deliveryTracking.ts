@@ -27,11 +27,17 @@ export function deliveryTrackingPresentation(order:OrderLike):DeliveryTrackingPr
   const event=s(order.deliveryTrackingEvent);
   const stopsAhead=n(order.deliveryStopsAhead); const totalStops=n(order.deliveryTotalStops);
   const operationalCompleted=order.deliveryOperationalCompleted===true||Boolean(s(order.deliveryOperationalCompletedAt))||event==="delivery.completed";
-  const isNext=!operationalCompleted&&status!=="Finalizado"&&(order.deliveryIsNextStop===true||event==="delivery.next_stop"||stopsAhead===0);
+  // R36: assigned != departed. Never display the customer as next from a
+  // missing/contradictory stop position; only a started-route event can prove it.
+  const departed=event==="delivery.out_for_delivery"||event==="delivery.position_changed"||event==="delivery.next_stop";
+  const positionVerified=departed&&totalStops!==null&&totalStops>0&&stopsAhead!==null&&stopsAhead<totalStops;
+  const eventProvesNext=event==="delivery.next_stop"&&(stopsAhead===null||stopsAhead===0);
+  const isNext=!operationalCompleted&&status!=="Finalizado"&&(eventProvesNext||(positionVerified&&stopsAhead===0));
+  const validStopsAhead=positionVerified?stopsAhead:null;
   if(pickup||status==="Cancelado"||(status==="Finalizado"&&!operationalCompleted)||(!event&&!operationalCompleted)) return {visible:false,terminal:false,tone:"route",eyebrow:"",title:"",description:"",detail:null,stopsAhead,totalStops,isNext:false};
   if(operationalCompleted) return {visible:true,terminal:true,tone:"done",eyebrow:"ENTREGA CONCLUÍDA",title:"Pedido entregue ✓",description:"A operação marcou esta entrega como concluída.",detail:null,stopsAhead,totalStops,isNext:false};
   if(event==="delivery.failed") return {visible:true,terminal:false,tone:"issue",eyebrow:"ATENÇÃO NA ENTREGA",title:"A entrega precisa de atenção",description:s(order.deliveryFailedReason)||"A equipe registrou uma ocorrência na entrega.",detail:null,stopsAhead,totalStops,isNext:false};
   if(isNext) return {visible:true,terminal:false,tone:"next",eyebrow:"VOCÊ É O PRÓXIMO",title:"Prepare-se para receber seu pedido",description:"Sua parada é a próxima pendente na rota de entrega.",detail:paymentGuidance(order),stopsAhead,totalStops,isNext:true};
-  if(stopsAhead!==null) return {visible:true,terminal:false,tone:"route",eyebrow:"PEDIDO NA ROTA",title:stopsAhead===1?"1 parada antes da sua":`${stopsAhead} paradas antes da sua`,description:"A posição considera paradas físicas pendentes, não a quantidade de pedidos.",detail:paymentGuidance(order),stopsAhead,totalStops,isNext:false};
+  if(validStopsAhead!==null) return {visible:true,terminal:false,tone:"route",eyebrow:"PEDIDO NA ROTA",title:validStopsAhead===1?"1 parada antes da sua":`${validStopsAhead} paradas antes da sua`,description:"A posição considera paradas físicas pendentes, não a quantidade de pedidos.",detail:paymentGuidance(order),stopsAhead:validStopsAhead,totalStops,isNext:false};
   return {visible:true,terminal:false,tone:"route",eyebrow:"PEDIDO NA ROTA",title:"Sua entrega já está na operação",description:"A equipe de entregas já recebeu seu pedido e o acompanhamento atualiza automaticamente.",detail:null,stopsAhead,totalStops,isNext:false};
 }

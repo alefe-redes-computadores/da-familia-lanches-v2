@@ -84,7 +84,7 @@ export function ScheduledReminderSettings({ orders, onOpenSchedules }: {
 
   const pending = orders.filter(o => String(o.status) === "Agendado").length;
   return (
-    <details className={styles.panel}>
+    <details className={styles.panel} data-pending={pending > 0}>
       <summary><span className={styles.heading}><CalendarClock size={18} aria-hidden="true"/><strong>Lembretes de agendamentos</strong></span><small>{pending} agendado(s) · {settings.enabled ? `${settings.minutes} min antes` : "desativado"}</small></summary>
       <div className={styles.content}>
         <p>Configure avisos neste Admin. Eles funcionam enquanto o painel estiver aberto; nao sao uma promessa de notificacao com o aplicativo fechado.</p>

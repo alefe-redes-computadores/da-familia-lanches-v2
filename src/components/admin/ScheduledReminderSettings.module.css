@@ -14,3 +14,14 @@
 .foot{display:flex;align-items:start;gap:8px;font-size:11px;line-height:1.5;opacity:.78}
 @media(max-width:380px){.panel summary{align-items:flex-start;flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.panel *{animation:none;transition:none}}
+
+/* R36 — painel sem agendamentos não ocupa a hierarquia de uma urgência. */
+.panel{margin:7px 0 9px;border-color:rgba(148,163,184,.17);background:rgba(255,255,255,.018);border-radius:14px}
+.panel:not([open])[data-pending="false"]{border-color:rgba(148,163,184,.12);background:rgba(255,255,255,.012)}
+.panel:not([open])[data-pending="false"] summary{min-height:42px;padding:8px 12px}
+.panel:not([open])[data-pending="false"] .heading{font-size:12px;color:#9aa7b3}
+.panel:not([open])[data-pending="false"] .heading svg{width:16px;height:16px;opacity:.74}
+.panel:not([open])[data-pending="false"] summary small{font-size:10px;opacity:.67}
+.panel[data-pending="true"]{border-color:rgba(247,197,78,.34);background:rgba(255,202,40,.055)}
+.panel summary:focus-visible{outline:3px solid #ffca28;outline-offset:-3px}
+@media(max-width:420px){.panel summary{flex-direction:row;align-items:center;gap:8px}.panel summary small{font-size:10px;white-space:normal;text-align:right}}

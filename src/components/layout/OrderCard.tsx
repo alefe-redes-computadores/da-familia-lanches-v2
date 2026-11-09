@@ -10,6 +10,7 @@ import { ageLabel, operationalAttention, scheduledOrderUrgency } from "@/lib/adm
 import { openDflEntregas } from "@/lib/adminDeliveryBridge";
 import { ORDER_CANCELLATION_REASONS, type OrderCancellationReasonCode } from "@/lib/orderCancellation";
 import styles from "./OrderCard.module.css";
+import { adminDeliveryPosition } from "@/lib/adminDeliveryPosition";
 import { adminOrderAddress } from "@/lib/adminOrderAddress";
 import { inspectDistrict } from "@/lib/addressIntelligence";
 
@@ -71,13 +72,10 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
     itens
       .map((item) => String(item.observation || "").trim())
       .find(Boolean) || "";
-  const logisticsSummary = pedido.deliveryOperationalCompleted
-    ? "Entrega concluída"
-    : pedido.deliveryIsNextStop
-      ? "Próxima parada"
-      : Number.isFinite(Number(pedido.deliveryStopsAhead))
-        ? `${Number(pedido.deliveryStopsAhead)} parada(s) antes`
-        : pedido.deliveryRouteName || pedido.deliveryMotoboyName || "Vinculado ao DFL Entregas";
+  // R36: deliveryStopsAhead e deliveryIsNextStop são dados brutos; não
+  // exibir posição ou próxima parada sem início e contagem confiável.
+  const logisticsPosition = adminDeliveryPosition(pedido);
+  const logisticsSummary = logisticsPosition.label;
   const stageTone =
     statusAtual === "Pendente" || statusAtual === "Agendado" ? "new" :
     statusAtual === "Em Produção" ? "production" :
@@ -280,7 +278,7 @@ export function OrderCard({ pedido, updateStatus, imprimirPedido, selected = fal
       )}
 
       {hasLogisticsLink && !terminal && (
-        <div className={styles.logisticsMini} data-next={pedido.deliveryIsNextStop === true}>
+        <div className={styles.logisticsMini} data-next={logisticsPosition.kind === "next"}>
           <div className={styles.logisticsMiniCopy}>
             <span>DFL ENTREGAS</span>
             <strong>{logisticsSummary}</strong>
