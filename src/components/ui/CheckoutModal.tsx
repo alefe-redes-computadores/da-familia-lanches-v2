@@ -153,7 +153,9 @@ export function CheckoutModal() {
   const [method, setMethod] = useState<PaymentMethod>("pix");
   const [troco, setTroco] = useState("");
   const [orderObservation, setOrderObservation] = useState("");
-  // R35: consentimento somente ao clicar explicitamente em uma das duas ações de confirmação.
+  // R39: preferência de avisos inicialmente ligada na interface; NÃO concede autorização sozinha.
+  // O opt-in só é gravado pelo clique na ação afirmativa específica de confirmação.
+  const [receiveWhatsappUpdates, setReceiveWhatsappUpdates] = useState(true);
   const [pixCopied, setPixCopied] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCouponCode, setAppliedCouponCode] = useState("");
@@ -1451,16 +1453,34 @@ export function CheckoutModal() {
                 <strong>Prefere receber avisos no WhatsApp?</strong>
                 <p>Acompanhe pelo Site mesmo sem ativar o WhatsApp. Os avisos não incluem promoções.</p>
               </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={receiveWhatsappUpdates}
+                aria-label="Receber avisos deste pedido pelo WhatsApp"
+                className={styles.r39NotificationSwitch}
+                onClick={() => setReceiveWhatsappUpdates(previous => !previous)}
+                disabled={loading}
+              >
+                <span className={styles.r39NotificationIndicator} aria-hidden="true">{receiveWhatsappUpdates ? '✓' : '−'}</span>
+                <span className={styles.r39NotificationSwitchCopy}>
+                  <strong>{receiveWhatsappUpdates ? 'Receber avisos no WhatsApp' : 'Avisos no WhatsApp desativados'}</strong>
+                  <small>{receiveWhatsappUpdates ? 'Marcado por padrão · toque para desmarcar' : 'Desmarcado · toque para ativar'}</small>
+                </span>
+              </button>
               <div className={styles.r35NotificationActions}>
-                <button className={styles.r35NotificationConfirm} type="button" onClick={() => void finishOrder(true)} disabled={loading || !isOnline} aria-busy={loading}>
-                  {loading ? 'Registrando pedido… não feche esta tela' : !isOnline ? 'Reconecte para confirmar' : `Confirmar pedido + receber avisos · ${money(total)}`}
-                  {!loading && isOnline && <small>Autorizo a Da Família Lanches a me avisar sobre este pedido pelo WhatsApp.</small>}
-                </button>
-                <button className={styles.r35NotificationWithout} type="button" onClick={() => void finishOrder(false)} disabled={loading || !isOnline} aria-busy={loading}>
-                  {!isOnline ? 'Reconecte para confirmar' : 'Confirmar pedido sem avisos no WhatsApp'}
-                </button>
+                {receiveWhatsappUpdates ? (
+                  <button className={styles.r35NotificationConfirm} type="button" onClick={() => void finishOrder(true)} disabled={loading || !isOnline} aria-busy={loading}>
+                    {loading ? 'Registrando pedido… não feche esta tela' : !isOnline ? 'Reconecte para confirmar' : `Confirmar pedido + receber avisos · ${money(total)}`}
+                    {!loading && isOnline && <small>Autorizo a Da Família Lanches a me avisar sobre este pedido pelo WhatsApp.</small>}
+                  </button>
+                ) : (
+                  <button className={styles.r35NotificationWithout} type="button" onClick={() => void finishOrder(false)} disabled={loading || !isOnline} aria-busy={loading}>
+                    {!isOnline ? 'Reconecte para confirmar' : `Confirmar pedido sem avisos no WhatsApp · ${money(total)}`}
+                  </button>
+                )}
               </div>
-              <p className={styles.r35NotificationFootnote}>Os avisos podem incluir confirmação, preparo, prontidão, saída e conclusão, conforme a modalidade do pedido e a disponibilidade do serviço. A escolha vale somente para este pedido. O acompanhamento no Site continua disponível nos dois casos.</p>
+              <p className={styles.r35NotificationFootnote}>Os avisos podem incluir confirmação, preparo, prontidão, saída e conclusão, conforme a modalidade do pedido e a disponibilidade do serviço. A opção vem marcada, mas os avisos só serão autorizados ao confirmar pelo botão que menciona WhatsApp. A escolha vale somente para este pedido. O acompanhamento no Site continua disponível nos dois casos.</p>
             </section>
             <div className={styles.r35NotificationBack}><button className={styles.secondary} type="button" onClick={() => { setErrorMessage(""); setStep(1); }} disabled={loading}>Voltar e conferir dados</button></div>
           </div>
