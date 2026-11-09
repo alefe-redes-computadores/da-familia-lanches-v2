@@ -68,7 +68,7 @@ export async function POST(req:NextRequest){
   if(!content||typeof content!=='object'||Array.isArray(content))return response({ok:false,error:'invalid_payload'},422);
   const obj=content as Record<string,unknown>;
   // Dual server gate: signed event, opt-in and restrictive approved numbers.
-  if(!r8Authorized(phone,obj))return response({ok:false,error:'manual_recipient_not_authorized'},403);
+  if(!pickupEnvelope&&!r8Authorized(phone,obj))return response({ok:false,error:'manual_recipient_not_authorized'},403);
   if(obj.delivery_id!==orderId.slice('entregas:'.length)||obj.fulfillment_mode!==(pickupEnvelope?'pickup':'delivery'))return response({ok:false,error:'invalid_payload_identity'},422);
   // R32 manual next stop: additional independent canary + exact physical transition.
   // Deliberately loaded only for v2: legacy manual routes and tests remain unchanged.
@@ -78,9 +78,9 @@ export async function POST(req:NextRequest){
     if(!r32ManualNextStopCanary(process.env,phone))return response({ok:false,error:'manual_next_stop_off'},403);
   }
   if(pickupEnvelope){
-    const {r33ManualPickupCanary,r33ValidManualPickup}=await import('@/lib/messaging/r33ManualPickupPolicy');
+    const {r33ManualPickupCanary,r33ValidManualPickup,r38ManualPickupRecipientAllowed}=await import('@/lib/messaging/r33ManualPickupPolicy');
     if(!r33ValidManualPickup(data))return response({ok:false,error:'invalid_manual_pickup_v2'},422);
-    if(!r33ManualPickupCanary(process.env,phone))return response({ok:false,error:'manual_pickup_off'},403);
+    if(!r33ManualPickupCanary(process.env,phone)&&!r38ManualPickupRecipientAllowed(process.env,phone,obj))return response({ok:false,error:'manual_pickup_off'},403);
   }
   const ingest=safeEndpoint(process.env.DFL_MESSAGING_INGEST_URL||''),token=process.env.DFL_MESSAGING_INGEST_TOKEN?.trim();
   if(!ingest||!token)return response({ok:false,error:'messaging_not_configured'},503);

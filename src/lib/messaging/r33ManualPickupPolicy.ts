@@ -14,6 +14,31 @@ export function r33ManualPickupCanary(env:Record<string,string|undefined>,phone:
     env.DFL_MANUAL_MESSAGING_KILL_SWITCH==='false'&&
     /^55[1-9]\d{9,10}$/.test(phone)&&env.DFL_MESSAGING_PILOT_PHONE_E164===phone;
 }
+/** R38 — additional recipients for v2 MANUAL pickup only.
+ * Existing commercial Site, manual delivery v1 and manual next-stop remain unchanged.
+ * Canary continues to be granted by R33 exclusively to the original pilot phone.
+ * Explicit authorized_clients has a bounded list; general consented_customers
+ * requires its own separate rollout approval flag, OFF by default.
+ */
+export function r38ManualPickupRecipientAllowed(
+  env:Record<string,string|undefined>,phone:string,payload:Record<string,unknown>
+):boolean {
+  if(env.DFL_MANUAL_PICKUP_ENABLED!=='true'||env.DFL_MANUAL_PICKUP_KILL_SWITCH!=='false'||
+    env.DFL_MANUAL_MESSAGING_ENABLED!=='true'||env.DFL_MANUAL_MESSAGING_KILL_SWITCH!=='false'||
+    !/^55[1-9]\d{9,10}$/.test(phone)||
+    payload.manual_messaging_opt_in_v1!==true||payload.notify_whatsapp!==true)return false;
+  if(env.DFL_MANUAL_PICKUP_SCOPE==='authorized_clients') {
+    const raw=(env.DFL_MANUAL_PICKUP_APPROVED_PHONES_E164||'').trim();
+    const phones=raw.split(',').map(x=>x.trim()).filter(Boolean);
+    return phones.length>0 && phones.length<=12 && new Set(phones).size===phones.length &&
+      phones.every(x=>/^55[1-9]\d{9,10}$/.test(x)) && phones.includes(phone);
+  }
+  if(env.DFL_MANUAL_PICKUP_SCOPE==='consented_customers') {
+    return env.DFL_MANUAL_PICKUP_ROLLOUT_APPROVED==='true';
+  }
+  return false;
+}
+
 export function r33ValidManualPickup(value:unknown,now=Date.now()):boolean {
   if(!isObject(value)||value.source!=='manual')return false;
   const type=value.event_type;

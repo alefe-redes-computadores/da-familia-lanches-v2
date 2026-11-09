@@ -1,0 +1,40 @@
+#!/usr/bin/env node
+'use strict';
+/** Hermetic R38: no network, no Firestore, no messages. */
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm'),ts=require('typescript');
+const p='src/lib/messaging/r33ManualPickupPolicy.ts';
+const api=fs.readFileSync('src/app/api/integration/manual-messaging/route.ts','utf8');
+const source=fs.readFileSync(p,'utf8');let n=0;function ok(v,msg){assert.ok(v,msg);n++;}
+for(const [path,body] of [[p,source],['route.ts',api]])ok(ts.createSourceFile(path,body,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS).parseDiagnostics.length===0,'AST '+path);
+const exp={};vm.runInNewContext(ts.transpileModule(source,{fileName:p,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:exp,Date});
+const a='5534999999999',b='5534988888888',c='5534977777777',opt={manual_messaging_opt_in_v1:true,notify_whatsapp:true};
+const base={DFL_MANUAL_PICKUP_ENABLED:'true',DFL_MANUAL_PICKUP_KILL_SWITCH:'false',DFL_MANUAL_MESSAGING_ENABLED:'true',DFL_MANUAL_MESSAGING_KILL_SWITCH:'false'};
+const list={...base,DFL_MANUAL_PICKUP_SCOPE:'authorized_clients',DFL_MANUAL_PICKUP_APPROVED_PHONES_E164:a+','+b};
+for(const phone of [a,b])ok(exp.r38ManualPickupRecipientAllowed(list,phone,opt),'approved phone '+phone.slice(-2));
+ok(!exp.r38ManualPickupRecipientAllowed(list,c,opt),'outside allowlist blocked');
+ok(!exp.r38ManualPickupRecipientAllowed({...list,DFL_MANUAL_PICKUP_APPROVED_PHONES_E164:''},a,opt),'missing list');
+ok(!exp.r38ManualPickupRecipientAllowed({...list,DFL_MANUAL_PICKUP_APPROVED_PHONES_E164:a+','+a},a,opt),'duplicate list');
+ok(!exp.r38ManualPickupRecipientAllowed({...list,DFL_MANUAL_PICKUP_APPROVED_PHONES_E164:'invalid,'+a},a,opt),'invalid number in list');
+ok(!exp.r38ManualPickupRecipientAllowed({...list,DFL_MANUAL_PICKUP_APPROVED_PHONES_E164:Array.from({length:13},(_,i)=>'55349'+String(10000000+i)).join(',')},a,opt),'oversized list');
+ok(!exp.r38ManualPickupRecipientAllowed(list,a,{...opt,notify_whatsapp:false}),'no opt in notify');
+ok(!exp.r38ManualPickupRecipientAllowed(list,a,{...opt,manual_messaging_opt_in_v1:false}),'no explicit consent');
+ok(!exp.r38ManualPickupRecipientAllowed(list,'123',opt),'bad phone');
+for(const [key,value] of [['DFL_MANUAL_PICKUP_ENABLED','false'],['DFL_MANUAL_PICKUP_KILL_SWITCH','true'],['DFL_MANUAL_MESSAGING_ENABLED','false'],['DFL_MANUAL_MESSAGING_KILL_SWITCH','true']])ok(!exp.r38ManualPickupRecipientAllowed({...list,[key]:value},a,opt),'respects '+key);
+for(const key of ['DFL_MANUAL_PICKUP_ENABLED','DFL_MANUAL_PICKUP_KILL_SWITCH','DFL_MANUAL_MESSAGING_ENABLED','DFL_MANUAL_MESSAGING_KILL_SWITCH','DFL_MANUAL_PICKUP_SCOPE'])ok(!exp.r38ManualPickupRecipientAllowed({...list,[key]:undefined},a,opt),'missing '+key);
+const general={...base,DFL_MANUAL_PICKUP_SCOPE:'consented_customers'};
+ok(!exp.r38ManualPickupRecipientAllowed(general,c,opt),'general rollout OFF by default');
+ok(exp.r38ManualPickupRecipientAllowed({...general,DFL_MANUAL_PICKUP_ROLLOUT_APPROVED:'true'},c,opt),'consented general only explicitly approved');
+ok(!exp.r38ManualPickupRecipientAllowed({...general,DFL_MANUAL_PICKUP_ROLLOUT_APPROVED:'true'},c,{...opt,manual_messaging_opt_in_v1:false}),'general opt out denied');
+ok(!exp.r38ManualPickupRecipientAllowed({...general,DFL_MANUAL_PICKUP_ROLLOUT_APPROVED:'true'},c,{...opt,notify_whatsapp:false}),'general notify optout denied');
+ok(!exp.r38ManualPickupRecipientAllowed({...base,DFL_MANUAL_PICKUP_SCOPE:'canary'},a,opt),'R38 cannot bypass R33 canary');
+const canary={...base,DFL_MANUAL_PICKUP_SCOPE:'canary',DFL_MESSAGING_PILOT_PHONE_E164:a};
+ok(exp.r33ManualPickupCanary(canary,a),'R33 existing canary remains');
+ok(!exp.r33ManualPickupCanary(canary,b),'R33 outside canary remains off');
+ok(api.includes('if(!pickupEnvelope&&!r8Authorized(phone,obj))'),'legacy R8 unchanged; v2 separate');
+ok(api.includes('r38ManualPickupRecipientAllowed(process.env,phone,obj)'),'new gate wired');
+ok(api.includes('r33ManualPickupCanary(process.env,phone)'),'old R33 remains wired');
+ok(api.includes('r32ManualNextStopCanary(process.env,phone)'),'NEXT_STOP unchanged');
+ok(api.indexOf('assertSignedIntegrationRequest(')<api.indexOf('r33ValidManualPickup(data)'),'HMAC first');
+ok(api.indexOf('r33ValidManualPickup(data)')<api.indexOf('r38ManualPickupRecipientAllowed(process.env,phone,obj)'),'validate before authorize');
+ok(api.includes('result.body.duplicate===true')&&api.includes('workerWake'),'dedupe + wake maintained');
+console.log(`R38: ${n} contratos OFF/allowlist/opt-in/rollout/HMAC/legacy/next-stop aprovados, sem rede ou WhatsApp.`);
