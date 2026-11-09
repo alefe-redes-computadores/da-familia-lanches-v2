@@ -863,3 +863,22 @@
   .actions>.primary{min-height:52px;font-size:12px}
 }
 @media(prefers-reduced-motion:reduce){.checkoutBottomAction,.scheduleSelected{scroll-behavior:auto}}
+
+/* R35 — decisão de um toque: compra com avisos ou compra sem WhatsApp.
+   Nenhuma escolha silenciosa; os dois botões submetem o mesmo pedido. */
+.r35NotificationChoice{display:grid;gap:12px;padding:15px;border:1px solid #dac682;border-radius:18px;background:linear-gradient(155deg,#fff9e8,#fff);color:#1f1b14}
+.r35NotificationIntro{display:grid;gap:5px}
+.r35NotificationIntro>span{font-size:10px;font-weight:950;letter-spacing:.08em;color:#735410}
+.r35NotificationIntro>strong{font-size:15px;line-height:1.3;color:#242018}
+.r35NotificationIntro>p,.r35NotificationFootnote{margin:0;font-size:11px;line-height:1.5;color:#625a4d}
+.r35NotificationActions{display:grid;gap:9px}
+.r35NotificationConfirm,.r35NotificationWithout{display:grid;gap:5px;align-content:center;justify-items:center;width:100%;min-height:52px;padding:13px 12px;border-radius:13px;font:inherit;font-size:13px;font-weight:900;line-height:1.35;text-align:center;cursor:pointer;touch-action:manipulation}
+.r35NotificationConfirm{border:1px solid #16191a;background:#171b1e;color:white;box-shadow:0 7px 19px rgba(0,0,0,.13)}
+.r35NotificationConfirm small{max-width:310px;font-size:10px;font-weight:600;line-height:1.35;color:#f8e9b9}
+.r35NotificationWithout{border:1px solid #cec6b6;background:white;color:#39342b;box-shadow:none}
+.r35NotificationConfirm:disabled,.r35NotificationWithout:disabled{opacity:.55;cursor:wait}
+.r35NotificationConfirm:focus-visible,.r35NotificationWithout:focus-visible,.r35NotificationBack button:focus-visible{outline:3px solid #b18209;outline-offset:3px}
+.r35NotificationBack{padding-bottom:max(10px,env(safe-area-inset-bottom,0px))}
+.r35NotificationBack button{width:100%;min-height:48px;font-size:12px}
+@media(max-width:480px){.r35NotificationChoice{padding:12px}.r35NotificationIntro>strong{font-size:14px}.r35NotificationConfirm,.r35NotificationWithout{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.r35NotificationConfirm,.r35NotificationWithout{transition:none;animation:none}}
