@@ -122,19 +122,23 @@ const disabled=load('src/lib/tracking/r27ProviderTransport.ts',providerDependenc
   'server-only':{},'node:crypto':{randomUUID:()=> 'lease_1'},'@/lib/integration/server/admin':{adminDb:{collection:()=>{dbReads++;throw Error('should not read')}}},
   './automaticInitialHandoff':{r25SendInitialOnce:()=>{throw Error('off')}},'./r27ProviderTransport':{r27SendToProvider:()=>{throw Error('off')}},
   './r27ProviderPolicy':pure,
+  './r41PilotRecipient':{r41TrackingPilotRecipient:()=>false},
  },{process:{env:{}}});
  const none=await inactiveFlow.drainR27AutomaticDelivery();
  ok(none.enabled===false&&dbReads===0,'worker OFF sem Firestore');
  const state={state:'pending',order_id:'ABCDEFGHIJ123'};
  let sends=0;
  const refDoc={id:'ABCDEFGHIJ123'},item={id:refDoc.id,ref:refDoc};
- const fakeDb={collection:()=>({where:()=>({limit:()=>({get:async()=>({docs:state.state==='pending'?[item]:[]})})})}),
+ const fakeDb={collection:(name)=>name==='Pedidos'
+    ? {doc:()=>({get:async()=>({exists:true,data:()=>({customerSnapshot:{phoneE164:'+5534999999999'}})})})}
+    : {where:()=>({limit:()=>({get:async()=>({docs:state.state==='pending'?[item]:[]})})})},
   runTransaction:async cb=>cb({get:async()=>({exists:true,data:()=>({...state})}),update:(_ref,patch)=>Object.assign(state,patch)})};
  const activeFlow=load('src/lib/tracking/r27AutomaticDelivery.ts',{
   'server-only':{},'node:crypto':{randomUUID:()=> 'lease_1'},'@/lib/integration/server/admin':{adminDb:fakeDb},
   './automaticInitialHandoff':{r25SendInitialOnce:async()=>{sends++;return 'provider_accepted';}},
   './r27ProviderTransport':{r27SendToProvider:async()=>({result:'accepted_by_provider',provider_event_id:'fixture1234'})},
   './r27ProviderPolicy':pure,
+  './r41PilotRecipient':{r41TrackingPilotRecipient:()=>true},
  },{process:{env:conf}});
  const once=await activeFlow.drainR27AutomaticDelivery(1);
  ok(once.claimed===1&&once.accepted===1&&state.state==='provider_accepted','job aplicado uma vez');

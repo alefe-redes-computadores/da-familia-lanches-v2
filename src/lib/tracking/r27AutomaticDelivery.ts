@@ -7,6 +7,7 @@ import {adminDb} from '@/lib/integration/server/admin';
 import {r25SendInitialOnce} from './automaticInitialHandoff';
 import {r27SendToProvider} from './r27ProviderTransport';
 import {R27_COLLECTION,r27DispatchConfigured} from './r27ProviderPolicy';
+import {r41TrackingPilotRecipient} from './r41PilotRecipient';
 
 const value=(x:unknown)=>typeof x==='string'?x.trim():'';
 export type R27Run={enabled:boolean;claimed:number;accepted:number;review:number;suppressed:number};
@@ -35,11 +36,19 @@ export async function drainR27AutomaticDelivery(limit=1):Promise<R27Run> {
     let final:'provider_accepted'|'review_required'|'suppressed'='review_required';
     let reason='UNKNOWN_AFTER_CLAIM';
     try{
-      const state=await r25SendInitialOnce(orderId,r27SendToProvider);
-      if(state==='provider_accepted'){final='provider_accepted';reason='PROVIDER_API_ACK';}
-      else if(state==='ineligible'){final='suppressed';reason='ORDER_NO_LONGER_ELIGIBLE';}
-      else {reason=state==='already_reserved'?'PREVIOUS_RESERVATION':
-        state==='off'?'GATE_CHANGED_AFTER_CLAIM':'HUMAN_REVIEW_REQUIRED';}
+      // R41: ultimo bloqueio antes de emitir token ou contactar o provedor.
+      const orderSnap=await adminDb.collection('Pedidos').doc(orderId).get();
+      const snapshot=(orderSnap.data()||{}) as Record<string,unknown>;
+      const customer=(snapshot.customerSnapshot||{}) as Record<string,unknown>;
+      if(!orderSnap.exists || !r41TrackingPilotRecipient(process.env,customer.phoneE164)){
+        final='suppressed';reason='R41_PILOT_ONLY';
+      } else {
+        const state=await r25SendInitialOnce(orderId,r27SendToProvider);
+        if(state==='provider_accepted'){final='provider_accepted';reason='PROVIDER_API_ACK';}
+        else if(state==='ineligible'){final='suppressed';reason='ORDER_NO_LONGER_ELIGIBLE';}
+        else {reason=state==='already_reserved'?'PREVIOUS_RESERVATION':
+          state==='off'?'GATE_CHANGED_AFTER_CLAIM':'HUMAN_REVIEW_REQUIRED';}
+      }
     }catch{reason='UNEXPECTED_UNCERTAIN_FAILURE';}
     // Settlement must be fenced; stale workers cannot overwrite newer review.
     const settled=await adminDb.runTransaction(async tx=>{

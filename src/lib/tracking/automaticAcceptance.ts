@@ -5,6 +5,7 @@ import { adminDb } from '@/lib/integration/server/admin';
 import { callEntregas } from '@/lib/tracking/server';
 import { acceptedOrderCanNotify, AUTO_ACCEPT_COLLECTION, AUTO_ACCEPT_PATH, terminalOrDifferentAcceptance } from './automaticAcceptancePolicy';
 import { R27_COLLECTION, r27ShouldEnqueue } from './r27ProviderPolicy';
+import { r41TrackingPilotRecipient } from './r41PilotRecipient';
 
 type Raw = Record<string, unknown>;
 const text = (v: unknown): string => typeof v === 'string' ? v.trim() : '';
@@ -50,7 +51,8 @@ export async function drainAutoAcceptances(limit=5) {
       const orderSnap=await adminDb.collection('Pedidos').doc(claim.orderId).get();
       const order=(orderSnap.data()||{}) as Raw;
       if (!orderSnap.exists || terminalOrDifferentAcceptance(order,claim.acceptedAt) ||
-          !acceptedOrderCanNotify(order,claim.acceptedAt) || Date.now()-Date.parse(claim.acceptedAt)>24*3600_000) {
+          !acceptedOrderCanNotify(order,claim.acceptedAt) || Date.now()-Date.parse(claim.acceptedAt)>24*3600_000 ||
+          !r41TrackingPilotRecipient(process.env, (order.customerSnapshot as Raw | undefined)?.phoneE164)) {
         state='blocked'; code='NOT_ELIGIBLE';
       } else {
         const customer=order.customerSnapshot as Record<string,unknown>;
