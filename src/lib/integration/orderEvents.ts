@@ -82,7 +82,9 @@ const money = (value: unknown) => {
   return Number.isFinite(amount) ? Math.round((amount + Number.EPSILON) * 100) / 100 : 0;
 };
 
-const deliveryProjectedTotal = (value: unknown) => Math.ceil(money(value));
+// R44: Site e autoridade pelo valor comercial exato em centavos.
+// Nao arredondar R$ 41,99 para R$ 42,00 ao emitir order.created/updated.
+const deliveryProjectedTotal = (value: unknown) => money(value);
 
 const nullableText = (
   value: unknown,

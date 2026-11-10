@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('node:fs');const assert=require('node:assert/strict');
+const s=fs.readFileSync('src/lib/integration/orderEvents.ts','utf8');
+assert.match(s,/const deliveryProjectedTotal = \(value: unknown\) => money\(value\);/);
+assert.doesNotMatch(s,/const deliveryProjectedTotal =[^\n]*Math\.ceil/);
+assert.match(s,/total: deliveryProjectedTotal\(rawOrder\.total\)/);
+assert.match(s,/originalTotal: money\(rawOrder\.total\)/);
+const money=(v)=>{const n=Number(v);return Number.isFinite(n)?Math.round((n+Number.EPSILON)*100)/100:0;};
+for (const [input,expected] of [[41.99,41.99],[0.01,0.01],[42,42],[41.999,42],[0,0]])assert.equal(money(input),expected);
+console.log('R44 SITE: preservacao de centavos e contratos basicos OK');
