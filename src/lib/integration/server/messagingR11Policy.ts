@@ -31,6 +31,11 @@ export function r11SiteMessageGate({eventType,sourceEventType,phone,order,env}:R
   // An approved template catalog must be verified externally before enabling this flag.
   // This event allowlist is an *additional* gate, not proof of provider approval.
   const events=(env.DFL_MESSAGING_R11_APPROVED_EVENTS||'').split(',').map(v=>v.trim()).filter(Boolean);
-  if (!events.includes(eventType)) return 'template_event_not_enabled';
+  // R40 P0: gate adicional SOMENTE para cancelamento efetivo, vindo de order.updated.
+  // Nao modifica nem substitui a lista sensivel APPROVED_EVENTS e nao pula R11/R24.
+  const cancellationExtraApproved = eventType === 'order.cancelled' &&
+    sourceEventType === 'order.updated' && st === 'cancelado' &&
+    env.DFL_MESSAGING_R11_CANCEL_ENABLED === 'true';
+  if (!events.includes(eventType) && !cancellationExtraApproved) return 'template_event_not_enabled';
   return null;
 }
