@@ -9,6 +9,39 @@ const humanTime=(v:string)=>{const d=new Date(v);return Number.isNaN(d.getTime()
 // Never invent a commercial order number, leak a long technical ID, or truncate one.
 // Short verified labels pass through unchanged; otherwise show a neutral label.
 const friendlyOrderLabel=(label:string)=>/^#[A-Za-z0-9-]{1,12}$/.test(label)?`Pedido ${label}`:'Seu pedido';
+
+/** R48: visual-only projection: never change a ledger event or infer a commercial status. */
+const R48_STEPS=[
+  {label:'Recebido',kinds:['received']},
+  {label:'Aceito',kinds:['confirmed']},
+  {label:'Em preparo',kinds:['preparing']},
+  {label:'Pronto',kinds:['ready']},
+  {label:'Saiu para entrega',kinds:['out_for_delivery','next_stop']},
+  {label:'Entregue',kinds:['delivered']},
+] as const;
+const r48CurrentStep=(status:string):number=>{
+  if(status==='delivered')return 5;
+  if(status==='out_for_delivery'||status==='next_stop')return 4;
+  if(status==='ready')return 3;
+  if(status==='preparing')return 2;
+  if(status==='confirmed')return 1;
+  if(status==='received'||status==='scheduled')return 0;
+  return -1; // assigned/cancelled/incident must not fabricate a kitchen step
+};
+const r48RouteStatus=(status:string)=>['out_for_delivery','next_stop','delivery_issue','assigned'].includes(status);
+/** Two near-identical creation receipts: collapse in presentation only. */
+const r48VisibleTimeline=(events:State['timeline']):State['timeline']=>{
+  const received:number[]=[];
+  return events.filter(e=>{
+    if(e.kind!=='received')return true;
+    const at=Date.parse(e.at);
+    if(!Number.isFinite(at))return true;
+    if(received.some(v=>Math.abs(v-at)<=120000))return false;
+    received.push(at);
+    return true;
+  });
+};
+
 const eventIcons:Record<string,typeof CheckCircle2>={
   received:ShoppingBag,scheduled:CalendarClock,confirmed:ClipboardCheck,
   preparing:ChefHat,ready:PackageCheck,assigned:Route,
@@ -94,14 +127,32 @@ export function TrackingExperience(){
     }
   };
   const stale=state?.freshness!=='fresh';
+  const r48Timeline=state?r48VisibleTimeline(state.timeline):[];
+  const r48Active=state?r48CurrentStep(state.status):-1;
+  const r48Observed=new Set((state?.timeline||[]).map(e=>e.kind));
   return <div className={styles.page}><main className={styles.wrap}>
     <header className={styles.header}><span className={styles.brand}>DFL <span>DA FAMÍLIA LANCHES</span></span><span className={styles.private}><LockKeyhole size={14}/> Acesso protegido</span></header>
     <div className={styles.title}><p>ACOMPANHAMENTO</p><h1>Seu pedido, passo a passo</h1><span>Acompanhe cada etapa do seu pedido, diretamente da Da Família Lanches.</span></div>
     {phase==='ready'&&state?<>
-      <section className={styles.hero} aria-live="polite"><span className={styles.label}>{friendlyOrderLabel(state.order.label)} · {state.order.origin_label}</span><div className={styles.heroTitle}><span className={styles.circle}>{(()=>{const Icon=eventIcons[state.status]||PackageCheck;return <Icon size={26}/>})()}</span><h2>{titles[state.status]||'Acompanhamento do pedido'}</h2></div><p>{stale?'Estamos atualizando o andamento da rota.':state.status==='out_for_delivery'?'Sua entrega foi despachada e está seguindo o percurso confirmado.':state.status==='assigned'?'Seu pedido está organizado para uma rota. Isso ainda não significa que saiu da loja.':'Acompanhe os próximos acontecimentos confirmados.'}</p>{state.courier&&!state.terminal&&<p className={styles.courier}>Entregador: {state.courier.first_name}</p>}</section>
+      <section className={styles.hero} aria-live="polite"><span className={styles.label}>{friendlyOrderLabel(state.order.label)} · {state.order.origin_label}</span><div className={styles.heroTitle}><span className={styles.circle}>{(()=>{const Icon=eventIcons[state.status]||PackageCheck;return <Icon size={26}/>})()}</span><h2>{titles[state.status]||'Acompanhamento do pedido'}</h2></div><p>{stale?(r48RouteStatus(state.status)?'Estamos confirmando as informações da rota.':'Aguardando uma nova atualização da loja. Confira as etapas confirmadas.'):state.status==='out_for_delivery'?'Sua entrega foi despachada e está seguindo o percurso confirmado.':state.status==='assigned'?'Seu pedido está organizado para uma rota. Isso ainda não significa que saiu da loja.':'Acompanhe os próximos acontecimentos confirmados.'}</p>{state.courier&&!state.terminal&&<p className={styles.courier}>Entregador: {state.courier.first_name}</p>}</section>
+      <section className={styles.journey} aria-label="Etapas do pedido">
+        <div className={styles.journeyHeading}><h2>Etapas do pedido</h2><span>Atualizado conforme eventos confirmados</span></div>
+        <ol className={styles.journeyGrid}>
+          {R48_STEPS.map((step,i)=>{
+            const observed=step.kinds.some(k=>r48Observed.has(k));
+            const current=i===r48Active&&state.status!=='delivered';
+            const mode=current?'current':observed?'done':'waiting';
+            return <li key={step.label} data-step-state={mode} aria-current={current?'step':undefined}>
+              <span className={styles.stageSymbol}>{mode==='done'?<CheckCircle2 size={17}/>:<span>{i+1}</span>}</span>
+              <strong>{step.label}</strong>
+              <small>{current?'Etapa atual':mode==='done'?'Confirmado':'Aguardando'}</small>
+            </li>;
+          })}
+        </ol>
+      </section>
       {state.progress&&state.status==='out_for_delivery'&&!stale&&<section className={styles.progress}><div><span className={styles.label}>PARADAS ANTES DA SUA</span><strong>{state.progress.stops_ahead}</strong><small>{state.progress.is_next_stop?'Sua parada é a próxima pendente.':'Posição verificada pela operação, sujeita a alterações.'}</small></div><span className={styles.circle}><Truck size={22}/></span></section>}
-      {stale&&<div className={styles.warning}><Clock3 size={18}/> Estamos atualizando o andamento da rota.</div>}
-      <section className={styles.timeline}><h2>Histórico confirmado</h2><ol>{state.timeline.map((item,i)=><li key={item.id}><span className={styles.dot}>{(()=>{const Icon=eventIcons[item.kind]||CheckCircle2;return <Icon size={16}/>})()}</span><div><strong>{item.title}</strong><time dateTime={item.at}>{humanTime(item.at)}</time></div></li>)}</ol>{!state.timeline.length&&<p>Aguardando o primeiro acontecimento confirmado.</p>}</section>
+      {stale&&<div className={styles.warning}><Clock3 size={18}/>{r48RouteStatus(state.status)?'Informações da rota em atualização. A posição pode mudar.':'Última informação da loja ainda sem atualização recente.'}</div>}
+      <section className={styles.timeline}><h2>Histórico confirmado</h2><ol>{r48Timeline.map((item,i)=><li key={item.id} data-kind={item.kind} data-current={item.kind===state.status?'true':'false'}><span className={styles.dot}>{(()=>{const Icon=eventIcons[item.kind]||CheckCircle2;return <Icon size={16}/>})()}</span><div><strong>{item.title}</strong><time dateTime={item.at}>{humanTime(item.at)}</time></div></li>)}</ol>{!state.timeline.length&&<p>Aguardando o primeiro acontecimento confirmado.</p>}</section>
       <div className={styles.footline}><Clock3 size={15}/> Última atualização confirmada: {humanTime(state.as_of)}</div>
       <div className={styles.actions}><button onClick={()=>void refresh()} disabled={busy}><RefreshCw size={17}/>{busy?'Atualizando…':'Atualizar'}</button><button onClick={()=>void close()} className={styles.secondary}>Encerrar acesso</button></div>
     </>:<section className={styles.empty} aria-live="polite"><span className={styles.circle}>{phase==='offline'?<WifiOff size={25}/>:phase==='denied'?<ShieldAlert size={25}/>:<Clock3 size={25}/>}</span><h2>{phase==='loading'?'Conectando com segurança…':phase==='denied'?'Link inválido ou acesso encerrado':phase==='logout-error'?'Encerramento não confirmado':'Acompanhamento indisponível'}</h2><p>{phase==='loading'?'Conferindo sua sessão.':phase==='denied'?'Confira seu link ou solicite um novo acesso à equipe.':phase==='logout-error'?'Não foi possível confirmar o encerramento. Seus dados estão ocultos; tente novamente quando a conexão voltar.':'Não foi possível atualizar agora. Sua compra não foi alterada.'}</p>{phase!=='loading'&&<button onClick={()=>void (phase==='logout-error'?close():refresh())} disabled={busy||closingRequest.current}><RefreshCw size={17}/>{busy?'Tentando…':phase==='logout-error'?'Tentar encerrar novamente':'Tentar novamente'}</button>}</section>}

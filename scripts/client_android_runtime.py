@@ -80,6 +80,24 @@ def prepare_client_runtime(main: Path):
     _exactly_once(xml, _PERMISSION_MANIFEST, 'AndroidManifest/POST_NOTIFICATIONS')
     _exactly_once(xml, _PERMISSION_ACTIVITY, 'AndroidManifest/NotificationPermissionRequestActivity')
     xml = xml.replace(_PERMISSION_MANIFEST, '', 1).replace(_PERMISSION_ACTIVITY, '', 1)
+
+    # R48 Cliente-only: allow Android Browser Helper to choose any installed TWA
+    # browser instead of forcing a named package. The current strict per-host
+    # HTTPS VIEW filter and Entry -> SafeLauncher intent data/fragment stay intact.
+    fixed = re.findall(
+        r'\s*<meta-data\s+android:name="android\.support\.customtabs\.trusted\.LAUNCHING_BROWSER(?:_NAME)?"\s+android:value="[^"]+"\s*/>',
+        xml,
+    )
+    if len(fixed) != 2:
+        raise ValueError('R48: browser pin mismatch in customer-only manifest')
+    for item in fixed:
+        xml = xml.replace(item, '', 1)
+    if any(value not in code for value in (
+        'getIntent().getData()', 'target.setAction(Intent.ACTION_VIEW);',
+        'target.setData(incomingUri);', 'startActivity(target);',
+    )):
+        raise ValueError('R48: original deep-link URI forwarding changed')
+
     if any(x in code for x in ('REQUEST_NATIVE_NOTIFICATIONS', 'requestPermissions(', 'onRequestPermissionsResult(', 'launchTwaWithNativeNotificationPermission')):
         raise ValueError('R232: sobrou um gate de permissoes no Cliente')
     if 'android.permission.POST_NOTIFICATIONS' in xml or 'NotificationPermissionRequestActivity' in xml:
@@ -125,6 +143,8 @@ def validate_client_runtime(root: Path):
     check('clearDiagnostic(this);\n                    launchTwa();' in code and 'retry.setOnClickListener(' in code, 'retry nativo reabre Cliente sem solicitar notificacoes')
     check(ORIGIN+'/' in code and 'admin.dafamilialanches.com.br' not in code and 'admin.dafamilialanches.com.br' not in safe, 'launcher nao redireciona para Admin')
     check('openClienteInBrowser(' in safe and 'openClienteInBrowser(' in code, 'fallback de navegador cliente preservado')
+    check('LAUNCHING_BROWSER' not in (main / 'AndroidManifest.xml').read_text(encoding='utf-8'), 'R48: TWA provider dinamico, sem exigir Chrome fixo')
+    check('getIntent().getData()' in code and 'target.setData(incomingUri);' in code, 'R48: link HTTPS e fragmento recebidos intactos no TWA')
     strings = ET.parse(main / 'res/values/strings.xml').getroot()
     strs = {x.attrib['name']: x.text or '' for x in strings.findall('string')}
     check(strs.get('app_name') == 'Da Família Lanches', 'nome correto do Cliente')
