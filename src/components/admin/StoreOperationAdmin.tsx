@@ -1,12 +1,12 @@
 "use client";
 import{useEffect,useMemo,useRef,useState}from"react";import{Save,Plus,Trash2,Bot,DoorOpen,DoorClosed,FlaskConical}from"lucide-react";import{doc,serverTimestamp,setDoc}from"firebase/firestore";import{db}from"@/lib/firebase";
-import{DAYS,DEFAULT_STORE_SETTINGS,evaluateStoreStatus,type DayKey,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
+import{DAYS,evaluateStoreStatus,type DayKey,type StoreException,type StoreMode,type StoreSettings}from"@/lib/storeSchedule";
 import styles from"./StoreOperationAdmin.module.css";
 import { AdminChoiceSelect } from "./ui/AdminChoiceSelect";
 import { haptic } from "@/lib/haptics";
 import{useAdminStoreSettings}from"@/hooks/useAdminStoreSettings";
-import{useAdminConfirm}from"@/components/admin/ui/AdminExperienceProvider";
-export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{settings:liveSettings,ready}=useAdminStoreSettings();const[s,setS]=useState<StoreSettings>(liveSettings),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
+import{useAdminConfirm,useAdminFeedback}from"@/components/admin/ui/AdminExperienceProvider";
+export function StoreOperationAdmin(){const confirm=useAdminConfirm();const {show:showFeedback}=useAdminFeedback();const{settings:liveSettings,ready}=useAdminStoreSettings();const[s,setS]=useState<StoreSettings>(liveSettings),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");
  const[ex,setEx]=useState<StoreException>({date:"",closed:true,label:""});
  // DFL-R100-FINAL-POLISH: fonte explicita para replicar somente horas em dias abertos.
  const[copySourceDay,setCopySourceDay]=useState<DayKey>("fri");
@@ -37,7 +37,8 @@ export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{sett
   void save({...s,mode:m},m==="auto"?"Modo automático ativado.":m==="force_open"?"Loja forçada como aberta.":m==="test_open"?"Modo de teste ativado. Só os e-mails liberados fazem pedido imediato.":"Loja forçada como fechada.");
  };
  const[testEmail,setTestEmail]=useState("");
- useEffect(()=>{if(!msg)return;const id=window.setTimeout(()=>setMsg(""),3200);return()=>window.clearTimeout(id)},[msg]);
+ // R58: o feedback global nao fica preso no container transformado da pagina.
+ useEffect(()=>{if(!msg)return;showFeedback({tone:/falha|erro|inválid|não foi possível/i.test(msg)?"error":"success",title:"Funcionamento da loja",message:msg,key:"dfl-store-operation"});setMsg("")},[msg,showFeedback]);
  const addTestEmail=()=>{const email=testEmail.trim().toLowerCase();if(!email||!email.includes("@"))return setMsg("Informe um e-mail válido.");if(s.testAllowedEmails.includes(email))return setMsg("Esse e-mail já está liberado.");setTestEmail("");void save({...s,testAllowedEmails:[...s.testAllowedEmails,email]},"E-mail liberado para teste.")};
  const removeTestEmail=(email:string)=>void save({...s,testAllowedEmails:s.testAllowedEmails.filter(x=>x!==email)},"E-mail removido do teste.");
  const addEx=()=>{if(!ex.date)return setMsg("Escolha a data.");if(!ex.closed&&(!ex.open||!ex.close))return setMsg("Informe abertura e fechamento.");void save({...s,exceptions:[...s.exceptions.filter(x=>x.date!==ex.date),ex].sort((a,b)=>a.date.localeCompare(b.date))},"Exceção salva.");setEx({date:"",closed:true,label:""})};
@@ -88,6 +89,6 @@ export function StoreOperationAdmin(){const confirm=useAdminConfirm();const{sett
    {!ex.closed&&<><label>Abre<input type="time" value={ex.open??"18:00"} onChange={e=>setEx({...ex,open:e.target.value})}/></label><label>Fecha<input type="time" value={ex.close??"23:00"} onChange={e=>setEx({...ex,close:e.target.value})}/></label></>}
    <label className={styles.note}>Observação<input value={ex.label??""} onChange={e=>setEx({...ex,label:e.target.value})} placeholder="Ex.: feriado"/></label><button disabled={busy} onClick={addEx}><Plus size={15}/>Adicionar</button>
   </div>{s.exceptions.length>0&&<div className={styles.exceptions}>{s.exceptions.map(x=><div key={x.date}><span><strong>{x.date.split("-").reverse().join("/")}</strong><small>{x.label||"Exceção"}</small></span><b>{x.closed?"FECHADO":`${x.open}–${x.close}`}</b><button onClick={()=>void save({...s,exceptions:s.exceptions.filter(y=>y.date!==x.date)},"Exceção removida.")}><Trash2 size={14}/></button></div>)}</div>}</div>
-  {msg&&<div className={styles.msg}>{msg}<button onClick={()=>setMsg("")}>×</button></div>}
+
  </section>}
 // DFL-R35-OPERATION-DRAFT

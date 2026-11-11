@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BellRing, Download, WifiOff, X } from "lucide-react";
 import { haptic } from "@/lib/haptics";
+import { AndroidUpdateNotice } from "@/components/updates/AndroidUpdateNotice";
 import { getMessaging, getToken, isSupported as isMessagingSupported, onMessage } from "firebase/messaging";
 import { app, auth } from "@/lib/firebase";
 import styles from "./AdminPwa.module.css";
@@ -169,6 +170,7 @@ export function AdminPwa(){
       : "Ative os alertas para receber novos pedidos mesmo com o Admin em segundo plano.";
 
   return <>
+    <AndroidUpdateNotice app="admin" />
     {!online&&<div className={styles.offline} role="status"><WifiOff size={15}/>Sem internet · ações ficam bloqueadas até reconectar</div>}
     {showSetup&&<aside className={styles.setup} aria-label="Configuração do DFL Admin"><div className={styles.setupCopy}><span className={styles.setupIcon}><BellRing size={17}/></span><div><b>Deixe o Admin pronto para a operação</b><span>{setupMessage}</span></div></div><div className={styles.actions}>{needsPermission&&<button type="button" onClick={()=>void enableNotifications()}><BellRing size={14}/>Ativar alertas</button>}{installPrompt&&<button type="button" onClick={()=>void install()}><Download size={14}/>Instalar app</button>}<button type="button" className={styles.close} aria-label="Agora não" onClick={close}><X size={17}/></button></div></aside>}
   </>;

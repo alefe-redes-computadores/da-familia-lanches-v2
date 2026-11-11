@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { User } from "firebase/auth";
 import {
   collection,
   limit,
@@ -13,7 +14,7 @@ import { normalizarStatus } from "@/lib/orderUtils";
 import { orderDateToMillis } from "@/lib/orderCompat";
 import { orderHistoryTimestamp, isAwaitingCommercialAcceptance, type AdminOrder } from "@/lib/adminOrders";
 import { recordFirestoreReadEstimate } from "@/lib/firestoreReadBudget";
-import { adminNotificationPrefEnabled } from "@/lib/adminNotificationPrefs";
+import { adminNotificationPrefEnabled, adminLocalQuietHoursActive, adminLocalAlertBody } from "@/lib/adminNotificationPrefs";
 
 const ACTIVE_QUERY_STATUSES = [
   "Pendente",
@@ -72,7 +73,7 @@ function alarmCandidate(order: AdminOrder): AdminAlarmCandidate {
   };
 }
 
-export function useAdminOrders(currentUser: any, admins: string[]) {
+export function useAdminOrders(currentUser: User | null, admins: string[]) {
   const [pedidos, setPedidos] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -127,7 +128,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       alertedPendingIdsRef.current.add(candidate.id);
     }
     const newOrderAlerts=adminNotificationPrefEnabled("newOrders");
-    const soundAndVibration=adminNotificationPrefEnabled("soundAndVibration");
+    const soundAndVibration=adminNotificationPrefEnabled("soundAndVibration") && !adminLocalQuietHoursActive();
     const generation = ++alarmGenerationRef.current;
     if (newOrderAlerts) {
       alarmActiveRef.current = true;
@@ -166,7 +167,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
           detail: {
             id: candidate.id,
             title: candidate.title,
-            body: candidate.body,
+            body: adminLocalAlertBody(candidate.body),
             url: candidate.url ?? `/admin?stage=cozinha&order=${encodeURIComponent(candidate.id)}`,
             tag: candidate.tag ?? `new-order-${candidate.id}`,
             forceVisible: !audible,
@@ -247,7 +248,6 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
       const target = audioRef.current;
       if (!target) return;
 
-      const generation = alarmGenerationRef.current;
       void target.play().then(() => {
         // Nao ressuscitar áudio depois do aceite e nem pausar alerta novo.
         if (!alarmActiveRef.current) {
@@ -421,7 +421,7 @@ export function useAdminOrders(currentUser: any, admins: string[]) {
                 detail: {
                   id,
                   title: "Pedido pronto para sair",
-                  body: `${String(order.clienteNome || order.nomeCliente || "Cliente")} · confira na Expedição`,
+                  body: adminLocalAlertBody(`${String(order.clienteNome || order.nomeCliente || "Cliente")} · confira na Expedição`),
                   url: `/admin?stage=expedicao&order=${encodeURIComponent(id)}`,
                   tag: `ready-${id}`,
                 },

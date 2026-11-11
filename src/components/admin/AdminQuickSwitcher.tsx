@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Keyboard, Search, X } from "lucide-react";
 import styles from "./AdminQuickSwitcher.module.css";
+import { quickSearchScore } from "@/lib/adminQuickSearch";
 
 export type AdminQuickTarget =
   | "cozinha" | "agendados" | "expedicao" | "concluidos" | "cancelados"
@@ -27,7 +28,7 @@ const ENTRIES: ReadonlyArray<Entry> = [
   { id:"expedicao", name:"Expedição", hint:"Prontos e saídas para entrega", group:"Pedidos", terms:"motoboy rota retirada entrega", target:"expedicao" },
   { id:"concluidos", name:"Histórico", hint:"Pedidos concluídos", group:"Pedidos", terms:"finalizados fechados consulta", target:"concluidos" },
   { id:"cancelados", name:"Cancelados", hint:"Pedidos cancelados", group:"Pedidos", terms:"cancelamento motivos", target:"cancelados" },
-  { id:"catalogo", name:"Catálogo", hint:"Produtos, combos e disponibilidade", group:"Loja e catálogo", terms:"lanche cardápio editor pausar adicionais preços", target:"catalogo" },
+  { id:"catalogo", name:"Catálogo", hint:"Produtos, combos e disponibilidade", group:"Loja e catálogo", terms:"lanche lanches sanduíche sanduíches hamburguer burguer cardápio cardapio carda cadim cadom cadin cardim cardap catálogos editor pausar adicionais preços", target:"catalogo" },
   { id:"operacao", name:"Funcionamento da loja", hint:"Horários e abertura", group:"Loja e catálogo", terms:"abrir fechar manutenção status", target:"operacao" },
   { id:"store", name:"Controle rápido da loja", hint:"Abrir painel de operação rápida", group:"Loja e catálogo", terms:"abertura fechar manutenção agora", action:"store" },
   { id:"agendamentos", name:"Configurar agendamentos", hint:"Capacidade e horários futuros", group:"Loja e catálogo", terms:"dias horas capacidade", target:"agendamentos" },
@@ -38,8 +39,6 @@ const ENTRIES: ReadonlyArray<Entry> = [
   { id:"gestao", name:"Saúde e diagnóstico", hint:"Operação, leituras e relatórios", group:"Ferramentas", terms:"saúde desempenho diagnóstico firestore monitoramento", target:"gestao" },
   { id:"notifications", name:"Notificações", hint:"Permissões e status do push", group:"Ferramentas", terms:"avisos alerta celular som vibração", action:"notifications" },
 ];
-
-const simplify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
 export function AdminQuickSwitcher({
   open, onClose, currentTab, onNavigate, onAttention, onNotifications, onStore,
@@ -62,25 +61,29 @@ export function AdminQuickSwitcher({
   // DFL-R85-ADMIN-UX: seleção sempre limitada aos resultados reais.
   const [showOnlyCurrent, setShowOnlyCurrent] = useState(false);
   const matches = useMemo(() => {
-    const tokens = simplify(query).split(/\s+/).filter(Boolean);
     const candidates = showOnlyCurrent ? ENTRIES.filter((entry) => entry.target === currentTab) : ENTRIES;
-    if (!tokens.length) return candidates;
-    return candidates.filter((entry) => {
-      const haystack = simplify(`${entry.name} ${entry.hint} ${entry.terms}`);
-      return tokens.every((token) => haystack.includes(token));
-    });
+    if (!query.trim()) return candidates;
+    const groupOrder = { "Pedidos": 0, "Loja e catálogo": 1, "Ferramentas": 2 } as const;
+    return candidates.map((entry, index) => ({ entry, index, score: quickSearchScore(entry, query) }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => groupOrder[a.entry.group] - groupOrder[b.entry.group] || b.score - a.score || a.index - b.index)
+      .map(item => item.entry);
   }, [query, showOnlyCurrent, currentTab]);
 
   useEffect(() => {
     if (!open) return;
-    setQuery("");
-    setSelected(0);
-    setShowOnlyCurrent(false);
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    inputRef.current?.focus();
+    // Reset no frame de abertura, sem criar render em cascata no efeito.
+    const resetFrame = window.requestAnimationFrame(() => {
+      setQuery("");
+      setSelected(0);
+      setShowOnlyCurrent(false);
+      inputRef.current?.focus();
+    });
     return () => {
+      window.cancelAnimationFrame(resetFrame);
       document.body.style.overflow = previousOverflow;
       previousFocus.current?.focus();
     };
@@ -149,7 +152,7 @@ export function AdminQuickSwitcher({
                 <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>;
-          }) : <div className={styles.empty}><strong>Nenhum atalho encontrado</strong><span>Tente “catálogo”, “frete”, “cozinha” ou “cupom”.</span></div>}
+          }) : <div className={styles.empty}><strong>Nenhum atalho encontrado</strong><span>Tente “cardápio”, “lanche”, “horário” ou “cozinha”. Aceitamos pequenas trocas de letras.</span></div>}
         </div>
         <footer className={styles.footer}><Keyboard size={16} /><span>↑ ↓ para navegar · Enter para abrir · Esc para fechar</span><b>DFL Admin</b></footer>
       </section>

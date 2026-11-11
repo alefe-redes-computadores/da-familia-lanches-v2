@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BellRing, PackageCheck, Volume2, RefreshCw, Send, ShieldCheck, Smartphone, Radio, X } from "lucide-react";
+import { BellRing, PackageCheck, Volume2, Moon, EyeOff, RefreshCw, Send, ShieldCheck, Smartphone, Radio, X } from "lucide-react";
 import { haptic } from "@/lib/haptics";
 import {
   DEFAULT_ADMIN_NOTIFICATION_PREFS,
@@ -9,6 +9,7 @@ import {
   writeAdminNotificationPrefs,
   type AdminNotificationPrefs,
 } from "@/lib/adminNotificationPrefs";
+import Link from "next/link";
 import styles from "./AdminNotificationCenter.module.css";
 
 type PermissionState = NotificationPermission | "unsupported";
@@ -46,7 +47,9 @@ export function AdminNotificationCenter({
 
   useEffect(() => {
     if (!open) return;
-    refreshStatus();
+    // O primeiro refresh consulta sistemas externos depois do commit da abertura.
+    // Os eventos continuam atualizando imediatamente e possuem limpeza simetrica.
+    const initialRefreshFrame = window.requestAnimationFrame(refreshStatus);
     const onRefresh = () => refreshStatus();
     const onSyncSuccess = () => {
       if (syncTimeoutRef.current !== null) window.clearTimeout(syncTimeoutRef.current);
@@ -72,6 +75,7 @@ export function AdminNotificationCenter({
     window.addEventListener("focus", onRefresh);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      window.cancelAnimationFrame(initialRefreshFrame);
       window.removeEventListener("dfl:admin-notification-prefs-changed", onRefresh);
       window.removeEventListener("dfl:admin-push-sync-complete", onRefresh);
       window.removeEventListener("dfl:admin-push-sync-complete", onSyncSuccess);
@@ -99,7 +103,7 @@ export function AdminNotificationCenter({
       window.matchMedia("(display-mode: standalone)").matches
       ? "Aplicativo / TWA"
       : "Navegador / PWA";
-  }, [open]);
+  }, []);
 
   const savePrefs = (patch: Partial<AdminNotificationPrefs>) => {
     haptic("step");
@@ -236,6 +240,8 @@ export function AdminNotificationCenter({
           <Preference icon={<BellRing size={18} />} title="Novo pedido" description="Push e alerta operacional quando um pedido entra." checked={prefs.newOrders} disabled={busy !== null} onChange={(v) => void toggleNewOrders(v)} />
           <Preference icon={<PackageCheck size={18} />} title="Pedido pronto" description="Aviso local quando a cozinha libera para expedição." checked={prefs.readyOrders} disabled={busy !== null} onChange={(v) => savePrefs({ readyOrders: v })} />
           <Preference icon={<Volume2 size={18} />} title="Som e vibração" description="Alarme local para chamar atenção durante a operação." checked={prefs.soundAndVibration} disabled={busy !== null} onChange={(v) => savePrefs({ soundAndVibration: v })} />
+          <Preference icon={<Moon size={18} />} title="Silêncio local: 23h às 7h" description="Silencia apenas áudio e vibração neste aparelho, no horário de Brasília. Pedidos e push remoto continuam chegando." checked={prefs.quietHours} disabled={busy !== null} onChange={(v) => savePrefs({ quietHours: v })} />
+          <Preference icon={<EyeOff size={18} />} title="Prévia discreta dos avisos locais" description="Oculta nomes de clientes nos alertas locais. Não altera mensagens externas ou o histórico dos pedidos." checked={prefs.privatePreview} disabled={busy !== null} onChange={(v) => savePrefs({ privatePreview: v })} />
         </div>
 
         <div className={styles.diagnostics}>
@@ -250,7 +256,7 @@ export function AdminNotificationCenter({
         </div>
 
         {message && <div className={styles.message} role="status">{message}</div>}
-        <footer className={styles.footer}><span>Preferências ficam neste aparelho. Nenhum listener Firestore novo é criado.</span><a className={styles.updateCenterLink} href="/admin/atualizacoes" onClick={onClose}><RefreshCw size={15}/> Atualizações</a><button type="button" onClick={() => { haptic("step"); onClose(); }}>Concluir</button></footer>
+        <footer className={styles.footer}><span>Preferências ficam neste aparelho. Nenhum listener Firestore novo é criado.</span><Link className={styles.updateCenterLink} href="/admin/atualizacoes" onClick={onClose}><RefreshCw size={15}/> Atualizações</Link><button type="button" onClick={() => { haptic("step"); onClose(); }}>Concluir</button></footer>
       </section>
     </div>
   );

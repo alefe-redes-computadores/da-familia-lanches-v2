@@ -12,6 +12,7 @@ import { useUIStore } from "@/store/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import styles from "./header.module.css";
+import { AndroidUpdateNotice } from "@/components/updates/AndroidUpdateNotice";
 import { clearGuestContinuity, readGuestIdentity, readGuestOrders, type GuestIdentity } from "@/lib/guestContinuity";
 
 export function Header() {
@@ -99,6 +100,7 @@ export function Header() {
 
   return (
     <header className={styles.header} data-compact={compact} data-dfl-campaign-header="true">
+      <AndroidUpdateNotice app="cliente" />
       <button className={styles.brandBlock} type="button" onClick={goHome} aria-label="Ir para o início do cardápio">
         <strong className={styles.logo}>Da Família <span>Lanches</span></strong>
         <span className={styles.status}>

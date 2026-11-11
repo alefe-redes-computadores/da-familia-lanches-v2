@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Download, RefreshCw, ShieldCheck, Smartphone, WifiOff } from 'lucide-react';
 import type { AndroidFlavor, VerifiedAndroidRelease } from '@/lib/android-updates/policy';
 import styles from './AndroidUpdatesCenter.module.css';
+import { readReleaseAlertEnabled, writeReleaseAlertEnabled } from '@/lib/android-updates/alertPrefs';
 
 type ResponsePayload = { ok: boolean; app?: string; available?: boolean; release?: VerifiedAndroidRelease | null; error?: string };
 type Phase = 'loading' | 'ready' | 'error';
@@ -15,6 +16,8 @@ export function AndroidUpdatesCenter({ app }: { app: AndroidFlavor }) {
   const [release, setRelease] = useState<VerifiedAndroidRelease | null>(null);
   const [checkedAt, setCheckedAt] = useState<number | null>(null);
   const [online, setOnline] = useState(true);
+  const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [alertsMessage, setAlertsMessage] = useState('');
   const busy = useRef(false);
   const lastCheck = useRef(0);
   const alive = useRef(false);
@@ -46,6 +49,7 @@ export function AndroidUpdatesCenter({ app }: { app: AndroidFlavor }) {
   useEffect(() => {
     alive.current = true;
     setOnline(navigator.onLine);
+    setAlertsEnabled(readReleaseAlertEnabled(app));
     void refresh(true);
     const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
     const onOnline = () => { setOnline(true); void refresh(true); };
@@ -59,8 +63,16 @@ export function AndroidUpdatesCenter({ app }: { app: AndroidFlavor }) {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-  }, [refresh]);
+  }, [refresh, app]);
 
+  const changeAlertPreference = () => {
+    try {
+      const next = !alertsEnabled;
+      writeReleaseAlertEnabled(app, next, phase === 'ready' ? release?.build || 0 : 0);
+      setAlertsEnabled(next);
+      setAlertsMessage(next ? 'Preferência salva. Só uma NOVA release certificada será anunciada ao abrir ou retornar ao app.' : 'Avisos locais de novas releases desativados.');
+    } catch { setAlertsMessage('Não conseguimos salvar a preferência neste aparelho.'); }
+  };
   const theme = admin ? styles.admin : styles.cliente;
   const date = checkedAt ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(checkedAt)) : null;
   return (
@@ -98,6 +110,11 @@ export function AndroidUpdatesCenter({ app }: { app: AndroidFlavor }) {
              <p className={styles.note}>No APK com R57 instalado, o primeiro botão abre a atualização nativa com versão instalada, MB, porcentagem, cancelamento, SHA-256 e assinatura verificada. No navegador ou em APKs antigos, use o link oficial. A primeira instalação do R57 ainda é manual.</p>
            </> : <div className={styles.empty}><ShieldCheck size={24}/><strong>Nenhum APK certificado disponível</strong><p>Sem uma Release pública correspondente a uma Action aprovada, não indicamos atualização. Um deploy do Site, sozinho, não é uma nova versão Android.</p></div>}
           {date && <p className={styles.timestamp}>Última verificação: {date}</p>}
+        </section>
+        <section className={styles.card} aria-label="Preferência de avisos de atualização">
+          <div className={styles.cardHead}><div><small>PREFERÊNCIAS DESTE APARELHO</small><h2>Avisos de novas versões</h2></div></div>
+          <label className={styles.releaseAlertChoice}><input type="checkbox" checked={alertsEnabled} onChange={changeAlertPreference}/><span><strong>Avisar quando sair um novo APK certificado</strong><small>Opt-in local. Ao abrir ou retornar ao Site, podemos mostrar um aviso discreto para uma release nova. Não solicita permissão Android, não ativa push nem roda em segundo plano. A comparação com o APK instalado é feita na tela nativa.</small></span></label>
+          {alertsMessage && <p className={styles.muted} role="status">{alertsMessage}</p>}
         </section>
         <section className={styles.facts} aria-label="Como funcionam as atualizações">
           <div><ShieldCheck size={20}/><div><strong>Identidade preservada</strong><span>Admin e Cliente têm pacotes distintos; nunca misturamos os instaladores.</span></div></div>
