@@ -50,9 +50,12 @@ const eventIcons:Record<string,typeof CheckCircle2>={
 };
 export function TrackingExperience(){
   const [state,setState]=useState<State|null>(null);
-  const [phase,setPhase]=useState<'loading'|'ready'|'denied'|'offline'|'logout-error'>('loading');
+  const [phase,setPhase]=useState<'loading'|'ready'|'denied'|'no-link'|'offline'|'logout-error'>('loading');
   const [busy,setBusy]=useState(false);
   const initializing = useRef(true);
+  // A URL publica, sem token, nao e um erro de pedido nem uma sessao revogada.
+  const noTokenAtEntry = useRef(false);
+  const hasOpenedSession = useRef(false);
   const epoch = useRef(0);
   const closing = useRef(false);
   const closingRequest = useRef(false);
@@ -63,15 +66,18 @@ export function TrackingExperience(){
     try{
       const response=await fetch('/acompanhar/api/status',{cache:'no-store',credentials:'same-origin'});
       if(currentEpoch !== epoch.current) return;
-      if(!response.ok){setState(null);setPhase(response.status===401||response.status===404?'denied':'offline');return;}
+      if(!response.ok){setState(null);setPhase(response.status===401||response.status===404?(noTokenAtEntry.current&&!hasOpenedSession.current?'no-link':'denied'):'offline');return;}
       const data: State = await response.json();
       if(currentEpoch !== epoch.current) return;
       if(data.contract!=='dfl.tracking.public'||data.version!==1){setState(null);setPhase('offline');return;}
+      hasOpenedSession.current=true;
       setState(data);setPhase('ready');
     }catch{if(currentEpoch===epoch.current){setState(null);setPhase('offline')}}
   },[]);
   useEffect(()=>{
     let cancelled=false;
+    // Classify the entry URL before the async launch. R263 runs launch isolated.
+    noTokenAtEntry.current = window.location.hash === '';
     const launch=async()=>{
       const token=window.location.hash.startsWith('#t=')?window.location.hash.slice(3):'';
       if(window.location.hash) window.history.replaceState(null,'',window.location.pathname+window.location.search);
@@ -155,7 +161,7 @@ export function TrackingExperience(){
       <section className={styles.timeline}><h2>Histórico confirmado</h2><ol>{r48Timeline.map((item,i)=><li key={item.id} data-kind={item.kind} data-current={item.kind===state.status?'true':'false'}><span className={styles.dot}>{(()=>{const Icon=eventIcons[item.kind]||CheckCircle2;return <Icon size={16}/>})()}</span><div><strong>{item.title}</strong><time dateTime={item.at}>{humanTime(item.at)}</time></div></li>)}</ol>{!state.timeline.length&&<p>Aguardando o primeiro acontecimento confirmado.</p>}</section>
       <div className={styles.footline}><Clock3 size={15}/> Última atualização confirmada: {humanTime(state.as_of)}</div>
       <div className={styles.actions}><button onClick={()=>void refresh()} disabled={busy}><RefreshCw size={17}/>{busy?'Atualizando…':'Atualizar'}</button><button onClick={()=>void close()} className={styles.secondary}>Encerrar acesso</button></div>
-    </>:<section className={styles.empty} aria-live="polite"><span className={styles.circle}>{phase==='offline'?<WifiOff size={25}/>:phase==='denied'?<ShieldAlert size={25}/>:<Clock3 size={25}/>}</span><h2>{phase==='loading'?'Conectando com segurança…':phase==='denied'?'Link inválido ou acesso encerrado':phase==='logout-error'?'Encerramento não confirmado':'Acompanhamento indisponível'}</h2><p>{phase==='loading'?'Conferindo sua sessão.':phase==='denied'?'Confira seu link ou solicite um novo acesso à equipe.':phase==='logout-error'?'Não foi possível confirmar o encerramento. Seus dados estão ocultos; tente novamente quando a conexão voltar.':'Não foi possível atualizar agora. Sua compra não foi alterada.'}</p>{phase!=='loading'&&<button onClick={()=>void (phase==='logout-error'?close():refresh())} disabled={busy||closingRequest.current}><RefreshCw size={17}/>{busy?'Tentando…':phase==='logout-error'?'Tentar encerrar novamente':'Tentar novamente'}</button>}</section>}
+    </>:<section className={styles.empty} aria-live="polite"><span className={styles.circle}>{phase==='offline'?<WifiOff size={25}/>:phase==='denied'?<ShieldAlert size={25}/>:phase==='no-link'?<LockKeyhole size={25}/>:<Clock3 size={25}/>}</span><h2>{phase==='loading'?'Conectando com segurança…':phase==='denied'?'Link inválido ou acesso encerrado':phase==='no-link'?'Como acompanhar seu pedido':phase==='logout-error'?'Encerramento não confirmado':'Acompanhamento indisponível'}</h2><p>{phase==='loading'?'Conferindo sua sessão.':phase==='denied'?'O acesso pode ter expirado ou sido encerrado. Solicite um novo link à equipe.':phase==='no-link'?'Para acompanhar, abra o link completo recebido pelo WhatsApp. Se ainda não recebeu, consulte Meus pedidos pelo cardápio.':phase==='logout-error'?'Não foi possível confirmar o encerramento. Seus dados estão ocultos; tente novamente quando a conexão voltar.':'Não foi possível atualizar agora. Sua compra não foi alterada.'}</p>{phase==='no-link'&&<button onClick={()=>window.location.assign('/')}><ShoppingBag size={17}/>Ver cardápio e pedidos</button>}{phase!=='loading'&&phase!=='no-link'&&<button onClick={()=>void (phase==='logout-error'?close():refresh())} disabled={busy||closingRequest.current}><RefreshCw size={17}/>{busy?'Tentando…':phase==='logout-error'?'Tentar encerrar novamente':'Tentar novamente'}</button>}</section>}
     <footer className={styles.footer}>Seu acompanhamento é privado. Não compartilhe o link de acesso. <a href="/">Voltar ao cardápio</a></footer>
   </main></div>;
 }
