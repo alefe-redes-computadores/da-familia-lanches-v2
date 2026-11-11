@@ -1211,14 +1211,12 @@ export function CheckoutModal() {
         </div>
         <div className={styles.stepCaption}><strong>{step === 1 ? "Entrega" : "Pagamento"}</strong><span>{step}/2</span></div>
         <CheckoutAssistHelp checkoutStep={step} hasError={Boolean(errorMessage)} uncertain={orderOutcomeUncertain} />
-         {step === 1 && <section className={styles.checkoutReadiness} aria-label="O que falta para continuar" data-ready={readiness.ready}>
-           <div className={styles.checkoutReadinessTop}><strong>{readiness.ready ? "Tudo pronto para revisar" : "Confira os dados do seu pedido"}</strong><b>{readiness.done}/{readiness.total}</b></div>
-           <div className={styles.checkoutReadinessTrack} role="progressbar" aria-label="Campos preenchidos" aria-valuemin={0} aria-valuemax={readiness.total} aria-valuenow={readiness.done}><i style={{ width: `${readiness.total ? Math.round(readiness.done / readiness.total * 100) : 100}%` }} /></div>
-           <p>{readiness.next ? readiness.next.hint : "Agora confira os dados e continue para a revisão."}</p>
-           <div className={styles.checkoutReadinessTags}>{readiness.items.map(item => <span key={item.id} data-done={item.done}>{item.done ? "✓" : "○"} {item.title}</span>)}</div>
-           {readiness.next&&<button type="button" className={styles.r35ReadinessAction} onClick={focusNextCheckoutField}>Corrigir próximo: {readiness.next.title}</button>}
-           <small className={styles.r35CheckoutReminder}>Se fechar sem confirmar, o rascunho recente poderá ser recuperado neste aparelho. Nenhuma compra é enviada automaticamente.</small>
-         </section>}
+         {step === 1 && !readiness.ready && readiness.next && (
+           <div className={styles.r55CheckoutHint} role="status" aria-label="Proximo campo do pedido">
+             <span>{readiness.next.hint}</span>
+             <button type="button" onClick={focusNextCheckoutField}>Ir ao campo</button>
+           </div>
+         )}
         {errorMessage && <div className={styles.errorFallback}><div className={styles.error}>{errorMessage}</div>{!orderOutcomeUncertain && fallbackWhatsAppUrl && <div className={styles.contingency}><span>FINALIZAÇÃO ALTERNATIVA</span><strong>Seu pedido continua completo</strong><p>Os itens e os dados preenchidos foram preservados. Você pode tentar novamente ou enviar o pedido já organizado para confirmação pelo WhatsApp.</p><button type="button" onClick={() => { haptic("success"); window.location.href = fallbackWhatsAppUrl; }}>Continuar no WhatsApp</button><small>O envio não é automático: confira a mensagem e toque em enviar.</small></div>}</div>}
 
         {step === 1 ? (
@@ -1282,7 +1280,7 @@ export function CheckoutModal() {
                    {manualMode && districtInspection.valid && <StreetSuggestions street={rua} district={bairro} onSelect={name => { customerEditingRef.current=true; setRua(name); }} />}
                   <label className={styles.addressFirstField}><span>3 · Número</span><input ref={numberInputRef} className={styles.input} placeholder="Nº" value={numero} onChange={e=>{customerEditingRef.current=true;setNumero(e.target.value)}} inputMode="numeric"/></label>
                   {/* DFL-R22:ADDRESS-SUMMARY */}
-                  {!addressReady && <div className={styles.addressLiveSummary}
+                  {!addressReady && Boolean(bairro.trim() && rua.trim()) && <div className={styles.addressLiveSummary}
                     data-ready={districtInspection.valid && rua.trim().length >= 4 && !streetNeedsClarification(rua) && Boolean(numero.trim()) && (cep.replace(/\\D/g, "").length === 0 || cep.replace(/\\D/g, "").length === 8)}
                     aria-label="Resumo do endereço">
                     <div className={styles.addressLiveTop}>
@@ -1350,6 +1348,10 @@ export function CheckoutModal() {
                     <strong>✓ {scheduleHumanLabel(scheduledFor)}</strong>
                     <button type="button" onClick={() => setScheduleExpanded(true)}>Alterar horário</button>
                   </div>
+                ) : !scheduleExpanded ? (
+                  <button type="button" className={styles.r55ScheduleReveal} onClick={() => setScheduleExpanded(true)}>
+                    Ver horários disponíveis
+                  </button>
                 ) : scheduleLoading ? (
                   <p>Carregando horários…</p>
                 ) : scheduleGroups.length ? (

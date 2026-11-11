@@ -900,6 +900,8 @@ function AdminPageContent() {
             </button>
           </section>
         )}
+        <details className={styles.r55StatsDisclosure}>
+          <summary>Ver indicadores detalhados da operação</summary>
         <section className={styles.overviewGrid} aria-label="Visão geral da operação">
           <button
             type="button"
@@ -949,6 +951,7 @@ function AdminPageContent() {
             <small>{counts.rota > 0 ? "Com entregadores" : "Sem entregas"}</small>
           </button>
         </section>
+        </details>
         </>}
 
         <section className={styles.operationBar}>

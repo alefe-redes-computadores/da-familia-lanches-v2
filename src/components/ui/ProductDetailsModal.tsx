@@ -14,7 +14,6 @@ import { addonPolicy, addonPolicyHint, validAddonSelection } from "@/lib/catalog
 import { inspectProductSelections } from "@/lib/catalogModifierGroups";
 import { AddonGroupsChoices } from "./AddonGroupsChoices";
 import { resolveBundleItems } from "@/lib/catalogComposition";
-import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import { remainingUpsellUnits } from "@/lib/upsellEntitlement";
 import { useUIStore } from "@/store/ui";
@@ -43,8 +42,6 @@ export function ProductDetailsModal() {
   const openModal = useUIStore((s) => s.openModal);
   const showCartToast = useUIStore((s) => s.showCartToast);
   const modalData = useUIStore((s) => s.modalData);
-  const currentUser = useAuthStore((s) => s.currentUser);
-  const authLoading = useAuthStore((s) => s.loading);
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
   const { addons, products } = useCatalog();
@@ -113,12 +110,8 @@ export function ProductDetailsModal() {
     addItem(product, quantity, selectedAddons, observation.trim());
     haptic("add");
     showCartToast({ title: `${product.name} adicionado`, message: quantity > 1 ? `${quantity} unidades entraram no carrinho.` : "Seu carrinho foi atualizado.", kind: "add", actionLabel: "Ver carrinho", onAction: () => openModal("cart") });
-    const alreadyPrompted = typeof window !== "undefined" && window.sessionStorage.getItem("dfl_login_intent_shown") === "1";
-    if (!authLoading && !currentUser && !alreadyPrompted) {
-      window.sessionStorage.setItem("dfl_login_intent_shown", "1");
-      openModal("login-prompt");
-      return;
-    }
+    // R55: adicionar um item nao interrompe a compra com login.
+    // Google continua opcional no carrinho e em Meus Pedidos.
     closeModal();
   };
 

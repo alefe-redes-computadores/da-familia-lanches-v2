@@ -2756,3 +2756,24 @@
   .workspace[data-r37-stage] .operationBar .primaryNav button,
   .workspace[data-r37-stage] .managementNav button{transition:none!important}
 }
+
+/* DFL SITE R55 — COMPRA FACIL E ADMIN ENXUTO */
+.workspace[data-r37-stage] .r55StatsDisclosure{margin:4px 0 11px;border:1px solid rgba(148,163,184,.13);border-radius:12px;background:#0e1418}
+.workspace[data-r37-stage] .r55StatsDisclosure>summary{min-height:43px;padding:10px 14px;display:flex;align-items:center;cursor:pointer;color:#b2bdc7;font-size:11px;font-weight:800;letter-spacing:.01em}
+.workspace[data-r37-stage] .r55StatsDisclosure[open]>summary{color:#ffcf53;border-bottom:1px solid rgba(148,163,184,.13)}
+.workspace[data-r37-stage] .r55StatsDisclosure .overviewGrid{padding:10px;margin:0}
+.workspace[data-r37-stage] .r55StatsDisclosure>summary:focus-visible{outline:2px solid #ffca28;outline-offset:2px}
+/* A fila operacional aparece antes dos seis indicadores; manter alertas de prioridade sempre visiveis. */
+.workspace[data-mode="operation"] .operationHero{padding:11px 15px!important;margin-bottom:8px!important;gap:8px!important}
+.workspace[data-mode="operation"] .operationHeroStats button{min-height:46px!important;padding:7px!important}
+@media(min-width:821px){
+ .workspace[data-mode="operation"] .operationBar{grid-template-columns:minmax(0,1fr)!important}
+ .workspace[data-mode="operation"] .operationBar .primaryNav{display:none!important}
+ .workspace[data-r37-stage] .r55StatsDisclosure .overviewGrid{grid-template-columns:repeat(6,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ .workspace[data-r37-stage] .r55StatsDisclosure .overviewGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .workspace[data-r37-stage] .r55StatsDisclosure .metricCard{min-height:95px!important;padding:11px!important}
+ .workspace[data-r37-stage] .r55StatsDisclosure .metricIcon{display:none}
+ .workspace[data-mode="operation"] .operationHero{padding:10px 12px!important}
+}

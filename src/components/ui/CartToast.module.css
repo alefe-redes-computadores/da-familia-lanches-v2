@@ -94,3 +94,13 @@
 .action{min-height:44px;touch-action:manipulation}
 @media(max-width:340px){.toast{gap:6px;padding:9px}.action{font-size:11px;padding:8px;max-width:39%}.close{flex-basis:30px;width:30px}}
 @media(prefers-reduced-motion:reduce){.toast{scroll-behavior:auto}}
+
+/* DFL SITE R55 — COMPRA FACIL E ADMIN ENXUTO */
+/* O aviso de item adicionado nao cobre o carrinho e os CTAs inferiores no celular. */
+@media(max-width:700px){
+ .host{top:calc(72px + env(safe-area-inset-top,0px));bottom:auto!important;z-index:12000}
+ .toast{max-width:390px;padding:9px 11px;gap:8px}
+ .copy strong{font-size:12px}
+ .copy span{font-size:10px;line-height:1.35}
+ .action{min-height:42px;font-size:11px;padding:7px 9px}
+}

@@ -892,3 +892,11 @@
 .r35NotificationBack button{width:100%;min-height:48px;font-size:12px}
 @media(max-width:480px){.r35NotificationChoice{padding:12px}.r35NotificationIntro>strong{font-size:14px}.r35NotificationConfirm,.r35NotificationWithout{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.r35NotificationConfirm,.r35NotificationWithout{transition:none;animation:none}}
+
+/* DFL SITE R55 — COMPRA FACIL E ADMIN ENXUTO */
+.r55CheckoutHint{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #e2d7b7;border-radius:12px;background:#fffaf0;color:#54442b}
+.r55CheckoutHint span{font-size:12px;line-height:1.35;font-weight:650;min-width:0}
+.r55CheckoutHint button{flex:0 0 auto;min-height:40px;max-width:42%;padding:7px 10px;border:1px solid #bd9c50;border-radius:9px;background:#fff;color:#5a4318;font-size:11px;font-weight:850}
+.r55ScheduleReveal{display:block;min-height:48px;width:100%;padding:11px 15px;border:1px solid #b9903c;border-radius:12px;background:#fff1c6;color:#2a2213;font-size:13px;font-weight:900}
+.r55CheckoutHint button:focus-visible,.r55ScheduleReveal:focus-visible{outline:3px solid #dba71d;outline-offset:2px}
+@media(max-width:540px){.r55CheckoutHint{padding:8px 10px}.r55CheckoutHint span{font-size:11px}.r55ScheduleReveal{min-height:48px}}

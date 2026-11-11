@@ -139,7 +139,7 @@ export function MobileDrawerMenu() {
         <section className={styles.welcome}>
           <div className={styles.welcomeTop}>
             <div><span>{currentUser ? `Olá, ${firstName}` : guestSummary.firstName ? `Olá, ${guestSummary.firstName}` : "Bem-vindo"}</span><strong>{currentUser ? "Tudo pronto para pedir de novo." : guestSummary.count ? `${guestSummary.count} pedido(s) salvo(s) neste aparelho.` : "Você pode pedir sem criar conta."}</strong></div>
-            <i data-open={shopStatus.isOpen}>{shopStatus.isOpen ? "ABERTO" : shopStatus.mode === "test_open" ? "MANUTENÇÃO" : "FECHADO"}</i>
+            <i data-open={shopStatus.isOpen}>{shopStatus.isOpen ? "ABERTO" : shopStatus.mode === "test_open" ? "AGENDAMENTO" : "FECHADO"}</i>
           </div>
           {!currentUser && guestSummary.count > 0 && <small className={styles.guestLocalHint}>Histórico deste aparelho. Entre para sincronizar em outros dispositivos.</small>}
           {!currentUser && <button type="button" onClick={() => modal("account")}>Entrar com Google <b>›</b></button>}
