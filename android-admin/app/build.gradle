@@ -45,4 +45,6 @@ android {
 
 dependencies {
     implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.7.3"
+    // R57: acesso exclusivo a APK privado, via instalador oficial.
+    implementation "androidx.core:core:1.13.1"
 }

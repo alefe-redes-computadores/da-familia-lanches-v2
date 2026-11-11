@@ -110,6 +110,12 @@ def main():
     # Operacao restrita ao clone android-cliente, nunca ao template Admin.
     from client_android_runtime import prepare_client_runtime
     prepare_client_runtime(main)
+    # R57: o clone Cliente precisa consultar SOMENTE a release do pacote Cliente.
+    updater=java.parent/'cliente/UpdateActivity.java'
+    update_source=updater.read_text(encoding='utf-8')
+    marker='private static final String FLAVOR = "admin";'
+    if update_source.count(marker)!=1:raise SystemExit('R57: marcador do atualizador nativo divergente')
+    updater.write_text(update_source.replace(marker,'private static final String FLAVOR = "cliente";',1),encoding='utf-8')
     gradle=DEST/'app/build.gradle'
     rewrite(gradle,[('br.com.dafamilialanches.admin',TARGET_PACKAGE)])
     settings=DEST/'settings.gradle'

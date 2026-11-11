@@ -11,6 +11,7 @@ export function Footer() {
       <div className={styles.inner}>
         <div className={styles.brand}><span>DA FAMÍLIA LANCHES</span><strong>Feito para matar a fome de verdade.</strong><p>Rua Lázaro Martins Marciel (Rua 7), 164 - Jardim Quebec, Patos de Minas/MG</p></div>
         <div className={styles.links}>
+          <a href="/atualizacoes">Atualizações do aplicativo</a>
           <a href={BUSINESS_CONTACT.whatsappUrl} target="_blank" rel="noopener noreferrer">WhatsApp</a>
           <a href="https://www.instagram.com/dafamilia_patos?igsh=MTdxdDczNno4ZHRrZw==" target="_blank" rel="noopener noreferrer">Instagram</a>
           <a href="https://www.ifood.com.br/delivery/patos-de-minas-mg/da-familia-lanches-caramuru/9aadff75-b014-4e7f-a9b4-b3e478e38af8?UTM_Medium=share" target="_blank" rel="noopener noreferrer">iFood</a>

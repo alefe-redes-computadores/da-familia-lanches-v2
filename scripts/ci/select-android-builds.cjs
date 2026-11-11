@@ -7,6 +7,7 @@ function scopeOf(path) {
   const p=path.replaceAll('\\','/');
   if (!p) return 'none';
   if (/^(?:docs\/|\.github\/ISSUE_TEMPLATE\/|README(?:\.|$)|.*\.(?:md|txt)$)/i.test(p)) return 'none';
+  if (/^android-admin\/app\/(?:src\/main\/(?:java\/.*\/UpdateActivity\.java|res\/xml\/dfl_update_paths\.xml|AndroidManifest\.xml)|build\.gradle)/.test(p)) return 'both';
   if (/^(?:android-admin\/|src\/app\/admin\/|src\/components\/admin\/|src\/hooks\/useAdmin|src\/lib\/admin|src\/app\/api\/admin\/|public\/admin[-.]|scripts\/generate-admin-android-assets\.py)/.test(p)) return 'admin';
   if (/^(?:src\/app\/\.well-known\/|\.github\/workflows\/build-admin-android\.yml|src\/components\/layout\/|src\/lib\/firebase\.|src\/lib\/integration\/)/.test(p)) return 'both';
   if (/^(?:android-cliente\/|scripts\/(?:prepare-client-android|verify-client-android-icons|client_android_runtime)\.py|public\/manifest\.json|public\/(?:icon-|apple-touch-icon|favicon)|src\/data\/)/.test(p)) return 'cliente';

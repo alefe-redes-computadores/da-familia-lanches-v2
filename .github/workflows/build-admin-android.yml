@@ -65,6 +65,8 @@ jobs:
       - name: Validar contratos Admin
         shell: bash
         run: |
+          node scripts/test-site-r56-updates.cjs
+          node scripts/test-site-r57-native-updater.cjs
           node scripts/test-admin-runtime-v19.mjs
           node scripts/test-admin-web-push-v20.mjs
           node scripts/test-admin-android-v21.mjs
@@ -237,6 +239,8 @@ jobs:
           npm ci
           node scripts/test-site-r229-alarm-client.cjs
           node scripts/test-site-r230-client-icon.cjs
+          node scripts/test-site-r56-updates.cjs
+          node scripts/test-site-r57-native-updater.cjs
           node scripts/test-site-sales-r5-ui-recovery.cjs
           node scripts/test-site-r228-checkout-compat.cjs
       - name: Gerar APK cliente a partir do launcher estavel
@@ -286,3 +290,89 @@ jobs:
           path: android-cliente/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 7
+
+
+  release-admin-certified:
+    name: Release Admin (somente com aprovacao explicita)
+    needs: [scope, build]
+    if: ${{ needs.scope.outputs.admin == 'true' && needs.build.result == 'success' && vars.DFL_ANDROID_RELEASES_APPROVED == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: DFL-Admin-${{ github.run_number }}-${{ github.sha }}
+          path: dist
+      - name: Revalidar APK, pacote e assinatura antes de Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="dist/app-release.apk"
+          test -s "$APK"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          AAPT="$(find "$SDK/build-tools" -type f -name aapt 2>/dev/null | sort -V | tail -n1)"
+          SIGNER="$(find "$SDK/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n1)"
+          test -n "$AAPT" && test -n "$SIGNER"
+          BADGING="$("$AAPT" dump badging "$APK")"
+          grep -Fq "name='br.com.dafamilialanches.admin'" <<< "$BADGING"
+          grep -Fq "versionCode='${GITHUB_RUN_NUMBER}'" <<< "$BADGING"
+          CERT="$("$SIGNER" verify --print-certs "$APK")"
+          grep -iEq '77f688b532060e4135c29f4e24224a6c34c0f174dbd265e4bd27506d88175563' <<< "$CERT"
+      - name: Publicar release e checksum imutaveis
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TAG="dfl-admin-android-${GITHUB_RUN_NUMBER}"
+          NAME="DFL-Admin-${GITHUB_RUN_NUMBER}.apk"
+          test ! -z "${GITHUB_SHA}"
+          if gh release view "$TAG" >/dev/null 2>&1; then echo 'Release ja existe: nao sobrescrever'; exit 1; fi
+          mv dist/app-release.apk "dist/$NAME"
+          ( cd dist && sha256sum "$NAME" > "$NAME.sha256" )
+          printf 'DFL Admin certificado. Build: %s\nCommit: %s\nPacote: br.com.dafamilialanches.admin\n' "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > dist/NOTAS.txt
+          gh release create "$TAG" "dist/$NAME" "dist/$NAME.sha256" --target "$GITHUB_SHA" --title "DFL Admin Android ${GITHUB_RUN_NUMBER}" --notes-file dist/NOTAS.txt --latest=false
+
+  release-cliente-certified:
+    name: Release Cliente (somente com aprovacao explicita)
+    needs: [scope, cliente]
+    if: ${{ needs.scope.outputs.cliente == 'true' && needs.cliente.result == 'success' && vars.DFL_ANDROID_RELEASES_APPROVED == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: DFL-Cliente-${{ github.run_number }}-${{ github.sha }}
+          path: dist
+      - name: Revalidar APK, pacote e assinatura antes de Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="dist/app-release.apk"
+          test -s "$APK"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          AAPT="$(find "$SDK/build-tools" -type f -name aapt 2>/dev/null | sort -V | tail -n1)"
+          SIGNER="$(find "$SDK/build-tools" -type f -name apksigner 2>/dev/null | sort -V | tail -n1)"
+          test -n "$AAPT" && test -n "$SIGNER"
+          BADGING="$("$AAPT" dump badging "$APK")"
+          grep -Fq "name='br.com.dafamilialanches.cliente'" <<< "$BADGING"
+          grep -Fq "versionCode='${GITHUB_RUN_NUMBER}'" <<< "$BADGING"
+          CERT="$("$SIGNER" verify --print-certs "$APK")"
+          grep -iEq '77f688b532060e4135c29f4e24224a6c34c0f174dbd265e4bd27506d88175563' <<< "$CERT"
+      - name: Publicar release e checksum imutaveis
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TAG="dfl-cliente-android-${GITHUB_RUN_NUMBER}"
+          NAME="DFL-Cliente-${GITHUB_RUN_NUMBER}.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then echo 'Release ja existe: nao sobrescrever'; exit 1; fi
+          mv dist/app-release.apk "dist/$NAME"
+          ( cd dist && sha256sum "$NAME" > "$NAME.sha256" )
+          printf 'DFL Cliente certificado. Build: %s\nCommit: %s\nPacote: br.com.dafamilialanches.cliente\n' "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > dist/NOTAS.txt
+          gh release create "$TAG" "dist/$NAME" "dist/$NAME.sha256" --target "$GITHUB_SHA" --title "DFL Cliente Android ${GITHUB_RUN_NUMBER}" --notes-file dist/NOTAS.txt --latest=false

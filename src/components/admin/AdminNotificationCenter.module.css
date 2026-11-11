@@ -8,6 +8,11 @@
 @media(max-width:680px){.backdrop{place-items:end center;padding:0}.sheet{width:100%;max-height:92dvh;border-radius:24px 24px 0 0;border-bottom:0;padding-bottom:max(2px,env(safe-area-inset-bottom))}.header{padding:18px 16px 14px}.header h2{font-size:22px}.header p{font-size:10px}.attention,.permission,.preferences,.diagnostics,.message{margin-left:12px;margin-right:12px}.footer{padding:14px 12px 16px;align-items:flex-end}}
 
 
+/* R56: acesso discreto ao verificador real de builds Android. */
+.updateCenterLink{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 11px;border:1px solid rgba(255,202,40,.2);border-radius:11px;color:#ffd65f;font-size:11px;font-weight:850;text-decoration:none;white-space:nowrap}
+.updateCenterLink:focus-visible{outline:2px solid #ffca28;outline-offset:3px}
+@media(max-width:680px){.footer{flex-wrap:wrap}.updateCenterLink{order:2;flex:1 1 auto}.footer button{order:3}}
+
 /* V32 HAPTIC ICON POLISH */
 .prefIcon{flex:0 0 36px;width:36px;height:36px;display:grid;place-items:center;border:1px solid rgba(255,201,40,.12);border-radius:11px;background:rgba(255,201,40,.055);color:#ffd85e}
 .prefCopy{min-width:0;flex:1}.diagIcon{flex:0 0 auto;display:grid;place-items:center;color:#75808a}.diagnostic[data-ok=true] .diagIcon{color:#56d995}

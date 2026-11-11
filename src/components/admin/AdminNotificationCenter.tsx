@@ -104,20 +104,28 @@ export function AdminNotificationCenter({
   const savePrefs = (patch: Partial<AdminNotificationPrefs>) => {
     haptic("step");
     const next = { ...prefs, ...patch };
-    setPrefs(next);
-    writeAdminNotificationPrefs(next);
+    try {
+      writeAdminNotificationPrefs(next);
+      setPrefs(next);
+      setMessage("Preferência salva neste aparelho.");
+      return true;
+    } catch {
+      setMessage("Não foi possível salvar a preferência neste aparelho. Tente novamente.");
+      haptic("error");
+      return false;
+    }
   };
 
   const toggleNewOrders = async (enabled: boolean) => {
     haptic("step");
     if (!enabled) {
-      savePrefs({ newOrders: false });
+      if (!savePrefs({ newOrders: false })) return;
       setBusy("disable");
       setMessage("Desativando push deste aparelho…");
       window.dispatchEvent(new Event("dfl:admin-push-disable"));
       window.setTimeout(() => {
         setBusy(null);
-        setMessage("Novos pedidos desativados neste aparelho.");
+        setMessage("Preferência local desativada. A revogação do token remoto pode demorar; confira o canal.");
         refreshStatus();
       }, 800);
       return;
@@ -134,22 +142,29 @@ export function AdminNotificationCenter({
       setPermission(result);
       if (result !== "granted") {
         savePrefs({ newOrders: false });
+        setBusy(null);
         haptic("error");
         setMessage(result === "denied"
           ? "Bloqueado pelo Android/navegador. Libere a permissão do DFL Admin nas configurações."
           : "Permissão ainda não concedida.");
         return;
       }
-      savePrefs({ newOrders: true });
-      setMessage("Sincronizando este aparelho…");
+      if (!savePrefs({ newOrders: true })) {
+        setBusy(null);
+        return;
+      }
+      setMessage("Sincronizando este aparelho… aguarde confirmação do servidor.");
       window.dispatchEvent(new Event("dfl:admin-push-resync"));
-      window.setTimeout(() => {
-        refreshStatus();
-        setMessage("Alertas de novos pedidos ativados.");
-        haptic("success");
-      }, 900);
-    } finally {
-      window.setTimeout(() => setBusy(null), 950);
+      if (syncTimeoutRef.current !== null) window.clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = window.setTimeout(() => {
+        syncTimeoutRef.current = null;
+        setBusy(null);
+        setMessage("O servidor não confirmou os avisos. Revalide o canal antes de confiar no push.");
+      }, 12000);
+    } catch {
+      setBusy(null);
+      setMessage("Falha ao pedir permissão ou iniciar sincronização.");
+      haptic("error");
     }
   };
 
@@ -235,7 +250,7 @@ export function AdminNotificationCenter({
         </div>
 
         {message && <div className={styles.message} role="status">{message}</div>}
-        <footer className={styles.footer}><span>Preferências ficam neste aparelho. Nenhum listener Firestore novo é criado.</span><button type="button" onClick={() => { haptic("step"); onClose(); }}>Concluir</button></footer>
+        <footer className={styles.footer}><span>Preferências ficam neste aparelho. Nenhum listener Firestore novo é criado.</span><a className={styles.updateCenterLink} href="/admin/atualizacoes" onClick={onClose}><RefreshCw size={15}/> Atualizações</a><button type="button" onClick={() => { haptic("step"); onClose(); }}>Concluir</button></footer>
       </section>
     </div>
   );
