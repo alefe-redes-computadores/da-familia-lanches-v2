@@ -98,6 +98,64 @@ def prepare_client_runtime(main: Path):
     )):
         raise ValueError('R48: original deep-link URI forwarding changed')
 
+    # R49_PROTECTED_LINK: avoid the Android TWA re-dispatch path for a private
+    # incoming HTTPS /acompanhar URL. Open it in a browser-owned Custom Tab
+    # (app-hosted experience), then a browser-only fallback. Never log/copy
+    # fragments, grant data to another app, or modify the Admin template.
+    launch_point = '        launchTwa();\n    }\n'
+    if code.count(launch_point) != 1:
+        raise ValueError('R49: ponto onCreate inesperado')
+    code = code.replace(launch_point,
+        '        if (openProtectedTrackingLink()) {\n'
+        '            return;\n'
+        '        }\n\n' + launch_point, 1)
+
+    method_point = '    static SharedPreferences prefs(\n'
+    if code.count(method_point) != 1:
+        raise ValueError('R49: ponto helper inesperado')
+    tracking_method = r'''    /** R49: only the protected, same-origin public tracking entry is diverted.
+     * This avoids TWA browser provider ambiguity when launched from WhatsApp.
+     * The opaque fragment is forwarded unchanged and never logged or persisted.
+     */
+    private boolean openProtectedTrackingLink() {
+        Intent intent = getIntent();
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())) return false;
+        Uri incoming = intent.getData();
+        if (incoming == null ||
+                !"https".equalsIgnoreCase(incoming.getScheme()) ||
+                !"dafamilialanches.com.br".equalsIgnoreCase(incoming.getHost()) ||
+                incoming.getPort() != -1 || incoming.getUserInfo() != null ||
+                !("/acompanhar".equals(incoming.getPath()) ||
+                  "/acompanhar/".equals(incoming.getPath()))) return false;
+        // Avoid another Android App Links resolution loop: explicitly select
+        // a real browser package for each attempt, not our own app.
+        for (String browserPackage : SAFE_BROWSER_PACKAGES) {
+            try {
+                androidx.browser.customtabs.CustomTabsIntent tab =
+                    new androidx.browser.customtabs.CustomTabsIntent.Builder()
+                        .setShowTitle(true).build();
+                tab.intent.setPackage(browserPackage);
+                tab.launchUrl(this, incoming);
+                finish();
+                return true;
+            } catch (ActivityNotFoundException | SecurityException |
+                     IllegalArgumentException unavailable) {
+                // Browser missing or without Custom Tabs: try the next.
+            }
+        }
+        if (openClienteInBrowser(this, incoming)) {
+            finish();
+            return true;
+        }
+        Toast.makeText(this, "Não foi possível abrir o acompanhamento. Verifique o navegador.",
+                       Toast.LENGTH_LONG).show();
+        // Fail closed: do not silently show a different order/cardápio.
+        return true;
+    }
+
+'''
+    code = code.replace(method_point, tracking_method + method_point, 1)
+
     if any(x in code for x in ('REQUEST_NATIVE_NOTIFICATIONS', 'requestPermissions(', 'onRequestPermissionsResult(', 'launchTwaWithNativeNotificationPermission')):
         raise ValueError('R232: sobrou um gate de permissoes no Cliente')
     if 'android.permission.POST_NOTIFICATIONS' in xml or 'NotificationPermissionRequestActivity' in xml:
