@@ -17,6 +17,7 @@ import styles from "./page.module.css";
 import { LastOrderCard } from "@/components/home/LastOrderCard";
 import { CustomerExperiencePrompt } from "@/components/home/CustomerExperiencePrompt";
 import { CustomerPwaInvite } from "@/components/home/CustomerPwaInvite";
+import { OrderTrackingInfoCard } from "@/components/home/OrderTrackingInfoCard";
 import { CATALOG_SEARCH_EVENT, rankCatalogProducts } from "@/lib/catalogSearch";
 import { suggestCatalogQueries } from "@/lib/catalogSearchRecovery";
 import { readRecentProductIds, rememberRecentProductId } from "@/lib/recentProductViews";
@@ -322,6 +323,8 @@ export default function Home() {
             <span>Você ainda pode explorar o cardápio e montar seu pedido para agendamento.</span>
           </div>
         )}
+
+        {activeCategory === "todos" && !search.trim() && <OrderTrackingInfoCard />}
 
         {(Boolean(search.trim()) || activeCategory !== "todos") && !catalogLoading && (
           <div className={styles.searchSummary} role="status" aria-live="polite">

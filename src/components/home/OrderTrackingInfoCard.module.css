@@ -1,0 +1,45 @@
+/* DFL SITE R59 — informativo compacto, distinto da campanha comercial. */
+.card {
+  box-sizing:border-box;
+  display:grid;
+  grid-template-columns:40px minmax(0,1fr);
+  gap:13px;
+  align-items:start;
+  width:100%;
+  margin:3px 0 22px;
+  padding:16px 17px;
+  border:1px solid rgba(212,172,75,.28);
+  border-radius:18px;
+  background:linear-gradient(115deg,#151a19 0%,#111615 62%,#171b17 100%);
+  color:#f5f5f0;
+  box-shadow:0 10px 25px rgba(18,23,22,.09);
+}
+.mark{width:40px;height:40px;display:grid;place-items:center;border-radius:13px;border:1px solid rgba(245,208,122,.18);background:rgba(230,189,91,.1);color:#eac981}
+.content{min-width:0;max-width:880px}
+.eyebrow{margin:0 0 4px;color:#d8b878;font-size:9px;line-height:1.35;font-weight:850;letter-spacing:.13em}
+.content h2{margin:0;font-size:clamp(16px,2.3vw,20px);line-height:1.25;letter-spacing:-.025em;font-weight:800;color:#fcfcfa}
+.description{max-width:760px;margin:5px 0 10px;font-size:12px;line-height:1.55;color:#c1c9c3}
+.features{display:flex;flex-wrap:wrap;gap:6px 12px;list-style:none;margin:0;padding:0;color:#d6dcd3}
+.features li{display:inline-flex;align-items:center;gap:5px;min-width:0;font-size:10px;line-height:1.4}
+.features svg{flex:0 0 auto;color:#e2c782}
+.disclosure{margin-top:10px;border-top:1px solid rgba(255,255,255,.08);padding-top:8px}
+.disclosure summary{display:inline-flex;align-items:center;gap:5px;padding:3px 0;min-height:32px;cursor:pointer;list-style:none;color:#ead39d;font-size:11px;font-weight:800}
+.disclosure summary::-webkit-details-marker{display:none}
+.disclosure summary svg{transition:transform .18s ease}
+.disclosure[open] summary svg{transform:rotate(180deg)}
+.disclosure summary:focus-visible,.ordersLink:focus-visible{outline:2px solid #ffca28;outline-offset:4px;border-radius:4px}
+.explanation{display:grid;justify-items:start;gap:9px;padding:5px 0 1px}
+.explanation p{max-width:76ch;margin:0;color:#c3ccc4;font-size:11px;line-height:1.6}
+.ordersLink{min-height:39px;padding:7px 12px;border-radius:10px;border:1px solid rgba(237,203,123,.4);background:rgba(237,203,123,.1);color:#ffe1a1;font-size:11px;font-weight:800;cursor:pointer}
+@media(max-width:600px){
+  .card{grid-template-columns:32px minmax(0,1fr);gap:9px;margin:2px 0 17px;padding:12px 11px;border-radius:15px}
+  .mark{width:32px;height:32px;border-radius:10px}
+  .mark svg{width:17px;height:17px}
+  .eyebrow{font-size:8px;letter-spacing:.1em}
+  .content h2{font-size:16px;line-height:1.28}
+  .description{font-size:11px;line-height:1.45;margin:5px 0 9px}
+  .features{column-gap:10px;row-gap:5px}
+  .features li{font-size:9px}
+  .disclosure{margin-top:8px;padding-top:6px}
+}
+@media(prefers-reduced-motion:reduce){.disclosure summary svg{transition:none}}
