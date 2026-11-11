@@ -8,15 +8,22 @@ const obj = (v:unknown):v is Record<string,unknown> => !!v && typeof v === 'obje
 const txt = (v:unknown) => typeof v === 'string' ? v.trim() : '';
 const id = (v:unknown) => /^[A-Za-z0-9_-]{3,160}$/.test(txt(v));
 const validPhone = (v:string) => /^55[1-9]\d{9,10}$/.test(v);
-/** Independently gated; never infer permission from the existing manual messaging scope. */
+/** NEXT_STOP requires its own switch and scope; general sends require rollout approval.
+ * Recipient consent and physical transition are checked independently below.
+ * The original function name is retained for compatibility with R32 callers.
+ */
 export function r32ManualNextStopCanary(env:Record<string,string|undefined>, phone:string):boolean {
-  return env.DFL_MANUAL_NEXT_STOP_ENABLED === 'true' &&
-    env.DFL_MANUAL_NEXT_STOP_KILL_SWITCH === 'false' &&
-    env.DFL_MANUAL_NEXT_STOP_SCOPE === 'canary' &&
-    env.DFL_MANUAL_MESSAGING_ENABLED === 'true' &&
-    env.DFL_MANUAL_MESSAGING_KILL_SWITCH !== 'true' &&
-    validPhone(phone) &&
-    env.DFL_MESSAGING_PILOT_PHONE_E164 === phone;
+  if (env.DFL_MANUAL_NEXT_STOP_ENABLED !== 'true' ||
+      env.DFL_MANUAL_NEXT_STOP_KILL_SWITCH !== 'false' ||
+      env.DFL_MANUAL_MESSAGING_ENABLED !== 'true' ||
+      env.DFL_MANUAL_MESSAGING_KILL_SWITCH === 'true' ||
+      !validPhone(phone)) return false;
+  if (env.DFL_MANUAL_NEXT_STOP_SCOPE === 'canary') {
+    return env.DFL_MESSAGING_PILOT_PHONE_E164 === phone;
+  }
+  return env.DFL_MANUAL_NEXT_STOP_SCOPE === 'consented_customers' &&
+    env.DFL_MANUAL_MESSAGING_SCOPE === 'consented_customers' &&
+    env.DFL_MANUAL_MESSAGING_ROLLOUT_APPROVED === 'true';
 }
 /** An explicit physical stop transition, not a reorder or an estimated arrival. */
 export function r32ValidManualNextStop(data:unknown, now=Date.now()):boolean {
