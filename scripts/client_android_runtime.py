@@ -92,6 +92,36 @@ def prepare_client_runtime(main: Path):
         raise ValueError('R48: browser pin mismatch in customer-only manifest')
     for item in fixed:
         xml = xml.replace(item, '', 1)
+
+    # R50_SINGLE_HANDLER: Android App Links must have exactly ONE receiving
+    # Activity. SafeLauncher is internal and non-exported; keeping its duplicate
+    # VIEW filter makes Android/WhatsApp resolution ambiguous. Preserve its
+    # private role, all metadata, TWA splash and the public EntryActivity filter.
+    # Never inspect, store or log the private #t= fragment here.
+    ET.register_namespace('android', 'http://schemas.android.com/apk/res/android')
+    root = ET.fromstring(xml)
+    app = root.find('application')
+    if app is None:
+        raise ValueError('R50: application ausente no manifesto Cliente')
+    aa = {x.attrib.get(ANDROID_NS+'name'): x for x in app.findall('activity')}
+    entry_activity = aa.get('.EntryActivity')
+    safe = aa.get('.SafeLauncherActivity')
+    if entry_activity is None or safe is None or entry_activity.attrib.get(ANDROID_NS+'exported') != 'true' or safe.attrib.get(ANDROID_NS+'exported') != 'false':
+        raise ValueError('R50: fronteiras Entry/SafeLauncher divergiram')
+    is_view = lambda f: any(x.attrib.get(ANDROID_NS+'name') == 'android.intent.action.VIEW' for x in f.findall('action'))
+    incoming = [f for f in entry_activity.findall('intent-filter') if is_view(f)]
+    shadow = [f for f in safe.findall('intent-filter') if is_view(f)]
+    if len(incoming) != 1 or len(shadow) != 1 or incoming[0].attrib.get(ANDROID_NS+'autoVerify') != 'true':
+        raise ValueError('R50: filtros externos divergentes; nenhuma alteracao aplicada')
+    for flt in (incoming[0], shadow[0]):
+        datas = flt.findall('data')
+        if not datas or any(d.attrib.get(ANDROID_NS+'scheme') != 'https' or d.attrib.get(ANDROID_NS+'host') != HOST for d in datas):
+            raise ValueError('R50: dominio/HTTPS inesperado')
+    safe.remove(shadow[0])
+    if any(is_view(f) for f in safe.findall('intent-filter')):
+        raise ValueError('R50: SafeLauncher ainda expoe links')
+    ET.indent(root, space='    ')
+    xml = '<?xml version="1.0" encoding="utf-8"?>\n' + ET.tostring(root, encoding='unicode')
     if any(value not in code for value in (
         'getIntent().getData()', 'target.setAction(Intent.ACTION_VIEW);',
         'target.setData(incomingUri);', 'startActivity(target);',
@@ -190,9 +220,14 @@ def validate_client_runtime(root: Path):
     safe_activity = next(a for a in components if a.attrib.get(ANDROID_NS+'name') == '.SafeLauncherActivity')
     check(entry_activity.attrib.get(ANDROID_NS+'exported') == 'true' and safe_activity.attrib.get(ANDROID_NS+'exported') == 'false', 'exportacao segura de activities')
     check(any(a.attrib.get(ANDROID_NS+'name') == '.DelegationService' for a in app.findall('service')), 'delegacao TWA original preservada')
-    for activity in (entry_activity, safe_activity):
-        datas = [d for f in activity.findall('intent-filter') for d in f.findall('data')]
-        check(bool(datas) and all(d.attrib.get(ANDROID_NS+'scheme') == 'https' and d.attrib.get(ANDROID_NS+'host') == HOST for d in datas), 'deep links HTTPS apenas na origem Cliente')
+    # R50_SINGLE_HANDLER: public Entry exclusively owns verified incoming links.
+    is_view = lambda f: any(a.attrib.get(ANDROID_NS+'name') == 'android.intent.action.VIEW' for a in f.findall('action'))
+    entry_links = [f for f in entry_activity.findall('intent-filter') if is_view(f)]
+    safe_links = [f for f in safe_activity.findall('intent-filter') if is_view(f)]
+    check(len(entry_links) == 1 and entry_links[0].attrib.get(ANDROID_NS+'autoVerify') == 'true', 'R50: um App Link verificado pertence somente a EntryActivity')
+    datas = [d for f in entry_links for d in f.findall('data')]
+    check(bool(datas) and all(d.attrib.get(ANDROID_NS+'scheme') == 'https' and d.attrib.get(ANDROID_NS+'host') == HOST for d in datas), 'deep links HTTPS apenas na origem Cliente')
+    check(len(safe_links) == 0 and safe_activity.attrib.get(ANDROID_NS+'exported') == 'false', 'R50: SafeLauncher interna nao recebe links externos')
     check(any(cat.attrib.get(ANDROID_NS+'name') == 'android.intent.category.LAUNCHER' for f in entry_activity.findall('intent-filter') for cat in f.findall('category')), 'app possui launcher principal')
     code = (main / 'java/br/com/dafamilialanches/cliente/EntryActivity.java').read_text(encoding='utf-8')
     safe = (main / 'java/br/com/dafamilialanches/cliente/SafeLauncherActivity.java').read_text(encoding='utf-8')
