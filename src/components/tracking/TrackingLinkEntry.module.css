@@ -1,0 +1,25 @@
+/* DFL R65 — link privado, CTA real e campo legível sem estilos inline. */
+.panel{box-sizing:border-box;min-width:0;margin:0 0 17px;padding:15px;border:1px solid rgba(243,190,71,.28);border-radius:20px;background:radial-gradient(circle at 98% -50%,rgba(241,190,70,.12),transparent 54%),linear-gradient(145deg,#1d211e,#131715 75%);color:#faf8f1;box-shadow:0 13px 28px rgba(0,0,0,.17)}
+.head{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:start;gap:11px}
+.icon{width:44px;height:44px;display:grid;place-items:center;border:1px solid rgba(255,212,101,.28);border-radius:15px;background:rgba(255,201,40,.12);color:#ffdb85}
+.headCopy{min-width:0}.kicker{display:inline-flex;align-items:center;gap:5px;color:#f6c963;font-size:10px;line-height:1.4;font-weight:900;letter-spacing:.1em}
+.headCopy h2{font-size:clamp(16px,4.5vw,19px);font-weight:850;line-height:1.24;letter-spacing:-.025em;margin:3px 0 5px}
+.headCopy p{font-size:12px;line-height:1.55;color:#bac5bd;margin:0}
+.reveal{box-sizing:border-box;width:100%;min-height:48px;margin:14px 0 0;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid rgba(250,211,113,.35);border-radius:13px;background:rgba(255,202,40,.12);color:#ffe4a0;font-size:13px;font-weight:850;cursor:pointer}
+.reveal>span{display:inline-flex;align-items:center;gap:9px}.reveal>svg{flex:none}
+.reveal:active{background:rgba(255,202,40,.2)}
+.form{display:grid;min-width:0;gap:9px;margin-top:13px;padding:13px;border:1px solid rgba(255,255,255,.1);border-radius:15px;background:rgba(4,7,6,.32)}
+.formHead{display:flex;align-items:center;justify-content:space-between;gap:10px}.formHead strong{font-size:13px;color:#f6f0df}
+.close{width:38px;height:38px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:#222923;color:#d8e0d8;cursor:pointer}
+.form label{color:#cbd4ca;font-size:12px;font-weight:800}
+.field{display:flex;align-items:center;gap:9px;min-width:0;min-height:49px;padding:0 12px;border:1px solid #536051;border-radius:12px;background:#0e1210;color:#d5b66e}
+.field:focus-within{border-color:#f2c45d;box-shadow:0 0 0 3px rgba(255,202,40,.1)}
+.field input{flex:1;min-width:0;width:100%;min-height:47px;padding:0;border:0;outline:0;background:transparent;color:#fff;font-size:16px;line-height:1.5;text-overflow:ellipsis}
+.field input::placeholder{color:#818f83;opacity:1}.field input[aria-invalid=true]{color:#ffd7c7}
+.guidance,.footnote{font-size:11px;line-height:1.55;color:#aebcaf}.guidance{margin:0}.footnote{margin:11px 0 0}
+.error{margin:0;border:1px solid rgba(255,130,130,.3);border-radius:10px;padding:10px 11px;background:#42211d;color:#ffc9bb;font-size:12px;line-height:1.45}
+.open{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;margin-top:1px;padding:9px 12px;border:0;border-radius:12px;background:#ffca28;color:#221903;font-size:13px;font-weight:950;cursor:pointer;box-shadow:0 7px 18px rgba(255,202,40,.16)}
+.open:disabled{opacity:.52;cursor:not-allowed;box-shadow:none}
+.panel :is(button,input):focus-visible{outline:3px solid #ffe2a0;outline-offset:3px}
+@media(max-width:480px){.panel{padding:12px;border-radius:17px}.head{grid-template-columns:39px minmax(0,1fr);gap:9px}.icon{width:39px;height:39px;border-radius:12px}.headCopy p{font-size:11.5px}.reveal{min-height:48px}.form{padding:11px}.footnote{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.panel *{scroll-behavior:auto;transition:none}}

@@ -58,3 +58,21 @@
  .description{margin-bottom:6px}
  .features{gap:3px 8px}
 }
+
+/* DFL R65 — PREMIUM CLIENTE */
+.card{position:relative;overflow:hidden;grid-template-columns:40px minmax(0,1fr);gap:12px;padding:16px;border:1px solid rgba(241,202,106,.3);border-radius:19px;background:radial-gradient(circle at 98% 4%,rgba(243,195,71,.13),transparent 45%),linear-gradient(135deg,#191e1c,#101512 78%);box-shadow:0 8px 24px rgba(0,0,0,.1)}
+.mark{width:40px;height:40px;border-radius:13px;border:1px solid rgba(255,205,93,.28);background:rgba(255,202,40,.13);color:#ffdd88}
+.content h2{font-size:clamp(17px,2.2vw,21px);letter-spacing:-.035em;line-height:1.18}
+.description{font-size:12px;line-height:1.5;margin:6px 0 11px;color:#c4cdc6}
+.features{gap:7px 8px}
+.features li{display:inline-flex;gap:6px;align-items:center;min-height:28px;padding:4px 8px;border:1px solid rgba(255,255,255,.09);border-radius:9px;background:rgba(255,255,255,.035);font-size:10px;color:#dce2d8}
+.features li svg{color:#ffcf6a}
+.primaryAction{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;margin-top:12px;padding:10px 15px;border:0;border-radius:11px;background:#ffca28;color:#211b0a;font-size:12px;font-weight:950;cursor:pointer;box-shadow:0 6px 16px rgba(255,202,40,.13)}
+.primaryAction:active{transform:scale(.985)}
+.disclosure{display:inline-block;margin:8px 0 0 12px;padding:0;border:0;vertical-align:middle}
+.disclosure summary{min-height:44px;padding:9px 0;color:#d8c9a4;font-size:11px}
+.explanation{padding:8px 0 2px}
+.explanation p{color:#bec6bf;font-size:12px}
+.card :is(button,summary):focus-visible{outline:3px solid #ffdd88;outline-offset:3px}
+@media(max-width:600px){.card{grid-template-columns:33px minmax(0,1fr);gap:9px;padding:12px 11px;margin-bottom:12px}.mark{width:33px;height:33px;border-radius:10px}.content h2{font-size:16px}.description{font-size:11px;margin:6px 0 9px}.features{gap:5px}.features li{font-size:10px;min-height:27px;padding:4px 7px}.primaryAction{width:100%;min-height:46px;margin-top:11px}.disclosure{display:block;margin:2px 0 0}.disclosure summary{min-height:40px}}
+@media(prefers-reduced-motion:reduce){.primaryAction:active{transform:none}}

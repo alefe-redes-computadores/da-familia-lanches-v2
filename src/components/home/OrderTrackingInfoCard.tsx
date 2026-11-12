@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ClipboardList, LockKeyhole, MessageCircle, Route } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ClipboardList, LockKeyhole, MessageCircle, Route } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import styles from "./OrderTrackingInfoCard.module.css";
 
@@ -26,6 +26,9 @@ export function OrderTrackingInfoCard() {
           <li><MessageCircle size={14} aria-hidden="true" /><span>Avisos com consentimento</span></li>
           <li><LockKeyhole size={14} aria-hidden="true" /><span>Link privado quando disponível</span></li>
         </ul>
+        <button type="button" className={styles.primaryAction} onClick={() => openModal("orders")}>
+          <span>Ver meus pedidos</span><ArrowUpRight size={17} strokeWidth={2} aria-hidden="true" />
+        </button>
         <details className={styles.disclosure}>
           <summary>Como funciona <ChevronDown size={15} aria-hidden="true" /></summary>
           <div className={styles.explanation}>
@@ -34,7 +37,6 @@ export function OrderTrackingInfoCard() {
               aparece ou é enviado quando o acompanhamento é liberado para aquele pedido. Os avisos
               no WhatsApp exigem autorização do cliente e ativação do serviço.
             </p>
-            <button type="button" className={styles.ordersLink} onClick={() => openModal("orders")}>Ver meus pedidos</button>
           </div>
         </details>
       </div>

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ExternalLink, LockKeyhole } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ArrowUpRight, ChevronDown, Link2, LockKeyhole, ShieldCheck, X } from 'lucide-react';
 import { parseTrackingLink } from '@/lib/tracking/client-link';
+import styles from './TrackingLinkEntry.module.css';
 
-/** Optional handoff for an already authorized, staff-issued link. No link creation or retention. */
+/** Read-only entry for a previously authorized URL; never issues, stores or logs tokens. */
 export function TrackingLinkEntry() {
   const [available, setAvailable] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -26,30 +27,56 @@ export function TrackingLinkEntry() {
 
   if (!available) return null;
 
-  const open = () => {
+  const open = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     const target = parseTrackingLink(input, window.location.origin);
     if (!target) {
-      setError('Confira o link completo recebido da equipe. Não use apenas o número do pedido.');
+      setError('Cole o link privado completo recebido da loja. O número do pedido, sozinho, não libera o acesso.');
       return;
     }
-    // No localStorage, sessionStorage, analytics, request body, or clipboard read.
     window.location.assign(target);
   };
 
-  return <section aria-label="Acesso protegido ao pedido" style={{border:'1px solid rgba(212,175,87,.24)',borderRadius:14,padding:14,marginBottom:12,background:'rgba(212,175,87,.045)'}}>
-    <div style={{display:'flex',alignItems:'center',gap:8,fontWeight:700,fontSize:13}}><LockKeyhole size={17}/> Acompanhamento protegido</div>
-    <p style={{fontSize:12,opacity:.8,marginTop:7,marginBottom:9}}>Se recebeu um link privado da equipe, você pode abrir o acompanhamento detalhado. Seus pedidos abaixo continuam disponíveis normalmente.</p>
-    {!expanded ? <button type="button" onClick={() => setExpanded(true)} style={{fontSize:12,textDecoration:'underline',textUnderlineOffset:3}}>Já tenho um link protegido</button> :
-      <div style={{display:'grid',gap:8}}>
-        <label htmlFor="dfl-tracking-link" style={{fontSize:12}}>Cole o link completo recebido</label>
-        <input id="dfl-tracking-link" type="url" autoComplete="off" autoCapitalize="off" spellCheck={false} value={input}
-          onChange={event => {setInput(event.target.value);setError('')}} placeholder="https://…/acompanhar#t=…"
-          style={{minWidth:0,width:'100%',background:'#141414',border:'1px solid #555',borderRadius:9,padding:10,color:'#fff',fontSize:12}}/>
-        {error && <p role="alert" style={{color:'#f6ad8f',fontSize:12}}>{error}</p>}
-        <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
-          <button type="button" onClick={open} style={{display:'inline-flex',alignItems:'center',gap:6,fontWeight:700,fontSize:12}}><ExternalLink size={15}/> Abrir acompanhamento</button>
-          <button type="button" onClick={() => {setExpanded(false);setInput('');setError('')}} style={{fontSize:12,opacity:.75}}>Cancelar</button>
+  const collapse = () => { setExpanded(false); setInput(''); setError(''); };
+
+  return (
+    <section className={styles.panel} aria-label="Acesso protegido ao acompanhamento" data-expanded={expanded}>
+      <div className={styles.head}>
+        <span className={styles.icon} aria-hidden="true"><LockKeyhole size={19} strokeWidth={1.9} /></span>
+        <div className={styles.headCopy}>
+          <span className={styles.kicker}><ShieldCheck size={13} /> ACESSO PRIVADO</span>
+          <h2>Acompanhamento por link</h2>
+          <p>Se recebeu um link exclusivo da loja, abra o painel detalhado do seu pedido.</p>
         </div>
-      </div>}
-  </section>;
+      </div>
+      {!expanded ? (
+        <button type="button" className={styles.reveal} aria-expanded="false"
+          onClick={() => setExpanded(true)}>
+          <span><Link2 size={17} /> Tenho um link privado</span>
+          <ChevronDown size={17} aria-hidden="true" />
+        </button>
+      ) : (
+        <form id="dfl-tracking-link-panel" className={styles.form} onSubmit={open} noValidate>
+          <div className={styles.formHead}>
+            <strong>Abra seu link protegido</strong>
+            <button type="button" className={styles.close} onClick={collapse} aria-label="Fechar campo do link"><X size={18}/></button>
+          </div>
+          <label htmlFor="dfl-tracking-link">Link completo do acompanhamento</label>
+          <div className={styles.field}><Link2 size={17} aria-hidden="true" />
+            <input id="dfl-tracking-link" type="url" inputMode="url" autoComplete="off"
+              autoCapitalize="off" spellCheck={false} value={input} maxLength={2048}
+              onChange={event => { setInput(event.target.value); setError(''); }}
+              placeholder="https://dafamilialanches.com.br/acompanhar…" aria-invalid={Boolean(error)}
+              aria-describedby="dfl-tracking-link-guidance" />
+          </div>
+          <p className={styles.guidance} id="dfl-tracking-link-guidance">Por segurança, não é possível acessar a rota somente com o número do pedido.</p>
+          {error && <p role="alert" className={styles.error}>{error}</p>}
+          <button type="submit" className={styles.open} disabled={!input.trim()}>
+            Abrir acompanhamento <ArrowUpRight size={18} aria-hidden="true" />
+          </button>
+        </form>
+      )}
+      <p className={styles.footnote}>Sem link? Acompanhe as etapas disponíveis nos seus pedidos logo abaixo.</p>
+    </section>
+  );
 }

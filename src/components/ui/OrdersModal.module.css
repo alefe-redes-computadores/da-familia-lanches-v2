@@ -47,3 +47,45 @@
 .cancelActions button:disabled{opacity:.55;cursor:wait}
 .cancelActions button:focus-visible{outline:3px solid white;outline-offset:3px}
 @media(max-width:360px){.cancelActions{grid-template-columns:1fr}}
+
+/* DFL R65 — PREMIUM CLIENTE */
+.body{box-sizing:border-box;max-height:min(86dvh,840px);padding:17px;background:#0e1111;color:#f5f6f3;scroll-padding-top:15px;overscroll-behavior:contain}
+.loading,.tabEmpty{padding:27px 12px;color:#b6c3b9;font-size:12px;line-height:1.5}
+.empty{padding:25px 16px;gap:10px;border:1px solid rgba(255,202,40,.15);border-radius:18px;background:linear-gradient(135deg,#151c18,#121614)}
+.empty strong{font-size:15px;line-height:1.35}.empty p{font-size:12px;line-height:1.5;color:#c2cbbf}
+.emptyIcon{display:grid;place-items:center;width:52px;height:52px;border-radius:17px;background:rgba(255,202,40,.12);border:1px solid rgba(255,202,40,.28);color:#ffca28}
+.primaryGhost,.repeat{min-height:46px;border-radius:12px;background:#ffca28;color:#211900;font-size:13px;font-weight:900}
+.error,.notice{font-size:12px;line-height:1.5}
+.live{display:flex;align-items:center;gap:6px;margin:2px 0 11px;font-size:11px;line-height:1.5;color:#89d7a8}
+.tabs{padding:5px;border:1px solid #303931;border-radius:14px;background:#171e19;gap:5px}
+.tabs button{min-height:46px;border-radius:11px;color:#abb5a9;font-size:12px;font-weight:850}
+.tabs button[data-active=true]{background:#3b331d;color:#ffe19b;box-shadow:inset 0 0 0 1px rgba(255,202,40,.16)}
+.tabs b{min-width:21px;height:21px;font-size:10px}
+.list{gap:12px}.card{padding:16px;border-radius:18px;border:1px solid #303731;background:linear-gradient(135deg,#1a201c,#141914)}
+.activeCard{border-color:#66502a;box-shadow:inset 0 1px rgba(255,202,40,.06),0 8px 19px rgba(0,0,0,.12)}
+.date{font-size:11px;color:#b8c3b6}.orderId{font-family:inherit;font-size:11px;letter-spacing:.015em;color:#9ca99f}
+.total{font-size:17px;letter-spacing:-.02em;color:#f7d47e}
+.statusBox{padding:14px;margin:12px 0;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:#222a23}
+.statusTop>div>span{font-size:10px;color:#e5bd60}.statusTop>b{font-size:12px;color:#e6ce88}
+.statusTitle{font-size:17px;line-height:1.25}.statusDesc{font-size:12px;line-height:1.6;color:#d1d8d0}
+.next{margin-top:10px;padding:10px 11px;border:1px solid rgba(255,202,40,.13);background:#171e19;color:#f0dcae;font-size:12px;line-height:1.5}
+.updated{font-size:11px;line-height:1.5;color:#a9b5a9}
+.progress{height:6px;background:#39443b}.progress i{background:linear-gradient(90deg,#e7a738,#ffdf7c)}
+.timeline{gap:5px;margin:16px 0}.step{min-width:0}.step i{width:10px;height:10px;margin-bottom:9px}
+.step span{font-size:10px;line-height:1.4;color:#aeb7aa}.step[data-reached=true] span{color:#dfc894}.step[data-current=true] span{color:#ffe094}
+.scheduled{padding:13px;border-color:rgba(252,208,112,.24);border-radius:13px;color:#c5cbbf;font-size:12px}
+.scheduleActions button,.reschedule button,.reschedule select{min-height:44px;font-size:12px;border-radius:11px;border:1px solid #465247;background:#222a23;color:#f5f4e9}
+.scheduleActions button:last-child{color:#ffadad;border-color:rgba(255,130,130,.34)}
+.reschedule select{color-scheme:dark;min-width:0}
+.details{padding-top:11px;border-top-color:#364038}.details summary{min-height:44px;display:flex;align-items:center;color:#edcf85;font-size:12px}
+.items{padding-top:10px;font-size:12px;line-height:1.55;color:#e1e8df}.addon,.observation{font-size:11px;color:#b0bdb0}
+.repeatConfirm{background:#272820;border-color:#655c36}.repeatConfirm strong{font-size:13px;color:#f8e9b7}.repeatConfirm>span{font-size:12px;color:#d1c6a7}
+.repeatConfirm button{min-height:44px;font-size:12px}.repeatConfirm button:first-child{background:#343d33;color:#f3f5f1}.repeatConfirm button:last-child{background:#ffca28;color:#251c00}
+.warning{font-size:10px;color:#acb6a8}.loadMore{font-size:12px;background:#27322a;color:#f5f8f2;border:1px solid #3b5140}
+.deliveryTracking{padding:14px;border-color:#5b5132;border-radius:14px;background:linear-gradient(135deg,#292717,#181b16)}
+.deliveryTracking strong{font-size:15px}.deliveryTracking p{font-size:12px;color:#ced2c5}.deliveryTracking small{font-size:11px;color:#aebaaa}.deliveryEyebrow{font-size:10px}
+.deliveryPayment{font-size:12px;line-height:1.5;background:#151b17;color:#e7d8b4}
+.guestIntro{border-color:#52462a;background:#211f18}.guestIntro strong{font-size:13px;color:#f4e6be}.guestIntro span{font-size:12px;color:#bdc6bb}.guestStatusMeta{font-size:11px;color:#adbcac}
+.body :is(button,select,summary):focus-visible{outline:3px solid #ffe099;outline-offset:3px}
+@media(max-width:480px){.body{padding:11px}.card{padding:13px}.statusBox{padding:12px}.step span{font-size:10px}.head{align-items:center}.total{font-size:16px}.tabs button{font-size:11.5px}.statusTitle{font-size:16px}}
+@media(max-width:350px){.timeline{gap:3px}.step span{font-size:9px}.total{font-size:14px}}

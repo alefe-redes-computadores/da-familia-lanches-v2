@@ -306,3 +306,17 @@
     gap:3px
   }
 }
+
+/* DFL R65 — PREMIUM CLIENTE */
+.body{background:#f6f3ec;color:#191b17;padding-inline:17px}.body h2{font-size:24px;line-height:1.16}
+.body>p{font-size:13px;line-height:1.6;color:#605d56}
+.eyebrow{font-size:10px;color:#8a680a}.receipt{padding:12px;border-color:#e1d6bf;box-shadow:0 5px 16px rgba(50,34,8,.045)}
+.receipt span{font-size:10px;color:#716c60}.receipt strong{font-size:12px;color:#28241c}
+.primary{min-height:51px;border-radius:13px;background:#171b16;color:#ffe0a0;font-size:13px;font-weight:950;box-shadow:0 10px 23px rgba(22,27,22,.15)}
+.primary:focus-visible,.support:focus-visible,.link:focus-visible{outline:3px solid #b2881d;outline-offset:3px}
+.support{min-height:48px;border-radius:13px}.support span{font-size:11px}.support strong{font-size:12px}
+.link{min-height:44px;font-size:12px;color:#6a6355}.deliveryNote{font-size:11px;line-height:1.45;color:#77736b}
+.pixFlow>span{font-size:10px}.pixFlow>p,.pixFlow>small{font-size:12px;line-height:1.5}
+.pixFlow input{font-size:16px}.pixFlow button{font-size:12px;min-height:44px}
+.cartDecision>div:first-child>span{font-size:10px}.cartDecision p{font-size:12px}.cartActions button{min-height:44px;font-size:12px}
+@media(max-width:380px){.receipt span{font-size:11px}.receipt strong{font-size:12px}}
