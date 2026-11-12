@@ -43,3 +43,18 @@
   .disclosure{margin-top:8px;padding-top:6px}
 }
 @media(prefers-reduced-motion:reduce){.disclosure summary svg{transition:none}}
+
+/* DFL R63 — acompanhamento compacto */
+.card{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:11px 13px;margin:2px 0 12px;border-radius:15px;box-shadow:0 3px 14px rgba(0,0,0,.055)}
+.mark{width:34px;height:34px;border-radius:10px}
+.content h2{font-size:clamp(15px,2.1vw,18px)}
+.description{font-size:11px;line-height:1.45;margin:4px 0 7px}
+.features{gap:4px 10px}
+.features li{font-size:10px}
+@media(max-width:600px){
+ .card{grid-template-columns:29px minmax(0,1fr);gap:9px;padding:10px 11px;margin-bottom:11px}
+ .mark{width:29px;height:29px}
+ .mark svg{width:16px;height:16px}
+ .description{margin-bottom:6px}
+ .features{gap:3px 8px}
+}

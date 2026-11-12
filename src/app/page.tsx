@@ -362,6 +362,13 @@ export default function Home() {
         )}
         {!currentUser && guestLastOrder && !search.trim() && <CustomerExperiencePrompt />}
         {!activeModal && !search.trim() && <CustomerPwaInvite />}
+        {!shopStatus.isOpen && (
+          <div className={styles.closedNotice}>
+            <strong>{shopStatus.message || "A loja está fechada agora."}</strong>
+            <span>Você ainda pode explorar o cardápio e montar seu pedido para agendamento.</span>
+          </div>
+        )}
+        {activeCategory === "todos" && !search.trim() && <OrderTrackingInfoCard />}
         {catalogLoading && <section className={styles.catalogSkeleton} aria-label="Carregando cardápio" aria-busy="true"><div className={styles.skeletonTitle}/><div className={styles.skeletonGrid}>{[0,1,2,3].map((item)=><div className={styles.skeletonCard} key={item}><i/><span/><b/></div>)}</div></section>}
         {activeCategory === "todos" && !search.trim() && showcaseProducts.length > 0 && (
           <section className={styles.promoShowcase} id="dfl-family-offers" data-dfl-campaign-offers="true" data-highlight={highlightOffers?"true":"false"} aria-label="Ofertas da Família">
@@ -377,14 +384,9 @@ export default function Home() {
           </section>
         )}
 
-        {!shopStatus.isOpen && (
-          <div className={styles.closedNotice}>
-            <strong>{shopStatus.message || "A loja está fechada agora."}</strong>
-            <span>Você ainda pode explorar o cardápio e montar seu pedido para agendamento.</span>
-          </div>
-        )}
 
-        {activeCategory === "todos" && !search.trim() && <OrderTrackingInfoCard />}
+
+
 
         {(Boolean(search.trim()) || activeCategory !== "todos") && !catalogLoading && (
           <div id="dfl-search-results" className={styles.searchResultsAnchor}>

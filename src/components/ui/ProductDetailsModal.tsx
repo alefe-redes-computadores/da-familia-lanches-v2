@@ -51,6 +51,7 @@ export function ProductDetailsModal() {
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [observation, setObservation] = useState("");
   const [addonNotice, setAddonNotice] = useState("");
+  const [showAllAddons, setShowAllAddons] = useState(false);
   const product = modalData as Product | null;
 
   const addonsTotal = useMemo(() => selectedAddons.reduce((sum, addon) => sum + addon.price, 0), [selectedAddons]);
@@ -158,11 +159,16 @@ export function ProductDetailsModal() {
           <section className={styles.section}>
             <div className={styles.sectionTitle}><div><strong>{hasBundle ? "Adicionais do combo" : "Turbine seu lanche"}</strong><span>{addonPolicyHint(product)}</span></div><b>{selectedAddons.length}/{limits.max}</b></div>
             <div className={styles.addons}>
-              {product.addonGroups?.length ? <AddonGroupsChoices groups={product.addonGroups} addons={productAddons} selected={selectedAddons.map(item=>item.id)} onToggle={toggleAddon}/> : productAddons.map((addon) => {
+              {product.addonGroups?.length ? <AddonGroupsChoices groups={product.addonGroups} addons={productAddons} selected={selectedAddons.map(item=>item.id)} onToggle={toggleAddon}/> : productAddons.filter((addon, index) => limits.min > 0 || showAllAddons || index < 4 || selectedAddons.some(item => item.id === addon.id)).map((addon) => {
                 const selected = selectedAddons.some((item) => item.id === addon.id);
                 return <button type="button" key={addon.id} className={selected ? styles.addonSelected : styles.addon} aria-pressed={selected} onClick={() => toggleAddon(addon)}><span className={styles.check}>{selected ? "✓" : "+"}</span><span className={styles.addonName}>{addon.name}</span><strong>+ {money(addon.price)}</strong></button>;
               })}
             </div>
+            {!product.addonGroups?.length && limits.min === 0 && productAddons.length > 4 && (
+              <button type="button" className={styles.r63MoreAddons} aria-expanded={showAllAddons} onClick={() => setShowAllAddons(current => !current)}>
+                {showAllAddons ? "Mostrar menos adicionais" : `Ver todos os ${productAddons.length} adicionais`}
+              </button>
+            )}
             {selectedAddons.length > 0 && <p className={styles.r235AddonBreakdown} role="status">
               Extras: {money(addonsTotal)} {hasBundle ? "por combo" : "por unidade"}. {quantity > 1 ? `Para ${quantity} unidade(s): ${money(addonsTotal * quantity)} em extras.` : ""}
             </p>}

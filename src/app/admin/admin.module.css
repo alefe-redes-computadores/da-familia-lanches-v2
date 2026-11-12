@@ -2777,3 +2777,44 @@
  .workspace[data-r37-stage] .r55StatsDisclosure .metricIcon{display:none}
  .workspace[data-mode="operation"] .operationHero{padding:10px 12px!important}
 }
+
+/* DFL R63 — Admin unico compacto e legivel */
+/* Desktop tem navegação permanente à esquerda. Não renderizar uma segunda barra visível. */
+@media(min-width:821px){
+ .workspace{padding:13px 17px 42px}
+ .primaryNav{display:none}
+ .operationBar{display:block;padding:8px 0;min-height:0}
+ .desktopSearch{width:min(100%,520px)}
+ .operationHero{padding:13px 16px;gap:12px;margin-bottom:10px;border-radius:15px}
+ .operationHeroTitle strong{font-size:19px}
+ .operationHeroStats{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+ .operationHeroStats button{padding:8px 10px}
+ .managementNav{gap:7px}
+ .managementNav button{min-height:40px}
+}
+.operationHeroSignal:disabled{display:none}
+.r55StatsDisclosure{margin-block:6px 10px}
+/* Em telas pequenas, fila e ações primeiro, sem um painel gigante de estatísticas. */
+@media(max-width:820px){
+ .workspace{padding:10px 10px 56px}
+ .operationHero{padding:11px 12px;margin:7px 0 9px;border-radius:14px}
+ .operationHeroTitle strong{font-size:18px}
+ .operationHeroMain small{font-size:11px;line-height:1.45}
+ .operationHeroStats{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:8px}
+ .operationHeroStats button{min-width:0;padding:8px 3px;border-radius:10px}
+ .operationHeroStats button b{font-size:17px}
+ .operationHeroStats button span{font-size:10px;line-height:1.2}
+ .primaryNav button{font-size:10px!important;line-height:1.2;min-height:49px!important}
+ .primaryNav button span{font-size:10px}
+ .managementNav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;overscroll-behavior-inline:contain;padding-bottom:5px}
+ .managementNav button{flex:0 0 auto;min-width:85px;min-height:44px;padding:8px 10px;font-size:11px}
+ .managementNav button span{font-size:11px}
+ .managementNav button small{font-size:10px}
+ .metricCard > strong{font-size:11px!important}
+ .metricCard > small{font-size:10px!important}
+}
+@media(max-width:380px){
+ .operationHeroStats button span{font-size:9px}
+ .primaryNav button,.primaryNav button span{font-size:9px!important}
+}
+@media(prefers-reduced-motion:reduce){.managementNav{scroll-behavior:auto}}

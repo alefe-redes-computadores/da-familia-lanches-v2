@@ -1206,10 +1206,11 @@ export function CheckoutModal() {
           <p>Não envie novamente nem finalize pelo WhatsApp enquanto esta tentativa não for esclarecida. Confira Meus Pedidos e, se necessário, confirme diretamente com a loja antes de fazer outra compra.</p>
           <button type="button" onClick={() => { haptic("step"); openModal("orders"); }}>Conferir Meus Pedidos</button>
         </section>}
-        <div className={styles.steps} aria-label={`Etapa ${step} de 2`}>
-          <i data-active="true" /><i data-active={step === 2} />
+        <div className={styles.r63FlowHeading} role="status" aria-label={`Etapa ${step} de 2`}>
+          <span data-active={step === 1}>1 · Entrega e contato</span>
+          <span aria-hidden="true">/</span>
+          <span data-active={step === 2}>2 · Revisão e pagamento</span>
         </div>
-        <div className={styles.stepCaption}><strong>{step === 1 ? "Entrega" : "Pagamento"}</strong><span>{step}/2</span></div>
         <CheckoutAssistHelp checkoutStep={step} hasError={Boolean(errorMessage)} uncertain={orderOutcomeUncertain} />
          {step === 1 && !readiness.ready && readiness.next && (
            <div className={styles.r55CheckoutHint} role="status" aria-label="Proximo campo do pedido">
@@ -1424,12 +1425,15 @@ export function CheckoutModal() {
                 }}>Prefiro pedir agora</button>}
               </section>
             )}
-            <label className={styles.observationFirst}>Observações do pedido <span>(opcional)</span>
-              <textarea className={`${styles.input} ${styles.orderObservation}`} rows={2}
-                placeholder="Ex.: tocar a campainha, retirar ingrediente, ponto de referência…"
-                value={orderObservation} maxLength={300}
-                onChange={event => setOrderObservation(event.target.value.slice(0, 300))} />
-            </label>
+            <details className={styles.r63OptionalNote}>
+              <summary>Adicionar observação ao pedido (opcional)</summary>
+              <label className={styles.observationFirst}>Observações do pedido <span>(opcional)</span>
+                <textarea className={`${styles.input} ${styles.orderObservation}`} rows={2}
+                  placeholder="Ex.: tocar a campainha, retirar ingrediente, ponto de referência…"
+                  value={orderObservation} maxLength={300}
+                  onChange={event => setOrderObservation(event.target.value.slice(0, 300))} />
+              </label>
+            </details>
             <div className={styles.checkoutBottomAction}>
             <button className={styles.primary} type="button" onClick={() => { setErrorMessage(""); if (canAdvance && (!(shopClosed || wantsSchedule) || Boolean(scheduledFor))) setStep(2); else setErrorMessage(!nameReady ? "Informe seu nome para o pedido." : !phoneReady ? "Informe um WhatsApp válido com DDD." : !addressReady ? (!isPickup && !bairro.trim() ? "Falta informar o bairro da entrega. Preencha o campo Bairro." : !districtInspection.valid && !isPickup ? "Informe o nome completo do bairro e confira o endereço." : "Complete o endereço para continuar.") : "Escolha um horário disponível para o agendamento."); if (!isPickup && !addressReady && !districtInspection.valid) { setManualMode(true); setAddressEditorOpen(true); focusCheckoutIssue("district"); } }}>Continuar</button>
             </div>
@@ -1442,7 +1446,10 @@ export function CheckoutModal() {
               {orderOutcomeUncertain && <button type="button" onClick={() => openModal("orders")}>Conferir Meus Pedidos</button>}
             </section>
             <section className={styles.receiveCard}><div><strong>{customerName || (isPickup ? "Retirada no balcão" : "Entrega no endereço")}</strong><span>{isPickup ? "Retirada no balcão · sem taxa de entrega" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}${referencia ? ` · Ref.: ${referencia}` : ""}`}</span><small>{userPhone}</small></div><button type="button" onClick={() => setStep(1)}>Editar</button></section>
+            <details className={styles.r63CouponDisclosure}>
+              <summary>Tem cupom ou benefício? <span>Adicionar código</span></summary>
             <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" aria-label="Código do cupom ou benefício" value={couponCode} maxLength={32} autoComplete="off" autoCapitalize="characters" spellCheck={false} onChange={(event) => changeCouponCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void applyCoupon(); } }}/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || couponChecking || !couponCode.trim()}>{couponChecking ? "Verificando…" : "Aplicar"}</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
+            </details>
             <section className={styles.totalCard}><div><span>Subtotal</span><b>{money(subtotal)}</b></div><div><span>{isPickup ? "Retirada" : "Entrega"}</span><b data-free={finalFee === 0}>{isPickup ? "Sem taxa" : finalFee === 0 ? "Grátis" : money(finalFee)}</b></div>{safeDiscount > 0 && <div className={styles.discount}><span>Desconto {appliedCouponCode ? `(${appliedCouponCode})` : ""}</span><b>-{money(safeDiscount)}</b></div>}<div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>{!isPickup && finalFee === 0 && <small>{hasFreeDelivery ? `Você ganhou entrega grátis por atingir o valor mínimo${freeThreshold ? ` de ${money(freeThreshold)}` : ""}.` : deliveryFee === 0 && bairro.trim() ? `Entrega grátis configurada para ${bairro.trim()}.` : "Entrega grátis aplicada a este pedido."}</small>}</section>
             <section><div className={styles.sectionLabel}>Como você quer pagar?</div><div className={styles.paymentTabs}>{(["pix", "cartao", "dinheiro"] as PaymentMethod[]).map((option) => <button type="button" key={option} data-active={method === option} onClick={() => setMethod(option)}>{option === "pix" ? "PIX" : option === "cartao" ? "Cartão" : "Dinheiro"}</button>)}</div></section>
             {method === "pix" && <div className={styles.pixCard}><div><strong>Pagamento via PIX</strong><span>Primeiro registraremos o pedido. Na tela seguinte você poderá copiar a chave, conferir o valor e enviar o comprovante.</span></div></div>}

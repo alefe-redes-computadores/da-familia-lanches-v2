@@ -900,3 +900,34 @@
 .r55ScheduleReveal{display:block;min-height:48px;width:100%;padding:11px 15px;border:1px solid #b9903c;border-radius:12px;background:#fff1c6;color:#2a2213;font-size:13px;font-weight:900}
 .r55CheckoutHint button:focus-visible,.r55ScheduleReveal:focus-visible{outline:3px solid #dba71d;outline-offset:2px}
 @media(max-width:540px){.r55CheckoutHint{padding:8px 10px}.r55CheckoutHint span{font-size:11px}.r55ScheduleReveal{min-height:48px}}
+
+/* DFL R63 — checkout direto e progressivo */
+.r63FlowHeading{display:flex;align-items:center;gap:7px;padding:0 0 12px;margin-bottom:12px;border-bottom:1px solid #e6ded1;color:#7d756a;font-size:11px;font-weight:750;line-height:1.35}
+.r63FlowHeading span[data-active="true"]{color:#21180b;font-weight:950}
+.r63FlowHeading span:not([data-active="true"]){opacity:.76}
+.r63CouponDisclosure,.r63OptionalNote{border:1px solid #e2dccc;border-radius:13px;background:#fff;overflow:hidden}
+.r63CouponDisclosure>summary,.r63OptionalNote>summary{display:flex;justify-content:space-between;gap:9px;align-items:center;padding:12px 13px;cursor:pointer;list-style:none;font-size:12px;font-weight:850;color:#32291a}
+.r63CouponDisclosure>summary::-webkit-details-marker,.r63OptionalNote>summary::-webkit-details-marker{display:none}
+.r63CouponDisclosure>summary span{font-size:11px;font-weight:700;color:#87631a}
+.r63CouponDisclosure[open]>summary,.r63OptionalNote[open]>summary{border-bottom:1px solid #eee5d7}
+.r63CouponDisclosure>.card{margin:9px;border:0;box-shadow:none;padding:3px 4px 8px}
+.r63OptionalNote>.observationFirst{margin:10px 12px 12px}
+.r63CouponDisclosure>summary:focus-visible,.r63OptionalNote>summary:focus-visible{outline:3px solid #bb8d1c;outline-offset:-3px}
+.body .modeTabs{padding:3px;border-radius:13px;gap:4px}
+.body .modeTabs button{padding:10px 11px;border-radius:10px}
+.body .profileHint{padding:9px 11px;border-radius:12px}
+.body .addressChoice{border-radius:14px;padding:10px}
+.body .stack{gap:11px}
+.body .r36ReviewCard{padding:11px 12px}
+.body .r35NotificationChoice{border-radius:15px}
+@media(max-width:640px){
+ .body{padding:12px 13px;scroll-padding-bottom:118px}
+ .r63FlowHeading{flex-wrap:wrap;gap:5px;font-size:10px;margin-bottom:11px}
+ .body .modeTabs button{min-height:44px;padding:9px 8px}
+ .body .modeTabs b{font-size:13px}
+ .body .modeTabs small{font-size:10px}
+ .body .profileHint{padding:9px 10px}
+ .body .profileHint strong{font-size:11px}
+ .body .profileHint span{font-size:10px}
+ .body .stack{gap:10px}
+}

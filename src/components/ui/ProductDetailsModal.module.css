@@ -215,3 +215,8 @@
 .productTopline{align-items:flex-start}
 .productTopline .campaignBadge{flex:0 1 auto;min-width:0}
 @media(max-width:480px){.productTopline .campaignBadge{font-size:9px}.productPrice{flex-wrap:wrap}.productPrice>strong{color:#171717}}
+
+/* DFL R63 — revelacao de adicionais */
+.r63MoreAddons{display:block;width:100%;min-height:44px;margin-top:8px;border:1px solid #d7c29b;border-radius:12px;background:#fff9ea;color:#5b4215;font:inherit;font-size:12px;font-weight:850;text-align:center;cursor:pointer}
+.r63MoreAddons:focus-visible{outline:3px solid #c79a20;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.r63MoreAddons{scroll-behavior:auto;transition:none}}

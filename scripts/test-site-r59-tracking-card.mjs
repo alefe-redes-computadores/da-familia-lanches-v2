@@ -9,7 +9,7 @@ const links=read('src/lib/tracking/client-link.ts');
 const checks=[
   ['componente de acompanhamento na Home',home.includes('import { OrderTrackingInfoCard } from "@/components/home/OrderTrackingInfoCard";')],
   ['Card apenas na vitrine sem busca/categoria filtrada',home.includes('activeCategory === "todos" && !search.trim() && <OrderTrackingInfoCard />')],
-  ['card apos ofertas e aviso de fechamento',home.indexOf('<OrderTrackingInfoCard />')>home.indexOf('id="dfl-family-offers"')&&home.indexOf('<OrderTrackingInfoCard />')>home.indexOf('className={styles.closedNotice}')],
+  ['card apos estado da loja e antes das ofertas',home.indexOf('<OrderTrackingInfoCard />')>home.indexOf('className={styles.closedNotice}')&&home.indexOf('<OrderTrackingInfoCard />')<home.indexOf('id="dfl-family-offers"')],
   ['card antes da lista de categorias',home.indexOf('<OrderTrackingInfoCard />')<home.indexOf('className={styles.searchSummary}')],
   ['campanha e ofertas preservadas',home.includes('<VisualCampaignBanner show={bannerEligible} />')&&home.includes('showcaseProducts.length > 0')],
   ['fluxo de pedido existente intocado',home.includes('<ActiveOrderBanner />')&&home.includes('<LastOrderCard />')],

@@ -446,3 +446,13 @@
 .page .r104OfferPrices s{color:#766d63}
 .page .r104OfferBadge{background:#fff1d4;color:#775006;border-color:#f2d4a1}
 @media(prefers-reduced-motion:reduce){.searchPreview,.searchPreviewChoice{transition:none!important}}
+
+/* DFL R63 — Home editorial e ofertas primeiro */
+.page .promoShowcase{margin-top:8px;margin-bottom:14px;box-shadow:0 8px 24px rgba(32,25,16,.055)}
+.page .orderSlot{margin-bottom:8px}
+@media(max-width:699px){
+ .page .promoShowcase{margin:5px -2px 12px;padding:11px;border-radius:17px}
+ .page .promoShowcaseHead{gap:7px}
+ .page .promoShowcaseHead h2{font-size:18px;line-height:1.18}
+ .page .r104OffersHint{font-size:11px;line-height:1.35}
+}
