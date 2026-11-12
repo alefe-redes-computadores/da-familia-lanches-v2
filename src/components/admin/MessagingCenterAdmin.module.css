@@ -105,3 +105,21 @@
 @media(prefers-reduced-motion:reduce){.rotated,.advanced summary svg{transition:none!important}}
 
 .orderNeutral{font-size:10px;border-radius:999px;padding:5px 8px;white-space:nowrap;font-weight:750;background:#43351a66;color:#e4c47d;border:1px solid #65522d}
+
+/* DFL R64 VIDEO — MENSAGERIA FOCO NA FILA */
+/* Apenas acabamento: métricas, razões de bloqueio e filas não são ocultadas. */
+@media(max-width:700px){
+ .root{gap:10px}
+ .root .hero{padding:12px!important;border-radius:15px!important;box-shadow:0 5px 18px rgba(0,0,0,.14)}
+ .root .hero h3{font-size:18px!important;margin:7px 0 4px!important}
+ .root .hero p{font-size:12px!important;line-height:1.45!important}
+ .root .heroActions{margin-top:11px!important;gap:7px!important}
+ .root .heroActions button{min-height:45px!important;padding:8px 12px!important}
+ .root .metrics{gap:7px!important}
+ .root .metrics>div{padding:10px!important;border-radius:12px!important;gap:3px 7px!important}
+ .root .metrics strong{font-size:20px!important}
+ .root .metrics small{font-size:11px!important}
+ .root .notice{padding:11px!important;border-radius:12px!important}
+ .root .notice p{font-size:11px!important;line-height:1.5!important}
+ .root .advanced summary{min-height:46px!important}
+}

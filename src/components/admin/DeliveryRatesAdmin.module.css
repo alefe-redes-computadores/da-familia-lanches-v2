@@ -926,3 +926,18 @@
 .card .row[data-editing="true"]{border-radius:13px;outline:1px solid rgba(255,208,79,.32);outline-offset:-1px}
 .card .r98RateFilters button{min-height:44px}.card .save{min-height:50px;font-weight:950}
 @media(max-width:520px){.card .topGrid,.card .addFields{min-width:0}.card .fallback{padding:13px}.card .r98RateFilters button{flex:1 1 130px}}
+
+/* DFL R64 VIDEO — BAIRROS SEM RECORTE NA COLUNA */
+/* Regras legadas aplicavam grid-column:1/-1 a ambos spans da linha,
+   espremendo o nome e deslocando o valor. Definir áreas explícitas. */
+.card .rateView{box-sizing:border-box!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(76px,max-content) 32px!important;align-items:center!important;gap:8px!important;min-width:0!important;width:100%!important}
+.card .rateView>.rateIdentity{grid-column:1!important;grid-row:1!important;display:block!important;justify-content:flex-start!important;align-items:initial!important;min-width:0!important;width:100%!important;max-width:none!important;overflow:hidden!important}
+.card .rateView>.rateIdentity strong{box-sizing:border-box!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;white-space:normal!important;overflow:hidden!important;overflow-wrap:normal!important;word-break:normal!important;width:100%!important;font-size:14px!important;line-height:1.3!important}
+.card .rateView>b{grid-column:2!important;grid-row:1!important;min-width:0!important;width:auto!important;text-align:right!important;white-space:nowrap!important;font-size:13px!important}
+.card .rateView>.editCue{grid-column:3!important;grid-row:1!important;display:grid!important;place-items:center!important;min-width:32px!important;width:32px!important;max-width:32px!important;min-height:36px!important;height:36px!important;margin:0!important}
+@media(max-width:620px){
+ .card .rateView{grid-template-columns:minmax(0,1fr) minmax(70px,max-content) 30px!important;gap:6px!important;padding:7px 8px!important;min-height:54px!important}
+ .card .rateView>.editCue{min-width:30px!important;width:30px!important;max-width:30px!important;height:36px!important}
+ .card .rateView>.rateIdentity strong{font-size:13.5px!important;line-height:1.3!important}
+}
+@media(max-width:360px){.card .rateView{grid-template-columns:minmax(0,1fr) minmax(64px,max-content) 28px!important;gap:5px!important}.card .rateView>.editCue{min-width:28px!important;width:28px!important;max-width:28px!important}}

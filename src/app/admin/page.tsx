@@ -123,6 +123,7 @@ function AdminPageContent() {
     desfazerReconhecimentoPedido,
   } = useAdminOrders(currentUser, ADMINS);
   const [tab, setTab] = useState<Tab>("cozinha");
+  const [managementToolsOpen, setManagementToolsOpen] = useState(false);
   useEffect(() => {
     if (!authLoading && typeof performance !== "undefined" && !performance.getEntriesByName("dfl-admin-auth-ready", "mark").length) {
       performance.mark("dfl-admin-auth-ready");
@@ -1028,34 +1029,41 @@ function AdminPageContent() {
         </section>
 
         {managementActive && (
-          <section id="admin-management" className={styles.managementHub} aria-label="Gestão da loja">
-            <div className={styles.managementHubHead}>
-              <div><span>GESTÃO</span><strong>Controles da loja</strong></div>
-              <small>{storeState.label} · {storeStatus.source === "manual" ? "controle manual" : storeStatus.source === "exception" ? "exceção" : "agenda automática"}</small>
-            </div>
-            <div className={styles.managementNav}>
-              {tabItems.filter(([key]) => ["operacao","catalogo","agendamentos","frete","cupons","campanhas","fidelidade","mensageria","gestao","cancelados"].includes(key)).map(([key,label]) => (
-                <button key={key} data-active={tab === key} onClick={() => { haptic("step"); setTab(key); setAttentionOnly(false); }}>
-                  <AdminIcon name={key === "operacao" ? "store" : key === "agendamentos" ? "calendar" : key === "frete" ? "dispatch" : key === "gestao" ? "management" : key === "cancelados" ? "history" : "orders"} />
-                  <span>{key === "operacao" ? "Loja" : key === "frete" ? "Entrega" : key === "gestao" ? "Saúde" : label}</span>
-                  {key === "operacao" && <small>{storeState.label}</small>}
-                  {key === "cancelados" && counts.cancelados > 0 && <small>{counts.cancelados}</small>}
-                </button>
-              ))}
-              <button
-                type="button"
-                className={styles.managementNotifications}
-                data-attention={counts.attention > 0}
-                onClick={() => { haptic("step"); setNotificationCenterOpen(true); }}
-              >
-                <AdminIcon name="bell" />
-                <span>Notificações</span>
-                <small>{counts.attention > 0 ? `${counts.attention} atenção` : "Preferências"}</small>
+          <section id="admin-management" className={styles.r64ManagementSwitch} aria-label="Gestão da loja">
+            <div className={styles.r64ManagementCurrent}>
+              <div className={styles.r64ManagementTitle}>
+                <span>GESTÃO DA LOJA</span>
+                <strong>{tab === "operacao" ? "Loja e horários" : tab === "frete" ? "Entrega e taxas" : tab === "catalogo" ? "Cardápio" : tab === "campanhas" ? "Campanhas visuais" : tab === "mensageria" ? "Mensageria" : tab === "gestao" ? "Saúde da operação" : tabItems.find(([key]) => key === tab)?.[1] || "Ferramentas"}</strong>
+              </div>
+              <button type="button" className={styles.r64ManagementToggle}
+                aria-expanded={managementToolsOpen} aria-controls={managementToolsOpen ? "r64-management-tools" : undefined}
+                onClick={() => { haptic("step"); setManagementToolsOpen((value) => !value); }}>
+                <SlidersHorizontal size={16} aria-hidden="true" />
+                <span>{managementToolsOpen ? "Fechar menu" : "Trocar ferramenta"}</span>
               </button>
             </div>
+            {managementToolsOpen && (
+              <nav id="r64-management-tools" className={styles.r64ManagementTools} aria-label="Escolha uma ferramenta da loja">
+                {tabItems.filter(([key]) => ["operacao", "catalogo", "agendamentos", "frete", "cupons", "campanhas", "fidelidade", "mensageria", "gestao", "cancelados"].includes(key)).map(([key,label]) => (
+                  <button key={key} type="button" data-active={tab === key} aria-current={tab === key ? "page" : undefined}
+                    onClick={() => {
+                      haptic("step"); setTab(key); setAttentionOnly(false); setManagementToolsOpen(false);
+                      window.requestAnimationFrame(() => document.getElementById("admin-management")?.scrollIntoView({behavior:"auto",block:"start"}));
+                    }}>
+                    <AdminIcon name={key === "operacao" ? "store" : key === "agendamentos" ? "calendar" : key === "frete" ? "dispatch" : key === "gestao" ? "management" : key === "cancelados" ? "history" : key === "mensageria" ? "bell" : "orders"} />
+                    <span>{key === "operacao" ? "Loja" : key === "frete" ? "Entrega" : key === "gestao" ? "Saúde" : label}</span>
+                    {key === "cancelados" && counts.cancelados > 0 && <small>{counts.cancelados}</small>}
+                  </button>
+                ))}
+                <button type="button" className={styles.r64Notifications} onClick={() => { haptic("step"); setNotificationCenterOpen(true); setManagementToolsOpen(false); }}>
+                  <AdminIcon name="bell" />
+                  <span>Notificações</span>
+                  {counts.attention > 0 && <small>{counts.attention}</small>}
+                </button>
+              </nav>
+            )}
           </section>
         )}
-
 
         {tab === "catalogo" ? (
           <section className={styles.management}><div className={styles.sectionHeading}><div><span>CATÁLOGO</span><h2>Cardápio da loja</h2></div><p>Edite o catálogo remoto sem alterar pedidos já realizados.</p></div><AdminSectionBoundary section="Cardápio" onBack={() => setTab("cozinha")}><CatalogAdmin /></AdminSectionBoundary></section>
