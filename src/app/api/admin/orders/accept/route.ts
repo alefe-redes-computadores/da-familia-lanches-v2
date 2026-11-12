@@ -6,8 +6,10 @@ import { adminDb } from '@/lib/integration/server/admin';
 import { isAdminEmail } from '@/lib/adminAuthorization';
 import { acceptanceStatus, acceptedOrderCanNotify, AUTO_ACCEPT_COLLECTION } from '@/lib/tracking/automaticAcceptancePolicy';
 import { drainAutoAcceptances, autoAcceptanceEnabled } from '@/lib/tracking/automaticAcceptance';
+import { drainR27AutomaticDelivery } from '@/lib/tracking/r27AutomaticDelivery';
 
 export const runtime='nodejs';
+export const maxDuration=60; // R67: allows bounded S2S after() work, while response is immediate
 export const dynamic='force-dynamic';
 const headers={ 'cache-control':'private, no-store, max-age=0', 'x-content-type-options':'nosniff' };
 const json=(v:unknown,status=200)=>NextResponse.json(v,{status,headers});
@@ -55,7 +57,21 @@ export async function POST(req:NextRequest) {
     if (result.state==='not_found')return json({ok:false,error:'ORDER_NOT_FOUND'},404);
     if (result.state==='conflict')return json({ok:false,error:'ORDER_STATUS_CONFLICT'},409);
     if(result.state==='changed' && autoAcceptanceEnabled()) {
-      after(async()=>{await drainAutoAcceptances(1).catch(()=>undefined);});
+      // R67: acceptance and initial P9 handoff are separate, independently gated
+      // once-only jobs. Drain the SPECIFIC new order, never unrelated backlog.
+      // The response is already sent; the periodic worker remains fallback.
+      after(async()=>{
+        const acceptance=await drainAutoAcceptances(1,orderId).catch(()=>null);
+        const delivery=await drainR27AutomaticDelivery(1,orderId).catch(()=>null);
+        // No order ID, phone, token, link or provider receipt in observability.
+        console.info('[tracking/fastlane]',{
+          acceptanceAcknowledged:acceptance?.acknowledged||0,
+          initialClaimed:delivery?.claimed||0,
+          providerAccepted:delivery?.accepted||0,
+          review:delivery?.review||0,
+          suppressed:delivery?.suppressed||0,
+        });
+      });
     }
     return json({ok:true,changed:result.state==='changed',status:result.status,rewardAwarded:false});
   } catch {return json({ok:false,error:'ACCEPTANCE_UNAVAILABLE'},503);}

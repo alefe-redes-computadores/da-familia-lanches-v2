@@ -11,14 +11,20 @@ import {r41TrackingPilotRecipient} from './r41PilotRecipient';
 
 const value=(x:unknown)=>typeof x==='string'?x.trim():'';
 export type R27Run={enabled:boolean;claimed:number;accepted:number;review:number;suppressed:number};
-export async function drainR27AutomaticDelivery(limit=1):Promise<R27Run> {
+export async function drainR27AutomaticDelivery(limit=1,targetOrderId?:string):Promise<R27Run> {
   const result:R27Run={enabled:r27DispatchConfigured(process.env),claimed:0,accepted:0,review:0,suppressed:0};
   if(!result.enabled)return result;
   // Pending-only queue. No recovery of an abandoned processing job: it may
   // have issued a token or contacted the provider before the worker died.
   const size=Math.max(1,Math.min(3,Math.trunc(limit)||1));
-  const snap=await adminDb.collection(R27_COLLECTION).where('state','==','pending').limit(size).get();
-  for(const doc of snap.docs){
+  // R67: immediate post-accept handoff is scoped to the just-accepted order.
+  // The cron retains its pending-only query; a finished or uncertain job is never retried.
+  const docs=targetOrderId
+    ? (/^[A-Za-z0-9_-]{8,80}$/.test(targetOrderId)
+      ? [await adminDb.collection(R27_COLLECTION).doc(targetOrderId).get()] : [])
+    : (await adminDb.collection(R27_COLLECTION).where('state','==','pending').limit(size).get()).docs;
+  for(const doc of docs){
+    if(targetOrderId && !doc.exists)continue;
     if(!r27DispatchConfigured(process.env))break;
     const lease=randomUUID();
     const now=new Date().toISOString();

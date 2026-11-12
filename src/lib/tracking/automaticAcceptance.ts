@@ -17,12 +17,18 @@ export function autoAcceptanceEnabled(): boolean {
     process.env.DFL_SITE_TRACKING_ENABLED === '1';
 }
 
-export async function drainAutoAcceptances(limit=5) {
+export async function drainAutoAcceptances(limit=5,targetOrderId?:string) {
   const result = { enabled: autoAcceptanceEnabled(), claimed:0, acknowledged:0, deferred:0, blocked:0 };
   if (!result.enabled) return result;
-  const snap = await adminDb.collection(AUTO_ACCEPT_COLLECTION)
-    .where('state','in',['pending','processing']).limit(Math.min(10,Math.max(1,limit))).get();
-  for (const doc of snap.docs) {
+  // R67: the admin acceptance fast lane must only work on its own order.
+  // The scheduled worker keeps its original bounded query and recovery behavior.
+  const docs=targetOrderId
+    ? (/^[A-Za-z0-9_-]{8,80}$/.test(targetOrderId)
+      ? [await adminDb.collection(AUTO_ACCEPT_COLLECTION).doc(targetOrderId).get()] : [])
+    : (await adminDb.collection(AUTO_ACCEPT_COLLECTION)
+      .where('state','in',['pending','processing']).limit(Math.min(10,Math.max(1,limit))).get()).docs;
+  for (const doc of docs) {
+    if(targetOrderId && !doc.exists)continue;
     const lock = randomUUID();
     const now = new Date().toISOString();
     const claim = await adminDb.runTransaction(async tx => {
