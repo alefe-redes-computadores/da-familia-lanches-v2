@@ -38,17 +38,24 @@ ok(
   "Application vazia voltou ao boot",
 );
 
+// R60: updater's FileProvider does NOT participate in the TWA cold start.
+// Accept only this single, private provider. The launcher still cannot use
+// the legacy splash metadata or an unrestricted file-sharing authority.
+const providers = [...manifest.matchAll(/<provider\b[\s\S]*?<\/provider>/g)].map(match => match[0]);
+const updatePaths = read('android-admin/app/src/main/res/xml/dfl_update_paths.xml');
 ok(
-  !manifest.includes(
-    "SPLASH_IMAGE_DRAWABLE"
-  ) &&
-  !manifest.includes(
-    "FILE_PROVIDER_AUTHORITY"
-  ) &&
-  !manifest.includes(
-    "androidx.core.content.FileProvider"
-  ),
-  "cold start voltou a depender de splash/FileProvider",
+  !manifest.includes("SPLASH_IMAGE_DRAWABLE") &&
+  !manifest.includes("FILE_PROVIDER_AUTHORITY") &&
+  providers.length === 1 &&
+  providers[0].includes('android:name="androidx.core.content.FileProvider"') &&
+  providers[0].includes('android:authorities="${applicationId}.updates.fileprovider"') &&
+  providers[0].includes('android:exported="false"') &&
+  providers[0].includes('android:grantUriPermissions="true"') &&
+  providers[0].includes('android:resource="@xml/dfl_update_paths"') &&
+  updatePaths.includes('name="dfl-apk-updates" path="dfl-apk-updates/"') &&
+  !updatePaths.includes('path="."') &&
+  !updatePaths.includes('root-path'),
+  "cold start ou FileProvider exclusivo do atualizador divergiu",
 );
 
 ok(

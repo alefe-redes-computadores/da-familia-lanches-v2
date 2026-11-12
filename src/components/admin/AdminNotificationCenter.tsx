@@ -112,6 +112,7 @@ export function AdminNotificationCenter({
       writeAdminNotificationPrefs(next);
       setPrefs(next);
       setMessage("Preferência salva neste aparelho.");
+      haptic("success");
       return true;
     } catch {
       setMessage("Não foi possível salvar a preferência neste aparelho. Tente novamente.");

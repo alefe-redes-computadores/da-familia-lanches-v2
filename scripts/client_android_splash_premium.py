@@ -110,6 +110,36 @@ def add_meta(activity: ET.Element, name: str, value: str, attribute='resource'):
     ET.SubElement(activity, 'meta-data', {A + 'name': name, A + attribute: value})
 
 
+def _verify_updater_file_provider(app, resources):
+    """R60: the updater's private FileProvider is distinct from TWA splash.
+
+    It is present in the reviewed Admin template, before the Cliente clone's
+    second (splash-only) provider is added. Never broaden its authorized path.
+    """
+    name = 'androidx.core.content.FileProvider'
+    providers = [p for p in app.findall('provider') if p.attrib.get(A + 'name') == name]
+    update = [p for p in providers if p.attrib.get(A + 'authorities') == '${applicationId}.updates.fileprovider']
+    ensure(len(update) == 1 and 1 <= len(providers) <= 2, 'updater FileProvider ausente ou duplicado')
+    provider = update[0]
+    ensure(provider.attrib.get(A + 'exported') == 'false' and
+           provider.attrib.get(A + 'grantUriPermissions') == 'true',
+           'updater FileProvider publico ou sem grantURI')
+    info = [m for m in provider.findall('meta-data')
+            if m.attrib.get(A + 'name') == 'android.support.FILE_PROVIDER_PATHS']
+    ensure(len(info) == 1 and info[0].attrib.get(A + 'resource') == '@xml/dfl_update_paths',
+           'updater FileProvider paths divergentes')
+    file = resources / 'xml/dfl_update_paths.xml'
+    ensure(file.is_file(), 'paths privados do atualizador ausentes')
+    paths = ET.parse(file).getroot()
+    elements = list(paths)
+    ensure(paths.tag == 'paths' and len(elements) == 1 and
+           elements[0].tag == 'files-path' and
+           elements[0].attrib.get('name') == 'dfl-apk-updates' and
+           elements[0].attrib.get('path') == 'dfl-apk-updates/',
+           'atualizador exporia arquivos fora de dfl-apk-updates/')
+    return providers
+
+
 def apply_client_splash(main: Path, source_icon: Image.Image, theme_color: str):
     ensure(main.as_posix().endswith('android-cliente/app/src/main'), 'somente cliente gerado')
     ensure(CLIENT in (main / 'res/values/strings.xml').read_text(encoding='utf-8'),
@@ -134,8 +164,8 @@ def apply_client_splash(main: Path, source_icon: Image.Image, theme_color: str):
     add_meta(safe, META_PREFIX + 'SPLASH_SCREEN_BACKGROUND_COLOR', '@color/cliente_system_bar')
     add_meta(safe, META_PREFIX + 'SPLASH_SCREEN_FADE_OUT_DURATION', '240', 'value')
     add_meta(safe, META_PREFIX + 'FILE_PROVIDER_AUTHORITY', '@string/provider_authority', 'value')
-    ensure(not any(x.attrib.get(A + 'name') == 'androidx.core.content.FileProvider'
-                   for x in app.findall('provider')), 'FileProvider ja existe')
+    providers = _verify_updater_file_provider(app, resource)
+    ensure(len(providers) == 1, 'splash ja tem outro FileProvider no manifesto')
     provider = ET.SubElement(app, 'provider', {
         A + 'name': 'androidx.core.content.FileProvider',
         A + 'authorities': '@string/provider_authority',
@@ -217,10 +247,17 @@ def verify_client_splash(resource: Path, source_png: Path, theme_color: str):
     for k,(field,value) in expected.items():
         n = META_PREFIX + k
         ensure(n in metadata and metadata[n].attrib.get(field) == value, 'metadata '+k)
-    providers = [x for x in app.findall('provider') if x.attrib.get(A+'name') == 'androidx.core.content.FileProvider']
-    ensure(len(providers)==1 and providers[0].attrib.get(A+'exported')=='false', 'FileProvider seguro ausente')
-    ensure(providers[0].attrib.get(A+'authorities')=='@string/provider_authority', 'authority incorreta')
-    ensure(providers[0].attrib.get(A+'grantUriPermissions')=='true', 'URI nao compartilhabil pelo TWA')
+    providers = _verify_updater_file_provider(app, resource)
+    ensure(len(providers) == 2, 'esperados exatamente 2 FileProviders: update e splash')
+    splash = [p for p in providers if p.attrib.get(A + 'authorities') == '@string/provider_authority']
+    ensure(len(splash) == 1 and splash[0].attrib.get(A + 'exported') == 'false',
+           'splash FileProvider ausente ou publico')
+    ensure(splash[0].attrib.get(A + 'grantUriPermissions') == 'true',
+           'splash sem grantUriPermissions')
+    splash_meta = [m for m in splash[0].findall('meta-data')
+                   if m.attrib.get(A + 'name') == 'android.support.FILE_PROVIDER_PATHS']
+    ensure(len(splash_meta) == 1 and splash_meta[0].attrib.get(A + 'resource') == '@xml/dfl_twa_splash_paths',
+           'splash FileProvider aponta para paths nao autorizados')
     paths = ET.parse(resource/'xml/dfl_twa_splash_paths.xml').getroot()
     ensure(len(paths)==1 and paths[0].tag=='files-path' and paths[0].attrib.get('path')=='twa_splash/',
            'paths FileProvider demasiado amplos')

@@ -33,7 +33,11 @@ assert.match(safe,/extends LauncherActivity/);
 assert.match(safe,/private static final AtomicBoolean/);
 assert.match(entry,/launchTwaWithNativeNotificationPermission\(\)/);
 assert.ok(!admin.includes('SPLASH_IMAGE_DRAWABLE'));
-assert.ok(!admin.includes('FileProvider'));
+assert.ok(!admin.includes('FILE_PROVIDER_AUTHORITY'));
+// R60: novo provider é só do instalador; splash segue exclusivo do Cliente.
+assert.match(admin, /android:authorities="\$\{applicationId\}\.updates\.fileprovider"/);
+assert.match(admin, /android:resource="@xml\/dfl_update_paths"/);
+assert.ok(!admin.includes('@xml/dfl_twa_splash_paths'));
 for(const path of ['scripts/prepare-client-android.py','scripts/verify-client-android-icons.py','scripts/client_android_splash_premium.py']){
  const t=cp.spawnSync('python3',['-c','import ast,sys;ast.parse(sys.stdin.read())'],{input:fs.readFileSync(path,'utf8'),encoding:'utf8'});
  assert.equal(t.status,0,`Python inválido ${path}: ${t.stderr}`);

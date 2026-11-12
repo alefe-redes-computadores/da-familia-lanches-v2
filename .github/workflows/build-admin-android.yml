@@ -67,6 +67,7 @@ jobs:
         run: |
           node scripts/test-site-r56-updates.cjs
           node scripts/test-site-r57-native-updater.cjs
+          node scripts/test-site-r60-android-provider-compat.mjs
           node scripts/test-site-r58-premium.cjs
           node scripts/test-admin-runtime-v19.mjs
           node scripts/test-admin-web-push-v20.mjs
@@ -242,6 +243,7 @@ jobs:
           node scripts/test-site-r230-client-icon.cjs
           node scripts/test-site-r56-updates.cjs
           node scripts/test-site-r57-native-updater.cjs
+          node scripts/test-site-r60-android-provider-compat.mjs
           node scripts/test-site-r58-premium.cjs
           node scripts/test-site-sales-r5-ui-recovery.cjs
           node scripts/test-site-r228-checkout-compat.cjs

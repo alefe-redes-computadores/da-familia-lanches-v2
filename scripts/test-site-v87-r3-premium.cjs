@@ -20,7 +20,30 @@ ok(page.includes('onNotifications={() => setNotificationCenterOpen(true)}')&&pag
 ok(!quick.includes('firebase/firestore')&&!quick.includes('onSnapshot(')&&!quick.includes('fetch('),'Admin: zero requisições extras');
 ok(quick.includes('role="dialog"')&&quick.includes('aria-modal="true"')&&quick.includes('role="combobox"'),'Admin: diálogo acessível');
 ok(quick.includes('observer')===false,'Admin: sem observadores por item');
-ok(quick.includes('simplify(')&&quick.includes('tokens.every('),'Admin: busca acento-insensível e combinada');
+// R60 FIX2: a busca R58 substituiu simplify/tokens.every por motor ponderado.
+// Provar normalizacao, termos combinados e ausencia de resultados inventados.
+const quickEngine = read('src/lib/adminQuickSearch.ts');
+ok(quick.includes('quickSearchScore(entry, query)') &&
+   quickEngine.includes("normalize('NFD')") &&
+   quickEngine.includes('if (!score) return 0'),
+   'Admin: busca acento-insensível e combinada');
+const rankedJs=ts.transpileModule(quickEngine,{
+  fileName:'src/lib/adminQuickSearch.ts',
+  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},
+  reportDiagnostics:true,
+});
+ok(!(rankedJs.diagnostics||[]).some(d=>d.category===ts.DiagnosticCategory.Error),
+   'Admin: motor de busca tipado e valido');
+const rankedModule={exports:{}};
+new Function('module','exports','require',rankedJs.outputText)(
+  rankedModule,rankedModule.exports,()=>{throw Error('Busca com import externo inesperado')});
+const score=rankedModule.exports.quickSearchScore;
+const candidate={name:'Catálogo',hint:'Produtos e combos',terms:'lanche cardápio'};
+ok(typeof score==='function' &&
+   score(candidate,'CATALOGO lanche')>0 &&
+   score(candidate,'cátalogo lânche')>0 &&
+   score(candidate,'catalogo palavraimpossivel')===0,
+   'Admin: busca combinada real, com acentos e sem falso positivo');
 ok(quick.includes('event.key === "ArrowDown"')&&quick.includes('event.key === "Enter"')&&quick.includes('event.key === "Escape"'),'Admin: teclado completo');
 ok(quickCss.includes('prefers-reduced-motion')&&adminCss.includes('DFL SITE V87 R3 — ADMIN QUICK ACCESS'),'Admin: responsividade e movimento');
 ok(product.includes('IntersectionObserver')&&product.includes('observer.disconnect()'),'Cliente: CTA contextual sem polling');
