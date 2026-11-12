@@ -7,8 +7,7 @@ import { useUIStore } from "@/store/ui";
 import styles from "./DFLAssistFloatingNudge.module.css";
 
 const sessionKey = "dfl:assist-floating-intro-r251";
-const dismissKey = "dfl:assist-floating-dismissed-r251";
-const tourKey = "dfl:assist-tour-v1";
+const dismissKey = "dfl:assist-floating-dismissed-r61";
 const message = "Precisa de ajuda?";
 type Phase = "idle" | "typing" | "hold" | "compact";
 
@@ -25,13 +24,13 @@ export function DFLAssistFloatingNudge() {
   const started = useRef(false);
 
   useEffect(() => {
-    try { setDismissed(localStorage.getItem(dismissKey) === "1" || localStorage.getItem(tourKey) === "1"); }
-    catch { setDismissed(true); }
-    const onAssistOpened = () => {
-      setDismissed(true);
-      try { localStorage.setItem(dismissKey, "1"); } catch { /* storage opcional */ }
-    };
-    window.addEventListener("dfl:assist-open", onAssistOpened);
+    // R61: usar o Assist ou concluir o guia nunca desabilita o atalho flutuante.
+    // A chave R251 confundia abertura automatica com dispensar pelo X.
+    // R61 FIX1: ler storage em callback do frame, sem render em cascata no efeito.
+    const storageFrame = window.requestAnimationFrame(() => {
+      try { setDismissed(localStorage.getItem(dismissKey) === "1"); }
+      catch { setDismissed(false); }
+    });
     const focusedInput = () => {
       const node = document.activeElement;
       setInputActive(node instanceof HTMLElement && Boolean(node.closest("input,textarea,select,[contenteditable=true]")));
@@ -39,11 +38,11 @@ export function DFLAssistFloatingNudge() {
     const onBlur = () => window.setTimeout(focusedInput, 0);
     document.addEventListener("focusin", focusedInput);
     document.addEventListener("focusout", onBlur);
-    return () => { window.removeEventListener("dfl:assist-open", onAssistOpened); document.removeEventListener("focusin", focusedInput); document.removeEventListener("focusout", onBlur); };
+    return () => { window.cancelAnimationFrame(storageFrame); document.removeEventListener("focusin", focusedInput); document.removeEventListener("focusout", onBlur); };
   }, []);
 
   useEffect(() => {
-    if (pathname !== "/") { setPastThreshold(false); return; }
+    if (pathname !== "/") return;
     let frame = 0;
     const measure = () => {
       frame = 0;
@@ -52,7 +51,7 @@ export function DFLAssistFloatingNudge() {
     const onScroll = () => {
       if (!frame) frame = window.requestAnimationFrame(measure);
     };
-    measure();
+    frame = window.requestAnimationFrame(measure);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
@@ -76,22 +75,25 @@ export function DFLAssistFloatingNudge() {
 
   useEffect(() => {
     if (!pastThreshold || pathname !== "/" || activeModal || dismissed || started.current) return;
-    started.current = true;
-    let seen = false;
-    try { seen = sessionStorage.getItem(sessionKey) === "1"; } catch { /* opcional */ }
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-    if (seen) { setPhase("compact"); return; }
-    if (reduceMotion) { setLength(message.length); setPhase("hold"); return; }
-    setPhase("typing");
+    const introFrame = window.requestAnimationFrame(() => {
+      if (started.current) return;
+      started.current = true;
+      let seen = false;
+      try { seen = sessionStorage.getItem(sessionKey) === "1"; } catch { /* opcional */ }
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+      if (seen) { setPhase("compact"); return; }
+      if (reduceMotion) { setLength(message.length); setPhase("hold"); return; }
+      setPhase("typing");
+    });
+    return () => window.cancelAnimationFrame(introFrame);
   }, [pastThreshold, pathname, activeModal, dismissed]);
 
   useEffect(() => {
     if (phase !== "typing") return;
-    if (length >= message.length) {
-      setPhase("hold");
-      return;
-    }
-    const timer = window.setTimeout(() => setLength((value) => Math.min(message.length, value + 1)), 90);
+    const timer = window.setTimeout(() => {
+      if (length >= message.length) setPhase("hold");
+      else setLength((value) => Math.min(message.length, value + 1));
+    }, length >= message.length ? 0 : 90);
     return () => window.clearTimeout(timer);
   }, [phase, length]);
 

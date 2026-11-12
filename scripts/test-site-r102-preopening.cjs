@@ -70,4 +70,11 @@ for(const f of ['test-site-sales-critical-r1.cjs','test-site-sales-operation-r2.
 }
 check(sales.includes('node scripts/test-site-r102-preopening.cjs'), 'CI de vendas valida preabertura R102');
 check(!/onSnapshot\s*\(|getDocs\s*\(|getDoc\s*\(/.test(assist), 'painel visual Assist nao adiciona leitura Firebase');
+// R61: abrir o assistente e concluir tour nao equivalem a dispensar o CTA.
+check(nudge.includes('const dismissKey = "dfl:assist-floating-dismissed-r61";') &&
+  !nudge.includes('localStorage.getItem(tourKey)') &&
+  !nudge.includes('const onAssistOpened =') &&
+  nudge.includes('localStorage.setItem(dismissKey, "1")') &&
+  nudge.includes('window.scrollY >= 240') && nudge.includes('footerNear'),
+  'R61: CTA volta apos Assist/tour, X permanece explicito e rodape protegido');
 console.log('R102 PREABERTURA — CONTRATOS OK; nenhuma chamada de rede ou pedido real.');
