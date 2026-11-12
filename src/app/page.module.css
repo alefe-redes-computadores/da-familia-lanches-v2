@@ -421,3 +421,28 @@
 .searchBox{width:100%;min-width:0;box-sizing:border-box}
 .searchBox input{flex:1 1 0;min-width:0;max-width:100%;text-overflow:ellipsis}
 @media(max-width:420px){.searchBox{gap:8px;padding-inline:12px}.searchBox input{font-size:16px}}
+
+/* DFL R62 — Busca com previsao local e navegacao direta, sem rede nem overlays. */
+.searchUi{width:100%;max-width:620px;min-width:0}
+.searchPreview{margin-top:8px;padding:10px;border:1px solid rgba(245,195,75,.32);border-radius:15px;background:#fff;color:#191714;box-shadow:0 12px 32px rgba(0,0,0,.18);display:grid;gap:3px}
+.searchPreviewTitle{display:grid;gap:2px;padding:3px 5px 8px;border-bottom:1px solid #e9e4d8}
+.searchPreviewTitle strong{font-size:12px;font-weight:900;color:#211c16}
+.searchPreviewTitle span{font-size:11px;color:#736a5e;line-height:1.35}
+.searchPreviewChoice{width:100%;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;text-align:left;border:0;border-radius:9px;background:transparent;color:#201b15;font:inherit;cursor:pointer}
+.searchPreviewChoice>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:750}
+.searchPreviewChoice>b{flex:0 0 auto;color:#865b08;font-size:12px;font-variant-numeric:tabular-nums}
+.searchPreviewChoice:active,.searchPreviewChoice:focus-visible{background:#fff3d5}
+.searchPreviewEmpty{margin:7px 5px;font-size:12px;color:#746a5c;line-height:1.4}
+.searchPreviewAll{width:100%;min-height:44px;display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding:9px 12px;border:0;border-radius:10px;background:#201d19;color:#fff;font:inherit;font-size:12px;font-weight:850;cursor:pointer}
+.searchPreviewAll:focus-visible,.searchPreviewChoice:focus-visible{outline:3px solid #d8a127;outline-offset:1px}
+.searchResultsAnchor{scroll-margin-top:calc(142px + env(safe-area-inset-top,0px))}
+/* A campanha tem seu proprio banner: diferenciar vitrine sem alterar ofertas, precos nem badges. */
+.page .promoShowcase{background:#fff9ed;color:#241e17;border:1px solid #ead5ab;box-shadow:0 6px 20px rgba(50,38,12,.07)}
+.page .promoShowcaseHead span{color:#8d5903}
+.page .promoShowcaseHead h2{color:#241e17}
+.page .r104OfferCard{background:#fff;color:#171717;border-color:#e8ddca}
+.page .r104OfferName,.page .r104OfferPrices b{color:#171717}
+.page .r104OfferContent>small,.page .r104OffersHint{color:#61574a}
+.page .r104OfferPrices s{color:#766d63}
+.page .r104OfferBadge{background:#fff1d4;color:#775006;border-color:#f2d4a1}
+@media(prefers-reduced-motion:reduce){.searchPreview,.searchPreviewChoice{transition:none!important}}

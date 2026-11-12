@@ -11,7 +11,7 @@ const checks = [
  ['acao limpar restabelece categorias e busca',site.includes('onClick={() => { setSearch(""); setActiveCategory("todos"); }}>Limpar')],
  ['acessibilidade da lista preserva artigo e clique via botao sem aninhar',site.includes('className={styles.cardActionArea}') && site.includes('aria-label={`Ver detalhes e personalizar ${product.name}`}')],
  ['article nao mais captura cliques de filho',!site.includes('key={product.id} onClick={() => available && openProduct(product)}')],
- ['promocao por teclado nao desloca pagina',site.includes('event.preventDefault(); openProduct(product);')],
+ ['promocao por teclado nao desloca pagina',site.includes('type="button" className={styles.cardActionArea} onClick={() => openProduct(product)}') && !site.includes('onKeyDown={(event) => { event.preventDefault(); openProduct(product);')],
  ['acao de abrir produto acessivel e destaque de foco',siteCss.includes('.cardActionArea:focus-visible') && siteCss.includes('.card .addButton{position:relative;z-index:3}')],
  ['interface do catalogo nao perde cupom ou checkout',site.includes('<ActiveOrderBanner />') && site.includes('<LastOrderCard />') && site.includes('openModal("product-details", product)')],
  ['filtros do Admin visiveis com contador',admin.includes('className={styles.filterSummary}') && admin.includes('{filtered.length} {filtered.length === 1 ? "pedido encontrado"')],

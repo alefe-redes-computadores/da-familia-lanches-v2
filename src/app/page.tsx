@@ -41,6 +41,7 @@ export default function Home() {
   const activeModal = useUIStore((s) => s.activeModal);
   const mobileMenuOpen = useUIStore((s) => s.isMobileMenuOpen);
   const [catalogSearchFocused, setCatalogSearchFocused] = useState(false);
+  const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
   const currentUser = useAuthStore((s) => s.currentUser);
   const shopStatus = useShopStatus();
   const { products, loading: catalogLoading, error: catalogError, reload: reloadCatalog } = useCatalog();
@@ -72,6 +73,8 @@ export default function Home() {
   }, [search, catalogSearchFocused, reducedSearchMotion, hintIndex, hintLength]);
   const searchHint = reducedSearchMotion ? "Buscar no cardápio" : R20_SEARCH_HINTS[hintIndex].slice(0, hintLength) || "Buscar";
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchScrollPending = useRef(false);
+  const [searchSubmitSeq, setSearchSubmitSeq] = useState(0);
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -101,9 +104,9 @@ export default function Home() {
     if(!target)return;
     const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     target.scrollIntoView({behavior:reduced?"auto":"smooth",block:"start"});
-    setHighlightOffers(true);
+    const frame=window.requestAnimationFrame(()=>setHighlightOffers(true));
     const timer=window.setTimeout(()=>setHighlightOffers(false),1500);
-    return()=>window.clearTimeout(timer);
+    return()=>{window.cancelAnimationFrame(frame);window.clearTimeout(timer);};
   },[showAllOffers,offersOpenRequest]);
   const [recentProductIds, setRecentProductIds] = useState<string[]>([]);
   const [savedProductIds, setSavedProductIds] = useState<string[]>([]);
@@ -137,14 +140,17 @@ export default function Home() {
 
   useEffect(() => {
     // Uma busca no Header feita de pagina interna continua na Home.
-    try {
-      const pending = window.sessionStorage.getItem("dfl:pending-catalog-search");
-      if (pending !== null) {
-        window.sessionStorage.removeItem("dfl:pending-catalog-search");
-        setSearch(pending.slice(0, 100));
-        if (pending.trim()) setActiveCategory("todos");
-      }
-    } catch { /* armazenamento indisponivel */ }
+    const frame=window.requestAnimationFrame(()=>{
+      try {
+        const pending = window.sessionStorage.getItem("dfl:pending-catalog-search");
+        if (pending !== null) {
+          window.sessionStorage.removeItem("dfl:pending-catalog-search");
+          setSearch(pending.slice(0, 100));
+          if (pending.trim()) setActiveCategory("todos");
+        }
+      } catch { /* armazenamento indisponivel */ }
+    });
+    return()=>window.cancelAnimationFrame(frame);
   }, []);
   useEffect(() => {
     window.dispatchEvent(new CustomEvent(CATALOG_SEARCH_EVENT, { detail: search }));
@@ -163,6 +169,35 @@ export default function Home() {
     return term ? rankCatalogProducts(base, term) : base;
   }, [activeCategory, visibleCategoryIds, products, deferredSearch]);
 
+  // R62: sugestoes derivadas somente do catalogo local ja carregado.
+  const liveSearchMatches = useMemo(() => {
+    if (search.trim().length < 2) return [];
+    const eligible = products.filter(product => product.disponivel !== false && visibleCategoryIds.has(product.category));
+    return rankCatalogProducts(eligible, search);
+  }, [products, visibleCategoryIds, search]);
+  const submitCatalogSearch = (selected?: string) => {
+    const term = (selected ?? search).trim();
+    if (!term) return;
+    if (selected) setSearch(term);
+    setActiveCategory("todos");
+    setSearchSuggestionsOpen(false);
+    searchScrollPending.current = true;
+    setSearchSubmitSeq(value => value + 1);
+    searchInputRef.current?.blur();
+  };
+  useEffect(() => {
+    if (!searchScrollPending.current || catalogLoading || !search.trim() ||
+        deferredSearch.trim() !== search.trim()) return;
+    const target = document.getElementById("dfl-search-results");
+    if (!target) return;
+    searchScrollPending.current = false;
+    const frame = window.requestAnimationFrame(() => {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [catalogLoading, deferredSearch, search, searchSubmitSeq]);
+
   // R33: alternativas reais somente quando a busca nao retornou produtos.
   const catalogRecovery = useMemo(() => {
     if (catalogLoading || filtered.length || !deferredSearch.trim() || search.trim() !== deferredSearch.trim()) return [];
@@ -180,7 +215,9 @@ export default function Home() {
     return () => window.removeEventListener(CATALOG_SEARCH_EVENT, onSearch);
   }, []);
   useEffect(() => {
-    if (activeCategory !== "todos" && !menuCategories.some((category) => category.id === activeCategory)) setActiveCategory("todos");
+    if (activeCategory === "todos" || menuCategories.some((category) => category.id === activeCategory)) return;
+    const frame=window.requestAnimationFrame(()=>setActiveCategory("todos"));
+    return()=>window.cancelAnimationFrame(frame);
   }, [activeCategory, menuCategories]);
   useEffect(() => {
     const syncGuest=()=>{setGuestIdentity(readGuestIdentity());setGuestLastOrder(readGuestOrders()[0]||null)};
@@ -263,7 +300,7 @@ export default function Home() {
     openModal("product-details", product);
   };
 
-  const bannerEligible = Boolean(campaign && campaign.scopes.includes("home") && !catalogLoading && !catalogError && campaignMatchesCatalogOffer(campaign, products));
+  const bannerEligible = Boolean(campaign && campaign.scopes.includes("home") && !catalogLoading && !catalogError && !search.trim() && activeCategory === "todos" && campaignMatchesCatalogOffer(campaign, products));
 
   return (
     <div className={styles.page} data-dfl-campaign-home="true">
@@ -272,11 +309,32 @@ export default function Home() {
         <div className={styles.heroInner}>
           <div className={styles.heroLead}><p className={styles.eyebrow}>CARDÁPIO DA FAMÍLIA</p><h1>O que você quer pedir?</h1></div>
 
+          <div className={styles.searchUi} onFocusCapture={() => setSearchSuggestionsOpen(true)} onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSearchSuggestionsOpen(false);
+          }}>
           <label className={styles.searchBox}>
             <span aria-hidden="true">⌕</span>
-            <input ref={searchInputRef} aria-keyshortcuts="Control+K Meta+K" value={search} onFocus={() => setCatalogSearchFocused(true)} onBlur={() => setCatalogSearchFocused(false)} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setActiveCategory("todos"); }} placeholder={search || catalogSearchFocused ? "Buscar no cardápio" : searchHint} aria-label="Buscar no cardápio" /><kbd className={styles.searchShortcut} aria-hidden="true">Ctrl K</kbd>
+            <input ref={searchInputRef} aria-keyshortcuts="Control+K Meta+K" value={search} onFocus={() => setCatalogSearchFocused(true)} onBlur={() => setCatalogSearchFocused(false)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); submitCatalogSearch(); } else if (event.key === "Escape") setSearchSuggestionsOpen(false); }} onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setActiveCategory("todos"); }} aria-autocomplete="list" aria-controls="dfl-search-preview" aria-expanded={searchSuggestionsOpen && search.trim().length >= 2} placeholder={search || catalogSearchFocused ? "Buscar no cardápio" : searchHint} aria-label="Buscar no cardápio" /><kbd className={styles.searchShortcut} aria-hidden="true">Ctrl K</kbd>
             {search && <button type="button" onClick={() => setSearch("")} aria-label="Limpar busca">×</button>}
           </label>
+          {searchSuggestionsOpen && search.trim().length >= 2 && (
+            <section className={styles.searchPreview} id="dfl-search-preview" aria-label="Sugestões do cardápio">
+              <div className={styles.searchPreviewTitle} role="status" aria-live="polite">
+                <strong>{liveSearchMatches.length} {liveSearchMatches.length === 1 ? "produto encontrado" : "produtos encontrados"}</strong>
+                <span>Toque em um produto ou veja todos os resultados</span>
+              </div>
+              {liveSearchMatches.slice(0, 4).map(product => (
+                <button className={styles.searchPreviewChoice} type="button" key={product.id} onClick={() => submitCatalogSearch(product.name)}>
+                  <span>{product.name}</span><b>{money(product.price)}</b>
+                </button>
+              ))}
+              {!catalogLoading && liveSearchMatches.length === 0 && <p className={styles.searchPreviewEmpty}>Nenhuma sugestão exata. Confira outras possibilidades na busca completa.</p>}
+              <button className={styles.searchPreviewAll} type="button" onClick={() => submitCatalogSearch()}>
+                Ver resultados da pesquisa <span aria-hidden="true">↓</span>
+              </button>
+            </section>
+          )}
+          </div>
         </div>
       </section>
 
@@ -295,13 +353,15 @@ export default function Home() {
         {!isOnline && <div className={styles.connectionNotice} role="status"><div><strong>Você está offline</strong><span>O que já carregou continua disponível. Para atualizar o cardápio ou enviar um pedido, reconecte.</span></div></div>}
         {catalogError && isOnline && <div className={styles.catalogNotice} role="status"><div><strong>Cardápio em modo de contingência</strong><span>Mostrando a base disponível enquanto tentamos buscar a versão mais recente.</span></div><button type="button" onClick={() => void reloadCatalog()}>Tentar atualizar</button></div>}
         <VisualCampaignBanner show={bannerEligible} />
+        {!search.trim() && activeCategory === "todos" && (
         <div className={styles.orderSlot}>
           <ActiveOrderBanner />
           <LastOrderCard />
           {!currentUser && guestLastOrder && <button type="button" className={styles.guestOrderCard} onClick={()=>openModal("orders")}><span>SEU PEDIDO NESTE APARELHO</span><strong>{guestLastOrder.status === "Agendado" ? "Seu pedido está agendado" : `Seu pedido está ${guestLastOrder.status.toLowerCase()}`}</strong><small>{guestLastOrder.scheduledLabel ? `${guestLastOrder.scheduledLabel} · Ver detalhes do pedido` : "Ver detalhes do pedido"}</small></button>}
         </div>
-        {!currentUser && guestLastOrder && <CustomerExperiencePrompt />}
-        {!activeModal && <CustomerPwaInvite />}
+        )}
+        {!currentUser && guestLastOrder && !search.trim() && <CustomerExperiencePrompt />}
+        {!activeModal && !search.trim() && <CustomerPwaInvite />}
         {catalogLoading && <section className={styles.catalogSkeleton} aria-label="Carregando cardápio" aria-busy="true"><div className={styles.skeletonTitle}/><div className={styles.skeletonGrid}>{[0,1,2,3].map((item)=><div className={styles.skeletonCard} key={item}><i/><span/><b/></div>)}</div></section>}
         {activeCategory === "todos" && !search.trim() && showcaseProducts.length > 0 && (
           <section className={styles.promoShowcase} id="dfl-family-offers" data-dfl-campaign-offers="true" data-highlight={highlightOffers?"true":"false"} aria-label="Ofertas da Família">
@@ -327,6 +387,7 @@ export default function Home() {
         {activeCategory === "todos" && !search.trim() && <OrderTrackingInfoCard />}
 
         {(Boolean(search.trim()) || activeCategory !== "todos") && !catalogLoading && (
+          <div id="dfl-search-results" className={styles.searchResultsAnchor}>
           <div className={styles.searchSummary} role="status" aria-live="polite">
             <div>
               <strong>{filtered.length} {filtered.length === 1 ? "resultado" : "resultados"}</strong>
@@ -335,6 +396,7 @@ export default function Home() {
                 : `Categoria: ${categories.find((category) => category.id === activeCategory)?.label ?? "Todos"}`}</span>
             </div>
             <button type="button" onClick={() => { setSearch(""); setActiveCategory("todos"); }}>Limpar</button>
+          </div>
           </div>
         )}
 
