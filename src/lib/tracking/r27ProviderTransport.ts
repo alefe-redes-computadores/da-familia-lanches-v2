@@ -6,14 +6,15 @@ import 'server-only';
 import {r27ProviderConfig,r31ExistingMessagingConfig,r27ValidHandoffInput,r27ValidProviderReply,type R27HandoffInput,type R27ProviderReceipt} from './r27ProviderPolicy';
 import {r31SignedHeaders} from './r31MessagingAuthentication';
 
-export async function r27SendToProvider(input:R27HandoffInput):Promise<R27ProviderReceipt> {
+export async function r27SendToProvider(input:R27HandoffInput,source:'site'|'manual'='site'):Promise<R27ProviderReceipt> {
   const conf=r27ProviderConfig(process.env);
   const existing=conf?null:r31ExistingMessagingConfig(process.env);
-  if((!conf&&!existing)||!r27ValidHandoffInput(input))throw new Error('R27_HANDOFF_NOT_READY');
+  if((!conf&&!existing)||!r27ValidHandoffInput(input)||
+    (source==='manual'&&!/^dfl-[A-Za-z0-9-]{12,75}$/.test(input.order_id)))throw new Error('R27_HANDOFF_NOT_READY');
   // Only the trusted Edge Function may receive the ephemeral token fragment.
   const body=JSON.stringify({
     contract:'dfl.tracking.provider.v1',version:1,action:'send_tracking_initial',
-    canonical_order_key:`site:${input.order_id}`,recipient_e164:input.recipient_e164,
+    canonical_order_key:source==='manual'?`entregas:${input.order_id}`:`site:${input.order_id}`,recipient_e164:input.recipient_e164,
     tracking_link:input.url,expires_at:input.expires_at,
   });
   let reply:Response;
