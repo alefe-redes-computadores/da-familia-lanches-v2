@@ -56,10 +56,10 @@ for(const url of ['http://'+ref+'.supabase.co/functions/v1/dfl-tracking-provider
 ok(!pure.r27ProviderConfig({...conf,DFL_SITE_TRACKING_PROVIDER_APIKEY:'public'}),'key secreta obrigatoria');
 ok(!pure.r27ProviderConfig({...conf,DFL_SITE_TRACKING_PROVIDER_HANDOFF_SECRET:'weak'}),'segredo dedicado obrigatorio');
 const now=Date.now();
-const initial={order_id:'ABCDEFGHIJ123',recipient_e164:'+5534999999999',expires_at:new Date(now+45*60_000).toISOString(),url:'https://dafamilialanches.com.br/acompanhar#t='+('X'.repeat(43))};
+const initial={order_id:'ABCDEFGHIJ123',recipient_e164:'+5534999999999',expires_at:new Date(now+90*60_000).toISOString(),url:'https://dafamilialanches.com.br/acompanhar#t='+('X'.repeat(43))};
 ok(pure.r27ValidHandoffInput(initial,now),'token canonico e TTL');
 ok(!pure.r27ValidHandoffInput({...initial,url:'https://evil.test/acompanhar#t='+('X'.repeat(43))},now),'sem URL externa');
-ok(!pure.r27ValidHandoffInput({...initial,expires_at:new Date(now+48*60_000).toISOString()},now),'sem TTL ampliado');
+ok(!pure.r27ValidHandoffInput({...initial,expires_at:new Date(now+94*60_000).toISOString()},now),'sem TTL ampliado');
 ok(!pure.r27ValidHandoffInput({...initial,recipient_e164:'551199'},now),'sem telefone ruim');
 const ack={contract:'dfl.tracking.provider.v1',version:1,action:'send_tracking_initial',result:'accepted_by_provider',provider_event_id:'msg-provider-123',customer_delivery_confirmed:false};
 ok(pure.r27ValidProviderReply(ack),'recibo separado de entrega');

@@ -47,14 +47,14 @@ ok(!policy.r25Eligible({...order,acceptedAt:new Date(now-25*3600_000).toISOStrin
 ok(!policy.r25Eligible({...order,acceptedAt:new Date(now+10*60_000).toISOString()},acceptance),'future denied');
 ok(policy.r25ValidOrderId(id)&&!policy.r25ValidOrderId('../abc')&&!policy.r25ValidOrderId('short'),'strict order ID');
 const issue=policy.r25IssueBody(id,'+5534999999999','a'.repeat(64));
-ok(issue.contract==='dfl.tracking.automatic'&&issue.action==='issue_initial'&&issue.requested_ttl_minutes===45,'P9 issue shape');
+ok(issue.contract==='dfl.tracking.automatic'&&issue.action==='issue_initial'&&issue.requested_ttl_minutes===90,'P9 issue shape');
 ok(issue.acceptance_event_id===`site-R21-accepted-${id}`,'stable acceptance reference');
 const issued={contract:'dfl.tracking.automatic',version:1,action:'issue_initial',status:'issued_pending_provider',
-  grant_id:'a'.repeat(64),opaque_token:'b'.repeat(43),expires_at:new Date(now+45*60_000).toISOString(),
+  grant_id:'a'.repeat(64),opaque_token:'b'.repeat(43),expires_at:new Date(now+90*60_000).toISOString(),
   one_time_only:true,delivery_confirmed:false};
 ok(policy.r25ValidIssueReply(issued),'strict valid token response');
 ok(!policy.r25ValidIssueReply({...issued,opaque_token:'bad'}),'bad token denied');
-ok(!policy.r25ValidIssueReply({...issued,expires_at:new Date(now+60*60_000).toISOString()}),'bad TTL denied');
+ok(!policy.r25ValidIssueReply({...issued,expires_at:new Date(now+94*60_000).toISOString()}),'bad TTL denied');
 ok(!policy.r25ValidIssueReply({...issued,delivery_confirmed:true}),'false delivery claim denied');
 ok(!policy.r25ValidIssueReply({...issued,grant_id:'invalid'}),'bad grant denied');
 ok(!policy.r25ValidIssueReply({...issued,opaque_token:'c'.repeat(43),one_time_only:false}),'reuse denied');
@@ -111,7 +111,7 @@ function service(fixture,impl,envVars=env){
   return {exported,calls};
 }
 const defaultRemote=async(path)=>path.endsWith('/issue')?
-  {ok:true,status:201,data:{...issued,expires_at:new Date(Date.now()+45*60_000).toISOString()}}:
+  {ok:true,status:201,data:{...issued,expires_at:new Date(Date.now()+90*60_000).toISOString()}}:
   {ok:true,status:200,data:{ok:true,code:'recorded',provider_state:'accepted_by_provider',customer_delivery_confirmed:false}};
 (async()=>{
   const off=service(dbFixture(),defaultRemote,{});
@@ -137,7 +137,7 @@ const defaultRemote=async(path)=>path.endsWith('/issue')?
   ok(await issueSvc.exported.r25SendInitialOnce(id,async()=>receipt)==='review_required','issue uncertain no provider call');
   ok(failIssue.docs.get(`tracking_auto_initial_handoffs_v1/${id}`).state==='review_required','issue uncertainty persisted');
   const badReceipt=dbFixture();const receiptSvc=service(badReceipt,async path=>path.endsWith('/issue')?
-    {ok:true,status:201,data:{...issued,expires_at:new Date(Date.now()+45*60_000).toISOString()}}:
+    {ok:true,status:201,data:{...issued,expires_at:new Date(Date.now()+90*60_000).toISOString()}}:
     {ok:false,status:503,data:null});
   ok(await receiptSvc.exported.r25SendInitialOnce(id,async()=>receipt)==='review_required','receipt transport uncertainty quarantined');
   const ineligible=service(dbFixture({current:{...order,status:'Cancelado'}}),defaultRemote);

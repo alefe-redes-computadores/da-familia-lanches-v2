@@ -1,0 +1,25 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const ts=require('typescript');
+const vm=require('node:vm');
+const read=p=>fs.readFileSync(p,'utf8');
+const a='src/lib/tracking/automaticInitialPolicy.ts',b='src/lib/tracking/r27ProviderPolicy.ts';
+const load=(path,deps={})=>{
+ const s=read(path);const ast=ts.createSourceFile(path,s,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+ assert.equal(ast.parseDiagnostics.length,0,'AST válido '+path);
+ const output=ts.transpileModule(s,{fileName:path,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const exports={};vm.runInNewContext(output,{exports,require:n=>{if(n in deps)return deps[n];throw Error('unexpected require '+n)},Date,Math,Number,String,JSON,URL});return exports;
+};
+const policy=load(a,{'./automaticAcceptancePolicy':{acceptedOrderCanNotify:()=>true,terminalOrDifferentAcceptance:()=>false}}),provider=load(b);
+const now=Date.now(),time=n=>new Date(now+n*60_000).toISOString();
+assert.equal(policy.R25_TTL_MINUTES,90);
+assert.equal(policy.r25IssueBody('ABCDE1234567','+5534999999999','a'.repeat(64)).requested_ttl_minutes,90);
+const grant={contract:'dfl.tracking.automatic',version:1,action:'issue_initial',status:'issued_pending_provider',grant_id:'a'.repeat(64),opaque_token:'b'.repeat(43),expires_at:time(90),one_time_only:true,delivery_confirmed:false};
+assert.equal(policy.r25ValidIssueReply(grant,now),true);
+assert.equal(policy.r25ValidIssueReply({...grant,expires_at:time(94)},now),false);
+const message={order_id:'ABCDE1234567',recipient_e164:'+5534999999999',url:'https://dafamilialanches.com.br/acompanhar#t='+'b'.repeat(43),expires_at:time(90)};
+assert.equal(provider.r27ValidHandoffInput(message,now),true);
+assert.equal(provider.r27ValidHandoffInput({...message,expires_at:time(94)},now),false);
+assert.equal(provider.r27ValidHandoffInput({...message,url:'https://evil.tld/'+message.url},now),false);
+console.log('R69 SITE: 7 verificações de 90 min, segurança e limites OK. Sem rede.');

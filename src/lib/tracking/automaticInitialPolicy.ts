@@ -5,7 +5,7 @@ import { acceptedOrderCanNotify, terminalOrDifferentAcceptance } from './automat
 
 export const R25_ISSUE_PATH='/api/integration/tracking/v1/auto/issue' as const;
 export const R25_RECEIPT_PATH='/api/integration/tracking/v1/auto/receipt' as const;
-export const R25_TTL_MINUTES=45 as const;
+export const R25_TTL_MINUTES=90 as const;
 export const R25_COLLECTION='tracking_auto_initial_handoffs_v1';
 export type R25ProviderResult='accepted_by_provider'|'delivery_uncertain'|'rejected_by_provider';
 export type R25ProviderReceipt={result:R25ProviderResult;provider_event_id:string};
@@ -29,7 +29,7 @@ export function r25Eligible(order:Record<string,unknown>, acceptance:Record<stri
 export type R25IssueBody={
   contract:'dfl.tracking.automatic';version:1;action:'issue_initial';
   canonical_order_key:string;acceptance_event_id:string;
-  recipient_e164:string;idempotency_key:string;requested_ttl_minutes:45;
+  recipient_e164:string;idempotency_key:string;requested_ttl_minutes:90;
 };
 export function r25IssueBody(orderId:string,phone:string,stableKey:string):R25IssueBody {
   return {contract:'dfl.tracking.automatic',version:1,action:'issue_initial',
@@ -49,7 +49,7 @@ export function r25ValidIssueReply(v:unknown,now=Date.now()):v is {
   if(typeof v.grant_id!=='string'||!/^[a-f0-9]{64}$/.test(v.grant_id))return false;
   if(typeof v.opaque_token!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(v.opaque_token))return false;
   const expiration=Date.parse(txt(v.expires_at));
-  return Number.isFinite(expiration)&&expiration>now&&expiration<=now+46*60_000;
+  return Number.isFinite(expiration)&&expiration>now&&expiration<=now+91*60_000;
 }
 
 export function r25ValidReceipt(v:unknown):v is R25ProviderReceipt {

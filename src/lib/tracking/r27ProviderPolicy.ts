@@ -17,7 +17,7 @@ export function r27ValidHandoffInput(value:unknown,now=Date.now()):value is R27H
   if(!orderId(id)||!phone(recipient)||!link.startsWith('https://dafamilialanches.com.br/acompanhar#t='))return false;
   if(!token(link.slice('https://dafamilialanches.com.br/acompanhar#t='.length)))return false;
   const expiration=Date.parse(string(value.expires_at));
-  return Number.isFinite(expiration)&&expiration>now&&expiration<=now+46*60_000;
+  return Number.isFinite(expiration)&&expiration>now&&expiration<=now+91*60_000;
 }
 export function r27ValidProviderReply(value:unknown):value is R27ProviderReceipt & {contract:'dfl.tracking.provider.v1';version:1;action:'send_tracking_initial';customer_delivery_confirmed:false} {
   if(!dict(value))return false;
