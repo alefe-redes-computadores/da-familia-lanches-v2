@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { CheckCircle2, Clock3, LockKeyhole, PackageCheck, RefreshCw, ShieldAlert, Truck, WifiOff, ChefHat, Bike, House, CalendarClock, ClipboardCheck, CircleAlert, XCircle, Route, ShoppingBag } from 'lucide-react';
+import { CheckCircle2, Clock3, LockKeyhole, PackageCheck, RefreshCw, ShieldAlert, Truck, WifiOff, ChefHat, Bike, House, CalendarClock, ClipboardCheck, CircleAlert, XCircle, Route, ShoppingBag, Store } from 'lucide-react';
 import Link from 'next/link';
 import styles from './TrackingExperience.module.css';
 
@@ -48,6 +48,17 @@ const eventIcons:Record<string,typeof CheckCircle2>={
   preparing:ChefHat,ready:PackageCheck,assigned:Route,
   out_for_delivery:Bike,reorganized:Route,next_stop:Bike,
   delivered:House,delivery_issue:CircleAlert,cancelled:XCircle,
+};
+/** R74 P1: visual labels only. No changes to tracking eligibility, tokens or events. */
+type R74Origin = {key:'site'|'loja'|'ifood'|'food99'|'keeta'|'unknown';label:string;Icon:typeof ShoppingBag};
+const r74Origin=(source:string):R74Origin=>{
+  const v=source.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();
+  if(v==='ifood')return {key:'ifood',label:'iFood',Icon:ShoppingBag};
+  if(v==='99food'||v==='99')return {key:'food99',label:'99Food',Icon:Bike};
+  if(v==='keeta')return {key:'keeta',label:'Keeta',Icon:PackageCheck};
+  if(v==='site'||v==='dfl_site')return {key:'site',label:'Site DFL',Icon:Store};
+  if(v==='loja'||v==='manual'||v==='dfl')return {key:'loja',label:'Loja DFL',Icon:House};
+  return {key:'unknown',label:'Pedido DFL',Icon:ShoppingBag};
 };
 export function TrackingExperience(){
   const [state,setState]=useState<State|null>(null);
@@ -130,6 +141,8 @@ export function TrackingExperience(){
     }
   };
   const stale=state?.freshness!=='fresh';
+  const origin=state?r74Origin(state.order.origin_label):null;
+  const OriginIcon=origin?.Icon;
   const r48Timeline=state?r48VisibleTimeline(state.timeline):[];
   const r48Active=state?r48CurrentStep(state.status):-1;
   const r48Observed=new Set((state?.timeline||[]).map(e=>e.kind));
@@ -137,7 +150,7 @@ export function TrackingExperience(){
     <header className={styles.header}><span className={styles.brand}>DFL <span>DA FAMÍLIA LANCHES</span></span><span className={styles.private}><LockKeyhole size={14}/> Acesso protegido</span></header>
     <div className={styles.title}><p>ACOMPANHAMENTO</p><h1>Seu pedido, passo a passo</h1><span>Acompanhe cada etapa do seu pedido, diretamente da Da Família Lanches.</span></div>
     {phase==='ready'&&state?<>
-      <section className={styles.hero} aria-live="polite"><span className={styles.label}>{friendlyOrderLabel(state.order.label)} · {state.order.origin_label}</span><div className={styles.heroTitle}><span className={styles.circle}>{(()=>{const Icon=eventIcons[state.status]||PackageCheck;return <Icon size={26}/>})()}</span><h2>{titles[state.status]||'Acompanhamento do pedido'}</h2></div><p>{stale?(r48RouteStatus(state.status)?'Estamos confirmando as informações da rota.':'Aguardando uma nova atualização da loja. Confira as etapas confirmadas.'):state.status==='out_for_delivery'?'Sua entrega foi despachada e está seguindo o percurso confirmado.':state.status==='assigned'?'Seu pedido está organizado para uma rota. Isso ainda não significa que saiu da loja.':'Acompanhe os próximos acontecimentos confirmados.'}</p>{state.courier&&!state.terminal&&<p className={styles.courier}>Entregador: {state.courier.first_name}</p>}</section>
+      <section className={styles.hero} data-r74-origin={origin?.key} aria-live="polite"><div className={styles.orderIdentity}><span className={styles.label}>{friendlyOrderLabel(state.order.label)}</span><span className={styles.originBadge}>{OriginIcon&&<OriginIcon size={15} aria-hidden="true"/>}{origin?.label}</span></div><div className={styles.heroTitle}><span className={styles.circle}>{(()=>{const Icon=eventIcons[state.status]||PackageCheck;return <Icon size={26}/>})()}</span><h2>{titles[state.status]||'Acompanhamento do pedido'}</h2></div><p>{stale?(r48RouteStatus(state.status)?'Estamos confirmando as informações da rota.':'Aguardando uma nova atualização da loja. Confira as etapas confirmadas.'):state.status==='out_for_delivery'?'Sua entrega foi despachada e está seguindo o percurso confirmado.':state.status==='assigned'?'Seu pedido está organizado para uma rota. Isso ainda não significa que saiu da loja.':'Acompanhe os próximos acontecimentos confirmados.'}</p>{state.courier&&!state.terminal&&<p className={styles.courier}>Entregador: {state.courier.first_name}</p>}</section>
       <section className={styles.journey} aria-label="Etapas do pedido">
         <div className={styles.journeyHeading}><h2>Etapas do pedido</h2><span>Atualizado conforme eventos confirmados</span></div>
         <ol className={styles.journeyGrid}>

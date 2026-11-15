@@ -29,6 +29,7 @@ function scene(){
  const fetch=(url,options)=>{const d=makeDeferred();calls.push({url,options,...d});return d.promise};
  const env={epoch,initializing,closing,closingRequest,fetch,setPhase:x=>phases.push(x),setState:x=>states.push(x),
    document:{get visibilityState(){return visible?'visible':'hidden'}},navigator:{get onLine(){return online}},Error};
+ env.noTokenAtEntry={current:false};env.hasOpenedSession={current:true};
  const check=vm.runInNewContext('('+checkCode+')',env);
  const close=vm.runInNewContext('('+closeCode+')',env);
  return {check,close,calls,phases,states,epoch,closing,closingRequest,offline:()=>online=false,online:()=>online=true,hide:()=>visible=false};
@@ -76,7 +77,7 @@ function scene(){
  equal(s.states.at(-1),null,'revoked session private data cleared');
  equal(s.phases.at(-1),'denied','revoked session shows unavailable');
  // No data leak by overly long technical test ID; short commercial label preserved.
- const fallback=extraction('const friendlyOrderLabel=', ';\nconst eventIcons');
+ const fallback=(()=>{const match=source.match(/^const friendlyOrderLabel=(.+);$/m);assert.ok(match,'friendlyOrderLabel expression');return match[1];})();
  const label=vm.runInNewContext('('+fallback.replace('(label:string)','(label)')+')');
  equal(label('#1048'),'Pedido #1048','short commercial number');
  equal(label('#R257A_870266b86bcda2993c17ba43'),'Seu pedido','technical fixture redacted');

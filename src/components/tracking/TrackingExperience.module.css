@@ -27,3 +27,14 @@
 .timeline li[data-current="true"] .dot{outline:2px solid currentColor;outline-offset:3px}
 .timeline li[data-current="true"] strong{color:#ffe2a1;font-weight:850}
 @media(max-width:370px){.journey{padding:12px}.journeyGrid{gap:6px}.journeyGrid li{padding:9px 7px;min-height:94px}}
+
+
+/* R74 P1: identidade da origem. Origem desconhecida sempre neutra. */
+.orderIdentity{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.originBadge{display:inline-flex;align-items:center;gap:7px;max-width:100%;border:1px solid var(--r74-border,#ffffff24);background:var(--r74-bg,#ffffff0c);color:var(--r74-fg,#d3d4d7);font-size:11px;font-weight:800;letter-spacing:.02em;border-radius:999px;padding:7px 11px;white-space:nowrap}
+.hero[data-r74-origin="site"]{--r74-border:#6d9af955;--r74-bg:#4169d026;--r74-fg:#b5d3ff;border-color:#507ce055}
+.hero[data-r74-origin="loja"]{--r74-border:#48db9a55;--r74-bg:#1cb77c20;--r74-fg:#9af0c8;border-color:#32b88355}
+.hero[data-r74-origin="ifood"]{--r74-border:#ff687155;--r74-bg:#f8344824;--r74-fg:#ffb3bc;border-color:#e8536355}
+.hero[data-r74-origin="food99"]{--r74-border:#ffc45566;--r74-bg:#e5a32824;--r74-fg:#ffe29b;border-color:#d4a13566}
+.hero[data-r74-origin="keeta"]{--r74-border:#b795ff55;--r74-bg:#8e62e026;--r74-fg:#d6c3ff;border-color:#8964d455}
+@media(max-width:370px){.orderIdentity{align-items:flex-start}.originBadge{font-size:10px;padding:7px 10px}}
