@@ -1,5 +1,5 @@
 import 'server-only';
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 
 const ACCESS_PATH = '/api/integration/tracking/v1/authorize';
@@ -10,6 +10,7 @@ const AUTO_RECEIPT_PATH = '/api/integration/tracking/v1/auto/receipt';
 const COOKIE_NAME = '__Secure-dfl-tracking-session';
 const TTL_SECONDS = 30 * 60;
 export const trackingCookieName = COOKIE_NAME;
+export const trackingBindingCookieName = '__Secure-dfl-tracking-binding';
 export const trackingCookiePath = '/acompanhar/api';
 
 export function trackingEnabled() {
@@ -105,6 +106,26 @@ export function unsealScope(cookie: string | undefined) {
         data.exp > Date.now() + TTL_SECONDS * 1000) return null;
     return data.handle;
   } catch { return null; }
+}
+/** R71: the old one-time grant is NEVER exchanged again. An already-open
+ * scope may be reused only with the same opaque link and two matching,
+ * authenticated, short-lived HttpOnly cookies in the same browser. */
+function trackingBindingDigest(token:string, handle:string):string|null {
+  const conf=configuration();
+  if(!conf||!/^[A-Za-z0-9_-]{43}$/.test(token)||!/^[A-Za-z0-9_-]{43}$/.test(handle))return null;
+  return createHmac('sha256',conf.key)
+    .update('dfl.tracking.r71.same-browser.v1\0'+token+'\0'+handle,'utf8').digest('base64url');
+}
+export function sealTrackingBinding(token:string,handle:string,expiresAt:string):string|null {
+  const digest=trackingBindingDigest(token,handle);
+  return digest?sealScope(digest,expiresAt):null;
+}
+export function matchingTrackingScope(token:string,sessionCookie:string|undefined,bindingCookie:string|undefined):string|null {
+  const scope=unsealScope(sessionCookie),stored=unsealScope(bindingCookie);
+  const digest=scope?trackingBindingDigest(token,scope):null;
+  if(!scope||!stored||!digest)return null;
+  const actual=Buffer.from(stored,'utf8'),expected=Buffer.from(digest,'utf8');
+  return actual.length===expected.length&&timingSafeEqual(actual,expected)?scope:null;
 }
 export const trackingNoStoreHeaders = {
   'Cache-Control': 'private, no-store, max-age=0',

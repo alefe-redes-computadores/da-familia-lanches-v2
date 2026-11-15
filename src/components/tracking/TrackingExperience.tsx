@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { CheckCircle2, Clock3, LockKeyhole, PackageCheck, RefreshCw, ShieldAlert, Truck, WifiOff, ChefHat, Bike, House, CalendarClock, ClipboardCheck, CircleAlert, XCircle, Route, ShoppingBag } from 'lucide-react';
+import Link from 'next/link';
 import styles from './TrackingExperience.module.css';
 
 type State = {contract:'dfl.tracking.public';version:1;order:{label:string;origin_label:string;fulfillment:'delivery'|'pickup'};status:string;as_of:string;freshness:string;timeline:{id:string;kind:string;title:string;at:string}[];progress:null|{status:'verified';current_stop_number:number|null;planned_customer_stop_number:number|null;total_physical_stops:number;stops_ahead:number|null;is_next_stop:boolean};courier:{first_name:string}|null;terminal:boolean};
@@ -82,12 +83,8 @@ export function TrackingExperience(){
       const token=window.location.hash.startsWith('#t=')?window.location.hash.slice(3):'';
       if(window.location.hash) window.history.replaceState(null,'',window.location.pathname+window.location.search);
       if(token){
-        // A new link must never reuse a previous order's cookie.
-        try {
-          const revoked = await fetch('/acompanhar/api/session/revoke',{method:'POST',headers:{'content-type':'application/json'},body:'{}',credentials:'same-origin',cache:'no-store'});
-          if(!revoked.ok){if(!cancelled){setState(null);setPhase('denied')}return;}
-        }catch{if(!cancelled){setState(null);setPhase('offline')}return;}
-        // A superseded effect must not exchange the token after an asynchronous revoke.
+        // R71: server checks whether this one-time token already belongs to
+        // the active, same-browser session; NEVER proactively revoke it.
         if(cancelled)return;
         if(!/^[A-Za-z0-9_-]{43}$/.test(token)){setPhase('denied');return;}
         try{
@@ -158,10 +155,10 @@ export function TrackingExperience(){
       </section>
       {state.progress&&state.status==='out_for_delivery'&&!stale&&<section className={styles.progress}><div><span className={styles.label}>PARADAS ANTES DA SUA</span><strong>{state.progress.stops_ahead}</strong><small>{state.progress.is_next_stop?'Sua parada é a próxima pendente.':'Posição verificada pela operação, sujeita a alterações.'}</small></div><span className={styles.circle}><Truck size={22}/></span></section>}
       {stale&&<div className={styles.warning}><Clock3 size={18}/>{r48RouteStatus(state.status)?'Informações da rota em atualização. A posição pode mudar.':'Última informação da loja ainda sem atualização recente.'}</div>}
-      <section className={styles.timeline}><h2>Histórico confirmado</h2><ol>{r48Timeline.map((item,i)=><li key={item.id} data-kind={item.kind} data-current={item.kind===state.status?'true':'false'}><span className={styles.dot}>{(()=>{const Icon=eventIcons[item.kind]||CheckCircle2;return <Icon size={16}/>})()}</span><div><strong>{item.title}</strong><time dateTime={item.at}>{humanTime(item.at)}</time></div></li>)}</ol>{!state.timeline.length&&<p>Aguardando o primeiro acontecimento confirmado.</p>}</section>
+      <section className={styles.timeline}><h2>Histórico confirmado</h2><ol>{r48Timeline.map((item)=><li key={item.id} data-kind={item.kind} data-current={item.kind===state.status?'true':'false'}><span className={styles.dot}>{(()=>{const Icon=eventIcons[item.kind]||CheckCircle2;return <Icon size={16}/>})()}</span><div><strong>{item.title}</strong><time dateTime={item.at}>{humanTime(item.at)}</time></div></li>)}</ol>{!state.timeline.length&&<p>Aguardando o primeiro acontecimento confirmado.</p>}</section>
       <div className={styles.footline}><Clock3 size={15}/> Última atualização confirmada: {humanTime(state.as_of)}</div>
       <div className={styles.actions}><button onClick={()=>void refresh()} disabled={busy}><RefreshCw size={17}/>{busy?'Atualizando…':'Atualizar'}</button><button onClick={()=>void close()} className={styles.secondary}>Encerrar acesso</button></div>
-    </>:<section className={styles.empty} aria-live="polite"><span className={styles.circle}>{phase==='offline'?<WifiOff size={25}/>:phase==='denied'?<ShieldAlert size={25}/>:phase==='no-link'?<LockKeyhole size={25}/>:<Clock3 size={25}/>}</span><h2>{phase==='loading'?'Conectando com segurança…':phase==='denied'?'Link inválido ou acesso encerrado':phase==='no-link'?'Como acompanhar seu pedido':phase==='logout-error'?'Encerramento não confirmado':'Acompanhamento indisponível'}</h2><p>{phase==='loading'?'Conferindo sua sessão.':phase==='denied'?'O acesso pode ter expirado ou sido encerrado. Solicite um novo link à equipe.':phase==='no-link'?'Para acompanhar, abra o link completo recebido pelo WhatsApp. Se ainda não recebeu, consulte Meus pedidos pelo cardápio.':phase==='logout-error'?'Não foi possível confirmar o encerramento. Seus dados estão ocultos; tente novamente quando a conexão voltar.':'Não foi possível atualizar agora. Sua compra não foi alterada.'}</p>{phase==='no-link'&&<button onClick={()=>window.location.assign('/')}><ShoppingBag size={17}/>Ver cardápio e pedidos</button>}{phase!=='loading'&&phase!=='no-link'&&<button onClick={()=>void (phase==='logout-error'?close():refresh())} disabled={busy||closingRequest.current}><RefreshCw size={17}/>{busy?'Tentando…':phase==='logout-error'?'Tentar encerrar novamente':'Tentar novamente'}</button>}</section>}
-    <footer className={styles.footer}>Seu acompanhamento é privado. Não compartilhe o link de acesso. <a href="/">Voltar ao cardápio</a></footer>
+    </>:<section className={styles.empty} aria-live="polite"><span className={styles.circle}>{phase==='offline'?<WifiOff size={25}/>:phase==='denied'?<ShieldAlert size={25}/>:phase==='no-link'?<LockKeyhole size={25}/>:<Clock3 size={25}/>}</span><h2>{phase==='loading'?'Conectando com segurança…':phase==='denied'?'Link inválido ou acesso encerrado':phase==='no-link'?'Como acompanhar seu pedido':phase==='logout-error'?'Encerramento não confirmado':'Acompanhamento indisponível'}</h2><p>{phase==='loading'?'Conferindo sua sessão.':phase==='denied'?'Se já abriu este link em outro aparelho ou sua sessão de até 30 minutos terminou, solicite um novo acesso à loja.':phase==='no-link'?'Para acompanhar, abra o link completo recebido pelo WhatsApp. Se ainda não recebeu, consulte Meus pedidos pelo cardápio.':phase==='logout-error'?'Não foi possível confirmar o encerramento. Seus dados estão ocultos; tente novamente quando a conexão voltar.':'Não foi possível atualizar agora. Sua compra não foi alterada.'}</p>{phase==='no-link'&&<button onClick={()=>window.location.assign('/')}><ShoppingBag size={17}/>Ver cardápio e pedidos</button>}{phase!=='loading'&&phase!=='no-link'&&<button onClick={()=>void (phase==='logout-error'?close():refresh())} disabled={busy||closingRequest.current}><RefreshCw size={17}/>{busy?'Tentando…':phase==='logout-error'?'Tentar encerrar novamente':'Tentar novamente'}</button>}</section>}
+    <footer className={styles.footer}>Seu acompanhamento é privado. Não compartilhe o link de acesso. <Link href="/">Voltar ao cardápio</Link></footer>
   </main></div>;
 }

@@ -1,37 +1,36 @@
 'use strict';
-const assert = require('node:assert/strict');
-const fs=require('node:fs');
+/** R71 updates R263's obsolete revoke-before-exchange regression contract. */
+const assert=require('node:assert/strict'),fs=require('node:fs');
 const src=fs.readFileSync('src/components/tracking/TrackingExperience.tsx','utf8');
-const start=src.indexOf('    const launch=async()=>{');
-const end=src.indexOf('    void launch();',start);
+const start=src.indexOf('    const launch=async()=>{'),end=src.indexOf('    void launch();',start);
 assert.ok(start>=0&&end>start,'launch anchor');
-const launchCode=src.slice(start,end);
-assert.ok(launchCode.includes('if(!revoked.ok)'), 'HTTP result verified');
-assert.ok(launchCode.includes('if(cancelled)return'), 'superseded effect blocked');
-assert.ok(!launchCode.includes('catch {}'),'failed revocation never ignored');
-const makeLaunch=new Function('window','fetch','setState','setPhase','initializing','check','cancelled',`${launchCode}\nreturn launch;`);
+const code=src.slice(start,end);
+assert.ok(!code.includes('/session/revoke'),'opening a link never destroys an active session');
+assert.ok(code.includes('if(cancelled)return'),'superseded effect cannot exchange');
+assert.ok(code.includes("window.history.replaceState"),'opaque URL fragment stripped');
+assert.ok(!/localStorage|sessionStorage|console\./.test(code),'no raw token persistence or logging');
+const create=new Function('window','fetch','setState','setPhase','initializing','check','cancelled',`${code}\nreturn launch;`);
 const token='A'.repeat(43);
-async function scenario(name, revoke, expectedExchanges, expectedPhase, cancelled=false){
-  const calls=[]; const phases=[];const states=[];
-  const window={location:{hash:'#t='+token,pathname:'/acompanhar',search:''},history:{replaceState(...args){calls.push('url-clean');window.location.hash='';}}};
-  const fetch=async(url)=>{calls.push(url);if(url.includes('/revoke')){if(revoke==='offline')throw new Error('network');return {ok:revoke==='success'}}return {ok:true};};
-  let checks=0;const initializing={current:true};
-  await makeLaunch(window,fetch,v=>states.push(v),v=>phases.push(v),initializing,async()=>{checks++},cancelled)();
-  assert.equal(calls.filter(x=>x==='/acompanhar/api/session').length,expectedExchanges,name+' token exchanges');
-  assert.equal(phases[phases.length-1],expectedPhase,name+' phase');
-  if(expectedExchanges===0){assert.equal(checks,0,name+' status checks');assert.equal(initializing.current,true,name+' initialization blocked')}
-  else {assert.equal(checks,1,name+' status check');assert.equal(initializing.current,false,name+' initialized')}
-  assert.ok(calls.includes('url-clean'),name+' fragment removed');
-  console.log('PASS:',name);
+async function scenario(name,variant,expectedCalls,expectedPhase,cancelled=false){
+ const calls=[],phases=[];
+ const win={location:{hash:'#t='+token,pathname:'/acompanhar',search:''},history:{replaceState(){calls.push('clean');win.location.hash='';}}};
+ const fetch=async(url)=>{calls.push(url);if(variant==='offline')throw Error('offline');return {ok:variant==='success'};};
+ const initializing={current:true};let checked=0;
+ await create(win,fetch,()=>{},v=>phases.push(v),initializing,async()=>{checked++},cancelled)();
+ assert.equal(calls.filter(x=>x==='/acompanhar/api/session').length,expectedCalls,`${name} exchange`);
+ assert.equal(phases[phases.length-1],expectedPhase,`${name} phase`);
+ const good=variant==='success'&&!cancelled;
+ assert.equal(checked,good?1:0,`${name} status check`);
+ assert.equal(initializing.current,!good,`${name} init`);
+ assert.ok(calls.includes('clean'),`${name} fragment scrubbed`);
+ assert.ok(!calls.some(v=>typeof v==='string'&&v.includes('revoke')),`${name} no revoke`);
 }
 (async()=>{
-  await scenario('HTTP 500 cannot exchange token','http500',0,'denied');
-  await scenario('network failure cannot exchange token','offline',0,'offline');
-  await scenario('successful revoke permits new token exchange','success',1,undefined);
-  await scenario('cancelled effect cannot exchange token','success',0,undefined,true);
-  assert.ok(src.includes("const currentEpoch = ++epoch.current;"),'R258 response epoch retained');
-  assert.ok(src.includes("if(!response.ok)throw new Error('TRACKING_REVOKE_UNCONFIRMED')"),'R259 logout http guard retained');
-  assert.ok(src.includes("Seu pedido, passo a passo"),'R260 polish retained');
-  assert.ok(src.includes("eventIcons[item.kind]"),'R260 icons retained');
-  console.log('R263_SESSION_TEST_PASS: 4 async scenarios + 4 retained protections');
+ await scenario('success','success',1,undefined);
+ await scenario('denied','rejected',1,'denied');
+ await scenario('network','offline',1,'offline');
+ await scenario('cancelled','success',0,undefined,true);
+ assert.ok(src.includes("if(!response.ok)throw new Error('TRACKING_REVOKE_UNCONFIRMED')"),'explicit logout guard intact');
+ assert.ok(src.includes('eventIcons[item.kind]'),'icons intact');
+ console.log('R263/R71: quatro cenários de lançamento e proteção de logout OK; sem rede real.');
 })().catch(e=>{console.error(e);process.exitCode=1});
