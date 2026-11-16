@@ -7,6 +7,13 @@ export function r76KitchenEnabled(env:Record<string,string|undefined>):boolean {
     env.DFL_R76_KITCHEN_ROLLOUT_APPROVED==='true' && env.DFL_R76_KITCHEN_WORKER_CERTIFIED==='true' &&
     env.DFL_MANUAL_MESSAGING_ENABLED==='true'&&env.DFL_MANUAL_MESSAGING_KILL_SWITCH!=='true';
 }
+/** R76: canario de cozinha por destinatario, sem afetar mensagens anteriores. */
+export function r76KitchenAudienceAllowed(env:Record<string,string|undefined>,phone:string):boolean {
+  if(!/^55[1-9]\d{9,10}$/.test(phone))return false;
+  if(env.DFL_R76_KITCHEN_AUDIENCE_MODE==='general'&&env.DFL_R76_KITCHEN_GENERAL_APPROVED==='true')return true;
+  const pilot=(env.DFL_MESSAGING_PILOT_PHONE_E164||'').trim();
+  return /^55[1-9]\d{9,10}$/.test(pilot)&&phone===pilot;
+}
 export function r76ValidKitchenEvent(value:unknown,now=Date.now(),activatedAt?:string):boolean {
   if(!obj(value)||value.source!=='manual'||!obj(value.payload))return false;
   const p=value.payload;

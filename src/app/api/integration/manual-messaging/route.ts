@@ -87,9 +87,10 @@ export async function POST(req:NextRequest){
     if(!r33ManualPickupCanary(process.env,phone)&&!r38ManualPickupRecipientAllowed(process.env,phone,obj))return response({ok:false,error:'manual_pickup_off'},403);
   }
   if(kitchenEnvelope){
-    const {r76KitchenEnabled,r76ValidKitchenEvent}=await import('@/lib/messaging/r76KitchenPolicy');
+    const {r76KitchenEnabled,r76ValidKitchenEvent,r76KitchenAudienceAllowed}=await import('@/lib/messaging/r76KitchenPolicy');
     if(!r76KitchenEnabled(process.env))return response({ok:false,error:'r76_kitchen_off'},403);
     if(!r76ValidKitchenEvent(data,Date.now(),process.env.DFL_R76_KITCHEN_ACTIVATED_AT))return response({ok:false,error:'r76_kitchen_invalid'},422);
+    if(!r76KitchenAudienceAllowed(process.env,phone))return response({ok:false,error:'r76_kitchen_pilot_only'},403);
   }
   const ingest=safeEndpoint(process.env.DFL_MESSAGING_INGEST_URL||''),token=process.env.DFL_MESSAGING_INGEST_TOKEN?.trim();
   if(!ingest||!token)return response({ok:false,error:'messaging_not_configured'},503);
