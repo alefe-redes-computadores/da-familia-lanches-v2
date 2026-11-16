@@ -56,10 +56,14 @@ export async function POST(req:NextRequest){
   const legacyEnvelope=EVENTS.has(eventType)&&eventId===`manual-msg-v1__${eventType}__${orderId.slice('entregas:'.length)}`;
   // v2 identity must be tied to one prior physical stop completion, never to route start.
   const nextStopEnvelope=r32NextStop&&/^manual-msg-v2__delivery\.next_stop__dfl-[A-Za-z0-9-]{12,120}__[a-f0-9]{64}$/.test(eventId);
+  // R76 P2: evento de cozinha persistida, com marcador e autorização independentes.
+  const kitchenEnvelope=(eventType==='order.production'||eventType==='order.ready')&&
+    /^manual-msg-v2__order\.(?:production|ready)__dfl-[A-Za-z0-9-]{12,120}__[a-f0-9]{64}$/.test(eventId)&&
+    Boolean(data.payload&&typeof data.payload==='object'&&!Array.isArray(data.payload)&&(data.payload as Record<string,unknown>).delivery_stage_v1===true);
   // R33: manual pickup has its own v2 envelope; Site-origin pickup remains separate.
-  const pickupEnvelope=(eventType==='order.created'||eventType==='order.ready')&&
+  const pickupEnvelope=!kitchenEnvelope&&(eventType==='order.created'||eventType==='order.ready')&&
     /^manual-msg-v2__order\.(?:created|ready)__dfl-[A-Za-z0-9-]{12,120}__[a-f0-9]{64}$/.test(eventId);
-  if(data.source!=='manual'||!/^entregas:dfl-[A-Za-z0-9-]{12,120}$/.test(orderId)||!(legacyEnvelope||nextStopEnvelope||pickupEnvelope)){return response({ok:false,error:'invalid_manual_envelope'},422);}
+  if(data.source!=='manual'||!/^entregas:dfl-[A-Za-z0-9-]{12,120}$/.test(orderId)||!(legacyEnvelope||nextStopEnvelope||pickupEnvelope||kitchenEnvelope)){return response({ok:false,error:'invalid_manual_envelope'},422);}
   try{assertSignedIntegrationRequest({body:raw,timestamp:req.headers.get('x-dfl-timestamp'),signature:req.headers.get('x-dfl-signature'),eventId:req.headers.get('x-dfl-event-id'),expectedEventId:eventId});}
   catch{return response({ok:false,error:'invalid_signature'},401);}
   const phone=String(data.customer_phone||'').trim(),name=String(data.customer_name||'').trim();
@@ -81,6 +85,11 @@ export async function POST(req:NextRequest){
     const {r33ManualPickupCanary,r33ValidManualPickup,r38ManualPickupRecipientAllowed}=await import('@/lib/messaging/r33ManualPickupPolicy');
     if(!r33ValidManualPickup(data))return response({ok:false,error:'invalid_manual_pickup_v2'},422);
     if(!r33ManualPickupCanary(process.env,phone)&&!r38ManualPickupRecipientAllowed(process.env,phone,obj))return response({ok:false,error:'manual_pickup_off'},403);
+  }
+  if(kitchenEnvelope){
+    const {r76KitchenEnabled,r76ValidKitchenEvent}=await import('@/lib/messaging/r76KitchenPolicy');
+    if(!r76KitchenEnabled(process.env))return response({ok:false,error:'r76_kitchen_off'},403);
+    if(!r76ValidKitchenEvent(data,Date.now(),process.env.DFL_R76_KITCHEN_ACTIVATED_AT))return response({ok:false,error:'r76_kitchen_invalid'},422);
   }
   const ingest=safeEndpoint(process.env.DFL_MESSAGING_INGEST_URL||''),token=process.env.DFL_MESSAGING_INGEST_TOKEN?.trim();
   if(!ingest||!token)return response({ok:false,error:'messaging_not_configured'},503);
