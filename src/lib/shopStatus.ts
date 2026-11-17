@@ -12,6 +12,7 @@ export type ShopStatus = {
   isOpen: boolean;
   message: string;
   nextOpenLabel?: string;
+  nextCloseLabel?: string;
   mode?: string;
   source?: string;
 };

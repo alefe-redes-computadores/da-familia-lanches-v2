@@ -16,7 +16,6 @@ export const DEFAULT_STORE_SETTINGS:StoreSettings={mode:"auto",timezone:"America
 
 const time=(v:unknown):v is string=>typeof v==="string"&&/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 const mins=(v:string)=>{const [h,m]=v.split(":").map(Number);return h*60+m};
-const inside=(n:number,a:string,b:string)=>{const x=mins(a),y=mins(b);return y>x?n>=x&&n<y:n>=x||n<y};
 
 export function normalizeStoreSettings(raw:unknown):StoreSettings{
  const o=raw&&typeof raw==="object"?raw as Record<string,unknown>:{};
@@ -44,8 +43,20 @@ export function evaluateStoreStatus(s:StoreSettings,now=new Date()){
  const p=parts(now,s.timezone),ex=s.exceptions.find(e=>e.date===p.date);
  if(ex?.closed)return{isOpen:false,message:ex.label||"Fechado excepcionalmente",nextOpenLabel:nextOpen(s,now),mode:s.mode,source:"exception" as const};
  const d=s.schedule[p.day],open=ex?.open??d.open,close=ex?.close??d.close,enabled=ex?.open&&ex?.close?true:d.enabled;
- const isOpen=enabled&&inside(p.minutes,open,close),next=isOpen?undefined:nextOpen(s,now);
- return{isOpen,message:isOpen?"Aberto agora":`Fechado${next?` • ${next}`:""}`,nextOpenLabel:next,mode:s.mode,source:ex?"exception" as const:"schedule" as const};
+ const openMin=mins(open),closeMin=mins(close);
+ // R77: janela que ultrapassa meia-noite pertence ao DIA DA ABERTURA,
+ // nunca abre artificialmente o proximo dia antes de seu proprio expediente.
+ const openFromToday=Boolean(enabled)&&(p.minutes>=openMin)&&(closeMin<=openMin||p.minutes<closeMin);
+ const yesterday=new Date(`${p.date}T12:00:00Z`);yesterday.setUTCDate(yesterday.getUTCDate()-1);
+ const previousISO=yesterday.toISOString().slice(0,10),previousDay=DAYS[yesterday.getUTCDay()].key;
+ const prevEx=s.exceptions.find(e=>e.date===previousISO),prevSchedule=s.schedule[previousDay];
+ const prevOpen=prevEx?.open??prevSchedule.open,prevClose=prevEx?.close??prevSchedule.close;
+ const prevEnabled=prevEx?.closed?false:(prevEx?.open&&prevEx?.close?true:prevSchedule.enabled);
+ const openFromYesterday=!openFromToday&&Boolean(prevEnabled)&&mins(prevClose)<=mins(prevOpen)&&p.minutes<mins(prevClose);
+ const isOpen=openFromToday||openFromYesterday,next=isOpen?undefined:nextOpen(s,now);
+ const nextCloseLabel=isOpen ? (openFromYesterday?`hoje às ${prevClose}`:
+     closeMin<=openMin?`amanhã às ${close}`:`hoje às ${close}`) : undefined;
+ return{isOpen,message:isOpen?"Aberto agora":`Fechado${next?` • ${next}`:""}`,nextOpenLabel:next,nextCloseLabel,mode:s.mode,source:ex?"exception" as const:"schedule" as const};
 }
 
 export function canPlaceImmediateTestOrder(settings:StoreSettings,email:unknown){

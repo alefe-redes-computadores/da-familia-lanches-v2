@@ -300,7 +300,7 @@ export default function Home() {
     openModal("product-details", product);
   };
 
-  const bannerEligible = Boolean(campaign && campaign.scopes.includes("home") && !catalogLoading && !catalogError && !search.trim() && activeCategory === "todos" && campaignMatchesCatalogOffer(campaign, products));
+  const bannerEligible = Boolean(campaign && campaign.scopes.includes("home") && !catalogLoading && !catalogError && !search.trim() && activeCategory === "todos" && campaignMatchesCatalogOffer(campaign, products) && campaign.destination === "url");
 
   return (
     <div className={styles.page} data-dfl-campaign-home="true">
@@ -362,7 +362,7 @@ export default function Home() {
         )}
         {!currentUser && guestLastOrder && !search.trim() && <CustomerExperiencePrompt />}
         {!activeModal && !search.trim() && <CustomerPwaInvite />}
-        {!shopStatus.isOpen && (
+        {!shopStatus.isOpen && (shopStatus.mode === "test_open" || shopStatus.mode === "force_closed" || shopStatus.source === "exception") && (
           <div className={styles.closedNotice}>
             <strong>{shopStatus.message || "A loja está fechada agora."}</strong>
             <span>Você ainda pode explorar o cardápio e montar seu pedido para agendamento.</span>

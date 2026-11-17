@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useVisualCampaign } from "@/components/layout/VisualCampaignProvider";
 import { CATALOG_SEARCH_EVENT } from "@/lib/catalogSearch";
@@ -7,6 +8,8 @@ import styles from "./VisualCampaignBanner.module.css";
 
 export function VisualCampaignBanner({show=true}:{show?:boolean}){
  const campaign=useVisualCampaign();
+ // R77: visitante pode recolher arte sazonal; CTA e campanha permanecem acessiveis.
+ const [collapsed,setCollapsed]=useState(false);
  if(!campaign||!show||!campaign.bannerDesktop)return null;
  const activate=()=>{
   if(campaign.destination==="none")return;
@@ -29,11 +32,11 @@ export function VisualCampaignBanner({show=true}:{show?:boolean}){
    {campaign.bannerMobile&&<source media="(max-width: 620px)" srcSet={campaign.bannerMobile}/>}
    <img src={campaign.bannerDesktop} width={1536} height={512} alt={`${campaign.publicName}. ${campaign.subtitle}`} loading="eager" fetchPriority="high" decoding="async"/>
  </picture>;
- return <section className={styles.wrap} aria-label={campaign.publicName} data-dfl-campaign-banner="true">
-   {campaign.destination==="none"?<div className={styles.media}>{image}</div>:<button type="button" className={styles.media} onClick={activate} aria-label={`${campaign.cta||"Ver campanha"}: ${campaign.publicName}`}>{image}</button>}
+ return <section className={styles.wrap} aria-label={campaign.publicName} data-dfl-campaign-banner="true" data-collapsed={collapsed?"true":"false"}>
+   {!collapsed && (campaign.destination==="none"?<div className={styles.media}>{image}</div>:<button type="button" className={styles.media} onClick={activate} aria-label={`${campaign.cta||"Ver campanha"}: ${campaign.publicName}`}>{image}</button>)}
    <div className={styles.caption}>
      <div><span><Sparkles size={15} aria-hidden="true"/>{campaign.slogan||campaign.publicName}</span></div>
-     {campaign.destination!=="none"&&<button type="button" onClick={activate}>{campaign.cta||"Ver ofertas"}<ArrowRight size={17}/></button>}
+     <div className={styles.captionActions}><button type="button" className={styles.collapseToggle} aria-expanded={!collapsed} onClick={()=>setCollapsed(v=>!v)}>{collapsed?"Mostrar arte":"Recolher arte"}</button>{campaign.destination!=="none"&&<button type="button" onClick={activate}>{campaign.cta||"Ver ofertas"}<ArrowRight size={17}/></button>}</div>
    </div>
  </section>;
 }

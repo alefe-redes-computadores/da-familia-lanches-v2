@@ -30,6 +30,8 @@ export function Header() {
   const [guestIdentity, setGuestIdentity] = useState<GuestIdentity | null>(null);
   const [guestOrderCount,setGuestOrderCount]=useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+  // R77: manter o input compacto montado enquanto o teclado Android esta aberto.
+  const compactSearchEditingRef = useRef(false);
   useEffect(() => { setShowMenu(false); }, [pathname]);
   useEffect(() => {
     if (!showMenu) return;
@@ -51,7 +53,7 @@ export function Header() {
     let lastCompact: boolean | null = null;
     const update = () => {
       frame = 0;
-      const next = window.scrollY > 120;
+      const next = window.scrollY > 120 || compactSearchEditingRef.current;
       if (next !== lastCompact) {
         lastCompact = next;
         setCompact(next);
@@ -96,6 +98,15 @@ export function Header() {
   const totalItems = items.reduce((total, item) => total + (item.quantity || 0), 0);
   const userName = profile?.name?.split(" ")[0] || currentUser?.displayName?.split(" ")[0] || currentUser?.email?.split("@")[0] || "Conta";
   const initials = userName.slice(0, 1).toUpperCase();
+  // R77: exibir proxima abertura / fechamento com dados reais do expediente.
+  const operationLabel=shopStatus.mode==="test_open" ? "Em manutenção"
+    : shopStatus.mode==="force_closed" ? "Pausa temporária"
+    : shopStatus.isOpen ? (shopStatus.nextCloseLabel ? `Fecha ${shopStatus.nextCloseLabel}` : "Aberto agora")
+    : shopStatus.nextOpenLabel ? `Abre ${shopStatus.nextOpenLabel}`
+    : shopStatus.source==="exception" ? "Fechado excepcionalmente" : "Fechado agora";
+  const operationAccessible=shopStatus.mode==="test_open" ? "Loja em manutenção"
+    : shopStatus.mode==="force_closed" ? "Loja temporariamente pausada"
+    : `${shopStatus.isOpen ? "Loja aberta" : "Loja fechada"}. ${operationLabel}`;
   const goHome = () => { if (pathname === "/") window.scrollTo({ top: 0, behavior: "smooth" }); else router.push("/"); };
 
   return (
@@ -103,16 +114,16 @@ export function Header() {
       <AndroidUpdateNotice app="cliente" />
       <button className={styles.brandBlock} type="button" onClick={goHome} aria-label="Ir para o início do cardápio">
         <strong className={styles.logo}>Da Família <span>Lanches</span></strong>
-        <span className={styles.status}>
-          <i className={shopStatus.isOpen ? styles.open : styles.closed} />
-          <span>{shopStatus.isOpen ? "Aberto agora" : shopStatus.mode === "test_open" ? "Agendamento disponível" : "Fechado agora"}</span>
+        <span className={styles.status} aria-label={operationAccessible}>
+          <i className={shopStatus.mode==="test_open" ? styles.maintenance : shopStatus.isOpen ? styles.open : styles.closed} aria-hidden="true" />
+          <span>{operationLabel}</span>
         </span>
       </button>
 
       {compact && pathname === "/" && (
         <label className={styles.compactSearch}>
           <Search size={17} aria-hidden="true" />
-          <input value={catalogSearch} onChange={(event) => updateCatalogSearch(event.target.value)} placeholder="Buscar no cardápio" aria-label="Buscar no cardápio" />
+          <input data-dfl-compact-search="true" type="search" inputMode="search" value={catalogSearch} onFocus={() => { compactSearchEditingRef.current = true; setCompact(true); }} onBlur={() => { compactSearchEditingRef.current = false; setCompact(window.scrollY > 120); }} onChange={(event) => updateCatalogSearch(event.target.value)} placeholder="Buscar no cardápio" aria-label="Buscar no cardápio" />
           {catalogSearch && <button type="button" onClick={() => updateCatalogSearch("")} aria-label="Limpar busca"><X size={15}/></button>}
         </label>
       )}

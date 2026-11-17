@@ -145,9 +145,18 @@ export function DFLAssistOffers({ onFindProduct, onOpenProduct }: Props) {
             <small className={styles.r91AssistDiscount}>De {currency(product.oldPrice)} · economia de {currency(product.oldPrice - product.price)}</small>}
           {/* DFL-R90-COMBO-AUDIT: nunca apresentar componente ausente como confirmado. */}
           {Boolean(product.bundleItems?.length) && product.bundleItems!.every((component) => Number.isInteger(component.quantity) && component.quantity > 0 && (productLookup.get(component.productId)?.disponivel !== false && productLookup.has(component.productId))) &&
-            <details className={styles.assistComposition}><summary>Ver composição</summary><small className={styles.r90AssistComposition}>
-              Composição cadastrada: {product.bundleItems!.slice(0, 3).map((component) => `${component.quantity}× ${productLookup.get(component.productId)?.name ?? ""}`).join(" · ")}{product.bundleItems!.length > 3 ? ` · +${product.bundleItems!.length - 3} item(ns)` : ""}. Confira os ingredientes na página do produto.
-            </small></details>}</div>
+            <details className={styles.assistComposition}><summary>Ver ingredientes de cada item</summary>
+              <ul className={styles.r77BundleParts}>
+                {product.bundleItems!.map((component,index)=>{
+                  const item=productLookup.get(component.productId);
+                  return <li key={`${component.productId}-${index}`}><strong>{component.quantity}× {item?.name ?? "Item não identificado"}</strong>
+                    <span>{item?.detailsItems?.filter(Boolean).join(" · ") || item?.description?.trim() || "Ingredientes não detalhados no cadastro."}</span>
+                  </li>;
+                })}
+              </ul>
+              {product.includedExtras && <p className={styles.r77BundleExtras}>Acompanha: {product.includedExtras}</p>}
+              <p className={styles.r90AssistComposition}>Descrições cadastradas no cardápio. Confira alterações e adicionais no detalhe do produto.</p>
+            </details>}</div>
         <button type="button" onClick={()=>onOpenProduct(product)} aria-label={`Abrir detalhes de ${product.name}`}>Ver <span className={styles.offerButtonLabel}>produto</span></button>
       </li>)}</ul>{offers.length > 2 && <button type="button" aria-expanded={showAllOffers}
         onClick={()=>setShowAllOffers(value=>!value)}

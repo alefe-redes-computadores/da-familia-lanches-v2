@@ -456,3 +456,29 @@
  .page .promoShowcaseHead h2{font-size:18px;line-height:1.18}
  .page .r104OffersHint{font-size:11px;line-height:1.35}
 }
+
+/* R77 — vitrine escura aprovada como identidade DFL, sem alterar produtos/precos. */
+.page .promoShowcase{background:radial-gradient(circle at 100% 0%,rgba(249,205,100,.13),transparent 45%),linear-gradient(145deg,#24211c,#141516);border:1px solid rgba(248,216,141,.19);color:#faf6ef;box-shadow:0 8px 25px rgba(13,10,8,.13)}
+.page .promoShowcaseHead span{color:#d9b46a}
+.page .promoShowcaseHead h2{color:#f9f7f2}
+.page .allOffersButton{color:#f7eed9;background:#30291f;border:1px solid rgba(246,207,121,.25);box-shadow:none}
+.page .r104OffersPreview{scrollbar-width:none;scroll-padding-inline:8px;scroll-snap-type:x mandatory;overscroll-behavior-inline:contain;gap:10px;padding:4px 8px 9px 3px}
+.page .r104OffersPreview::-webkit-scrollbar{display:none}
+.page .r104OfferCard{background:linear-gradient(150deg,#292724,#1c1d1c);color:#fff9ef;border:1px solid rgba(252,226,157,.13);border-radius:17px;box-shadow:0 5px 15px rgba(0,0,0,.14)}
+.page .r104OfferName{color:#f7f4ec}
+.page .r104OfferPrices b{color:#ffe099}
+.page .r104OfferPrices s{color:#acaaa5}
+.page .r104OfferBadge{background:rgba(248,199,70,.13);border:1px solid rgba(246,198,76,.24);color:#ffdb88}
+.page .r104OfferContent>small,.page .r104OffersHint{color:#ccc5b8}
+.page .r104OfferImage{background:#181716;border-radius:13px}
+.page .r104OfferCard:focus-visible,.page .allOffersButton:focus-visible{outline:2px solid #e5b858;outline-offset:2px}
+/* Busca: nao criar nova animacao; a digitacao progressiva ja existe no React. */
+.page .searchBox:focus-within{outline:2px solid rgba(248,230,180,.6);outline-offset:2px;box-shadow:0 11px 27px rgba(0,0,0,.18)}
+.page .searchPreview{max-height:min(44dvh,330px);overflow-y:auto;overscroll-behavior:contain}
+/* Expediente compacto; manter agendamento e mensagem real do servidor. */
+.page .closedNotice{display:flex;align-items:center;justify-content:space-between;gap:7px 14px;padding:9px 12px;margin:4px 0 10px;border-radius:13px;flex-wrap:wrap;box-shadow:none}
+.page .closedNotice strong{font-size:12px;line-height:1.35}
+.page .closedNotice span{font-size:11px;line-height:1.35}
+@media(max-width:699px){.page .r104OfferCardPreview{flex:0 0 min(82vw,320px);min-height:126px;scroll-snap-align:start}.page .r104OfferImage{flex-basis:100px;width:100px;min-height:104px}.page .promoShowcase{padding:13px 12px}.page .promoShowcaseHead{gap:8px}.page .r104OffersHint{margin-top:2px}.page .closedNotice{display:block}.page .closedNotice span{display:block;margin-top:2px}}
+@media(max-width:360px){.page .r104OfferCardPreview{flex-basis:calc(100% - 20px)}.page .r104OfferImage{flex-basis:90px;width:90px}}
+@media(prefers-reduced-motion:reduce){.page .r104OfferCard{transition:none}}
