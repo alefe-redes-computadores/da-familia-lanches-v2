@@ -24,12 +24,12 @@ r=inspectCheckoutReadiness({...base,name:'',phone:'1'});assert.equal(r.next.id,'
 const checkout=read('src/components/ui/CheckoutModal.tsx');
 const css=read('src/components/ui/CheckoutModal.module.css');
 const streets=read('src/components/ui/StreetSuggestions.tsx');
-assert(checkout.includes('inspectCheckoutReadiness')&&checkout.includes('readiness.items.map(item'));
-assert(checkout.includes('styles.checkoutReadiness')&&css.includes('DFL-R34-CHECKOUT-ASSISTED'));
+assert(checkout.includes('inspectCheckoutReadiness')&&checkout.includes('readiness.next.hint')&&checkout.includes('onClick={focusNextCheckoutField}'));
+assert(checkout.includes('styles.r55CheckoutHint')&&css.includes('DFL-R34-CHECKOUT-ASSISTED'));
 assert(checkout.includes('void calculateDeliveryFee(bairro)')&&checkout.includes('styles.addressHelpActions'));
 assert(checkout.includes('businessWhatsAppUrl("Olá! Preciso de ajuda para identificar meu bairro'));
 assert(!checkout.includes('openModal("checkout-help-order")'));
-assert(checkout.includes('const finishOrder = async () =>')&&checkout.includes('orderAttemptRef'));
+assert(checkout.includes('const finishOrder = async (consentChoice: boolean) =>')&&checkout.includes('orderAttemptRef'));
 assert(checkout.includes('canOfferManualOrderFallback(code)')&&checkout.includes('orderOutcomeUncertain'));
 assert(checkout.includes('const canAdvance = nameReady && phoneReady && addressReady && items.length > 0'));
 assert(streets.includes('if (!enabled) return null')&&streets.includes('Nenhuma rua confirmada na busca'));

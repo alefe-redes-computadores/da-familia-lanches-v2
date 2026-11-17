@@ -10,7 +10,7 @@ import { useCatalog } from "@/hooks/useCatalog";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { remainingUpsellUnits } from "@/lib/upsellEntitlement";
 import { canRestoreClearedCart } from "@/lib/cartRestoreSafety";
-import { Trash2 } from "lucide-react";
+import { Trash2, ShoppingCart } from "lucide-react";
 import styles from "./CartModal.module.css";
 import { haptic } from "@/lib/haptics";
 import { CartPromotionInsight } from "@/components/ui/CartPromotionInsight";
@@ -217,7 +217,7 @@ export function CartModal() {
           <button type="button" onClick={applyCatalogReview}>Conferi, atualizar meu pedido</button>
         </section>}
         {items.length === 0 ? (
-          <div className={styles.empty}><span>🛒</span><strong>Seu carrinho está vazio</strong><p>Escolha seus favoritos e volte aqui para finalizar.</p><button type="button" onClick={closeModal}>Explorar cardápio</button></div>
+          <div className={styles.empty}><ShoppingCart size={40} strokeWidth={1.7} aria-hidden="true"/><strong>Seu carrinho está vazio</strong><p>Escolha seus favoritos e volte aqui para finalizar.</p><button type="button" onClick={closeModal}>Explorar cardápio</button></div>
         ) : <>
           <div className={styles.items}>{items.map((item) => <article className={styles.item} key={item.cartId}>
             <div className={styles.itemMedia}>{item.image ? <CatalogImage src={item.image} alt="" sizes="(max-width: 420px) 64px, 76px" quality={65}/> : <span aria-hidden="true">DFL</span>}</div>

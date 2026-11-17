@@ -931,3 +931,21 @@
  .body .profileHint span{font-size:10px}
  .body .stack{gap:10px}
 }
+
+/* R77 P2 — revisão real dos itens: leitura compacta, nenhuma alteração comercial. */
+.r77ItemsReview{display:grid;gap:11px;padding:14px;border:1px solid #e4d8c3;border-radius:16px;background:#fff;color:#201e19}
+.r77ItemsReviewHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.r77ItemsReviewHead>div{display:grid;gap:3px;min-width:0}
+.r77ItemsReviewHead span{font-size:9px;font-weight:900;letter-spacing:.08em;color:#8d6c28}
+.r77ItemsReviewHead strong{font-size:16px;line-height:1.2;color:#242017}
+.r77ItemsReviewHead button{flex-shrink:0;min-height:44px;padding:9px 12px;border:1px solid #e7d8ba;border-radius:11px;background:#fff9ea;color:#624410;font-size:12px;font-weight:850;cursor:pointer}
+.r77ItemsReviewHead button:disabled{opacity:.55;cursor:not-allowed}
+.r77ItemsReviewList{margin:0;padding:0;display:grid;gap:0;list-style:none}
+.r77ItemsReviewList li{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid #f1ece2}
+.r77ItemsReviewCopy{min-width:0;display:grid;gap:4px;overflow-wrap:anywhere}
+.r77ItemsReviewCopy strong{font-size:12px;line-height:1.4}
+.r77ItemsReviewCopy small{font-size:11px;color:#6d6558;line-height:1.4}
+.r77ItemsReviewList li>b{flex-shrink:0;font-size:12px;line-height:1.4;font-weight:900;font-variant-numeric:tabular-nums}
+.r77ItemsReview>small{font-size:11px;color:#726d63;line-height:1.4}
+.r77ItemsReview button:focus-visible{outline:3px solid #b88320;outline-offset:2px}
+@media(max-width:420px){.r77ItemsReview{padding:12px;gap:9px}.r77ItemsReviewHead strong{font-size:15px}.r77ItemsReviewList li>b{font-size:11px}}

@@ -141,6 +141,12 @@ export function MobileDrawerMenu() {
             <div><span>{currentUser ? `Olá, ${firstName}` : guestSummary.firstName ? `Olá, ${guestSummary.firstName}` : "Bem-vindo"}</span><strong>{currentUser ? "Tudo pronto para pedir de novo." : guestSummary.count ? `${guestSummary.count} pedido(s) salvo(s) neste aparelho.` : "Você pode pedir sem criar conta."}</strong></div>
             <i data-open={shopStatus.isOpen}>{shopStatus.isOpen ? "ABERTO" : shopStatus.mode === "test_open" ? "AGENDAMENTO" : "FECHADO"}</i>
           </div>
+          <small className={styles.r77OperationInfo}>
+            {shopStatus.mode === "test_open" ? "Em manutenção · Consulte os horários de agendamento" :
+              shopStatus.mode === "force_closed" ? "Pausa temporária · Aguarde a reabertura" :
+              shopStatus.isOpen ? (shopStatus.nextCloseLabel ? `Fecha ${shopStatus.nextCloseLabel}` : "Aberto agora") :
+              (shopStatus.nextOpenLabel ? `Abre ${shopStatus.nextOpenLabel}` : "Fechado agora")}
+          </small>
           {!currentUser && guestSummary.count > 0 && <small className={styles.guestLocalHint}>Histórico deste aparelho. Entre para sincronizar em outros dispositivos.</small>}
           {!currentUser && <button type="button" onClick={() => modal("account")}>Entrar com Google <b>›</b></button>}
         </section>
@@ -156,7 +162,7 @@ export function MobileDrawerMenu() {
           <button type="button" onClick={() => { closeModal(); window.dispatchEvent(new Event("dfl:assist-open")); }}><Bot size={21} aria-hidden="true" /><span>DFL Assist</span></button>
           <button type="button" onClick={() => modal("account")}><Icon name="user" /><span>{currentUser ? "Minha conta" : "Entrar"}</span></button>
           <button type="button" onClick={share}><Icon name="share" /><span>{shared === "copied" ? "Link copiado" : shared === "shared" ? "Compartilhado" : shared === "failed" ? "Tente novamente" : "Compartilhar"}</span></button>
-          <a href={businessWhatsAppUrl("Olá! Preciso de ajuda com um pedido no site.")} target="_blank" rel="noreferrer"><Icon name="chat" /><span>Ajuda</span></a>
+          <a href={businessWhatsAppUrl("Olá! Preciso de ajuda com um pedido no site.")} onClick={closeModal} target="_blank" rel="noopener noreferrer"><Icon name="chat" /><span>Ajuda</span></a>
         </div>
 
         <footer><span>Pedido direto, sem taxa de aplicativo.</span><small>Da Família Lanches · Patos de Minas</small></footer>

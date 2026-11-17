@@ -37,3 +37,6 @@
 .actionGrid button,.utility button,.utility a{touch-action:manipulation}
 .utility span{overflow-wrap:anywhere}
 @media(max-width:355px){.welcomeTop{flex-wrap:wrap}.welcomeTop i{font-size:9px}.actionGrid b{font-size:11px}}
+
+/* R77 P2 — horario contextual no menu, reaproveitando status oficial. */
+.r77OperationInfo{display:block;margin-top:9px;padding:9px 11px;border:1px solid rgba(255,202,40,.16);border-radius:10px;background:rgba(255,202,40,.045);color:#ded4bd;font-size:11px;line-height:1.4;font-weight:750;overflow-wrap:anywhere}

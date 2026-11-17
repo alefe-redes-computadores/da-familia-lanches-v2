@@ -1446,6 +1446,23 @@ export function CheckoutModal() {
               {orderOutcomeUncertain && <button type="button" onClick={() => openModal("orders")}>Conferir Meus Pedidos</button>}
             </section>
             <section className={styles.receiveCard}><div><strong>{customerName || (isPickup ? "Retirada no balcão" : "Entrega no endereço")}</strong><span>{isPickup ? "Retirada no balcão · sem taxa de entrega" : `${rua}, ${numero} - ${bairro}${complemento ? ` · ${complemento}` : ""}${referencia ? ` · Ref.: ${referencia}` : ""}`}</span><small>{userPhone}</small></div><button type="button" onClick={() => setStep(1)}>Editar</button></section>
+            <section className={styles.r77ItemsReview} aria-labelledby="r77-checkout-items-title">
+              <div className={styles.r77ItemsReviewHead}>
+                <div><span>CONFIRA SUA ESCOLHA</span><strong id="r77-checkout-items-title">Itens do pedido</strong></div>
+                <button type="button" onClick={() => openModal("cart")} disabled={loading}>Editar itens</button>
+              </div>
+              <ul className={styles.r77ItemsReviewList}>
+                {items.map((item) => <li key={item.cartId}>
+                  <div className={styles.r77ItemsReviewCopy}>
+                    <strong>{item.quantity}× {item.name}</strong>
+                    {Boolean(item.selectedAddons?.length) && <small>Adicionais: {(item.selectedAddons ?? []).map((addon) => addon.name).join(", ")}</small>}
+                    {Boolean(item.observation?.trim()) && <small>Observação: {item.observation?.trim()}</small>}
+                  </div>
+                  <b>{money(item.price * item.quantity)}</b>
+                </li>)}
+              </ul>
+              <small>Confira produtos, quantidades e adicionais antes de confirmar.</small>
+            </section>
             <details className={styles.r63CouponDisclosure}>
               <summary>Tem cupom ou benefício? <span>Adicionar código</span></summary>
             <section className={styles.card}><div className={styles.cardTitle}><div><strong>Cupom ou benefício</strong><span>Você também pode usar aqui um código liberado pela fidelidade.</span></div></div><div className={styles.inline}><input className={styles.input} placeholder="Código do cupom" aria-label="Código do cupom ou benefício" value={couponCode} maxLength={32} autoComplete="off" autoCapitalize="characters" spellCheck={false} onChange={(event) => changeCouponCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void applyCoupon(); } }}/><button className={styles.yellowButton} type="button" onClick={() => void applyCoupon()} disabled={loading || couponChecking || !couponCode.trim()}>{couponChecking ? "Verificando…" : "Aplicar"}</button></div>{couponMessage && <span className={safeDiscount > 0 ? styles.couponOk : styles.couponError} role={safeDiscount > 0 ? "status" : "alert"}>{couponMessage}</span>}</section>
