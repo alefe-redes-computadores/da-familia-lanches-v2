@@ -11,6 +11,8 @@ type ReverseEventType =
   | "delivery.position_changed"
   | "delivery.next_stop"
   | "delivery.pickup_ready"
+  | "delivery.kitchen_preparing"
+  | "delivery.kitchen_ready"
   | "delivery.completed"
   | "delivery.failed"
   | "route.started"
@@ -32,6 +34,8 @@ type ReversePayload = {
   nextStop?: boolean;
   previousStopCompleted?: boolean;
   completedAt?: string | null;
+  preparationStartedAt?: string | null;
+  preparationReadyAt?: string | null;
   failedReason?: string | null;
   recoveryReplay?: boolean;
 };
@@ -46,6 +50,8 @@ const SUPPORTED = new Set<ReverseEventType>([
   "delivery.position_changed",
   "delivery.next_stop",
   "delivery.pickup_ready",
+  "delivery.kitchen_preparing",
+  "delivery.kitchen_ready",
   "delivery.completed",
   "delivery.failed",
   "route.started",
@@ -66,6 +72,8 @@ function projectionDecision(
   before: CommercialStatus,
   target: CommercialStatus | null,
   pickup: boolean,
+  isKitchenStage = false,
+  kitchenHasPreparationEvidence = false,
 ) {
   if (
     !target ||
@@ -74,6 +82,18 @@ function projectionDecision(
     target === before
   ) {
     return { apply: false, deferred: false, reason: "not_applicable" as const };
+  }
+
+  // R82: preparo e pronto do Entregas sao provas EXPLICITAS de cozinha,
+  // jamais inferidas pela alocacao/inicio da rota. Status sempre avanca.
+  if (isKitchenStage) {
+    if (pickup) return {apply:false,deferred:false,reason:"kitchen_pickup_uses_existing_ready_flow" as const};
+    if (target === "Em Produção" && (before === "Pendente" || before === "Agendado"))
+      return {apply:true,deferred:false,reason:"kitchen_preparing" as const};
+    if (target === "Pronto" && (before === "Em Produção" ||
+        (kitchenHasPreparationEvidence && (before === "Pendente" || before === "Agendado"))))
+      return {apply:true,deferred:false,reason:"kitchen_ready" as const};
+    return {apply:false,deferred:false,reason:"kitchen_already_advanced_or_missing_evidence" as const};
   }
 
   // V85: retirada não percorre a etapa "Saiu para Entrega".
@@ -151,6 +171,8 @@ function projectedStatus(type: ReverseEventType): CommercialStatus | null {
   // Somente o evento explícito da própria entrega cruza essa fronteira.
   if (type === "delivery.out_for_delivery") return "Saiu para Entrega";
   if (type === "delivery.pickup_ready") return "Pronto";
+  if (type === "delivery.kitchen_preparing") return "Em Produção";
+  if (type === "delivery.kitchen_ready") return "Pronto";
   if (type === "delivery.completed") return "Finalizado";
   return null;
 }
@@ -168,6 +190,16 @@ export function assertReverseIntegrationEvent(
   if (!nonEmpty(p.externalOrderId)) throw new Error("externalOrderId ausente.");
   if (p.externalOrderSource !== "dfl_site") throw new Error("externalOrderSource inválido.");
   if (!nonEmpty(p.deliveryId)) throw new Error("deliveryId ausente.");
+  // A etapa deve coincidir exatamente com a data gravada pelo Entregas.
+  if (event.event_type === "delivery.kitchen_preparing" || event.event_type === "delivery.kitchen_ready") {
+    const proof = event.event_type === "delivery.kitchen_preparing" ? p.preparationStartedAt : p.preparationReadyAt;
+    if (typeof proof !== "string" || !Number.isFinite(Date.parse(proof)) || proof !== event.occurred_at)
+      throw new Error("Etapa de cozinha sem prova persistida compativel.");
+    if (event.event_type === "delivery.kitchen_ready" && p.preparationStartedAt != null &&
+        (typeof p.preparationStartedAt !== "string" || !Number.isFinite(Date.parse(p.preparationStartedAt)) ||
+        Date.parse(p.preparationStartedAt) > Date.parse(proof)))
+      throw new Error("Ordem temporal da cozinha invalida.");
+  }
   if (!optionalCount(p.stopPosition) || !optionalCount(p.stopsAhead) || !optionalCount(p.totalStops)) {
     throw new Error("Contadores de parada inválidos.");
   }
@@ -233,12 +265,19 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       order.deliveryTrackingEvent === "delivery.completed";
     const trackingResurrection =
       operationalAlreadyCompleted && event.event_type !== "delivery.completed";
-    const wins = winsByClock && !trackingResurrection;
+    const isKitchenStage = event.event_type === "delivery.kitchen_preparing" ||
+      event.event_type === "delivery.kitchen_ready";
+    // O relogio de rastreamento e o da cozinha sao distintos: um evento de
+    // preparo atrasado nao pode apagar a localizacao ou ressuscitar pedido.
+    const wins = isKitchenStage ? !operationalAlreadyCompleted : (winsByClock && !trackingResurrection);
 
     const beforeStatus = commercialStatus(order.status);
     const targetStatus = wins ? projectedStatus(event.event_type) : null;
     const pickup = order.tipoEntrega === "pickup";
-    const projection = projectionDecision(beforeStatus, targetStatus, pickup);
+    const p = event.payload;
+    const prepProof = typeof p.preparationStartedAt === "string" && Number.isFinite(Date.parse(p.preparationStartedAt)) &&
+      Date.parse(p.preparationStartedAt) <= incoming.time;
+    const projection = projectionDecision(beforeStatus, targetStatus, pickup, isKitchenStage, prepProof);
     const statusChanged = projection.apply;
     const projectionDeferred = Boolean(wins && projection.deferred);
 
@@ -267,9 +306,11 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       }
     }
 
-    if (wins) {
+    if (wins && (!isKitchenStage || statusChanged)) {
       const p = event.payload;
       tx.update(orderRef, {
+        // Etapa de cozinha nao e evento de posicao da entrega.
+        ...(isKitchenStage ? {} : {
         deliveryTrackingEvent: event.event_type,
         deliveryTrackingLastEventAt: incoming.iso,
         deliveryTrackingLastEventId: event.event_id,
@@ -297,11 +338,18 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
           statusChanged &&
           targetStatus === "Finalizado" &&
           projection.reason === "delivery_completed_catch_up",
+        }),
         ...(statusChanged && targetStatus ? {
           status: targetStatus,
           statusUpdatedAt: Timestamp.fromMillis(incoming.time),
           statusHistory: [
             ...(Array.isArray(order.statusHistory) ? order.statusHistory : []),
+            // Se o Site perdeu o preparo mas o evento "Pronto" contem prova
+            // de preparo anterior, recuperar apenas historico SILENCIOSO.
+            ...(isKitchenStage && targetStatus === "Pronto" && prepProof &&
+              (beforeStatus === "Pendente" || beforeStatus === "Agendado")
+              ? [{status:"Em Produção",at:Timestamp.fromMillis(Math.max(0,incoming.time-1)),
+                  source:"dfl_entregas",sourceEventId:event.event_id,silentCatchUp:true}] : []),
             ...(targetStatus === "Finalizado" && !pickup
               ? (() => {
                   const recovered: CommercialStatus[] = [];
@@ -365,20 +413,29 @@ export async function consumeDflEntregasEvent(event: ReverseIntegrationEvent) {
       // A primeira parada já nasce como nextStop=true no início da rota.
       // Projetamos uma única mensagem de proximidade em vez de mandar o aviso
       // genérico de saída e depender da conclusão de uma parada anterior.
-      const intentType = event.event_type === "delivery.out_for_delivery"
+      const intentType = isKitchenStage && statusChanged
+        ? "commercial_message"
+        : event.event_type === "delivery.out_for_delivery"
         ? (event.payload.nextStop === true ? "delivery_next_stop" : "delivery_started")
         : event.event_type === "delivery.next_stop" ? "delivery_next_stop"
         : event.event_type === "delivery.pickup_ready" && pickup && statusChanged ? "pickup_ready"
         : event.event_type === "delivery.completed" && !pickup ? "delivery_completed"
         : event.event_type === "delivery.failed" ? "delivery_failed"
         : null;
-      if (intentType && event.payload.recoveryReplay !== true) {
+      // Transicoes antigas ainda atualizam status, mas nao disparam mensagens
+      // retroativas. O worker continua verificando opt-in e status atual.
+      if (intentType && event.payload.recoveryReplay !== true &&
+          (!isKitchenStage || (Date.now() - incoming.time <= 10*60_000 && incoming.time <= Date.now()+30_000))) {
         const intentId = encodeURIComponent(`intent-v1__${event.event_id}`);
         messagingIntentDocId=intentId;
         tx.set(adminDb.collection("integration_notification_intents").doc(intentId), {
           intent_id: `intent-v1__${event.event_id}`,
           intent_type: intentType,
           ...(intentType === "pickup_ready" ? { messaging_event_type: "order.ready" } : {}),
+          ...(intentType === "commercial_message" ? {
+            messaging_event_type: event.event_type === "delivery.kitchen_preparing" ? "order.production" : "order.ready",
+            messaging_source: "site",
+          } : {}),
           source_event_id: event.event_id,
           source_event_type: event.event_type,
           order_id: event.payload.externalOrderId,
