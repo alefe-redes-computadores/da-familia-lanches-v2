@@ -89,3 +89,14 @@
 .body :is(button,select,summary):focus-visible{outline:3px solid #ffe099;outline-offset:3px}
 @media(max-width:480px){.body{padding:11px}.card{padding:13px}.statusBox{padding:12px}.step span{font-size:10px}.head{align-items:center}.total{font-size:16px}.tabs button{font-size:11.5px}.statusTitle{font-size:16px}}
 @media(max-width:350px){.timeline{gap:3px}.step span{font-size:9px}.total{font-size:14px}}
+
+/* R84: continuidade legível em Android estreito, sem ocultar pedido, status ou CTA. */
+@media(max-width:620px){
+  .card{min-width:0;max-width:100%;overflow-wrap:anywhere}
+  .statusTitle{display:flex;align-items:center;gap:3px;min-width:0;flex-wrap:wrap;font-size:16px}
+  .statusBox{min-width:0}
+  .timeline{min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;padding-bottom:7px}
+  .step{min-width:54px}
+  .head{min-width:0;flex-wrap:wrap;row-gap:5px}
+  .details summary{min-height:48px}
+}

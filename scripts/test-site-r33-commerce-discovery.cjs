@@ -7,7 +7,11 @@ const build=(code,name)=>{
   const out=ts.transpileModule(code,{fileName:name,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}});
   assert.equal((out.diagnostics||[]).filter(x=>x.category===ts.DiagnosticCategory.Error).length,0,name);
   const module={exports:{}};
-  new Function('module','exports',out.outputText)(module,module.exports);
+  const onlyApprovedImport = (specifier) => {
+    if(name === 'recommendation' && specifier === '@/lib/catalogSearchRecovery') return build(source,root);
+    throw new Error('R33 dependencia runtime inesperada: '+specifier);
+  };
+  new Function('module','exports','require',out.outputText)(module,module.exports,onlyApprovedImport);
   return module.exports;
 };
 const {suggestCatalogQueries}=build(source,root);

@@ -164,7 +164,9 @@ export default function Home() {
     const base = products.filter((product) => {
       if (product.disponivel === false) return false;
       if (!visibleCategories.has(product.category)) return false;
-      return activeCategory === "todos" || product.category === activeCategory;
+      // R84: termo buscado deve procurar no catálogo visível INTEIRO.
+      // O filtro por categoria só limita a navegação sem uma busca ativa.
+      return Boolean(term) || activeCategory === "todos" || product.category === activeCategory;
     });
     return term ? rankCatalogProducts(base, term) : base;
   }, [activeCategory, visibleCategoryIds, products, deferredSearch]);
