@@ -901,8 +901,9 @@ function AdminPageContent() {
             </button>
           </section>
         )}
+        {counts.attention > 0 && (
         <details className={styles.r55StatsDisclosure}>
-          <summary>Ver indicadores detalhados da operação</summary>
+          <summary>{counts.attention === 1 ? "1 alerta · ver indicadores detalhados" : `${counts.attention} alertas · ver indicadores detalhados`}</summary>
         <section className={styles.overviewGrid} aria-label="Visão geral da operação">
           <button
             type="button"
@@ -953,6 +954,7 @@ function AdminPageContent() {
           </button>
         </section>
         </details>
+        )}
         </>}
 
         <section className={styles.operationBar}>

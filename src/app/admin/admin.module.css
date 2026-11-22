@@ -2856,3 +2856,14 @@
  .workspace[data-r37-stage] .r64ManagementTools button{padding-inline:7px;font-size:11px}
 }
 @media(prefers-reduced-motion:reduce){.workspace[data-r37-stage] :is(.r64ManagementToggle,.r64ManagementTools button){transition:none!important;animation:none!important}}
+
+/* R83 P1: melhorias mobile sem esconder ações nem alterar a densidade comercial. */
+.workspace[data-r37-stage] .r55StatsDisclosure[open]>.overviewGrid { display:grid; }
+.workspace[data-r37-stage] .r55StatsDisclosure[open]>summary { color:#ffe08b; }
+.workspace[data-r37-stage] .r55StatsDisclosure>summary { touch-action:manipulation; }
+@media(max-width:820px) {
+  .workspace[data-r37-stage] .operationHeroStats button { min-height:48px; }
+  .workspace[data-r37-stage] .r55StatsDisclosure>summary { min-height:46px; font-size:12px; }
+  .workspace[data-r37-stage] .r55StatsDisclosure .metricCard { min-height:96px!important; }
+  .workspace[data-r37-stage] .r55StatsDisclosure .metricCard>strong { white-space:normal; line-height:1.25; overflow-wrap:anywhere; }
+}

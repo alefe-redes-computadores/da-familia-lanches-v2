@@ -40,6 +40,13 @@ ok(x.admin.includes('<details className={styles.r55StatsDisclosure}>')&&x.admin.
 ok(x.admin.includes('<OrderCard')&&x.admin.includes('AdminQuickSwitcher'),'pedidos e navegacao mantidos');
 ok(x.adminCss.includes('r55StatsDisclosure')&&x.adminCss.includes('@media(min-width:821px)'),'admin condensado desktop');
 ok(x.toast.includes('.host{top:calc(72px')&&x.toast.includes('bottom:auto!important'),'toast deixa CTA inferior livre');
-ok(x.header.includes('Agendamento disponível')&&x.drawer.includes('AGENDAMENTO'),'mensagem amigavel loja em modo teste');
+ok(
+  x.header.includes('shopStatus.mode==="test_open" ? "Em manutenção"') &&
+  x.header.includes('shopStatus.mode==="test_open" ? "Loja em manutenção"') &&
+  x.header.includes('shopStatus.nextOpenLabel') &&
+  x.drawer.includes('shopStatus.mode === "test_open" ? "AGENDAMENTO"') &&
+  x.drawer.includes('shopStatus.mode === "test_open" ? "Em manutenção · Consulte os horários de agendamento"'),
+  'modo teste distingue manutenção no cabeçalho, agendamento no menu e horários reais'
+);
 ok(x.checkoutCss.includes('.r55ScheduleReveal')&&x.checkoutCss.includes('.r55CheckoutHint'),'estilos do checkout progressivo');
 console.log(`R55 SITE: ${checks} contratos locais aprovados; sem rede e sem pedidos reais.`);

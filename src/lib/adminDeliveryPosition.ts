@@ -19,12 +19,20 @@ export function adminDeliveryPosition(order: Record<string, unknown>): AdminDeli
   if(order.deliveryOperationalCompleted === true || order.deliveryTrackingEvent === 'delivery.completed')
     return {kind:'completed',label:'Entrega concluída',verified:true,stopsAhead:null};
   const event = order.deliveryTrackingEvent;
-  if(!startedEvent(event)) {
-    return {kind:'waiting',label:'Rota vinculada · posição aguardando saída',verified:false,stopsAhead:null};
-  }
-  const ahead = pendingCount(order.deliveryStopsAhead);
+  // R83: o Admin pode mostrar a ordem *prevista* antes da partida real,
+  // mas nunca converte previsao em proxima parada confirmada do cliente.
+  // Posicao sempre se refere a parada fisica e depende de total valido.
   const total = positiveCount(order.deliveryTotalStops);
   const position = positiveCount(order.deliveryStopPosition);
+  if(!startedEvent(event)) {
+    const assigned=event==='delivery.assigned' && Boolean(order.deliveryRouteId);
+    const planned=assigned && total!==null && position!==null && position<=total;
+    return {kind:'waiting',
+      label:planned ? `Posição prevista: ${position}ª de ${total} paradas · saída não iniciada` :
+        'Rota vinculada · posição aguardando saída',
+      verified:false,stopsAhead:null};
+  }
+  const ahead = pendingCount(order.deliveryStopsAhead);
   // A number is only useful while the route is active. A missing, contradictory
   // or out-of-bounds position MUST NOT look like a verified zero.
   if(ahead === null || total === null || ahead >= total || (position !== null && position > total)) {
